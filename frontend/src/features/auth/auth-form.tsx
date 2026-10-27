@@ -284,7 +284,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 }
                 rules={[
                   { required: mode !== "invitation", message: "请填写密码" },
-                  { min: 8, max: 128, message: "密码需为 8 至 128 位" },
+                  // 登录只校验输入边界；账号密码的创建强度由注册、重置和服务端分别约束。
+                  ...(mode === "login"
+                    ? [{ max: 128, message: "密码最多 128 位" }]
+                    : [{ min: 8, max: 128, message: "密码需为 8 至 128 位" }]),
                 ]}
                 extra={
                   mode === "invitation" ? "新邮箱需要设置密码；已有账号密码保持不变。" : undefined
