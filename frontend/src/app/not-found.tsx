@@ -1,17 +1,30 @@
-/** 文件作用说明：为不存在的网页提供明确提示与返回入口。 */
-import { Result, Button } from "antd";
-/** NotFound 提示未知页面并引导返回官网。 */
+/** 文件作用说明：按明亮错误页设计图提供明确的未知地址提示和返回官网、工作台的入口。 */
+import { Button } from "antd";
+import { Brand } from "@/components/brand";
+/** NotFound 以清晰的文字层级说明未知地址并提供有效导航。 */
 export default function NotFound() {
   return (
-    <Result
-      status="404"
-      title="这个页面还没有找到"
-      subTitle="请检查链接，或者回到首页重新开始。"
-      extra={
-        <Button type="primary" href="/">
-          返回首页
-        </Button>
-      }
-    />
+    <section className="public-error-page" aria-labelledby="public-error-title">
+      <header>
+        <Brand />
+      </header>
+      <div className="public-error-content">
+        <span className="public-kicker">页面未找到</span>
+        <div className="public-error-code" aria-hidden="true">
+          404
+        </div>
+        <h1 id="public-error-title">这个页面暂时找不到了。</h1>
+        <p>链接可能已失效，或地址输入有误。你可以返回首页，继续了解 GoodChat。</p>
+        <div className="public-hero-actions">
+          <Button type="primary" size="large" href="/">
+            返回官网
+          </Button>
+          <Button size="large" href="/console">
+            前往工作台
+          </Button>
+        </div>
+      </div>
+      <footer>GoodChat · 把咨询接起来，把服务做好。</footer>
+    </section>
   );
 }

@@ -107,8 +107,9 @@ export function LeadNotifications() {
     }
   }
   return (
-    <>
+    <section className="studio-lead-notifications">
       <Card
+        className="studio-mail-settings"
         style={{ maxWidth: 800, marginBottom: 20 }}
         title={
           <>
@@ -128,7 +129,7 @@ export function LeadNotifications() {
         />
         <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
         <Form form={form} layout="vertical" onFinish={save}>
-          <Form.Item name="version" hidden>
+          <Form.Item name="version" hidden style={{ display: "none" }}>
             <InputNumber />
           </Form.Item>
           <Form.Item name="enabled" label="为新留言建立提醒任务" valuePropName="checked">
@@ -154,7 +155,7 @@ export function LeadNotifications() {
           </Button>
         </Form>
       </Card>
-      <div className="table-card">
+      <div className="table-card studio-table-surface">
         <Space style={{ marginBottom: 12 }}>
           <strong>真实通知记录</strong>
           <Button onClick={jobs.reload}>刷新记录</Button>
@@ -209,7 +210,13 @@ export function LeadNotifications() {
           ]}
         />
       </div>
-      <Drawer title="通知尝试记录" open={!!selected} onClose={() => setSelected(null)} width={650}>
+      <Drawer
+        rootClassName="studio-drawer"
+        title="通知尝试记录"
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        width={650}
+      >
         <p className="muted">记录的是发送适配器的受理分类，不是收件箱回执。</p>
         <Table
           rowKey={(item) => String(item.attempt)}
@@ -234,6 +241,6 @@ export function LeadNotifications() {
           ]}
         />
       </Drawer>
-    </>
+    </section>
   );
 }

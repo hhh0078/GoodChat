@@ -11,20 +11,25 @@ export function Providers({ children }: { children: ReactNode }) {
       locale={zhCN}
       theme={{
         token: {
-          colorPrimary: "#23684e",
-          colorInfo: "#23684e",
-          colorText: "#21342c",
-          colorTextSecondary: "#68776e",
-          colorBgLayout: "#f4f6f2",
-          borderRadius: 10,
+          colorPrimary: "#3c7958",
+          colorInfo: "#3c7958",
+          colorText: "#26332c",
+          colorTextSecondary: "#657269",
+          colorBgLayout: "#f4f5f3",
+          colorBorder: "#d8ded8",
+          colorPrimaryBg: "#eef2ed",
+          colorInfoBg: "#f5f7f3",
+          colorInfoBorder: "#d8ded8",
+          borderRadius: 6,
           fontFamily:
             "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif",
-          controlHeight: 38,
+          controlHeight: 36,
         },
         components: {
           Button: { primaryShadow: "none" },
-          Table: { headerBg: "#f5f7f3" },
+          Table: { headerBg: "#f5f6f4" },
           Card: { paddingLG: 24 },
+          Menu: { itemSelectedBg: "#eef2ed", itemSelectedColor: "#3c7958" },
         },
       }}
     >

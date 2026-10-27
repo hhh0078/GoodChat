@@ -1,10 +1,10 @@
-/** 文件作用说明：提供可索引的 GoodChat 官网首页，介绍客服接待与自主装修能力。 */
+/** 文件作用说明：按明亮品牌设计图展示 GoodChat 免费客服定位、真实产品能力与可索引的注册入口。 */
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Button } from "antd";
 import {
   ArrowRightOutlined,
   ApartmentOutlined,
-  CheckOutlined,
   LinkOutlined,
   MessageOutlined,
   TeamOutlined,
@@ -20,170 +20,122 @@ export const metadata: Metadata = {
     url: "/",
   },
 };
+const highlights = [
+  { icon: LinkOutlined, title: "多链接接入", text: "独立链接与网站嵌入，连接不同业务入口。" },
+  {
+    icon: ApartmentOutlined,
+    title: "灵活分配",
+    text: "按接待范围和团队规则，把咨询交给合适的人。",
+  },
+  { icon: SkinOutlined, title: "自主装修", text: "让聊天页面与自己的品牌保持一致。" },
+];
 const features = [
   {
     icon: LinkOutlined,
-    title: "一个团队，多种入口",
-    text: "售前、售后、广告和门店各用自己的接入链接。电脑和手机打开即可咨询。",
+    title: "入口",
+    text: "售前、售后、广告和门店各用自己的链接，电脑与手机打开即可咨询。",
   },
   {
     icon: ApartmentOutlined,
-    title: "把咨询分给合适的人",
-    text: "按客服组、分配池和接待状态安排咨询，支持轮询、负载优先和人工领取。",
+    title: "分配",
+    text: "按客服组、分配池、技能与接待状态安排咨询，支持自动分配和人工领取。",
   },
   {
     icon: MessageOutlined,
-    title: "接待进度，放在一起",
-    text: "消息、客户资料、来源和接待记录汇集到工作台，让每次沟通有据可查。",
+    title: "沟通",
+    text: "文字、图片、文件和语音集中接待，保留来源、客户资料与沟通记录。",
   },
   {
     icon: SkinOutlined,
-    title: "聊天页面也有品牌感",
-    text: "从基础配色到布局、代码装修，再到 AI 创作，把设计保存为自己的模板。",
+    title: "装修",
+    text: "从基础配色、组件布局到代码装修与 AI 创作，预览后发布自己的页面。",
   },
   {
     icon: TeamOutlined,
-    title: "成员分工，清楚可控",
-    text: "分别设置管理员与客服角色、接待资格和服务范围，共同维护一个工作空间。",
+    title: "团队",
+    text: "分别设置管理员与客服角色、接待资格和服务范围，让成员清楚分工。",
   },
   {
     icon: SafetyOutlined,
-    title: "每家商户，独立管理",
-    text: "租户的成员、消息和模板分别授权，管理与接待都遵循明确的权限范围。",
+    title: "权限",
+    text: "按租户、角色和接待范围授权，客户记录与私有模板在各自工作空间内管理。",
   },
 ];
-/** HomePage 输出官网主要内容与明确标注的界面示意。 */
+/** HomePage 以文字排版和明确标注的产品示意图呈现官网首页。 */
 export default function HomePage() {
   return (
-    <div className="public-width">
-      <section className="hero">
-        <div>
-          <div className="eyebrow">GOOD CONVERSATIONS START HERE</div>
-          <h1>
-            基础客服，
-            <br />
-            永久免费。
-          </h1>
-          <p className="hero-description">
-            免费包含 2 个客服坐席，从一个聊天链接开始。GoodChat
-            把入口、分配、消息和品牌页面连在一起，团队扩展时再按需升级。
-          </p>
-          <div className="hero-buttons">
-            <Button
-              type="primary"
-              size="large"
-              href="/register"
-              icon={<ArrowRightOutlined />}
-              iconPlacement="end"
-            >
+    <div data-public-page="home">
+      <section className="public-width public-home-hero">
+        <div className="public-hero-copy">
+          <span className="public-kicker">免费包含 2 个客服坐席</span>
+          <h1>基础客服，永久免费。</h1>
+          <p>从一个聊天链接开始，把入口、分配、消息和品牌页面连在一起。团队扩展时，再按需升级。</p>
+          <div className="public-hero-actions">
+            <Button type="primary" size="large" href="/register">
               免费开始
             </Button>
             <Button size="large" href="/features">
               了解产品
             </Button>
           </div>
-          <p className="hero-note">免费开始，包含 2 个客服坐席 · 电脑与手机适配</p>
         </div>
-        <div className="product-preview" aria-label="客服工作台界面示意，非真实聊天数据">
-          <div className="preview-top">
-            <span>GoodChat 工作台</span>
-            <span className="muted">界面示意</span>
-            <div className="preview-dots">
-              <i />
-              <i />
-              <i />
-            </div>
-          </div>
-          <div className="preview-body">
-            <aside className="preview-side">
-              <b>我的接待</b>
-              <div className="preview-item active">售前咨询</div>
-              <div className="preview-item">售后服务</div>
-              <div className="preview-item">客户资料</div>
-            </aside>
-            <div className="preview-chat">
-              <div className="preview-chat-title">每一段对话，都从这里开始</div>
-              <div className="bubble">你好，想了解一下如何接入我的网站。</div>
-              <div className="bubble agent">你好！创建一个聊天链接，就可以开始接待。</div>
-              <div className="preview-composer">把客户的问题，一起解决好。</div>
-            </div>
-          </div>
-        </div>
+        <figure className="public-hero-preview">
+          <figcaption>界面示意 · 示例聊天与客户资料</figcaption>
+          <Image
+            src="/images/workspace-preview.png"
+            alt="GoodChat 明亮客服工作台设计示意，包含咨询列表、聊天和客户资料，非真实业务数据"
+            width={1488}
+            height={1056}
+            priority
+            sizes="(max-width: 768px) calc(100vw - 40px), 56vw"
+          />
+        </figure>
       </section>
-      <section className="section">
-        <div className="section-heading">
-          <div className="eyebrow">ONE CONNECTED WORKSPACE</div>
-          <h2>
-            把接待的每一步，
-            <br />
-            放进同一个工作空间。
-          </h2>
-        </div>
-        <div className="feature-grid">
-          {features.map((item) => (
-            <article className="feature-card" key={item.title}>
-              <div className="feature-icon">
-                <item.icon />
+      <section className="public-highlights-band" aria-label="产品重点">
+        <div className="public-width public-highlights">
+          {highlights.map((item) => (
+            <article key={item.title}>
+              <item.icon />
+              <div>
+                <h2>{item.title}</h2>
+                <p>{item.text}</p>
               </div>
-              <h3>{item.title}</h3>
-              <p>{item.text}</p>
             </article>
           ))}
         </div>
       </section>
-      <section className="section split-section">
-        <div className="design-board" aria-hidden="true">
-          <div className="mini-theme">
-            <h4>你的品牌 · 你的客服</h4>
-            <div className="mini-line" />
-            <div className="mini-line short" />
-            <div className="mini-line" />
-            <div className="mini-send" />
-          </div>
-          <div className="mini-theme dark">
-            <h4>让页面，长成你想要的样子</h4>
-            <div className="mini-line" />
-            <div className="mini-line short" />
-            <div className="mini-send" />
-          </div>
+      <section className="public-width public-capabilities">
+        <div className="public-section-title">
+          <h2>覆盖客服全流程的核心能力</h2>
+          <a href="/features">
+            了解更多功能 <ArrowRightOutlined />
+          </a>
         </div>
-        <div>
-          <div className="eyebrow">MAKE IT YOURS</div>
-          <h2>
-            服务是你的，
-            <br />
-            页面也应该是。
-          </h2>
-          <p className="muted">
-            选择内置模板，用组件调整布局，或用自然语言描述你的想法。设计保存到租户自己的模板库，预览后发布到接入链接。
-          </p>
-          <ul className="clean-list">
-            {[
-              "电脑与手机一起预览",
-              "基础、拖拽和代码装修",
-              "AI 创作保留为私有模板",
-              "发布有版本，修改可回退",
-            ].map((text) => (
-              <li key={text}>
-                <CheckOutlined className="check" />
-                {text}
-              </li>
-            ))}
-          </ul>
-          <Button href="/register" type="primary">
-            开始创建 <ArrowRightOutlined />
+        <div className="public-capability-grid">
+          {features.map((item) => (
+            <article key={item.title}>
+              <item.icon />
+              <div>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="public-start-band">
+        <div className="public-width">
+          <h2>从一次对话开始。</h2>
+          <p>免费包含 2 个客服坐席，从网页开始，把接待做扎实。</p>
+          <Button type="primary" href="/register">
+            免费开始 <ArrowRightOutlined />
           </Button>
         </div>
       </section>
-      <section className="section">
-        <div className="notice-box">
-          <strong>从网页开始，把接待做扎实。</strong>
-          <p style={{ margin: "8px 0 0" }}>
-            当前以网页接待为起点。macOS、Windows、Android
-            客服端和第三方平台渠道将在后续分别接入与验收，具体可用能力以控制台为准。
-          </p>
-        </div>
-      </section>
+      <p className="public-width public-roadmap-note">
+        当前支持网页接待。macOS、Windows、Android
+        客服端及第三方平台渠道将后续接入，具体可用能力以控制台为准。
+      </p>
     </div>
   );
 }

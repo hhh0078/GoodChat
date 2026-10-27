@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import {
   App,
   Button,
-  Card,
   Drawer,
   Form,
+  Grid,
   Input,
   InputNumber,
   Select,
@@ -72,9 +72,13 @@ export function OperationsSettings({ notifications = false }: { notifications?: 
     }
   }
   return (
-    <Card style={{ maxWidth: 780 }}>
+    <section className="studio-settings-form">
+      <div className="studio-panel-heading">
+        <h2>{notifications ? "消息提醒" : "服务与欢迎语"}</h2>
+        <p>{notifications ? "为当前账号设置接待提醒。" : "控制基础欢迎内容与输入提示。"}</p>
+      </div>
       <ErrorNotice error={error} />
-      <Form form={form} layout="vertical" onFinish={save}>
+      <Form form={form} layout="vertical" onFinish={save} className="studio-preferences-form">
         {notifications ? (
           <>
             <Form.Item name="muted" label="免打扰" valuePropName="checked">
@@ -129,7 +133,7 @@ export function OperationsSettings({ notifications = false }: { notifications?: 
           保存设置
         </Button>
       </Form>
-    </Card>
+    </section>
   );
 }
 /** LeadList 展示真实离线留言并更新跟进状态，不将聊天记录作为留言。 */
@@ -177,7 +181,11 @@ function LeadList() {
     }
   }
   return (
-    <div className="table-card">
+    <div className="table-card studio-table-surface">
+      <div className="studio-panel-heading">
+        <h2>离线留言</h2>
+        <p>查看客户留言并记录内部跟进。</p>
+      </div>
       <ErrorNotice error={data.error} retry={data.reload} />
       <Table
         rowKey="id"
@@ -229,6 +237,7 @@ function LeadList() {
         ]}
       />
       <Drawer
+        rootClassName="studio-drawer"
         title="留言详情与跟进"
         open={!!selected}
         onClose={() => setSelected(null)}
@@ -313,7 +322,11 @@ function EvaluationList() {
     return () => controller.abort();
   }, [selected, data.tenantId]);
   return (
-    <div className="table-card">
+    <div className="table-card studio-table-surface">
+      <div className="studio-panel-heading">
+        <h2>服务评价</h2>
+        <p>查看访客提交的评分与修改历史。</p>
+      </div>
       <ErrorNotice error={data.error} retry={data.reload} />
       <Table
         rowKey="id"
@@ -340,7 +353,13 @@ function EvaluationList() {
           },
         ]}
       />
-      <Drawer title="访客评价版本" open={!!selected} onClose={() => setSelected(null)} width={650}>
+      <Drawer
+        rootClassName="studio-drawer"
+        title="访客评价版本"
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        width={650}
+      >
         <p className="muted">仅展示访客实际提交，不提供改写历史评分入口。</p>
         <ErrorNotice error={historyError} />
         <Table
@@ -365,16 +384,16 @@ function EvaluationList() {
 /** AutomationPage 在同一运营入口管理自动回复、话术和独立留言评价。 */
 export function AutomationPage() {
   const { current, tenantId } = useSession();
+  const screens = Grid.useBreakpoint();
   const manages = current.memberships.some(
     (member) => member.tenant_id === tenantId && ["owner", "admin"].includes(member.role),
   );
   return (
-    <>
-      <PageTitle
-        title="回复与运营"
-        description="自动回复由服务端写入实际消息，客服无需手动插入欢迎语。"
-      />
+    <section className="studio-page studio-operations" aria-label="回复与运营">
+      <PageTitle title="回复与运营" description="管理欢迎内容、快捷话术与服务提醒。" />
       <Tabs
+        className="studio-operations-tabs"
+        tabPosition={screens.lg ? "left" : "top"}
         items={[
           { key: "settings", label: "服务与欢迎语", children: <OperationsSettings /> },
           {
@@ -476,6 +495,6 @@ export function AutomationPage() {
           },
         ].filter((item) => manages || ["replies", "leads", "notifications"].includes(item.key))}
       />
-    </>
+    </section>
   );
 }

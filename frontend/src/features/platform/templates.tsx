@@ -75,7 +75,11 @@ export function PlatformTemplates() {
     }
   }
   return (
-    <>
+    <section className="studio-platform-section">
+      <div className="studio-panel-heading">
+        <h2>公共装修模板</h2>
+        <p>维护租户可复制使用的公共设计。</p>
+      </div>
       <div className="resource-tools">
         <p className="muted">
           平台模板独立发布。租户复制后归本租户，后续平台更新不会覆盖私有模板。
@@ -118,6 +122,7 @@ export function PlatformTemplates() {
         ]}
       />
       <Drawer
+        rootClassName="studio-drawer"
         title={editing ? "编辑平台模板" : "新增平台模板"}
         open={editing !== undefined}
         onClose={() => setEditing(undefined)}
@@ -179,6 +184,6 @@ export function PlatformTemplates() {
           </Button>
         </Form>
       </Drawer>
-    </>
+    </section>
   );
 }

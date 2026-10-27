@@ -36,7 +36,11 @@ export function PlatformUpgrades() {
     }
   }
   return (
-    <>
+    <section className="studio-platform-section">
+      <div className="studio-panel-heading">
+        <h2>升级申请与人工开通</h2>
+        <p>核对申请依据后开通订阅。</p>
+      </div>
       <Alert
         type="info"
         showIcon
@@ -102,6 +106,7 @@ export function PlatformUpgrades() {
         ]}
       />
       <Drawer
+        rootClassName="studio-drawer"
         title="核对申请并开通订阅"
         open={!!selected}
         onClose={() => setSelected(null)}
@@ -139,6 +144,6 @@ export function PlatformUpgrades() {
           </Button>
         </Form>
       </Drawer>
-    </>
+    </section>
   );
 }

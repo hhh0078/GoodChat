@@ -1,5 +1,6 @@
 /** 文件作用说明：提供产品、场景、套餐、帮助与隐私条款的服务端公开页面。 */
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Button } from "antd";
 
@@ -140,30 +141,72 @@ export default async function PublicContentPage({ params }: { params: Promise<{ 
   const { slug } = await params;
   const page = pages[slug];
   if (!page) notFound();
+  const illustrated = slug === "features" || slug === "solutions";
+  const legal = slug === "privacy" || slug === "terms";
+  const previews = [
+    { path: "/images/access-links-preview.png", label: "接入链接与分享界面示意" },
+    { path: "/images/routing-preview.png", label: "团队接待与分配规则界面示意" },
+    { path: "/images/editor-preview.png", label: "品牌页面装修界面示意" },
+  ];
   return (
-    <div className="public-width">
-      <article className="content-page">
-        <div className="eyebrow">GOODCHAT / {slug}</div>
+    <div className="public-width public-content" data-public-page={slug}>
+      <header className="public-content-heading">
+        <div className="public-overline">GOODCHAT / {slug.toUpperCase()}</div>
         <h1>{page.title}</h1>
         <p className="page-lead">{page.lead}</p>
-        {page.sections.map((section) => (
-          <section key={section.title}>
-            <h2>{section.title}</h2>
-            <p>{section.text}</p>
-            {section.points && (
-              <ul>
-                {section.points.map((point) => (
-                  <li key={point}>{point}</li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ))}
-        {!["privacy", "terms"].includes(slug) && (
-          <Button type="primary" size="large" href="/register">
-            创建工作空间
-          </Button>
-        )}
+      </header>
+      <article className={`public-docs-layout ${legal ? "public-legal" : ""}`}>
+        <nav className="public-toc" aria-label="本页目录">
+          <strong>{slug === "help" ? "起步指南" : legal ? page.title : "内容目录"}</strong>
+          {page.sections.map((section, index) => (
+            <a href={`#section-${index + 1}`} key={section.title}>
+              {section.title}
+            </a>
+          ))}
+        </nav>
+        <div className="public-docs-body">
+          {page.sections.map((section, index) => (
+            <section
+              className={`public-docs-section ${illustrated ? "has-preview" : ""}`}
+              id={`section-${index + 1}`}
+              key={section.title}
+            >
+              <div className="public-docs-copy">
+                <span className="public-section-number">{String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <h2>{section.title}</h2>
+                  <p>{section.text}</p>
+                  {section.points && (
+                    <ul>
+                      {section.points.map((point) => (
+                        <li key={point}>{point}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+              {illustrated && previews[index] && (
+                <figure className="public-detail-preview">
+                  <Image
+                    src={previews[index].path}
+                    alt={previews[index].label}
+                    width={1488}
+                    height={1056}
+                    sizes="(max-width: 768px) calc(100vw - 40px), 40vw"
+                  />
+                  <figcaption>界面示意 · 非真实业务资料</figcaption>
+                </figure>
+              )}
+            </section>
+          ))}
+          {!legal && (
+            <div className="public-docs-cta">
+              <Button type="primary" size="large" href="/register">
+                创建工作空间
+              </Button>
+            </div>
+          )}
+        </div>
       </article>
     </div>
   );

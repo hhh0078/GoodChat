@@ -1,0 +1,121 @@
+{
+  "_purpose": "记录19个租户后台画面的设计图和生成提示词，图稿示例数据不写入业务。",
+  "date": "2026-10-27",
+  "reference": "13-workspace.png",
+  "assets": [
+    {
+      "id": "12",
+      "file": "12-dashboard.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-729d96fa-4ef1-4d09-a3ce-7114632c052d.png",
+      "prompt": "12-dashboard.prompt.txt"
+    },
+    {
+      "id": "14",
+      "file": "14-members.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-ea935aa9-632d-4cd2-b92e-0353294eabb9.png",
+      "prompt": "14-members.prompt.txt"
+    },
+    {
+      "id": "15",
+      "file": "15-invitations.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-a05e26f7-0fa9-4543-8b99-cf542f418dc9.png",
+      "prompt": "15-invitations.prompt.txt"
+    },
+    {
+      "id": "16",
+      "file": "16-access-links.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-6f72b2fd-60cb-4e1a-98da-62bd83fa3f7f.png",
+      "prompt": "16-access-links.prompt.txt"
+    },
+    {
+      "id": "17",
+      "file": "17-service-groups.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-3116a1ca-b7f5-4346-a946-743247224b66.png",
+      "prompt": "17-service-groups.prompt.txt"
+    },
+    {
+      "id": "18",
+      "file": "18-routing-pools.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-bc254296-74f3-4217-9489-e86e07f78ce1.png",
+      "prompt": "18-routing-pools.prompt.txt"
+    },
+    {
+      "id": "19",
+      "file": "19-routing-skills.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-865863bd-4435-40e0-9906-1486588818ea.png",
+      "prompt": "19-routing-skills.prompt.txt"
+    },
+    {
+      "id": "20",
+      "file": "20-agent-skills.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-9485a318-717a-4e4c-9fe7-761ed16616dd.png",
+      "prompt": "20-agent-skills.prompt.txt"
+    },
+    {
+      "id": "21",
+      "file": "21-contacts.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-62fdd5a4-10c0-4d31-bf42-f4c0c8462cba.png",
+      "prompt": "21-contacts.prompt.txt"
+    },
+    {
+      "id": "22",
+      "file": "22-contact-categories.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-0cc47e20-00a7-4b29-a215-b2041decc1e8.png",
+      "prompt": "22-contact-categories.prompt.txt"
+    },
+    {
+      "id": "23",
+      "file": "23-contact-tags.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-31d52a0d-f8f5-49e4-bdb4-d1a78cc29027.png",
+      "prompt": "23-contact-tags.prompt.txt"
+    },
+    {
+      "id": "24",
+      "file": "24-tag-categories.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-d8f10d84-6505-44c0-a897-b68a617dbea9.png",
+      "prompt": "24-tag-categories.prompt.txt"
+    },
+    {
+      "id": "25",
+      "file": "25-custom-fields.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-37f7bf01-7155-435a-a1ec-b8db97425a44.png",
+      "prompt": "25-custom-fields.prompt.txt"
+    },
+    {
+      "id": "42",
+      "file": "42-chat-records.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-5857c2ed-e22b-464d-8f96-0cfc4cd95866.png",
+      "prompt": "42-chat-records.prompt.txt"
+    },
+    {
+      "id": "43",
+      "file": "43-service-reports.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-e5eab7c3-c229-492d-b3b8-80f0b654fcf3.png",
+      "prompt": "43-service-reports.prompt.txt"
+    },
+    {
+      "id": "44",
+      "file": "44-billing.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-85e2d27d-88c3-497d-9bd4-42d553e5a8d7.png",
+      "prompt": "44-billing.prompt.txt"
+    },
+    {
+      "id": "45",
+      "file": "45-callback-settings.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-032191d8-f7d2-48cf-9631-79ab991af10d.png",
+      "prompt": "45-callback-settings.prompt.txt"
+    },
+    {
+      "id": "46",
+      "file": "46-callback-deliveries.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-b36a2a92-5f84-41b5-b8b2-dae7f3a76620.png",
+      "prompt": "46-callback-deliveries.prompt.txt"
+    },
+    {
+      "id": "47",
+      "file": "47-account-devices.png",
+      "source": "/Users/Zhuanz/.codex/generated_images/01a17bf0-44f5-7510-b1ef-30154e0e8823/exec-09659d8a-16bf-49a8-b20a-3949db49a92e.png",
+      "prompt": "47-account-devices.prompt.txt"
+    }
+  ]
+}

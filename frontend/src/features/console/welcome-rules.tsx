@@ -180,7 +180,8 @@ export function WelcomeRules() {
     }
   }
   return (
-    <div className="table-card">
+    <div className="table-card studio-welcome-rules">
+      <h2 className="studio-panel-title">高级欢迎规则</h2>
       <Alert
         type="info"
         showIcon
@@ -238,7 +239,12 @@ export function WelcomeRules() {
           },
         ]}
       />
-      <Card size="small" title="查看最终生效欢迎" style={{ marginTop: 16 }}>
+      <Card
+        className="studio-welcome-preview"
+        size="small"
+        title="查看最终生效欢迎"
+        style={{ marginTop: 16 }}
+      >
         <Space wrap>
           <Select
             allowClear
@@ -281,6 +287,7 @@ export function WelcomeRules() {
         )}
       </Card>
       <Drawer
+        rootClassName="studio-drawer"
         title={editing ? "编辑欢迎规则" : "新增欢迎规则"}
         open={open}
         onClose={() => setOpen(false)}

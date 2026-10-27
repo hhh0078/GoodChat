@@ -69,7 +69,11 @@ export function PlatformPlans() {
     }
   }
   return (
-    <>
+    <section className="studio-platform-section">
+      <div className="studio-panel-heading">
+        <h2>套餐版本与官网价格</h2>
+        <p>维护版本价格、坐席、功能与有效期。</p>
+      </div>
       <div className="resource-tools">
         <p className="muted">官网仅展示已启用并公开的套餐；修改价格与功能前请核对现有订阅政策。</p>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => edit(null)}>
@@ -126,6 +130,7 @@ export function PlatformPlans() {
         ]}
       />
       <Drawer
+        rootClassName="studio-drawer"
         title={editing ? "编辑套餐版本" : "新增套餐版本"}
         open={editing !== undefined}
         onClose={() => setEditing(undefined)}
@@ -160,10 +165,20 @@ export function PlatformPlans() {
               rules={[{ required: true }]}
               extra="100 分 = 1 元，0 表示免费。"
             >
-              <InputNumber min={0} precision={0} style={{ width: "100%" }} />
+              <InputNumber
+                min={0}
+                precision={0}
+                disabled={editing?.code === "free"}
+                style={{ width: "100%" }}
+              />
             </Form.Item>
             <Form.Item label="客服坐席上限" name="seat_limit" rules={[{ required: true }]}>
-              <InputNumber min={1} precision={0} style={{ width: "100%" }} />
+              <InputNumber
+                min={1}
+                precision={0}
+                disabled={editing?.code === "free"}
+                style={{ width: "100%" }}
+              />
             </Form.Item>
             <Form.Item
               label="有效天数"
@@ -171,7 +186,12 @@ export function PlatformPlans() {
               rules={[{ required: true }]}
               extra="0 表示长期有效。"
             >
-              <InputNumber min={0} precision={0} style={{ width: "100%" }} />
+              <InputNumber
+                min={0}
+                precision={0}
+                disabled={editing?.code === "free"}
+                style={{ width: "100%" }}
+              />
             </Form.Item>
             <Form.Item label="展示顺序" name="sort_order">
               <InputNumber min={0} precision={0} style={{ width: "100%" }} />
@@ -202,6 +222,6 @@ export function PlatformPlans() {
           </div>
         </Form>
       </Drawer>
-    </>
+    </section>
   );
 }

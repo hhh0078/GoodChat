@@ -1,21 +1,30 @@
 /** 文件作用说明：实现客服上下班、咨询列表、人工接单、转接与结束咨询的工作台。 */
 "use client";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Alert,
   App,
   Badge,
   Button,
-  Card,
+  Avatar,
+  Grid,
+  Tabs,
+  Tooltip,
   Drawer,
   Input,
   Popconfirm,
   Select,
   Space,
-  Switch,
   Tag,
 } from "antd";
-import { ArrowLeftOutlined, BellOutlined, ReloadOutlined, SwapOutlined } from "@ant-design/icons";
+import {
+  ArrowLeftOutlined,
+  BellOutlined,
+  ReloadOutlined,
+  SwapOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import { canTransferTo, isTransferRecipient } from "@/lib/assignment-state";
 import { api, errorMessage } from "@/lib/api";
 import { useSession } from "@/features/auth/session";
@@ -24,6 +33,7 @@ import type { Conversation, Resource } from "@/lib/types";
 import { ErrorNotice, EmptyData, PageTitle } from "@/components/page-state";
 import { useReminders } from "./reminders";
 import { ChatPanel, conversationStatus } from "./chat-panel";
+import { CustomerContext } from "./customer-context";
 type AgentStatus = { available: boolean; busy: boolean; current_load: number; capacity: number };
 /** AgentWorkspace 以真实身份接待访客，当前分配权限始终交由后端核验。 */
 export function AgentWorkspace() {
@@ -39,6 +49,12 @@ export function AgentWorkspace() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [target, setTarget] = useState<string | undefined>();
   const [live, setLive] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+  const screens = Grid.useBreakpoint();
+  useEffect(() => {
+    setHeaderTarget(document.getElementById("workspace-header-actions"));
+  }, []);
   const reminders = useReminders(tenantId);
   const conversations = useResource<Conversation>(
     membership?.can_serve ? `/conversations?${new URLSearchParams({ status, query })}` : "",
@@ -167,6 +183,36 @@ export function AgentWorkspace() {
       message.error(errorMessage(problem));
     }
   }
+  const controls = (
+    <Space className="agent-controls" size={14}>
+      <Tooltip title={`当前接待 ${runtime?.current_load ?? "—"} / ${runtime?.capacity ?? "—"}`}>
+        <Badge status={live ? "success" : "warning"} text={live ? "实时在线" : "恢复连接中"} />
+      </Tooltip>
+      <Select
+        aria-label="接待状态"
+        className="agent-availability"
+        variant="filled"
+        value={!runtime?.available ? "offline" : runtime.busy ? "busy" : "ready"}
+        disabled={!runtime || busy}
+        onChange={(value) =>
+          void updateStatus({ available: value !== "offline", busy: value === "busy" })
+        }
+        options={[
+          { value: "ready", label: "上班 · 可接待" },
+          { value: "busy", label: "上班 · 示忙" },
+          { value: "offline", label: "下班" },
+        ]}
+      />
+      <Button
+        type="text"
+        icon={<BellOutlined />}
+        aria-label={reminders.active ? "本机提醒已启用" : "启用本机提醒"}
+        onClick={() => void enableNotifications()}
+      >
+        <span className="agent-reminder-label">{reminders.active ? "提醒已启用" : "提醒"}</span>
+      </Button>
+    </Space>
+  );
   if (!membership?.can_serve)
     return (
       <>
@@ -180,41 +226,22 @@ export function AgentWorkspace() {
     );
   return (
     <>
-      <PageTitle
-        title="客服工作台"
-        description="上下班、接待状态与会话独立保存，断开浏览器连接不会自动结束咨询。"
-        action={
-          <Space wrap>
-            <Tag color={live ? "green" : "gold"}>{live ? "实时在线" : "恢复连接中"}</Tag>
-            <Button icon={<BellOutlined />} onClick={() => void enableNotifications()}>
-              {reminders.active ? "本机提醒已启用" : "启用本机提醒"}
-            </Button>
-            <Space>
-              上班
-              <Switch
-                loading={busy}
-                checked={runtime?.available || false}
-                onChange={(available) => void updateStatus({ available })}
-              />
-            </Space>
-            <Space>
-              示忙
-              <Switch
-                loading={busy}
-                checked={runtime?.busy || false}
-                disabled={!runtime?.available}
-                onChange={(value) => void updateStatus({ busy: value })}
-              />
-            </Space>
-          </Space>
-        }
-      />
+      <h1 className="sr-only">客服工作台</h1>
+      {headerTarget && createPortal(controls, headerTarget)}
+      <div className="agent-mobile-controls">{controls}</div>
       <ErrorNotice error={error || conversations.error} retry={conversations.reload} />
-      <div className={`chat-layout ${selected ? "has-active" : ""}`}>
+      <div
+        className={`chat-layout agent-layout ${selected ? "has-active" : ""} ${active && screens.xl ? "with-customer" : ""}`}
+      >
         <div className="conversation-list">
           <div className="conversation-head">
             <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 12 }}>
-              <strong>咨询列表</strong>
+              <div className="inbox-title">
+                <strong>咨询</strong>
+                <span aria-label={`当前列表${conversations.items.length}条`}>
+                  {conversations.items.length}
+                </span>
+              </div>
               <Button
                 size="small"
                 icon={<ReloadOutlined />}
@@ -225,17 +252,22 @@ export function AgentWorkspace() {
             <Input.Search
               allowClear
               aria-label="搜索客户"
-              placeholder="搜索客户"
+              placeholder="搜索客户姓名或手机号"
               onSearch={setQuery}
             />
-            <Select
-              aria-label="咨询状态"
-              style={{ width: "100%", marginTop: 10 }}
-              value={status}
-              onChange={setStatus}
-              options={[
-                { label: "全部咨询", value: "" },
-                ...Object.entries(conversationStatus).map(([value, label]) => ({ value, label })),
+            <Tabs
+              className="inbox-tabs"
+              activeKey={status}
+              onChange={(value) => {
+                setStatus(value);
+                setSelected("");
+              }}
+              items={[
+                { key: "", label: "全部" },
+                { key: "active", label: "接待中" },
+                { key: "assigned", label: "待接" },
+                { key: "queued", label: "排队" },
+                { key: "closed", label: "结束" },
               ]}
             />
           </div>
@@ -248,15 +280,31 @@ export function AgentWorkspace() {
                 className={`conversation-row ${item.id === selected ? "active" : ""}`}
                 onClick={() => setSelected(item.id)}
               >
-                <Space style={{ justifyContent: "space-between", width: "100%" }}>
-                  <strong>{item.contact?.display_name || item.contact_name || "访客"}</strong>
-                  <Badge count={item.unread_count || 0} />
-                </Space>
-                <p>
-                  {conversationStatus[item.status] || item.status}{" "}
-                  {item.agent_name ? `· ${item.agent_name}` : ""}
-                </p>
-                <p>{item.contact?.phone || `咨询 ${item.id.slice(0, 8)}`}</p>
+                <Avatar
+                  className="conversation-avatar"
+                  size={40}
+                  src={item.contact?.avatar_url || undefined}
+                >
+                  {(item.contact?.display_name || item.contact_name || "访").slice(0, 1)}
+                </Avatar>
+                <div className="conversation-summary">
+                  <div className="conversation-row-title">
+                    <strong>{item.contact?.display_name || item.contact_name || "访客"}</strong>
+                    <time>
+                      {item.updated_at
+                        ? new Date(item.updated_at).toLocaleTimeString("zh-CN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : ""}
+                    </time>
+                  </div>
+                  <p>
+                    {conversationStatus[item.status] || item.status}
+                    {item.agent_name ? ` · ${item.agent_name}` : ""}
+                  </p>
+                  <p>{item.contact?.phone || `咨询 ${item.id.slice(0, 8)}`}</p>
+                </div>
               </button>
             ))
           )}
@@ -279,6 +327,13 @@ export function AgentWorkspace() {
                     icon={<ArrowLeftOutlined />}
                     onClick={() => setSelected("")}
                   />
+                  <Avatar
+                    className="chat-contact-avatar"
+                    size={42}
+                    src={active.contact?.avatar_url || undefined}
+                  >
+                    {(active.contact?.display_name || "访").slice(0, 1)}
+                  </Avatar>
                   <div>
                     <strong>{active.contact?.display_name || "访客"}</strong>
                     <div className="form-hint">
@@ -286,7 +341,16 @@ export function AgentWorkspace() {
                     </div>
                   </div>
                 </Space>
-                <Space wrap>
+                <Space wrap className="chat-assignment-actions">
+                  {!screens.xl && (
+                    <Button
+                      icon={<UserOutlined />}
+                      aria-label="打开客户资料"
+                      onClick={() => setProfileOpen(true)}
+                    >
+                      客户资料
+                    </Button>
+                  )}
                   {receiving && transfer && (
                     <>
                       <Tag color="gold">收到转接邀请</Tag>
@@ -365,7 +429,32 @@ export function AgentWorkspace() {
             </>
           )}
         </div>
+        {active && screens.xl && (
+          <aside className="agent-customer-sidebar">
+            <CustomerContext
+              key={`${tenantId}.${active.id}.${active.status}.${active.current_agent_id}.${membership.role}`}
+              conversation={active}
+              membership={membership}
+            />
+          </aside>
+        )}
       </div>
+      {!screens.xl && (
+        <Drawer
+          title="客户资料"
+          open={profileOpen && !!active}
+          onClose={() => setProfileOpen(false)}
+          width={340}
+        >
+          {active && profileOpen && (
+            <CustomerContext
+              key={`${tenantId}.${active.id}.${active.status}.${active.current_agent_id}.${membership.role}`}
+              conversation={active}
+              membership={membership}
+            />
+          )}
+        </Drawer>
+      )}
       <Drawer
         title="转接咨询"
         open={transferOpen}

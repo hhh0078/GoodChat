@@ -109,7 +109,11 @@ export function PlatformTenants() {
     }
   }
   return (
-    <>
+    <section className="studio-platform-section">
+      <div className="studio-panel-heading">
+        <h2>租户运营</h2>
+        <p>管理租户状态、有效套餐与开通邀请。</p>
+      </div>
       <div className="resource-tools">
         <Space wrap>
           <Input.Search
@@ -203,6 +207,7 @@ export function PlatformTenants() {
         ]}
       />
       <Drawer
+        rootClassName="studio-drawer"
         title={assigning ? "人工分配套餐" : "管理租户状态"}
         open={!!editing}
         onClose={() => setEditing(null)}
@@ -280,6 +285,7 @@ export function PlatformTenants() {
         </Form>
       </Drawer>
       <Drawer
+        rootClassName="studio-drawer"
         title="开通租户并邀请所有者"
         open={createOpen}
         onClose={() => setCreateOpen(false)}
@@ -328,6 +334,6 @@ export function PlatformTenants() {
           </Button>
         </Form>
       </Drawer>
-    </>
+    </section>
   );
 }

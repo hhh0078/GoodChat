@@ -58,7 +58,7 @@ export function RoutingPage() {
     .filter((item) => item.can_serve && !item.disabled)
     .map((item) => ({ label: item.display_name || item.email, value: item.id }));
   return (
-    <>
+    <section className="console-screen console-routing">
       <PageTitle
         title="分组与分配"
         description="业务组定义服务范围；必备技能过滤资格，可选技能与历史接待形成优先级，最后执行一个主算法。"
@@ -115,7 +115,7 @@ export function RoutingPage() {
           ]}
         />
       </div>
-    </>
+    </section>
   );
 }
 
@@ -268,6 +268,7 @@ function Pools({
         ]}
       />
       <Drawer
+        rootClassName="console-drawer"
         title={editing ? "配置分配池" : "新增分配池"}
         open={editing !== undefined}
         onClose={() => setEditing(undefined)}
@@ -283,6 +284,7 @@ function Pools({
           style={{ marginBottom: 20 }}
         />
         <Form form={form} layout="vertical" onFinish={save}>
+          <h3 className="console-form-section">基本信息</h3>
           <Form.Item
             name="name"
             label="分配池名称"
@@ -295,6 +297,7 @@ function Pools({
               options={groups.map((item) => ({ label: item.name || item.id, value: item.id }))}
             />
           </Form.Item>
+          <h3 className="console-form-section">分配方式</h3>
           <Form.Item name="members_mode" label="候选来源">
             <Select
               options={[
@@ -341,6 +344,7 @@ function Pools({
               ))}
             </>
           )}
+          <h3 className="console-form-section">资格与优先级</h3>
           <Form.Item name="required_skill_ids" label="全部必须具备的技能">
             <Select mode="multiple" allowClear options={skillOptions} />
           </Form.Item>
@@ -440,6 +444,7 @@ function MemberSkills({ skills }: { skills: Resource[] }) {
         pagination={{ pageSize: 10 }}
       />
       <Drawer
+        rootClassName="console-drawer"
         title={`配置${editing?.display_name || "成员"}的技能`}
         open={!!editing}
         onClose={() => setEditing(null)}

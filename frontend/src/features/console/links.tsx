@@ -7,7 +7,7 @@ import {
   Drawer,
   Form,
   Input,
-  Modal,
+  Tabs,
   Popconfirm,
   QRCode,
   Select,
@@ -154,7 +154,7 @@ export function LinksPage() {
     },
   ];
   return (
-    <>
+    <section className="console-screen console-links">
       <PageTitle
         title="接入链接"
         description="不同入口分别配置接待范围、来源和品牌页面，电脑与手机都能打开。"
@@ -176,6 +176,7 @@ export function LinksPage() {
         />
       </div>
       <Drawer
+        rootClassName="console-drawer"
         title={editing ? "配置接入链接" : "创建接入链接"}
         open={editing !== undefined}
         onClose={() => setEditing(undefined)}
@@ -272,7 +273,8 @@ export function LinksPage() {
           </Button>
         </Form>
       </Drawer>
-      <Modal
+      <Drawer
+        rootClassName="console-drawer console-share-drawer"
         title={
           <Space>
             <QrcodeOutlined />
@@ -280,44 +282,77 @@ export function LinksPage() {
           </Space>
         }
         open={!!sharing}
-        onCancel={() => setSharing(null)}
-        footer={null}
+        onClose={() => setSharing(null)}
+        width={420}
+        mask={false}
+        destroyOnHidden
       >
-        <div style={{ display: "flex", justifyContent: "center", padding: 20 }}>
-          {sharing && <QRCode value={link(sharing)} />}
-        </div>
-        <Form layout="vertical">
-          <Form.Item label="聊天链接">
-            <Input
-              readOnly
-              value={sharing ? link(sharing) : ""}
-              addonAfter={
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<CopyOutlined />}
-                  aria-label="复制链接"
-                  onClick={() => sharing && void copy(link(sharing))}
-                />
-              }
-            />
-          </Form.Item>
-          <Form.Item label="网页嵌入示例">
-            <Input.TextArea
-              readOnly
-              rows={3}
-              value={
-                sharing
-                  ? `<iframe src="${link(sharing)}" title="在线客服" style="width:100%;height:680px;border:0"></iframe>`
-                  : ""
-              }
-            />
-          </Form.Item>
-        </Form>
+        <Tabs
+          defaultActiveKey="link"
+          items={[
+            {
+              key: "link",
+              label: "链接",
+              children: (
+                <Form layout="vertical">
+                  <Form.Item label="聊天链接">
+                    <Input
+                      readOnly
+                      value={sharing ? link(sharing) : ""}
+                      addonAfter={
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<CopyOutlined />}
+                          aria-label="复制链接"
+                          onClick={() => sharing && void copy(link(sharing))}
+                        />
+                      }
+                    />
+                  </Form.Item>
+                  <p className="form-hint">访客通过此链接即可发起咨询。</p>
+                  <section className="console-share-qr">
+                    <h3>预览二维码</h3>
+                    {sharing && <QRCode value={link(sharing)} />}
+                  </section>
+                </Form>
+              ),
+            },
+            {
+              key: "qr",
+              label: "二维码",
+              children: (
+                <div className="console-share-qr">
+                  {sharing && <QRCode value={link(sharing)} />}
+                  <p className="form-hint">可用手机扫描，打开对应咨询入口。</p>
+                </div>
+              ),
+            },
+            {
+              key: "embed",
+              label: "嵌入",
+              children: (
+                <Form layout="vertical">
+                  <Form.Item label="网页嵌入示例">
+                    <Input.TextArea
+                      readOnly
+                      rows={6}
+                      value={
+                        sharing
+                          ? `<iframe src="${link(sharing)}" title="在线客服" style="width:100%;height:680px;border:0"></iframe>`
+                          : ""
+                      }
+                    />
+                  </Form.Item>
+                </Form>
+              ),
+            },
+          ]}
+        />
         <p className="form-hint">
           姓名、手机号和业务 JSON 可按接入文档传入。公开参数只用于展示与上下文，不授予历史会话权限。
         </p>
-      </Modal>
-    </>
+      </Drawer>
+    </section>
   );
 }

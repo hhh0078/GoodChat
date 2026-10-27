@@ -6,6 +6,44 @@ import (
 	"testing"
 )
 
+// TestContactDetailScope 验证资料栏详情与现有客户列表共享当前接待、跨租户及撤权边界。
+func TestContactDetailScope(t *testing.T) {
+	f := newFixture(t)
+	f.online(f.agent)
+	f.online(f.owner)
+	_, contact, conversation := f.visitor("13800000009")
+	path := "/api/v1/tenant/contacts/" + contact
+	for _, member := range []string{f.agent, f.otherOwner} {
+		status, reply := f.request("GET", path, member, "", nil)
+		if status != 404 {
+			t.Fatalf("无权读取客户详情: %d %v", status, reply["code"])
+		}
+	}
+	status, reply := f.request("GET", path, f.owner, "", nil)
+	if mustData(t, status, reply)["id"] != contact {
+		t.Fatal("管理员应读取指定客户而不是分页列表")
+	}
+	status, reply = f.request("POST", "/api/v1/conversations/"+conversation+"/assignments/claim", f.agent, "", map[string]any{})
+	mustData(t, status, reply)
+	status, reply = f.request("GET", path, f.agent, "", nil)
+	if mustData(t, status, reply)["id"] != contact {
+		t.Fatal("当前接待客服应能读取详情")
+	}
+	status, reply = f.request("POST", "/api/v1/conversations/"+conversation+"/assignments/transfer", f.agent, "", map[string]any{"agent_id": f.owner})
+	mustData(t, status, reply)
+	status, reply = f.request("GET", path, f.agent, "", nil)
+	if status != 404 {
+		t.Fatalf("转出后必须拒绝详情: %d %v", status, reply["code"])
+	}
+	if _, err := f.admin.Exec(context.Background(), "UPDATE tenant_memberships SET disabled=true WHERE id=$1", f.owner); err != nil {
+		t.Fatal(err)
+	}
+	status, reply = f.request("GET", path, f.owner, "", nil)
+	if status != 403 {
+		t.Fatalf("撤权后必须拒绝详情: %d %v", status, reply["code"])
+	}
+}
+
 // contactListIDs 通过真实资源接口读取可见客户编号，断言接口成功且不依赖菜单隐藏。
 func (f *fixture) contactListIDs(member string) []string {
 	f.t.Helper()

@@ -235,7 +235,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
       </>
     );
   return (
-    <>
+    <section className="studio-page studio-editor" aria-label="页面设计编辑器">
       <PageTitle
         title={kind === "templates" ? "编辑私有模板" : "页面装修与发布"}
         description={
@@ -278,6 +278,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
       <ErrorNotice error={error} />
       <div className="editor-grid">
         <Card
+          className="studio-settings-pane"
           title={
             <Input
               aria-label="设计名称"
@@ -380,6 +381,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                             }}
                           >
                             <Card
+                              className="studio-component-object"
                               size="small"
                               style={{
                                 borderColor: activeBlock === block.id ? "#23684e" : undefined,
@@ -558,7 +560,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
           )}
         </Card>
         <div>
-          <Card title="布局示意">
+          <Card title="布局示意" className="studio-preview-pane">
             <div
               className="design-preview"
               style={{
@@ -631,6 +633,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         </div>
       </div>
       <Modal
+        rootClassName="studio-dialog"
         title="隔离页面预览"
         open={!!previewURL}
         onCancel={() => setPreviewURL("")}
@@ -649,6 +652,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         )}
       </Modal>
       <Drawer
+        rootClassName="studio-drawer"
         title="发布页面到接入链接"
         open={publishOpen}
         onClose={() => setPublishOpen(false)}
@@ -675,6 +679,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         </Button>
       </Drawer>
       <Drawer
+        rootClassName="studio-drawer"
         title="发布与回滚记录"
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
@@ -702,6 +707,6 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
           ))}
         </Space>
       </Drawer>
-    </>
+    </section>
   );
 }

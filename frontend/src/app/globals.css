@@ -1,10 +1,10 @@
 /* 文件作用说明：统一官网、管理端、认证和聊天界面的响应式自然绿样式。 */
 :root {
-  --green: #23684e;
-  --ink: #21342c;
-  --muted: #68776e;
-  --paper: #f4f6f2;
-  --line: #dfe6dc;
+  --green: #3c7958;
+  --ink: #26332c;
+  --muted: #657269;
+  --paper: #f4f5f3;
+  --line: #d8ded8;
   --white: #fff;
 }
 * {

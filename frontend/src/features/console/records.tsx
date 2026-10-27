@@ -101,7 +101,7 @@ export function RecordsPage() {
     }
   }
   return (
-    <>
+    <section className="console-screen console-records">
       <PageTitle
         title="聊天记录"
         description="按独立会话检索授权历史；日期按租户时区解释，结束日期包含当天。"
@@ -282,6 +282,6 @@ export function RecordsPage() {
           ))
         )}
       </Drawer>
-    </>
+    </section>
   );
 }

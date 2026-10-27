@@ -85,6 +85,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/tenant/contacts/{id}/block", s.auth.RequireAdmin(s.blockContact))
 	mux.HandleFunc("DELETE /api/v1/tenant/contacts/{id}/block", s.auth.RequireAdmin(s.blockContact))
 	mux.HandleFunc("GET /api/v1/tenant/contacts/{id}/visits", s.auth.RequireTenant(s.contactVisits))
+	mux.HandleFunc("GET /api/v1/tenant/contacts/{id}", s.auth.RequireTenant(s.contactDetail))
 	mux.HandleFunc("GET /api/v1/tenant/chat-records", s.auth.RequireTenant(s.chatRecords))
 	mux.HandleFunc("GET /api/v1/tenant/chat-records/export", s.auth.RequireAdmin(s.exportRecords))
 	mux.HandleFunc("GET /api/v1/conversations", s.withActor(s.conversations))

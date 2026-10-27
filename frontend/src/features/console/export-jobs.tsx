@@ -128,7 +128,13 @@ export function ExportJobs({ filters }: { filters: string }) {
       >
         批量导出任务
       </Button>
-      <Drawer title="批量导出任务" open={open} onClose={() => setOpen(false)} width={850}>
+      <Drawer
+        rootClassName="console-drawer console-export-drawer"
+        title="批量导出任务"
+        open={open}
+        onClose={() => setOpen(false)}
+        width={850}
+      >
         <p>
           沿用聊天记录页当前筛选。每任务最多100000行、64MiB；每租户每日最多20次提交，失败或取消不退次数，临时文件与待执行预留合计最多256MiB。结果24小时有效，仅申请者在管理权限和导出功能仍有效时可下载。
         </p>

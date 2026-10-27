@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   App,
+  Avatar,
   Button,
   Drawer,
   Modal,
@@ -149,12 +150,17 @@ export function MembersPage() {
       title: "成员",
       key: "name",
       render: (_, row) => (
-        <>
-          <strong>{row.display_name || "未填写称呼"}</strong>
-          <div className="muted" style={{ fontSize: 12 }}>
-            {row.email}
+        <Space size={12}>
+          <Avatar size={36} className="console-person-avatar">
+            {(row.display_name || row.email || "成").slice(0, 1)}
+          </Avatar>
+          <div>
+            <strong>{row.display_name || "未填写称呼"}</strong>
+            <div className="muted" style={{ fontSize: 12 }}>
+              {row.email}
+            </div>
           </div>
-        </>
+        </Space>
       ),
     },
     {
@@ -241,7 +247,7 @@ export function MembersPage() {
     },
   ];
   return (
-    <>
+    <section className="console-screen console-members">
       <PageTitle
         title="团队成员"
         description="管理员与客服分别授权，邀请成员加入当前租户。"
@@ -306,6 +312,7 @@ export function MembersPage() {
         />
       </div>
       <Drawer
+        rootClassName="console-drawer"
         title={editing ? "编辑成员" : "邀请团队成员"}
         open={editing !== undefined}
         onClose={() => setEditing(undefined)}
@@ -413,6 +420,6 @@ export function MembersPage() {
           </Button>
         </Form>
       </Modal>
-    </>
+    </section>
   );
 }

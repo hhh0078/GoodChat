@@ -12,3 +12,6 @@ frontend/playwright-report
 **/.env.local
 **/*.log
 **/.DS_Store
+
+# 设计原图单独留在仓库中，应用只复制frontend/public中的实际展示资源。
+docs/designs

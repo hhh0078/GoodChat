@@ -153,7 +153,7 @@ export function ResourcePanel({
     },
   ];
   return (
-    <>
+    <section className="console-resource-panel">
       <div className="resource-tools">
         <Input.Search
           aria-label={`搜索${title}`}
@@ -187,6 +187,7 @@ export function ResourcePanel({
         }}
       />
       <Drawer
+        rootClassName="console-drawer"
         title={`${editing ? "编辑" : "新增"}${title}`}
         open={editing !== undefined}
         onClose={() => setEditing(undefined)}
@@ -235,6 +236,6 @@ export function ResourcePanel({
           </Space>
         </Form>
       </Drawer>
-    </>
+    </section>
   );
 }

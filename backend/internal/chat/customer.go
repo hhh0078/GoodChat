@@ -96,6 +96,26 @@ func validateAttributes(ctx context.Context, tx pgx.Tx, attributes map[string]an
 	return nil
 }
 
+// contactDetail 为接待资料栏读取单个客户，复用当前接待关系而不扩大客服访问范围。
+func (s *Service) contactDetail(w http.ResponseWriter, r *http.Request) {
+	a := memberActor(r)
+	id := r.PathValue("id")
+	var result map[string]any
+	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
+		if err := canSeeContact(r.Context(), tx, a, id); err != nil {
+			return err
+		}
+		var err error
+		result, err = txJSON(r.Context(), tx, resourceQuery("contacts")+" AND t.id=$1", id)
+		return err
+	})
+	if err != nil {
+		replyError(w, r, err)
+		return
+	}
+	platform.JSON(w, 200, result)
+}
+
 // contactVisits 查询授权客户的去重访问轨迹。
 func (s *Service) contactVisits(w http.ResponseWriter, r *http.Request) {
 	a := memberActor(r)

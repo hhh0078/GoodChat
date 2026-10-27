@@ -1,7 +1,7 @@
 /** 文件作用说明：读取多链接入口，建立隔离访客身份并连接真实会话，支持安全恢复与重新咨询。 */
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Form, Input, Result, Spin, Tag } from "antd";
+import { Alert, Avatar, Button, Form, Input, Result, Spin } from "antd";
 import { useSearchParams } from "next/navigation";
 import { canRestartVisit } from "@/lib/visitor-params";
 import { parseVisitorParameters } from "@/lib/visitor-params";
@@ -145,13 +145,29 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
     );
   return (
     <div className="visitor-shell">
-      <div className="visitor-card">
+      <div
+        className={`visitor-card ${entry.render_url && entry.release_id ? "visitor-decorated" : "visitor-default"}`}
+      >
         <header className="visitor-header">
-          <div>
-            <h1>{entry.tenant_name || entry.name || "在线客服"}</h1>
-            <p>{session ? "请在消息确认后查看接待进度" : "欢迎咨询，请留下称呼后开始沟通"}</p>
+          <div className="visitor-brand">
+            <Avatar size={42}>{(entry.tenant_name || entry.name || "在线客服").slice(0, 1)}</Avatar>
+            <div>
+              <h1>{entry.tenant_name || entry.name || "在线客服"}</h1>
+              <p>
+                {session
+                  ? `在线咨询 · ${conversationStatus[status] || "正在连接"}`
+                  : "欢迎咨询，请留下称呼后开始沟通"}
+              </p>
+            </div>
           </div>
-          {status && <Tag color="default">{conversationStatus[status] || status}</Tag>}
+          {session && (
+            <VisitorActions
+              entryKey={entryKey}
+              conversationId={session.conversation.id}
+              token={session.token}
+              status={status}
+            />
+          )}
         </header>
         <div style={{ padding: "0 20px" }}>
           <ErrorNotice error={error} />
@@ -188,12 +204,6 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                 onStatus={setStatus}
               />
             )}
-            <VisitorActions
-              entryKey={entryKey}
-              conversationId={session.conversation.id}
-              token={session.token}
-              status={status}
-            />
             {status === "closed" && (
               <div style={{ padding: "10px 20px", textAlign: "center" }}>
                 <Button

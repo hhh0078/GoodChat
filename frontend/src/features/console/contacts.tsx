@@ -1,7 +1,19 @@
 /** 文件作用说明：维护客户分类、标签、自定义字段与资料，并读取访问轨迹及执行保留历史的封禁。 */
 "use client";
 import { useEffect, useState } from "react";
-import { App, Button, Drawer, Form, Input, Popconfirm, Space, Table, Tabs, Tag } from "antd";
+import {
+  App,
+  Avatar,
+  Button,
+  Drawer,
+  Form,
+  Input,
+  Popconfirm,
+  Space,
+  Table,
+  Tabs,
+  Tag,
+} from "antd";
 import { PageTitle, ErrorNotice, EmptyData } from "@/components/page-state";
 import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
@@ -52,7 +64,7 @@ export function ContactsPage() {
     }
   }
   return (
-    <>
+    <section className="console-screen console-contacts">
       <PageTitle
         title="客户资料"
         description="客户资料属于当前租户；公开手机号不作为历史会话访问凭证。"
@@ -69,7 +81,18 @@ export function ContactsPage() {
                   title="客户"
                   path="/tenant/contacts"
                   columns={[
-                    { title: "客户名称", dataIndex: "display_name" },
+                    {
+                      title: "客户名称",
+                      dataIndex: "display_name",
+                      render: (value) => (
+                        <Space>
+                          <Avatar size={32} className="console-person-avatar">
+                            {String(value || "访").slice(0, 1)}
+                          </Avatar>
+                          <strong>{String(value || "访客")}</strong>
+                        </Space>
+                      ),
+                    },
                     { title: "联系电话", dataIndex: "phone", render: (value) => value || "—" },
                     {
                       title: "分类",
@@ -154,6 +177,26 @@ export function ContactsPage() {
                   title="客户标签"
                   path="/tenant/tags"
                   onChanged={tags.reload}
+                  columns={[
+                    {
+                      title: "标签名称",
+                      dataIndex: "name",
+                      render: (value) => <Tag>{String(value || "—")}</Tag>,
+                    },
+                    {
+                      title: "标签分类",
+                      dataIndex: "category_id",
+                      render: (value) =>
+                        tagCategories.items.find((item) => item.id === value)?.name || "未分类",
+                    },
+                    {
+                      title: "颜色",
+                      dataIndex: "color",
+                      render: (value) => (
+                        <code className="console-field-key">{String(value || "—")}</code>
+                      ),
+                    },
+                  ]}
                   fields={[
                     { name: "name", label: "标签名称", required: true },
                     {
@@ -189,6 +232,31 @@ export function ContactsPage() {
                 <ResourcePanel
                   title="自定义字段"
                   path="/tenant/custom-fields"
+                  columns={[
+                    { title: "显示名称", dataIndex: "name" },
+                    {
+                      title: "字段键名",
+                      dataIndex: "field_key",
+                      render: (value) => (
+                        <code className="console-field-key">{String(value || "—")}</code>
+                      ),
+                    },
+                    {
+                      title: "字段类型",
+                      dataIndex: "field_type",
+                      render: (value) =>
+                        (
+                          ({
+                            text: "文本",
+                            number: "数字",
+                            boolean: "开关",
+                            date: "日期",
+                            select: "单选",
+                            multiselect: "多选",
+                          }) as Record<string, string>
+                        )[String(value)] || String(value || "—"),
+                    },
+                  ]}
                   fields={[
                     { name: "name", label: "显示名称", required: true },
                     {
@@ -227,6 +295,7 @@ export function ContactsPage() {
         />
       </div>
       <Drawer
+        rootClassName="console-drawer"
         title="客户访问与封禁管理"
         open={!!selected}
         onClose={() => setSelected(null)}
@@ -239,6 +308,12 @@ export function ContactsPage() {
           </Tag>
         </Space>
         <p className="muted">联系电话：{String(selected?.phone || "未填写")}</p>
+        {selected?.notes ? (
+          <div className="console-customer-note">
+            <strong>内部备注</strong>
+            <p>{String(selected.notes)}</p>
+          </div>
+        ) : null}
         <Form layout="vertical">
           <Form.Item label="封禁原因">
             <Input.TextArea
@@ -284,6 +359,6 @@ export function ContactsPage() {
           ]}
         />
       </Drawer>
-    </>
+    </section>
   );
 }

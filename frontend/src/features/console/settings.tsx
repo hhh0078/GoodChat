@@ -6,6 +6,7 @@ import {
   App,
   Button,
   Card,
+  Drawer,
   Form,
   Input,
   Modal,
@@ -33,6 +34,7 @@ type CallbackSettings = {
 /** SettingsPage 管理账号会话与租户进入事件回调，不在页面暴露已有密钥。 */
 export function SettingsPage() {
   const { current, tenantId } = useSession();
+  const membership = current.memberships.find((member) => member.tenant_id === tenantId);
   const manages = current.memberships.some(
     (member) => member.tenant_id === tenantId && ["owner", "admin"].includes(member.role),
   );
@@ -41,6 +43,12 @@ export function SettingsPage() {
   const [error, setError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
   const [secret, setSecret] = useState("");
+  const [selectedDelivery, setSelectedDelivery] = useState<{
+    tenantId: string;
+    record: Resource;
+  } | null>(null);
+  const activeDelivery =
+    selectedDelivery?.tenantId === tenantId && manages ? selectedDelivery.record : null;
   const deliveries = useResource<Resource>(manages ? "/tenant/callback-deliveries" : "");
   const { message } = App.useApp();
   /** load 从服务端读取回调设置，保持租户切换时隔离。 */
@@ -103,7 +111,7 @@ export function SettingsPage() {
     }
   }
   return (
-    <>
+    <section className="console-screen console-settings">
       <PageTitle
         title="租户与账号设置"
         description="管理访客进入回调、查看投递结果和账号设备会话。"
@@ -114,7 +122,7 @@ export function SettingsPage() {
             key: "callback",
             label: "访客进入回调",
             children: (
-              <div className="two-columns">
+              <div className="two-columns console-settings-columns">
                 <Card title="回调地址与内容">
                   <ErrorNotice error={error} retry={() => void load()} />
                   <Alert
@@ -225,15 +233,24 @@ export function SettingsPage() {
                     {
                       title: "操作",
                       render: (_, row) => (
-                        <Button
-                          type="link"
-                          size="small"
-                          onClick={() =>
-                            void perform(`/tenant/callback-deliveries/${row.id}/retry`)
-                          }
-                        >
-                          重试投递
-                        </Button>
+                        <Space>
+                          <Button
+                            type="link"
+                            size="small"
+                            onClick={() => setSelectedDelivery({ tenantId, record: row })}
+                          >
+                            查看详情
+                          </Button>
+                          <Button
+                            type="link"
+                            size="small"
+                            onClick={() =>
+                              void perform(`/tenant/callback-deliveries/${row.id}/retry`)
+                            }
+                          >
+                            重试投递
+                          </Button>
+                        </Space>
                       ),
                     },
                   ]}
@@ -245,21 +262,82 @@ export function SettingsPage() {
             key: "account",
             label: "账号与设备",
             children: (
-              <Card title="当前账号">
-                <p>
-                  {current.user.display_name} · {current.user.email}
-                </p>
+              <section className="console-account">
+                <h2>当前账号</h2>
+                <dl className="console-account-details">
+                  <div>
+                    <dt>显示名称</dt>
+                    <dd>{current.user.display_name || "未填写"}</dd>
+                  </div>
+                  <div>
+                    <dt>邮箱</dt>
+                    <dd>{current.user.email}</dd>
+                  </div>
+                  <div>
+                    <dt>当前租户</dt>
+                    <dd>{membership?.tenant_name || "未加入工作空间"}</dd>
+                  </div>
+                  <div>
+                    <dt>角色</dt>
+                    <dd>
+                      {membership?.role === "owner"
+                        ? "所有者"
+                        : membership?.role === "admin"
+                          ? "管理员"
+                          : membership
+                            ? "客服"
+                            : "—"}
+                    </dd>
+                  </div>
+                </dl>
+                <h2>账号会话</h2>
+                <p className="muted">退出其他设备后，当前设备仍可继续使用。</p>
                 <Space>
                   <Button href="/reset-password">重置密码</Button>
                   <Popconfirm title="退出其他设备上的登录？" onConfirm={logoutOthers}>
                     <Button>退出其他设备</Button>
                   </Popconfirm>
                 </Space>
-              </Card>
+              </section>
             ),
           },
         ].filter((item) => manages || item.key === "account")}
       />
+      <Drawer
+        rootClassName="console-drawer"
+        title="投递详情"
+        open={!!activeDelivery}
+        onClose={() => setSelectedDelivery(null)}
+        width={480}
+      >
+        <dl className="console-account-details">
+          <div>
+            <dt>事件编号</dt>
+            <dd>{activeDelivery?.id || "—"}</dd>
+          </div>
+          <div>
+            <dt>事件</dt>
+            <dd>{String(activeDelivery?.event_type || "—")}</dd>
+          </div>
+          <div>
+            <dt>投递状态</dt>
+            <dd>{String(activeDelivery?.status || "—")}</dd>
+          </div>
+          <div>
+            <dt>累计尝试</dt>
+            <dd>{String(activeDelivery?.attempts ?? "—")}</dd>
+          </div>
+          <div>
+            <dt>HTTP 状态</dt>
+            <dd>{String(activeDelivery?.response_status || "—")}</dd>
+          </div>
+          <div>
+            <dt>结果说明</dt>
+            <dd>{String(activeDelivery?.last_error || "—")}</dd>
+          </div>
+        </dl>
+        <p className="form-hint">这里显示当前投递记录的累计结果。</p>
+      </Drawer>
       <Modal
         title="请保存新的签名密钥"
         open={!!secret}
@@ -278,6 +356,6 @@ export function SettingsPage() {
         />
         <Input.TextArea readOnly value={secret} rows={3} />
       </Modal>
-    </>
+    </section>
   );
 }

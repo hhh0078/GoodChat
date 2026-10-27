@@ -1,7 +1,20 @@
 /** 文件作用说明：提供访客与客服共用的消息界面、幂等重试、附件、语音、引用与可见已读。 */
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Alert, App, Button, Input, Popconfirm, Select, Space, Spin, Tag, Tooltip } from "antd";
+import {
+  Alert,
+  App,
+  Avatar,
+  Button,
+  Input,
+  Popconfirm,
+  Select,
+  Space,
+  Spin,
+  Tabs,
+  Tag,
+  Tooltip,
+} from "antd";
 import { AudioOutlined, CloseOutlined, PaperClipOutlined, SendOutlined } from "@ant-design/icons";
 import { ErrorNotice, EmptyData } from "@/components/page-state";
 import { errorMessage } from "@/lib/api";
@@ -129,6 +142,16 @@ export function ChatPanel({
     if (atBottom)
       scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [chat.messages.length, atBottom]);
+  useEffect(() => {
+    const node = scroller.current;
+    if (!node || !atBottom || typeof ResizeObserver === "undefined") return;
+    // 视口或资料栏变化后保持正在阅读的最新消息可见，向上查历史时不强制跳回。
+    const observer = new ResizeObserver(() =>
+      node.scrollTo({ top: node.scrollHeight, behavior: "auto" }),
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [atBottom]);
   useEffect(() => {
     const latest = chat.messages.at(-1)?.seq || chat.messages.at(-1)?.event_seq;
     if (
@@ -274,11 +297,11 @@ export function ChatPanel({
     }
   }
   return (
-    <div className="chat-main">
+    <div className={`chat-main chat-thread ${identity.kind === "agent" ? "agent-thread" : ""}`}>
       <div
+        className={`chat-connection ${chat.connected ? "connected" : "reconnecting"}`}
         style={{
           padding: "8px 20px",
-          background: chat.connected ? "#f3f7ee" : "#fff8e9",
           fontSize: 12,
           display: "flex",
           justifyContent: "space-between",
@@ -325,6 +348,16 @@ export function ChatPanel({
                 key={item.id}
                 className={`message-row ${own ? "own" : ""} ${item.audience === "internal" ? "internal" : ""}`}
               >
+                <Avatar size={32} className="message-avatar">
+                  {(
+                    item.sender_name ||
+                    (item.sender_kind === "visitor"
+                      ? "访"
+                      : item.sender_kind === "system"
+                        ? "系"
+                        : "我")
+                  ).slice(0, 1)}
+                </Avatar>
                 <div className="message-meta">
                   {item.audience === "internal" ? "内部备注 · " : ""}
                   {item.sender_name ||
@@ -407,18 +440,22 @@ export function ChatPanel({
                 {!item.withdrawn_at && (
                   <Space size={10} style={{ fontSize: 11, marginTop: 4 }}>
                     {canSend && (
-                      <a
+                      <Button
+                        type="link"
+                        size="small"
                         onClick={() => {
                           setReply(item);
                           if (item.audience === "internal") setAudience("internal");
                         }}
                       >
                         引用
-                      </a>
+                      </Button>
                     )}
                     {own && canSend && (
                       <Popconfirm title="撤回这条消息？" onConfirm={() => withdraw(item)}>
-                        <a>撤回</a>
+                        <Button type="link" size="small">
+                          撤回
+                        </Button>
                       </Popconfirm>
                     )}
                     {own && BigInt(chat.readSeq) >= BigInt(item.seq || item.event_seq || 0) && (
@@ -474,22 +511,18 @@ export function ChatPanel({
                 />
               </div>
             )}
-            {identity.kind === "agent" && quickReplies.length > 0 && (
-              <Select<string>
-                aria-label="选择快捷话术"
-                value={undefined}
-                placeholder="插入快捷话术"
-                showSearch
-                optionFilterProp="label"
-                style={{ width: "100%", marginBottom: 10 }}
-                options={quickReplies.map((item) => ({
-                  label: String(item.title),
-                  value: item.id,
-                }))}
+            {identity.kind === "agent" && (
+              <Tabs
+                className="composer-audience"
+                activeKey={audience}
                 onChange={(value) => {
-                  const item = quickReplies.find((record) => record.id === value);
-                  if (item) setDraft(String(item.content || ""));
+                  setAudience(value);
+                  if (value === "public" && reply?.audience === "internal") setReply(null);
                 }}
+                items={[
+                  { key: "public", label: "回复客户" },
+                  { key: "internal", label: "内部备注" },
+                ]}
               />
             )}
             <Input.TextArea
@@ -557,19 +590,22 @@ export function ChatPanel({
                   </Button>
                 </Tooltip>
                 {identity.kind === "agent" && (
-                  <Select
-                    size="small"
-                    aria-label="消息受众"
-                    value={audience}
+                  <Select<string>
+                    aria-label="选择快捷话术"
+                    value={undefined}
+                    placeholder="快捷话术"
+                    disabled={quickReplies.length === 0}
+                    showSearch
+                    optionFilterProp="label"
+                    style={{ width: 140 }}
+                    options={quickReplies.map((item) => ({
+                      label: String(item.title),
+                      value: item.id,
+                    }))}
                     onChange={(value) => {
-                      setAudience(value);
-                      if (value === "public" && reply?.audience === "internal") setReply(null);
+                      const item = quickReplies.find((record) => record.id === value);
+                      if (item) setDraft(String(item.content || ""));
                     }}
-                    options={[
-                      { label: "回复访客", value: "public" },
-                      { label: "内部备注", value: "internal" },
-                    ]}
-                    style={{ width: 110 }}
                   />
                 )}
               </Space>

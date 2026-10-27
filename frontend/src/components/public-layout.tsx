@@ -5,7 +5,7 @@ import { Brand } from "./brand";
 /** PublicLayout 渲染无需客户端 JavaScript 即可读取的官网导航和内容。 */
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <div className="public-site">
       <div className="public-width">
         <header className="public-header">
           <Brand />
@@ -18,7 +18,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <div className="public-actions">
             <Link href="/login">登录</Link>
             <Button type="primary" href="/register">
-              创建工作空间
+              免费开始
             </Button>
           </div>
         </header>
@@ -39,6 +39,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </footer>
-    </>
+    </div>
   );
 }

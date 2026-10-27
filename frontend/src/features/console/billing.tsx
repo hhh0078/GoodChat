@@ -56,7 +56,7 @@ export function BillingPage() {
     }
   }
   return (
-    <>
+    <section className="console-screen console-billing">
       <PageTitle
         title="套餐与客服坐席"
         description="免费开始，根据团队规模申请扩展。管理员成员只有开启接待权限才占用客服坐席。"
@@ -109,6 +109,7 @@ export function BillingPage() {
               style={{ marginBottom: 24 }}
             />
             <div className="table-card">
+              <h2 className="console-section-heading">可选版本</h2>
               <Table
                 rowKey="id"
                 dataSource={data.available_plans || []}
@@ -149,6 +150,6 @@ export function BillingPage() {
           </>
         )
       )}
-    </>
+    </section>
   );
 }

@@ -4,6 +4,10 @@ import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { Providers } from "@/components/providers";
 import { siteURL } from "@/lib/urls";
 import "./globals.css";
+import "@/styles/workbench-redesign.css";
+import "@/styles/console-redesign.css";
+import "@/styles/public-redesign.css";
+import "@/styles/studio-redesign.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteURL()),

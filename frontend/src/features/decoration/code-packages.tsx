@@ -252,7 +252,8 @@ export function CodePackages({
     }
   }
   return (
-    <div>
+    <div className="studio-code-packages">
+      <h2 className="studio-panel-title">私有资源包</h2>
       <Alert
         type="info"
         showIcon
@@ -342,14 +343,9 @@ export function CodePackages({
             )
           }
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(140px, 1fr) minmax(0, 3fr)",
-              gap: 16,
-            }}
-          >
+          <div className="studio-package-files">
             <Tree
+              className="studio-package-tree"
               treeData={buildPackageTree(selected.manifest || [])}
               defaultExpandAll
               selectedKeys={selectedPath ? [`file:${selectedPath}`] : []}
@@ -427,6 +423,7 @@ export function CodePackages({
         </Card>
       )}
       <Drawer
+        rootClassName="studio-drawer"
         title="导入私有静态资源包"
         open={importOpen}
         onClose={() => setImportOpen(false)}
@@ -459,6 +456,7 @@ export function CodePackages({
         </Form>
       </Drawer>
       <Modal
+        rootClassName="studio-dialog"
         title="从资源包创建私有模板"
         open={createOpen}
         onCancel={() => setCreateOpen(false)}

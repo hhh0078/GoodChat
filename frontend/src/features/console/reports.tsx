@@ -1,7 +1,8 @@
 /** 文件作用说明：在独立页面加载真实服务统计，按时间筛选并展示统一口径。 */
 "use client";
 import { useEffect, useState } from "react";
-import { Alert, Card, DatePicker, Space, Spin, Table } from "antd";
+import { Card, DatePicker, Space, Spin, Table } from "antd";
+import { InfoCircleOutlined } from "@ant-design/icons";
 import { api } from "@/lib/api";
 import { useSession } from "@/features/auth/session";
 import { ErrorNotice, PageTitle, EmptyData } from "@/components/page-state";
@@ -54,29 +55,27 @@ export function ReportsPage() {
     ["平均首次回复秒数", "avg_first_response_seconds"],
   ];
   return (
-    <>
+    <section className="console-screen console-reports">
       <PageTitle
         title="服务统计"
         description="访问、客户、咨询和消息分别统计；转接不额外增加咨询会话数。"
+        action={
+          <Space wrap>
+            <span className="muted">统计时间</span>
+            <DatePicker.RangePicker
+              onChange={(values) =>
+                setRange(
+                  values?.[0] && values?.[1]
+                    ? [values[0].startOf("day").toISOString(), values[1].endOf("day").toISOString()]
+                    : [],
+                )
+              }
+            />
+          </Space>
+        }
       />
-      <Space style={{ marginBottom: 22 }}>
-        <span className="muted">统计时间</span>
-        <DatePicker.RangePicker
-          onChange={(values) =>
-            setRange(
-              values?.[0] && values?.[1]
-                ? [values[0].startOf("day").toISOString(), values[1].endOf("day").toISOString()]
-                : [],
-            )
-          }
-        />
-      </Space>
       <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
-      <Alert
-        type="info"
-        showIcon
-        title="系统欢迎语与自动回复不计入人工首响；无有效样本时以服务端返回值为准。"
-      />
+
       <div className="stat-grid">
         {metrics.map(([label, key]) => (
           <Card size="small" key={key}>
@@ -87,8 +86,9 @@ export function ReportsPage() {
           </Card>
         ))}
       </div>
-      <div className="two-columns">
-        <Card title="按客服统计">
+      <div className="two-columns console-report-tables">
+        <section className="console-report-section">
+          <h2>按客服统计</h2>
           <Table
             rowKey="agent_id"
             loading={loading}
@@ -103,8 +103,9 @@ export function ReportsPage() {
               { title: "已结束", dataIndex: "closed" },
             ]}
           />
-        </Card>
-        <Card title="按入口来源统计">
+        </section>
+        <section className="console-report-section">
+          <h2>按入口来源统计</h2>
           <Table
             rowKey="channel_code"
             loading={loading}
@@ -117,9 +118,10 @@ export function ReportsPage() {
               { title: "咨询", dataIndex: "conversations" },
             ]}
           />
-        </Card>
+        </section>
       </div>
-      <Card title="每日趋势" style={{ marginTop: 22 }}>
+      <section className="console-report-section console-report-daily">
+        <h2>每日趋势</h2>
         <Table
           rowKey="date"
           loading={loading}
@@ -133,7 +135,10 @@ export function ReportsPage() {
             { title: "消息数", dataIndex: "messages" },
           ]}
         />
-      </Card>
-    </>
+      </section>
+      <p className="console-report-note">
+        <InfoCircleOutlined /> 系统欢迎语与自动回复不计入人工首响；无有效样本时以服务端返回值为准。
+      </p>
+    </section>
   );
 }

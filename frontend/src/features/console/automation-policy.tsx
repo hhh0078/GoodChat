@@ -1,19 +1,7 @@
 /** 文件作用说明：配置真实营业欢迎场景、人工接入策略和访客评价期限，保存使用服务端版本。 */
 "use client";
 import { useEffect, useState } from "react";
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  Form,
-  Input,
-  InputNumber,
-  Select,
-  Space,
-  Switch,
-  Tag,
-} from "antd";
+import { Alert, App, Button, Form, Input, InputNumber, Select, Space, Switch, Tag } from "antd";
 import { api } from "@/lib/api";
 import { useSession } from "@/features/auth/session";
 import { ErrorNotice } from "@/components/page-state";
@@ -67,7 +55,11 @@ export function AutomationPolicy() {
     }
   }
   return (
-    <Card style={{ maxWidth: 900 }}>
+    <section className="studio-policy studio-settings-surface">
+      <div className="studio-panel-heading">
+        <h2>营业与评价策略</h2>
+        <p>区分营业欢迎场景，设置评价与改评期限。</p>
+      </div>
       <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
       <Alert
         type="info"
@@ -81,7 +73,8 @@ export function AutomationPolicy() {
         style={{ marginBottom: 20 }}
       />
       <Form form={form} layout="vertical" onFinish={save}>
-        <Form.Item name="version" hidden>
+        <h3 className="studio-form-section">营业时段</h3>
+        <Form.Item name="version" hidden style={{ display: "none" }}>
           <InputNumber />
         </Form.Item>
         <Form.Item
@@ -96,7 +89,7 @@ export function AutomationPolicy() {
           {(fields, { add, remove }) => (
             <>
               {fields.map((field) => (
-                <Space key={field.key} align="baseline" wrap>
+                <Space key={field.key} className="studio-hours-row" align="baseline" wrap>
                   <Form.Item
                     name={[field.name, "day"]}
                     label="起始星期"
@@ -159,6 +152,7 @@ export function AutomationPolicy() {
         >
           <Switch />
         </Form.Item>
+        <h3 className="studio-form-section">服务评价</h3>
         <Form.Item name="evaluation_enabled" label="开放服务评价" valuePropName="checked">
           <Switch />
         </Form.Item>
@@ -192,6 +186,6 @@ export function AutomationPolicy() {
           保存策略
         </Button>
       </Form>
-    </Card>
+    </section>
   );
 }

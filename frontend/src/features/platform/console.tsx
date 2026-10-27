@@ -14,13 +14,14 @@ export function PlatformConsole() {
   if (!current.user.is_platform_admin)
     return <Alert type="error" showIcon title="此账号没有平台管理权限" />;
   return (
-    <>
+    <section className="studio-page studio-platform" aria-label="平台管理">
       <PageTitle
         title="平台管理"
         description="平台配置、租户与公开套餐由平台管理员维护，租户成员不能通过注册获得此权限。"
       />
-      <div className="table-card">
+      <div className="studio-platform-body">
         <Tabs
+          className="studio-tabs"
           items={[
             { key: "overview", label: "平台概览", children: <PlatformOverview /> },
             { key: "tenants", label: "租户运营", children: <PlatformTenants /> },
@@ -30,6 +31,6 @@ export function PlatformConsole() {
           ]}
         />
       </div>
-    </>
+    </section>
   );
 }

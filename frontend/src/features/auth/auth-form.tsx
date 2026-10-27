@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Alert, App, Button, Checkbox, Form, Input, Segmented, Space } from "antd";
-import { ArrowRightOutlined, MailOutlined } from "@ant-design/icons";
+import {
+  ArrowRightOutlined,
+  MailOutlined,
+  LinkOutlined,
+  TeamOutlined,
+  SkinOutlined,
+  ArrowLeftOutlined,
+} from "@ant-design/icons";
 import { api, errorMessage } from "@/lib/api";
 import { safeReturnPath } from "@/lib/urls";
 import { Brand } from "@/components/brand";
@@ -22,8 +29,8 @@ type Values = {
 const labels = {
   login: ["欢迎回来", "登录你的工作空间，继续接住每一次咨询。"],
   register: ["创建你的工作空间", "验证邮箱后，你将成为新租户的所有者与管理员。"],
-  reset: ["重新设置密码", "通过邮箱验证后设置新密码。"],
-  invitation: ["加入接待团队", "使用受邀邮箱验证，加入邀请对应的工作空间。"],
+  reset: ["重置登录密码", "通过邮箱验证后设置新密码。"],
+  invitation: ["加入团队", "使用受邀邮箱验证，加入邀请对应的工作空间。"],
 };
 
 /** AuthForm 根据页面模式提交身份接口，并准确展示发信与错误状态。 */
@@ -135,29 +142,42 @@ export function AuthForm({ mode }: { mode: Mode }) {
   }
 
   return (
-    <div className="auth-wrap">
+    <div className={`auth-wrap auth-refresh auth-mode-${mode}`}>
       <aside className="auth-intro">
         <Brand />
-        <div>
-          <div className="eyebrow">A GOOD PLACE TO CONNECT</div>
-          <h1>
-            好的服务，
-            <br />
-            从一段对话开始。
-          </h1>
-          <p className="muted">
-            多个入口，一个团队。
-            <br />
-            把客户接进来，把问题解决好。
-          </p>
+        <div className="auth-intro-content">
+          <div className="public-overline">SIMPLE SERVICE</div>
+          <h1>把咨询接起来，把服务做好。</h1>
+          <p className="muted">一个工作空间，连接入口、团队与每一位客户。</p>
+          <div className="auth-capabilities">
+            <div>
+              <LinkOutlined />
+              <span>
+                <strong>多链接接入</strong>
+                <small>独立入口连接不同业务，让咨询有序进入团队。</small>
+              </span>
+            </div>
+            <div>
+              <TeamOutlined />
+              <span>
+                <strong>灵活分配</strong>
+                <small>按团队规则分配咨询，让合适的人提供服务。</small>
+              </span>
+            </div>
+            <div>
+              <SkinOutlined />
+              <span>
+                <strong>品牌装修</strong>
+                <small>用组件、代码或 AI 创作自己的聊天页面。</small>
+              </span>
+            </div>
+          </div>
         </div>
-        <p className="muted" style={{ fontSize: 12 }}>
-          GoodChat · 商户独立工作空间
-        </p>
+        <p className="auth-free-note">免费包含 2 个客服坐席。</p>
       </aside>
       <main className="auth-form-side">
         <div className="auth-form">
-          <div style={{ marginBottom: 36 }}>
+          <div className="auth-form-brand">
             <Brand />
           </div>
           <h1>{labels[mode][0]}</h1>
@@ -168,8 +188,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
               value={loginMethod}
               onChange={setLoginMethod}
               options={[
-                { label: "邮箱密码", value: "password" },
-                { label: "邮箱验证码", value: "code" },
+                { label: "密码登录", value: "password" },
+                { label: "验证码登录", value: "code" },
               ]}
               style={{ marginBottom: 24 }}
             />
@@ -191,6 +211,31 @@ export function AuthForm({ mode }: { mode: Mode }) {
             requiredMark={false}
             autoComplete="on"
           >
+            {mode === "register" && (
+              <Form.Item
+                name="tenant_name"
+                label="工作空间名称"
+                rules={[
+                  {
+                    required: true,
+                    whitespace: true,
+                    max: 100,
+                    message: "请填写 100 字以内的名称",
+                  },
+                ]}
+              >
+                <Input placeholder="公司、品牌或团队名称" />
+              </Form.Item>
+            )}
+            {["register", "invitation"].includes(mode) && (
+              <Form.Item
+                name="display_name"
+                label="你的称呼"
+                rules={[{ required: true, whitespace: true, max: 50, message: "请填写你的称呼" }]}
+              >
+                <Input placeholder="用于团队内显示" autoComplete="name" />
+              </Form.Item>
+            )}
             <Form.Item
               name="email"
               label={mode === "invitation" ? "受邀邮箱" : "邮箱"}
@@ -229,31 +274,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
                     {cooldown > 0 ? `${cooldown} 秒后重发` : "获取验证码"}
                   </Button>
                 </div>
-              </Form.Item>
-            )}
-            {mode === "register" && (
-              <Form.Item
-                name="tenant_name"
-                label="工作空间名称"
-                rules={[
-                  {
-                    required: true,
-                    whitespace: true,
-                    max: 100,
-                    message: "请填写 100 字以内的名称",
-                  },
-                ]}
-              >
-                <Input placeholder="公司、品牌或团队名称" />
-              </Form.Item>
-            )}
-            {["register", "invitation"].includes(mode) && (
-              <Form.Item
-                name="display_name"
-                label="你的称呼"
-                rules={[{ required: true, whitespace: true, max: 50, message: "请填写你的称呼" }]}
-              >
-                <Input placeholder="用于团队内显示" autoComplete="name" />
               </Form.Item>
             )}
             {needsPassword && (
@@ -336,13 +356,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
                   ? "更新密码"
                   : mode === "invitation"
                     ? "验证并加入团队"
-                    : "登录"}
+                    : "登录工作空间"}
             </Button>
           </Form>
           <div className="auth-links">
             {mode === "login" ? (
               <>
-                <Link href="/register">还没有账号？创建工作空间</Link>
+                <Link href="/register">免费注册</Link>
                 <Link href="/reset-password">忘记密码</Link>
               </>
             ) : (
@@ -352,6 +372,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
               </>
             )}
           </div>
+          {mode === "login" && (
+            <div className="auth-home-link">
+              <Link href="/">
+                <ArrowLeftOutlined /> 返回官网
+              </Link>
+            </div>
+          )}
         </div>
       </main>
     </div>

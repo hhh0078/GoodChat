@@ -1,0 +1,18 @@
+{
+  "_purpose": "记录根代理负责的选定工作台及两个手机变体的图稿和生成提示词。",
+  "selected_direction": "最近一轮第1张布局，按用户要求改为明亮中性底与绿色点缀",
+  "images": [
+    {
+      "path": "docs/designs/2026-10-27/13-workspace.png",
+      "prompt": "docs/designs/2026-10-27/13-workspace.prompt.txt"
+    },
+    {
+      "path": "docs/designs/2026-10-27/m06-workspace-list.png",
+      "prompt": "docs/designs/2026-10-27/m06-workspace-list.prompt.txt"
+    },
+    {
+      "path": "docs/designs/2026-10-27/m07-workspace-chat.png",
+      "prompt": "docs/designs/2026-10-27/m07-workspace-chat.prompt.txt"
+    }
+  ]
+}

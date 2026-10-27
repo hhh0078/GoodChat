@@ -51,7 +51,10 @@ export type Conversation = Resource & {
   contact_id: string;
   contact_name?: string;
   display_name?: string;
-  contact?: { id: string; display_name: string; phone: string };
+  contact?: { id: string; display_name: string; phone: string; avatar_url?: string };
+  source_snapshot?: Record<string, unknown>;
+  context?: Record<string, unknown>;
+  updated_at?: string;
   agent_name?: string;
   version?: string;
   last_message?: string;

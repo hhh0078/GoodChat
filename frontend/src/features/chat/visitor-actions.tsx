@@ -7,6 +7,7 @@ import {
   Button,
   Drawer,
   Form,
+  Grid,
   Input,
   Rate,
   Select,
@@ -15,6 +16,7 @@ import {
   Tag,
   Upload,
 } from "antd";
+import { MessageOutlined, StarOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { api } from "@/lib/api";
 import { ErrorNotice } from "@/components/page-state";
 type EvaluationState = {
@@ -41,6 +43,8 @@ export function VisitorActions({
   status: string;
 }) {
   const [mode, setMode] = useState<"lead" | "evaluation" | null>(null);
+  const screens = Grid.useBreakpoint();
+  const mobile = screens.xs === true;
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [attachments, setAttachments] = useState<LeadAttachment[]>([]);
@@ -51,6 +55,7 @@ export function VisitorActions({
   const [evaluationRevision, setEvaluationRevision] = useState(0);
   const requestID = useRef("");
   const [form] = Form.useForm();
+  const selectedScore = Form.useWatch("score", form);
   const { message } = App.useApp();
   const canEvaluate = !!evaluation && (evaluation.can_submit || evaluation.can_edit);
   useEffect(() => {
@@ -171,18 +176,10 @@ export function VisitorActions({
   }
   return (
     <>
-      <Space
-        style={{
-          justifyContent: "center",
-          width: "100%",
-          padding: "8px 16px",
-          borderTop: "1px solid #e4e9df",
-        }}
-      >
+      <Space className="visitor-actions-bar">
         {status !== "closed" && (
           <Button
-            type="link"
-            size="small"
+            icon={<MessageOutlined />}
             onClick={() => {
               setError(null);
               if (!requestID.current) {
@@ -192,12 +189,12 @@ export function VisitorActions({
               setMode("lead");
             }}
           >
-            不方便等待？留下留言
+            留下留言
           </Button>
         )}
         {status === "closed" && (
           <Button
-            type="link"
+            icon={<StarOutlined />}
             onClick={() => {
               setError(null);
               form.resetFields();
@@ -209,7 +206,9 @@ export function VisitorActions({
         )}
       </Space>
       <Drawer
-        title={mode === "lead" ? "留言给接待团队" : "评价本次服务"}
+        title={mode === "lead" ? "留下你的问题" : "服务评价"}
+        rootClassName="visitor-action-drawer"
+        closable={{ placement: "end" }}
         open={!!mode}
         onClose={() => {
           uploadController.current?.abort();
@@ -217,8 +216,15 @@ export function VisitorActions({
           setMode(null);
         }}
         width={420}
+        placement={mobile ? "bottom" : "right"}
+        height={mode === "lead" ? "92dvh" : "85dvh"}
         destroyOnHidden
       >
+        <p className="visitor-action-intro">
+          {mode === "lead"
+            ? "可以先留下联系方式和问题，方便接待团队跟进。"
+            : "这次服务体验怎么样？请按真实感受选择评分。"}
+        </p>
         <ErrorNotice
           error={error}
           retry={
@@ -285,21 +291,21 @@ export function VisitorActions({
                 label="你的称呼"
                 rules={[{ required: true, whitespace: true }]}
               >
-                <Input maxLength={80} />
+                <Input maxLength={80} placeholder="请输入你的称呼" autoComplete="nickname" />
               </Form.Item>
               <Form.Item
                 name="phone"
                 label="联系电话"
                 rules={[{ required: true, whitespace: true }]}
               >
-                <Input maxLength={32} />
+                <Input maxLength={32} placeholder="方便联系你的电话号码" autoComplete="tel" />
               </Form.Item>
               <Form.Item
                 name="content"
                 label="需要什么帮助"
                 rules={[{ required: true, whitespace: true }]}
               >
-                <Input.TextArea rows={5} maxLength={5000} />
+                <Input.TextArea rows={5} maxLength={5000} placeholder="请详细描述你的问题" />
               </Form.Item>
               <Form.Item label="附件（选填）" extra="最多3个，每个20MB以内，图片最大10MB。">
                 <Space direction="vertical" style={{ width: "100%" }}>
@@ -328,6 +334,7 @@ export function VisitorActions({
                     }}
                   >
                     <Button
+                      icon={<PaperClipOutlined />}
                       loading={uploading}
                       disabled={busy || uploading || attachments.length >= 3}
                     >
@@ -367,11 +374,24 @@ export function VisitorActions({
                 />
               </Form.Item>
               <Form.Item name="comment" label="想对我们说的话（选填）">
-                <Input.TextArea rows={4} maxLength={2000} />
+                <Input.TextArea rows={4} maxLength={2000} placeholder="分享你的服务体验" />
               </Form.Item>
             </>
           )}
-          <Button type="primary" htmlType="submit" loading={busy} disabled={uploading}>
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            loading={busy}
+            disabled={
+              uploading ||
+              (mode === "evaluation" &&
+                (!canEvaluate ||
+                  evaluationLoading ||
+                  typeof selectedScore !== "number" ||
+                  selectedScore < 1))
+            }
+          >
             提交{mode === "lead" ? "留言" : "评价"}
           </Button>
         </Form>

@@ -1,0 +1,474 @@
+/* 文件作用说明：按明亮逐页图稿统一装修编辑、回复运营与平台管理布局，仅作用于所属模块。 */
+.studio-page {
+  min-width: 0;
+}
+.studio-page .page-title-row {
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+.studio-page .page-title-row h1 {
+  color: var(--ink);
+}
+.studio-page .ant-card,
+.studio-drawer .ant-card {
+  border-radius: 6px;
+  box-shadow: none;
+}
+.studio-panel-heading {
+  margin-bottom: 22px;
+}
+.studio-panel-heading h2,
+.studio-panel-title {
+  margin: 0 0 8px;
+  font-size: 21px;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.studio-panel-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.studio-tabs > .ant-tabs-nav {
+  margin-bottom: 24px;
+}
+.studio-tabs > .ant-tabs-nav .ant-tabs-tab {
+  padding: 13px 4px;
+}
+.studio-page .table-card,
+.studio-page .studio-table-surface {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.studio-page .ant-table-thead > tr > th {
+  background: #f6f7f5;
+  font-weight: 600;
+}
+.studio-page .ant-table-tbody > tr > td {
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+.studio-page .ant-alert-info,
+.studio-drawer .ant-alert-info {
+  background: #f7f8f6;
+  border-color: var(--line);
+}
+.studio-templates .templates-grid {
+  gap: 20px;
+  align-items: stretch;
+}
+.studio-template-object > .ant-card-body {
+  padding: 12px 12px 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.studio-template-cover {
+  display: grid;
+  align-items: stretch;
+  padding: 18px;
+  min-height: 282px;
+  height: 282px;
+  overflow: hidden;
+  background: #f0f2ef;
+  border: 1px solid #e4e8e2;
+  border-radius: 5px;
+}
+.studio-template-document {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.studio-template-document header {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.studio-template-document header > div {
+  min-width: 0;
+}
+.studio-template-document header strong,
+.studio-template-document header small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.studio-template-document header strong {
+  font-size: 13px;
+}
+.studio-template-document header small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.studio-template-blocks {
+  flex: 1;
+  overflow: hidden;
+  padding: 12px 14px;
+  font-size: 11px;
+}
+.studio-template-blocks > div + div {
+  margin-top: 10px;
+}
+.studio-template-blocks strong {
+  font-size: 11px;
+  font-weight: 550;
+}
+.studio-template-blocks p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.studio-template-chat {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+}
+.studio-template-document footer {
+  padding: 8px 14px;
+  color: var(--muted);
+  font-size: 10px;
+  border-top: 1px solid var(--line);
+}
+.studio-code-cover {
+  justify-items: center;
+  align-content: center;
+  gap: 12px;
+  text-align: center;
+}
+.studio-code-cover > .anticon {
+  font-size: 35px;
+  color: #52685a;
+}
+.studio-code-cover p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.studio-templates .template-info {
+  padding: 18px 6px 0;
+  flex: 1;
+}
+.studio-templates .template-info > .ant-space:first-child {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.studio-templates .template-info strong {
+  font-size: 16px;
+  font-weight: 650;
+}
+.studio-templates .template-info > .ant-space:last-child {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 2px;
+  width: 100%;
+}
+.studio-editor .editor-grid {
+  grid-template-columns: minmax(360px, 1fr) minmax(360px, 1.08fr);
+  gap: 20px;
+  align-items: start;
+}
+.studio-editor .studio-settings-pane > .ant-card-head,
+.studio-editor .studio-preview-pane > .ant-card-head {
+  padding: 18px 20px;
+}
+.studio-editor .studio-settings-pane > .ant-card-body,
+.studio-editor .studio-preview-pane > .ant-card-body {
+  padding: 20px;
+}
+.studio-editor .design-preview {
+  border-radius: 6px;
+  padding: 20px;
+  min-height: 510px;
+}
+.studio-editor .studio-component-object > .ant-card-body {
+  padding: 12px;
+}
+.studio-editor .code-editor,
+.studio-drawer .code-editor,
+.studio-code-packages .code-editor {
+  background: #fbfcfa;
+  line-height: 1.7;
+  tab-size: 2;
+}
+.studio-code-packages {
+  min-width: 0;
+}
+.studio-code-packages > .studio-panel-title {
+  margin-bottom: 18px;
+}
+.studio-package-files {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(0, 3fr);
+  gap: 20px;
+  min-width: 0;
+}
+.studio-package-tree {
+  padding-right: 16px;
+  border-right: 1px solid var(--line);
+  overflow: auto;
+}
+.studio-operations-tabs > .ant-tabs-nav {
+  width: 188px;
+  min-width: 188px;
+  background: #fff;
+}
+.studio-operations-tabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab {
+  margin: 0;
+  padding: 14px 18px;
+  justify-content: flex-start;
+  white-space: normal;
+}
+.studio-operations-tabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab-active {
+  background: #f2f5f0;
+}
+.studio-operations-tabs.ant-tabs-left > .ant-tabs-body-holder {
+  background: #fff;
+  border-left-color: var(--line);
+  min-width: 0;
+}
+.studio-operations-tabs.ant-tabs-left > .ant-tabs-body-holder > .ant-tabs-body > .ant-tabs-content {
+  padding: 28px;
+  min-height: 640px;
+}
+.studio-operations-tabs > .ant-tabs-nav,
+.studio-operations-tabs > .ant-tabs-body-holder {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.studio-settings-form {
+  max-width: 940px;
+}
+.studio-operations .studio-preferences-form > .ant-form-item,
+.studio-operations .studio-policy > .ant-form > .ant-form-item:not(.ant-form-item-hidden) {
+  padding: 18px 0;
+  margin: 0;
+  border-bottom: 1px solid #e6e9e3;
+}
+.studio-operations .studio-preferences-form > .ant-form-item > .ant-form-item-row,
+.studio-operations
+  .studio-policy
+  > .ant-form
+  > .ant-form-item:not(.ant-form-item-hidden)
+  > .ant-form-item-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(0, 1.2fr);
+  gap: 24px;
+}
+.studio-operations
+  .studio-preferences-form
+  > .ant-form-item
+  > .ant-form-item-row
+  > .ant-form-item-label,
+.studio-operations
+  .studio-policy
+  > .ant-form
+  > .ant-form-item:not(.ant-form-item-hidden)
+  > .ant-form-item-row
+  > .ant-form-item-label {
+  padding: 0;
+  text-align: left;
+  white-space: normal;
+}
+.studio-operations
+  .studio-preferences-form
+  > .ant-form-item
+  > .ant-form-item-row
+  > .ant-form-item-label
+  > label,
+.studio-operations
+  .studio-policy
+  > .ant-form
+  > .ant-form-item:not(.ant-form-item-hidden)
+  > .ant-form-item-row
+  > .ant-form-item-label
+  > label {
+  height: auto;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 550;
+}
+.studio-operations .studio-preferences-form > .ant-btn,
+.studio-operations .studio-policy > .ant-form > .ant-btn:last-child {
+  margin-top: 22px;
+}
+.studio-operations .studio-preferences-form .ant-form-item-extra,
+.studio-policy .ant-form-item-extra {
+  padding-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.studio-settings-surface,
+.studio-welcome-rules {
+  max-width: 1040px;
+}
+.studio-form-section {
+  margin: 24px 0 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 16px;
+  font-weight: 600;
+}
+.studio-hours-row {
+  width: 100%;
+  border-bottom: 1px solid #e6e9e3;
+  padding: 14px 0;
+  margin-bottom: 12px;
+}
+.studio-hours-row .ant-form-item {
+  margin-bottom: 0;
+}
+.studio-welcome-preview {
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0 !important;
+}
+.studio-welcome-preview > .ant-card-head,
+.studio-welcome-preview > .ant-card-body {
+  padding-left: 0;
+  padding-right: 0;
+}
+.studio-mail-settings {
+  max-width: none !important;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0 !important;
+}
+.studio-mail-settings > .ant-card-head,
+.studio-mail-settings > .ant-card-body {
+  padding-left: 0;
+  padding-right: 0;
+}
+.studio-mail-settings .ant-form {
+  max-width: 660px;
+}
+.studio-platform-body {
+  background: #fff;
+  padding: 0 26px 28px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.studio-platform-section .resource-tools {
+  gap: 20px;
+}
+.studio-platform-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 28px 0 38px;
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.studio-platform-metric {
+  padding: 10px 32px;
+}
+.studio-platform-metric + .studio-platform-metric {
+  border-left: 1px solid var(--line);
+}
+.studio-platform-metric .stat-value {
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.studio-drawer .ant-drawer-header {
+  padding: 24px;
+}
+.studio-drawer .ant-drawer-body {
+  padding: 24px;
+}
+.studio-drawer .ant-form-item-label > label {
+  font-weight: 550;
+}
+.studio-drawer .ant-form-item-extra,
+.studio-dialog .form-hint {
+  font-size: 12px;
+  line-height: 1.65;
+}
+@media (max-width: 1150px) {
+  .studio-editor .editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .studio-templates .templates-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .studio-operations-tabs > .ant-tabs-nav {
+    width: 172px;
+    min-width: 172px;
+  }
+  .studio-operations-tabs.ant-tabs-left
+    > .ant-tabs-body-holder
+    > .ant-tabs-body
+    > .ant-tabs-content {
+    padding: 22px;
+  }
+}
+@media (max-width: 991px) {
+  .studio-operations-tabs > .ant-tabs-nav {
+    width: auto;
+    min-width: 0;
+  }
+  .studio-operations-tabs > .ant-tabs-body-holder {
+    padding: 20px;
+  }
+}
+@media (max-width: 768px) {
+  .studio-templates .templates-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .studio-template-cover {
+    height: 270px;
+    min-height: 270px;
+  }
+  .studio-operations .studio-preferences-form > .ant-form-item > .ant-form-item-row,
+  .studio-operations
+    .studio-policy
+    > .ant-form
+    > .ant-form-item:not(.ant-form-item-hidden)
+    > .ant-form-item-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .studio-package-files {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .studio-package-tree {
+    max-height: 200px;
+    padding-right: 0;
+    padding-bottom: 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .studio-platform-body {
+    padding: 0 14px 20px;
+  }
+  .studio-platform-metric {
+    padding: 8px 16px;
+  }
+  .studio-platform-metric .stat-value {
+    font-size: 36px;
+  }
+  .studio-editor .design-preview {
+    padding: 12px;
+    min-height: 420px;
+  }
+}

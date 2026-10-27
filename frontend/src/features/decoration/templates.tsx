@@ -20,9 +20,10 @@ import {
   Tabs,
   Tag,
 } from "antd";
-import { PlusOutlined, RobotOutlined, SkinOutlined } from "@ant-design/icons";
+import { PlusOutlined, RobotOutlined } from "@ant-design/icons";
 import { starterCodeDesign } from "./starter-code";
 import { CodePackages } from "./code-packages";
+import { TemplatePreview } from "./template-preview";
 import { api, errorMessage } from "@/lib/api";
 import { aiSubmissionState, type AIConfiguration } from "@/lib/ai-configuration";
 import { useSession } from "@/features/auth/session";
@@ -290,17 +291,8 @@ export function TemplatesPage() {
     return (
       <div className="templates-grid">
         {items.map((item) => (
-          <Card key={item.id} size="small">
-            <div
-              className="template-cover"
-              style={{
-                background: /^#[\da-f]{6}$/i.test(item.design?.theme?.background || "")
-                  ? item.design.theme!.background
-                  : undefined,
-              }}
-            >
-              <SkinOutlined />
-            </div>
+          <Card key={item.id} size="small" className="studio-template-object">
+            <TemplatePreview template={item} />
             <div className="template-info">
               <Space>
                 <strong>{item.name}</strong>
@@ -341,7 +333,7 @@ export function TemplatesPage() {
     );
   }
   return (
-    <>
+    <section className="studio-page studio-templates" aria-label="装修与模板">
       <PageTitle
         title="装修与模板"
         description="模板归本租户，页面独立发布。AI 结果需要预览和确认后才能上线。"
@@ -374,6 +366,7 @@ export function TemplatesPage() {
       />
       <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
       <Tabs
+        className="studio-tabs"
         items={[
           { key: "mine", label: "我的模板", children: cards(templates) },
           { key: "platform", label: "平台模板", children: cards(publicTemplates, true) },
@@ -468,6 +461,7 @@ export function TemplatesPage() {
         ]}
       />
       <Drawer
+        rootClassName="studio-drawer"
         title="创建私有模板"
         open={createOpen}
         onClose={() => setCreateOpen(false)}
@@ -492,6 +486,7 @@ export function TemplatesPage() {
         </Form>
       </Drawer>
       <Modal
+        rootClassName="studio-dialog"
         title="从模板创建独立页面"
         open={!!pageTemplate}
         onCancel={() => setPageTemplate(null)}
@@ -508,7 +503,13 @@ export function TemplatesPage() {
           </Button>
         </Form>
       </Modal>
-      <Drawer title="AI 创建我的模板" open={aiOpen} onClose={() => setAiOpen(false)} width={540}>
+      <Drawer
+        rootClassName="studio-drawer"
+        title="AI 创建我的模板"
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        width={540}
+      >
         <Alert
           type={!aiConfigurationLoading && !aiSubmission.allowed ? "warning" : "info"}
           showIcon
@@ -631,6 +632,6 @@ export function TemplatesPage() {
           </Card>
         )}
       </Drawer>
-    </>
+    </section>
   );
 }
