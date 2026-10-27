@@ -50,6 +50,7 @@ type CodeDesign struct {
 	HTML       string `json:"html"`
 	CSS        string `json:"css"`
 	Javascript string `json:"javascript"`
+	PackageID  string `json:"package_id,omitempty"`
 }
 
 var colorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -89,9 +90,15 @@ func validateDesign(mode string, body json.RawMessage) (json.RawMessage, error) 
 			return nil, invalidDesign("品牌文案、区块数量或自定义样式超出限制")
 		}
 		if schema.Brand.LogoURL != "" {
-			u, err := url.Parse(schema.Brand.LogoURL)
-			if err != nil || u.User != nil || u.Scheme != "" && u.Scheme != "https" || u.Scheme == "" && !strings.HasPrefix(schema.Brand.LogoURL, "/") || strings.HasPrefix(schema.Brand.LogoURL, "//") {
-				return nil, invalidDesign("Logo请使用受控相对路径或HTTPS图片")
+			if strings.HasPrefix(schema.Brand.LogoURL, "data:") {
+				if err := validateLogoData(schema.Brand.LogoURL); err != nil {
+					return nil, err
+				}
+			} else {
+				u, err := url.Parse(schema.Brand.LogoURL)
+				if err != nil || u.User != nil || u.Scheme != "" && u.Scheme != "https" || u.Scheme == "" && !strings.HasPrefix(schema.Brand.LogoURL, "/") || strings.HasPrefix(schema.Brand.LogoURL, "//") {
+					return nil, invalidDesign("Logo请使用受控相对路径或HTTPS图片")
+				}
 			}
 		}
 		if unsafeCSS.MatchString(schema.CustomCSS) {
@@ -132,8 +139,17 @@ func validateDesign(mode string, body json.RawMessage) (json.RawMessage, error) 
 		if err := strictJSON(body, &design); err != nil {
 			return nil, err
 		}
-		if strings.TrimSpace(design.HTML) == "" || len(design.HTML) > 300000 || len(design.CSS) > 100000 || len(design.Javascript) > 150000 {
+		if (strings.TrimSpace(design.HTML) == "" && design.PackageID == "") || len(design.HTML) > 300000 || len(design.CSS) > 100000 || len(design.Javascript) > 150000 {
 			return nil, invalidDesign("静态代码内容为空或超过大小限制")
+		}
+		if design.PackageID != "" {
+			if idValue(design.PackageID) != nil {
+				return nil, invalidDesign("代码资源包编号不正确")
+			}
+			if strings.Contains(strings.ToLower(design.CSS), "</style") || strings.Contains(strings.ToLower(design.Javascript), "</script") {
+				return nil, invalidDesign("代码不能包含结束宿主样式或脚本标签")
+			}
+			return json.Marshal(design)
 		}
 		if externalMarkup.MatchString(design.HTML) || unsafeCSS.MatchString(design.CSS) || strings.Contains(strings.ToLower(design.HTML), "</body") || strings.Contains(strings.ToLower(design.Javascript), "</script") {
 			return nil, invalidDesign("代码不允许外部依赖、表单、嵌套页面或结束宿主脚本标签")

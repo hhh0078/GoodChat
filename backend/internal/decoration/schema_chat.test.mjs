@@ -71,7 +71,7 @@ function fixture() {
     /** typing 记录输入标志，不接收草稿正文。 */
     typing: async active => { calls.push(["typing", active]); return { accepted: true }; },
     /** sendText 记录引用及幂等参数，模拟服务端保存后才产生的消息。 */
-    sendText: async (text, id, replyID) => { calls.push(["sendText", text, id, replyID]); state.messages.push({ id: "sent", seq: "9007199254740994", sender_kind: "visitor", is_own: true, text, created_at: "2026-10-27T01:03:00Z", reply: replyID ? { id: replyID, content: "测试客服消息", withdrawn: false } : null }); },
+    sendText: async (text, id, replyID) => { calls.push(["sendText", text, id, replyID]); state.messages.push({ id: "sent", client_message_id: id, seq: "9007199254740994", sender_kind: "visitor", is_own: true, text, created_at: "2026-10-27T01:03:00Z", reply: replyID ? { id: replyID, content: "测试客服消息", withdrawn: false } : null }); },
     /** withdrawMessage 只记录消息编号并更新测试态中的撤回事实。 */
     withdrawMessage: async id => { calls.push(["withdrawMessage", id]); const item = state.messages.find(item => item.id === id); item.withdrawn_at = "2026-10-27T01:04:00Z"; item.text = ""; },
     /** upload 记录Blob与文件名，本测试不执行真实上传。 */
@@ -161,4 +161,20 @@ test("图片预览失败显示安全纯文本原因并保留重试和可信下�
   assert.ok(button(f.elements.get("gc-messages"), "重新加载附件"));
   assert.ok(button(f.elements.get("gc-messages"), "下载 图片.png"));
   assert.equal(flatten(f.elements.get("gc-messages")).some(node => node.tagName === "SCRIPT"), false);
+});
+
+test("欢迎选项安全展示并沿用持久UUID，连点不会发送第二条文字", async () => {
+  const f = fixture(); await settle();
+  const id = "11111111-2222-4333-8444-555555555555";
+  f.state.messages.push({ id: "welcome", seq: "9007199254740994", sender_kind: "system", text: "请选择", created_at: "2026-10-27T01:04:00Z", options: [{ id: "pricing", label: "<script>咨询价格</script>", value: "我想了解价格", client_message_id: id }] });
+  f.publish(); await settle();
+  const option = button(f.elements.get("gc-messages"), "<script>咨询价格</script>");
+  assert.equal(flatten(option).some(item => item.tagName === "SCRIPT"), false);
+  const first = option.click(); option.click(); await first; await settle();
+  const calls = f.calls.filter(call => call[0] === "sendText");
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0], ["sendText", "我想了解价格", id, undefined]);
+  assert.equal(button(f.elements.get("gc-messages"), "<script>咨询价格</script>").disabled, true);
+  f.state.conversation.status = "closed"; f.publish();
+  assert.equal(button(f.elements.get("gc-messages"), "<script>咨询价格</script>").disabled, true);
 });

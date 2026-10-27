@@ -26,6 +26,7 @@ type integrationFixture struct {
 	server                                                               *httptest.Server
 	principals                                                           map[string]platform.Principal
 	tenant, other, user, otherUser, member, otherMember, link, otherLink string
+	queueSchema                                                          string
 }
 
 // integrationAuth 在测试内注入经过预置成员，实际业务仍走RLS和模块鉴权。
@@ -92,7 +93,18 @@ func newIntegrationFixture(t *testing.T, cfg platform.Config) *integrationFixtur
 		}
 	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, private.DatabaseURL)
+	queueID, _ := newID()
+	queueSchema := "decoration_queue_test_" + strings.ReplaceAll(queueID, "-", "")
+	appConfig, err := pgxpool.ParseConfig(private.DatabaseURL)
+	if err != nil {
+		t.Fatal("无法解析应用测试库配置")
+	}
+	if appConfig.ConnConfig.RuntimeParams == nil {
+		appConfig.ConnConfig.RuntimeParams = map[string]string{}
+	}
+	// 仅无载荷调度目录放入随机schema；业务表、RLS及静态函数仍使用真实public表。
+	appConfig.ConnConfig.RuntimeParams["search_path"] = queueSchema + ",public"
+	pool, err := pgxpool.NewWithConfig(ctx, appConfig)
 	if err != nil {
 		t.Fatal("无法连接应用测试库")
 	}
@@ -101,7 +113,7 @@ func newIntegrationFixture(t *testing.T, cfg platform.Config) *integrationFixtur
 		pool.Close()
 		t.Fatal("无法连接迁移测试库")
 	}
-	f := &integrationFixture{t: t, pool: pool, admin: admin, principals: map[string]platform.Principal{}}
+	f := &integrationFixture{t: t, pool: pool, admin: admin, principals: map[string]platform.Principal{}, queueSchema: queueSchema}
 	f.tenant, _ = newID()
 	f.other, _ = newID()
 	f.user, _ = newID()
@@ -112,10 +124,24 @@ func newIntegrationFixture(t *testing.T, cfg platform.Config) *integrationFixtur
 		if f.server != nil {
 			f.server.Close()
 		}
-		f.cleanup()
 		pool.Close()
+		f.cleanup()
 		admin.Close()
 	})
+	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+pgx.Identifier{queueSchema}.Sanitize()); err != nil {
+		t.Fatal("无法创建隔离测试调度schema")
+	}
+	queue := pgx.Identifier{queueSchema, "ai_design_queue"}.Sanitize()
+	for _, statement := range []string{
+		"CREATE TABLE " + queue + " (LIKE public.ai_design_queue INCLUDING ALL)",
+		"ALTER TABLE " + queue + " ADD FOREIGN KEY(tenant_id,job_id) REFERENCES public.ai_design_jobs(tenant_id,id) ON DELETE CASCADE",
+		"GRANT USAGE ON SCHEMA " + pgx.Identifier{queueSchema}.Sanitize() + " TO " + pgx.Identifier{appConfig.ConnConfig.User}.Sanitize(),
+		"GRANT SELECT,INSERT,UPDATE,DELETE ON " + queue + " TO " + pgx.Identifier{appConfig.ConnConfig.User}.Sanitize(),
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatal("无法建立隔离测试调度目录")
+		}
+	}
 	var super, bypass, owner bool
 	if err := pool.QueryRow(ctx, "SELECT r.rolsuper,r.rolbypassrls,c.relowner=r.oid FROM pg_roles r JOIN pg_class c ON c.relname='tenant_templates' WHERE r.rolname=current_user").Scan(&super, &bypass, &owner); err != nil {
 		t.Fatal("无法验证装修表应用角色，需先迁移006")
@@ -173,6 +199,11 @@ func newIntegrationFixture(t *testing.T, cfg platform.Config) *integrationFixtur
 func (f *integrationFixture) cleanup() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if f.queueSchema != "" {
+		if _, err := f.admin.Exec(ctx, "DROP SCHEMA IF EXISTS "+pgx.Identifier{f.queueSchema}.Sanitize()+" CASCADE"); err != nil {
+			f.t.Log("无法清理隔离测试调度schema")
+		}
+	}
 	tx, err := f.admin.Begin(ctx)
 	if err != nil {
 		f.t.Log("测试清理连接失败")

@@ -34,6 +34,8 @@ import { useResource } from "@/lib/use-resource";
 import type { AccessLink, Resource } from "@/lib/types";
 import type { Design, Template } from "./templates";
 import { starterDesign } from "./templates";
+import { BrandLogo } from "./brand-logo";
+import { CodePackages } from "./code-packages";
 import { ErrorNotice, PageTitle } from "@/components/page-state";
 type Editable = {
   id: string;
@@ -313,19 +315,13 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                           }
                         />
                       </Form.Item>
-                      <Form.Item
-                        label="Logo 地址"
-                        extra="受控品牌素材尚待接入，当前隔离渲染不加载外链 Logo。"
-                      >
-                        <Input
-                          disabled
+                      <Form.Item label="品牌Logo">
+                        <BrandLogo
                           value={design.brand?.logo_url}
-                          onChange={(event) =>
-                            updateDesign({
-                              brand: { ...design.brand, logo_url: event.target.value },
-                            })
+                          disabled={saving}
+                          onChange={(value) =>
+                            updateDesign({ brand: { ...design.brand, logo_url: value } })
                           }
-                          placeholder="https://..."
                         />
                       </Form.Item>
                       <div className="two-columns">
@@ -501,6 +497,11 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                       className="code-editor"
                       rows={22}
                       value={design.html || ""}
+                      placeholder={
+                        design.package_id
+                          ? "留空时使用静态资源包的HTML入口；这里填写内容可覆盖入口。"
+                          : "HTML片段"
+                      }
                       onChange={(event) => updateDesign({ html: event.target.value })}
                     />
                   ),
@@ -514,6 +515,9 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                       className="code-editor"
                       rows={22}
                       value={design.css || ""}
+                      placeholder={
+                        design.package_id ? "可选附加样式；资源包自身CSS会保留。" : "页面样式"
+                      }
                       onChange={(event) => updateDesign({ css: event.target.value })}
                     />
                   ),
@@ -527,7 +531,25 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                       className="code-editor"
                       rows={22}
                       value={design.javascript || ""}
+                      placeholder={
+                        design.package_id
+                          ? "可选附加代码；当前资源包已通过GoodChat SDK接入。"
+                          : "通过GoodChat SDK接入的页面代码"
+                      }
                       onChange={(event) => updateDesign({ javascript: event.target.value })}
+                    />
+                  ),
+                },
+                {
+                  key: "resources",
+                  label: "静态资源包",
+                  children: (
+                    <CodePackages
+                      key={tenantId}
+                      activeId={design.package_id}
+                      onUse={(packageId) =>
+                        updateDesign({ package_id: packageId, html: "", css: "", javascript: "" })
+                      }
                     />
                   ),
                 },

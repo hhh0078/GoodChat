@@ -115,7 +115,8 @@ func (s *Service) createAIJob(w http.ResponseWriter, r *http.Request) {
 		} else {
 			var version int64
 			var mode string
-			if err := tx.QueryRow(ctx, "SELECT version,render_mode FROM tenant_templates WHERE id=$1 FOR UPDATE", templateID).Scan(&version, &mode); err != nil {
+			var packageID string
+			if err := tx.QueryRow(ctx, "SELECT version,render_mode,coalesce(package_id::text,'') FROM tenant_templates WHERE id=$1 FOR UPDATE", templateID).Scan(&version, &mode, &packageID); err != nil {
 				return nil, err
 			}
 			if version != base {
@@ -123,6 +124,9 @@ func (s *Service) createAIJob(w http.ResponseWriter, r *http.Request) {
 			}
 			if mode != input.RenderMode {
 				return nil, invalidDesign("修改模式请先新建私有模板，以保留原设计")
+			}
+			if packageID != "" {
+				return nil, platform.Fail(409, "ai_package_edit_requires_source", "资源包请在源码编辑器另存新包；AI可另建内联代码草稿，不会覆盖或丢弃当前包的依赖")
 			}
 		}
 		var jobID string

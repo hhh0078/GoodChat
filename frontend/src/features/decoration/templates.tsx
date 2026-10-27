@@ -22,6 +22,7 @@ import {
 } from "antd";
 import { PlusOutlined, RobotOutlined, SkinOutlined } from "@ant-design/icons";
 import { starterCodeDesign } from "./starter-code";
+import { CodePackages } from "./code-packages";
 import { api, errorMessage } from "@/lib/api";
 import { aiSubmissionState, type AIConfiguration } from "@/lib/ai-configuration";
 import { useSession } from "@/features/auth/session";
@@ -38,6 +39,7 @@ export type Design = {
   html?: string;
   css?: string;
   javascript?: string;
+  package_id?: string;
 };
 export type Template = Resource & {
   render_mode: "schema" | "code";
@@ -375,6 +377,7 @@ export function TemplatesPage() {
         items={[
           { key: "mine", label: "我的模板", children: cards(templates) },
           { key: "platform", label: "平台模板", children: cards(publicTemplates, true) },
+          { key: "resources", label: "私有资源包", children: <CodePackages key={tenantId} /> },
           {
             key: "jobs",
             label: "AI 创作记录",

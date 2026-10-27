@@ -32,6 +32,7 @@ type Service struct {
 	visitorHook     VisitorEnteredHook
 	entryDecoration func(context.Context, pgx.Tx, string, string) (map[string]any, error)
 	featureChecker  func(context.Context, pgx.Tx, string, string) error
+	leadNotifier    func(context.Context, string, string, string) (string, string)
 }
 
 // VisitorEnteredHook 允许回调模块在访问事务内保存可靠通知任务，不在该事务内发送外部请求。
@@ -66,7 +67,10 @@ func New(pool *pgxpool.Pool, auth platform.Authorizer, cfg platform.Config) *Ser
 // Register 注册真实持久化资源、访客、会话及实时接口。
 func (s *Service) Register(mux *http.ServeMux) {
 	s.registerOperations(mux)
-	for _, name := range []string{"groups", "routing-pools", "access-links", "contacts", "tags", "categories", "tag-categories", "custom-fields"} {
+	s.registerAutomationRich(mux)
+	s.registerAsyncExports(mux)
+	s.registerAdvancedRouting(mux)
+	for _, name := range []string{"groups", "routing-skills", "routing-pools", "access-links", "contacts", "tags", "categories", "tag-categories", "custom-fields"} {
 		resource := name
 		mux.HandleFunc("GET /api/v1/tenant/"+resource, s.auth.RequireTenant(s.resources(resource)))
 		mux.HandleFunc("POST /api/v1/tenant/"+resource, s.auth.RequireAdmin(s.resources(resource)))

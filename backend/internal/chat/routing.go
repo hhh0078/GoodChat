@@ -4,7 +4,6 @@ package chat
 import (
 	"context"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -16,54 +15,50 @@ import (
 type routeState struct {
 	ID, Pool, Group, Status, Agent, Desired, Mode, Algorithm, AssignmentMode string
 	Cursor, Version                                                          int64
+	History                                                                  bool
+	Required, Optional                                                       []string
+	Decision                                                                 map[string]any
+	ReservedFor                                                              string
 }
 
 // lockedRoute 按队列分片在前、会话在后的顺序取得事务锁。
 func lockedRoute(ctx context.Context, tx pgx.Tx, id string) (routeState, error) {
-	var p string
+	var p, link string
 	var v routeState
-	if err := tx.QueryRow(ctx, "SELECT routing_pool_id::text FROM conversations WHERE id=$1", id).Scan(&p); err != nil {
+	if err := tx.QueryRow(ctx, "SELECT routing_pool_id::text,created_entry_id::text FROM conversations WHERE id=$1", id).Scan(&p, &link); err != nil {
 		return v, err
 	}
 	if _, err := tx.Exec(ctx, "SELECT id FROM routing_pools WHERE id=$1 FOR UPDATE", p); err != nil {
 		return v, err
 	}
-	err := tx.QueryRow(ctx, "SELECT c.id::text,c.routing_pool_id::text,c.service_group_id::text,c.status,COALESCE(c.current_agent_id::text,''),COALESCE(c.desired_agent_id::text,''),c.agent_mode,p.algorithm,p.assignment_mode,p.rr_cursor,c.version FROM conversations c JOIN routing_pools p ON p.id=c.routing_pool_id AND p.tenant_id=c.tenant_id WHERE c.id=$1 FOR UPDATE OF c", id).Scan(&v.ID, &v.Pool, &v.Group, &v.Status, &v.Agent, &v.Desired, &v.Mode, &v.Algorithm, &v.AssignmentMode, &v.Cursor, &v.Version)
+	if _, err := tx.Exec(ctx, "SELECT id FROM access_links WHERE id=$1 FOR SHARE", link); err != nil {
+		return v, err
+	}
+	err := tx.QueryRow(ctx, "SELECT c.id::text,c.routing_pool_id::text,c.service_group_id::text,c.status,COALESCE(c.current_agent_id::text,''),COALESCE(c.desired_agent_id::text,''),c.agent_mode,p.algorithm,p.assignment_mode,p.rr_cursor,c.version,p.history_priority FROM conversations c JOIN routing_pools p ON p.id=c.routing_pool_id AND p.tenant_id=c.tenant_id WHERE c.id=$1 FOR UPDATE OF c", id).Scan(&v.ID, &v.Pool, &v.Group, &v.Status, &v.Agent, &v.Desired, &v.Mode, &v.Algorithm, &v.AssignmentMode, &v.Cursor, &v.Version, &v.History)
+	if err != nil {
+		return v, err
+	}
+	v.Required, v.Optional, err = loadRouteSkills(ctx, tx, p, link)
 	return v, err
 }
 
 // candidateAgents 选择当前可接待成员，所有算法共享相同资格与容量过滤。
 func candidateAgents(ctx context.Context, tx pgx.Tx, v routeState) ([]string, error) {
-	order := "r.current_load,m.id"
-	if v.Algorithm == "least_ratio" {
-		order = "r.current_load::numeric/m.capacity,m.id"
-	}
-	if v.Algorithm == "random" {
-		order = "random()"
-	}
-	if v.Algorithm == "round_robin" {
-		order = "m.id"
-	}
-	rows, err := tx.Query(ctx, "SELECT m.id::text FROM tenant_memberships m JOIN agent_runtime r ON r.membership_id=m.id AND r.tenant_id=m.tenant_id JOIN agent_group_members gm ON gm.membership_id=m.id AND gm.tenant_id=m.tenant_id JOIN routing_pools p ON p.id=$1 AND p.tenant_id=m.tenant_id JOIN conversations c ON c.id=$2 AND c.tenant_id=m.tenant_id WHERE gm.group_id=c.service_group_id AND m.can_serve AND NOT m.disabled AND m.capacity>r.current_load AND r.available AND NOT r.busy AND r.online_until>now() AND NOT p.archived AND NOT(c.rejected_agents ? m.id::text) AND (p.members_mode='group' OR EXISTS(SELECT 1 FROM routing_pool_members pm WHERE pm.routing_pool_id=p.id AND pm.membership_id=m.id)) ORDER BY "+order, v.Pool, v.ID)
+	items, err := routingCandidates(ctx, tx, v)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	ids := []string{}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
 	}
-	return ids, rows.Err()
+	return ids, nil
 }
 
 // lockCapacity 在运行行和成员行均锁定后再次检查当前资格与名额。
 func lockCapacity(ctx context.Context, tx pgx.Tx, tenant, member string) error {
 	var valid bool
-	err := tx.QueryRow(ctx, "SELECT m.can_serve AND NOT m.disabled AND r.available AND NOT r.busy AND r.online_until>now() AND r.current_load<m.capacity FROM agent_runtime r JOIN tenant_memberships m ON m.id=r.membership_id AND m.tenant_id=r.tenant_id WHERE r.membership_id=$1 AND r.tenant_id=$2 FOR UPDATE OF r,m", member, tenant).Scan(&valid)
+	err := tx.QueryRow(ctx, "SELECT m.can_serve AND NOT m.disabled AND m.removed_at IS NULL AND r.available AND NOT r.busy AND r.online_until>statement_timestamp() AND r.current_load<m.capacity FROM agent_runtime r JOIN tenant_memberships m ON m.id=r.membership_id AND m.tenant_id=r.tenant_id WHERE r.membership_id=$1 AND r.tenant_id=$2 FOR UPDATE OF r,m", member, tenant).Scan(&valid)
 	if err != nil {
 		return err
 	}
@@ -91,36 +86,80 @@ func (s *Service) assignLocked(ctx context.Context, tx pgx.Tx, tenant, id, reque
 	if v.Algorithm == "manual" && !manual {
 		return nil
 	}
-	ids, err := candidateAgents(ctx, tx, v)
+	items, err := routingCandidates(ctx, tx, v)
 	if err != nil {
 		return err
 	}
+	reason := "algorithm"
 	if requested != "" {
-		if !inStrings(requested, ids...) {
-			return platform.Fail(409, "candidate_unavailable", "当前客服不在可接待范围或已满载")
+		if v.Desired != "" && v.Mode == "strict" && requested != v.Desired {
+			return platform.Fail(409, "strict_target_required", "此咨询严格等待指定客服，不能由其他客服领取")
 		}
-		ids = []string{requested}
-	} else if v.Desired != "" {
-		if inStrings(v.Desired, ids...) {
-			ids = append([]string{v.Desired}, removeString(ids, v.Desired)...)
-		} else if v.Mode == "strict" {
+		found := []routeCandidate{}
+		for _, item := range items {
+			if item.ID == requested {
+				found = append(found, item)
+			}
+		}
+		if len(found) == 0 {
+			return platform.Fail(409, "candidate_unavailable", "当前客服不满足组池、技能或容量要求")
+		}
+		items = found
+		reason = "requested"
+	} else {
+		desired := []routeCandidate{}
+		for _, item := range items {
+			if item.ID == v.Desired {
+				desired = append(desired, item)
+			}
+		}
+		if len(desired) > 0 {
+			items = desired
+			reason = "specified"
+		} else if v.Desired != "" && v.Mode == "strict" {
 			return nil
+		} else {
+			items, reason, err = preferredCandidates(ctx, tx, v, items)
+			if err != nil {
+				return err
+			}
 		}
-	} else if v.Algorithm == "round_robin" && len(ids) > 0 {
-		offset := int(v.Cursor % int64(len(ids)))
-		ids = append(ids[offset:], ids[:offset]...)
 	}
-	if len(ids) == 0 {
+	if len(items) == 0 {
 		return nil
 	}
-	selected := ids[0]
-	if err := lockCapacity(ctx, tx, tenant, selected); err != nil {
+	selected := items[0]
+	if err := lockCapacity(ctx, tx, tenant, selected.ID); err != nil {
 		if manual {
 			return err
 		}
 		return nil
 	}
-	return s.createAssignment(ctx, tx, tenant, v, selected, v.AssignmentMode == "confirm")
+	// 成员技能配置同样锁成员行；获得容量锁后重新读取，防止等待期间技能或组资格已变化。
+	current, err := routingCandidates(ctx, tx, v)
+	if err != nil {
+		return err
+	}
+	valid := false
+	for _, item := range current {
+		if item.ID == selected.ID {
+			valid = true
+		}
+	}
+	if !valid {
+		if manual {
+			return platform.Fail(409, "candidate_unavailable", "客服资格已变化，请刷新后重试")
+		}
+		return nil
+	}
+	v.Decision = map[string]any{"algorithm": v.Algorithm, "reason": reason, "required_skill_ids": v.Required, "optional_skill_ids": v.Optional, "optional_matched": selected.Optional, "weight": selected.Weight}
+	if err := s.createAssignment(ctx, tx, tenant, v, selected.ID, v.AssignmentMode == "confirm"); err != nil {
+		return err
+	}
+	if v.Algorithm == "weighted_round_robin" && reason == "algorithm" {
+		return advanceWeights(ctx, tx, tenant, v.Pool, selected.ID, items)
+	}
+	return nil
 }
 
 // removeString 去掉已被优先排列的重复候选。
@@ -137,11 +176,15 @@ func removeString(ids []string, target string) []string {
 // createAssignment 同事务增加名额、接待记录与分配事件。
 func (s *Service) createAssignment(ctx context.Context, tx pgx.Tx, tenant string, v routeState, member string, confirm bool) error {
 	id := newID()
+	decision := v.Decision
+	if decision == nil {
+		decision = map[string]any{"algorithm": v.Algorithm, "reason": "transfer", "required_skill_ids": v.Required, "optional_skill_ids": v.Optional}
+	}
 	status, hold := "active", "active"
 	if confirm {
 		status, hold = "assigned", "held"
 	}
-	_, err := tx.Exec(ctx, "INSERT INTO conversation_assignments(id,tenant_id,conversation_id,membership_id,accepted_at,expires_at) VALUES($1,$2,$3,$4,CASE WHEN $5 THEN NULL ELSE now() END,CASE WHEN $5 THEN now()+interval '30 seconds' ELSE NULL END)", id, tenant, v.ID, member, confirm)
+	_, err := tx.Exec(ctx, "INSERT INTO conversation_assignments(id,tenant_id,conversation_id,membership_id,accepted_at,expires_at,decision) VALUES($1,$2,$3,$4,CASE WHEN $5 THEN NULL ELSE now() END,CASE WHEN $5 THEN now()+interval '30 seconds' ELSE NULL END,$6)", id, tenant, v.ID, member, confirm, jsonValue(decision))
 	if err != nil {
 		return err
 	}
@@ -315,162 +358,4 @@ func (s *Service) assignmentAction(action string) http.HandlerFunc {
 		}
 		platform.JSON(w, 200, result)
 	}
-}
-
-// acceptOrReject 处理首次接待及独立转接预留，不重复增加目标名额。
-func (s *Service) acceptOrReject(ctx context.Context, tx pgx.Tx, a actor, v routeState, in actionInput, accept bool) error {
-	if in.TransferRequestID != "" {
-		return s.finishTransfer(ctx, tx, a, v, in.TransferRequestID, accept)
-	}
-	if v.Agent != a.MemberID {
-		return platform.Fail(403, "not_target_agent", "只有被分配客服可以确认")
-	}
-	if v.Status != "assigned" {
-		if accept && v.Status == "active" {
-			return nil
-		}
-		return platform.Fail(409, "assignment_changed", "当前接待已不再等待确认")
-	}
-	if accept {
-		var valid bool
-		if err := tx.QueryRow(ctx, "SELECT expires_at>now() FROM conversation_assignments WHERE id=(SELECT current_assignment_id FROM conversations WHERE id=$1)", v.ID).Scan(&valid); err != nil {
-			return err
-		}
-		if !valid {
-			return platform.Fail(409, "assignment_expired", "接单预留已经过期")
-		}
-		if _, err := tx.Exec(ctx, "UPDATE conversation_assignments SET accepted_at=now(),expires_at=NULL WHERE conversation_id=$1 AND released_at IS NULL", v.ID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, "UPDATE agent_capacity_holds SET status='active',expires_at=NULL WHERE conversation_id=$1 AND assignment_id IS NOT NULL AND status='held'", v.ID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, "UPDATE conversations SET status='active',version=version+1,updated_at=now() WHERE id=$1", v.ID); err != nil {
-			return err
-		}
-	} else {
-		if err := releaseHolds(ctx, tx, v.ID, a.MemberID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, "UPDATE conversation_assignments SET released_at=now() WHERE conversation_id=$1 AND released_at IS NULL", v.ID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, "UPDATE conversations SET status='queued',current_agent_id=NULL,current_assignment_id=NULL,rejected_agents=rejected_agents||jsonb_build_object($2::text,true),version=version+1,updated_at=now() WHERE id=$1", v.ID, a.MemberID); err != nil {
-			return err
-		}
-	}
-	_, err := s.emit(ctx, tx, a.TenantID, v.ID, "assignment.changed", "public", map[string]any{"accepted": accept})
-	return err
-}
-
-// transferLocked 检查目标资格并保留原接待，确认模式先创建独立容量预留。
-func (s *Service) transferLocked(ctx context.Context, tx pgx.Tx, a actor, v routeState, in actionInput) error {
-	if v.Status != "active" {
-		return platform.Fail(409, "conversation_not_active", "只有接待中的咨询可以转接")
-	}
-	if in.Target == "queue" {
-		if err := releaseHolds(ctx, tx, v.ID, ""); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, "UPDATE conversation_assignments SET released_at=now() WHERE conversation_id=$1 AND released_at IS NULL", v.ID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, "UPDATE transfer_requests SET status='cancelled' WHERE conversation_id=$1 AND status='pending'", v.ID); err != nil {
-			return err
-		}
-		_, err := tx.Exec(ctx, "UPDATE conversations SET status='queued',current_agent_id=NULL,current_assignment_id=NULL,routing_attempts=0,rejected_agents='{}',version=version+1,updated_at=now() WHERE id=$1", v.ID)
-		return err
-	}
-	if !uuidPattern.MatchString(in.AgentID) || in.AgentID == v.Agent {
-		return platform.Fail(400, "invalid_target", "请选择其他有效客服")
-	}
-	ids, err := candidateAgents(ctx, tx, v)
-	if err != nil {
-		return err
-	}
-	if !inStrings(in.AgentID, ids...) {
-		return platform.Fail(409, "target_unavailable", "目标客服不在允许范围或当前不可接待")
-	}
-	locks := []string{v.Agent, in.AgentID}
-	sort.Strings(locks)
-	for _, id := range locks {
-		if _, err := tx.Exec(ctx, "SELECT membership_id FROM agent_runtime WHERE membership_id=$1 FOR UPDATE", id); err != nil {
-			return err
-		}
-	}
-	if err := lockCapacity(ctx, tx, a.TenantID, in.AgentID); err != nil {
-		return err
-	}
-	if v.AssignmentMode == "confirm" {
-		request := newID()
-		if _, err := tx.Exec(ctx, "INSERT INTO transfer_requests(id,tenant_id,conversation_id,from_agent_id,target_agent_id) VALUES($1,$2,$3,$4,$5)", request, a.TenantID, v.ID, v.Agent, in.AgentID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, "INSERT INTO agent_capacity_holds(tenant_id,conversation_id,membership_id,transfer_request_id,status,expires_at) VALUES($1,$2,$3,$4,'held',now()+interval '30 seconds')", a.TenantID, v.ID, in.AgentID, request); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, "UPDATE agent_runtime SET current_load=current_load+1 WHERE membership_id=$1", in.AgentID); err != nil {
-			return err
-		}
-		_, err = s.emit(ctx, tx, a.TenantID, v.ID, "transfer.requested", "public", map[string]any{"transfer_request_id": request, "target_agent_id": in.AgentID})
-		return err
-	}
-	if err := releaseHolds(ctx, tx, v.ID, v.Agent); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, "UPDATE conversation_assignments SET released_at=now() WHERE conversation_id=$1 AND released_at IS NULL", v.ID); err != nil {
-		return err
-	}
-	return s.createAssignment(ctx, tx, a.TenantID, v, in.AgentID, false)
-}
-
-// finishTransfer 原子确认或拒绝转接，确认时把预留转正式而不是再加一个名额。
-func (s *Service) finishTransfer(ctx context.Context, tx pgx.Tx, a actor, v routeState, request string, accept bool) error {
-	var target, from, status string
-	var valid bool
-	err := tx.QueryRow(ctx, "SELECT target_agent_id::text,from_agent_id::text,status,expires_at>now() FROM transfer_requests WHERE id=$1 AND conversation_id=$2 FOR UPDATE", request, v.ID).Scan(&target, &from, &status, &valid)
-	if err != nil {
-		return err
-	}
-	if target != a.MemberID {
-		return platform.Fail(403, "not_transfer_target", "只有目标客服可以确认转接")
-	}
-	if status != "pending" || !valid || v.Status != "active" || v.Agent != from {
-		return platform.Fail(409, "transfer_expired", "转接请求已失效")
-	}
-	ids := []string{from, target}
-	sort.Strings(ids)
-	for _, id := range ids {
-		if _, err := tx.Exec(ctx, "SELECT membership_id FROM agent_runtime WHERE membership_id=$1 FOR UPDATE", id); err != nil {
-			return err
-		}
-	}
-	if !accept {
-		if err := releaseHolds(ctx, tx, v.ID, target); err != nil {
-			return err
-		}
-		_, err := tx.Exec(ctx, "UPDATE transfer_requests SET status='rejected' WHERE id=$1", request)
-		return err
-	}
-	if err := releaseHolds(ctx, tx, v.ID, from); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, "UPDATE conversation_assignments SET released_at=now() WHERE conversation_id=$1 AND released_at IS NULL", v.ID); err != nil {
-		return err
-	}
-	assignment := newID()
-	if _, err := tx.Exec(ctx, "INSERT INTO conversation_assignments(id,tenant_id,conversation_id,membership_id,accepted_at) VALUES($1,$2,$3,$4,now())", assignment, a.TenantID, v.ID, target); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, "UPDATE agent_capacity_holds SET status='active',assignment_id=$2,expires_at=NULL WHERE transfer_request_id=$1 AND status='held'", request, assignment); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, "UPDATE transfer_requests SET status='accepted' WHERE id=$1", request); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, "UPDATE conversations SET current_agent_id=$2,current_assignment_id=$3,version=version+1,updated_at=now() WHERE id=$1", v.ID, target, assignment); err != nil {
-		return err
-	}
-	_, err = s.emit(ctx, tx, a.TenantID, v.ID, "assignment.changed", "public", map[string]any{"agent_id": target, "transfer_request_id": request})
-	return err
 }

@@ -97,6 +97,13 @@ func (s *Service) callProvider(ctx context.Context, mode, prompt, model string, 
 		}
 	}
 	design, err := validateDesign(mode, json.RawMessage(content))
+	if err == nil && mode == "code" {
+		var code CodeDesign
+		_ = json.Unmarshal(design, &code)
+		if code.PackageID != "" {
+			err = invalidDesign("AI不能引用未知私有资源包，请生成独立内联代码后再由管理员导入素材")
+		}
+	}
 	if err != nil {
 		var api *platform.APIError
 		if errors.As(err, &api) {

@@ -68,6 +68,9 @@ func (s *Service) saveTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 	s.tenant(w, r, func(tx pgx.Tx) (any, error) {
 		p := platform.Current(r)
+		if err := checkPackageDesign(r.Context(), tx, input.RenderMode, design); err != nil {
+			return nil, err
+		}
 		if err := s.checkFeature(r.Context(), tx, p.TenantID, decorationFeature(input.RenderMode)); err != nil {
 			return nil, err
 		}
@@ -153,6 +156,11 @@ func (s *Service) platformTemplates(w http.ResponseWriter, r *http.Request) {
 	design, err := validateDesign(input.RenderMode, input.Design)
 	if err != nil {
 		respond(w, r, nil, err)
+		return
+	}
+	var privateCode CodeDesign
+	if input.RenderMode == "code" && json.Unmarshal(design, &privateCode) == nil && privateCode.PackageID != "" {
+		respond(w, r, nil, invalidDesign("公共平台模板不能引用租户私有代码包，请使用内联模板或保持为租户私有模板"))
 		return
 	}
 	if input.Status == "" {

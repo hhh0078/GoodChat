@@ -28,9 +28,10 @@ func fieldSet(names string) map[string]bool {
 }
 
 var resourceSpecs = map[string]resourceSpec{
+	"routing-skills": {"routing_skills", fieldSet("name archived")},
 	"groups":         {"agent_groups", fieldSet("name archived member_ids")},
-	"routing-pools":  {"routing_pools", fieldSet("name service_group_id algorithm assignment_mode members_mode agent_mode archived member_ids")},
-	"access-links":   {"access_links", fieldSet("name service_space_id service_group_id routing_pool_id agent_id agent_mode status channel_code allow_routing_override expires_at binding_mode page_id pinned_release_id")},
+	"routing-pools":  {"routing_pools", fieldSet("name service_group_id algorithm assignment_mode members_mode agent_mode archived member_ids member_weights required_skill_ids optional_skill_ids history_priority")},
+	"access-links":   {"access_links", fieldSet("name service_space_id service_group_id routing_pool_id agent_id agent_mode status channel_code allow_routing_override expires_at binding_mode page_id pinned_release_id required_skill_ids optional_skill_ids")},
 	"contacts":       {"contacts", fieldSet("display_name remark_name phone avatar_url category_id attributes notes archived tag_ids locked_fields")},
 	"categories":     {"contact_categories", fieldSet("name archived")},
 	"tag-categories": {"tag_categories", fieldSet("name archived")},
@@ -88,6 +89,9 @@ func (s *Service) resources(name string) http.HandlerFunc {
 				return platform.Fail(400, "invalid_id", "资源编号格式不正确")
 			}
 			if r.Method == http.MethodDelete {
+				if _, err := prepareRoutingExtras(ctx, tx, name, id, map[string]any{}); err != nil {
+					return err
+				}
 				if name == "access-links" {
 					_, err := tx.Exec(ctx, "UPDATE access_links SET status='disabled' WHERE id=$1", id)
 					if err != nil {
@@ -130,11 +134,15 @@ func (s *Service) resources(name string) http.HandlerFunc {
 			if err := prepareResource(ctx, tx, name, values, r.Method == http.MethodPost); err != nil {
 				return err
 			}
+			extra, err := prepareRoutingExtras(ctx, tx, name, id, values)
+			if err != nil {
+				return err
+			}
 			memberIDs, hasMembers := values["member_ids"]
 			delete(values, "member_ids")
 			tagIDs, hasTags := values["tag_ids"]
 			delete(values, "tag_ids")
-			if hasMembers && name == "routing-pools" {
+			if _, explicitMode := values["members_mode"]; hasMembers && name == "routing-pools" && !explicitMode {
 				values["members_mode"] = "fixed"
 			}
 			keys := make([]string, 0, len(values))
@@ -182,6 +190,9 @@ func (s *Service) resources(name string) http.HandlerFunc {
 					return err
 				}
 			}
+			if err := saveRoutingExtras(ctx, tx, name, id, extra); err != nil {
+				return err
+			}
 			if hasTags {
 				if err := setContactTags(ctx, tx, id, tagIDs); err != nil {
 					return err
@@ -215,7 +226,10 @@ func resourceQuery(name string) string {
 	case "groups":
 		projection += "||jsonb_build_object('member_ids',COALESCE((SELECT jsonb_agg(m.membership_id) FROM agent_group_members m WHERE m.group_id=t.id),'[]'::jsonb))"
 	case "routing-pools":
+		projection += routingSkillsProjection("routing_pool_skills", "routing_pool_id") + `||jsonb_build_object('member_weights',COALESCE((SELECT jsonb_object_agg(membership_id::text,weight) FROM routing_pool_members WHERE routing_pool_id=t.id),'{}'::jsonb))`
 		projection += "||jsonb_build_object('member_ids',COALESCE((SELECT jsonb_agg(m.membership_id) FROM routing_pool_members m WHERE m.routing_pool_id=t.id),'[]'::jsonb))"
+	case "access-links":
+		projection += routingSkillsProjection("access_link_skills", "access_link_id")
 	case "contacts":
 		projection += "||jsonb_build_object('tag_ids',COALESCE((SELECT jsonb_agg(m.tag_id) FROM contact_tags m WHERE m.contact_id=t.id),'[]'::jsonb),'tags',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',g.id,'name',g.name,'color',g.color)) FROM contact_tags m JOIN tags g ON g.id=m.tag_id AND g.tenant_id=m.tenant_id WHERE m.contact_id=t.id),'[]'::jsonb),'blocked',EXISTS(SELECT 1 FROM block_rules b WHERE b.contact_id=t.id AND b.revoked_at IS NULL AND (b.expires_at IS NULL OR b.expires_at>now())))"
 	}
@@ -235,8 +249,16 @@ func prepareResource(ctx context.Context, tx pgx.Tx, name string, v map[string]a
 		}
 	}
 	if name == "routing-pools" {
-		if algo, ok := v["algorithm"]; ok && !inStrings(fmt.Sprint(algo), "least_load", "round_robin", "manual", "least_ratio", "random") {
-			return platform.Fail(422, "algorithm_unavailable", "该分配策略尚未开放，请使用最少会话、轮询、负载比例、随机或人工领取")
+		if mode, ok := v["members_mode"]; ok && !inStrings(fmt.Sprint(mode), "group", "fixed") {
+			return platform.Fail(400, "invalid_members_mode", "候选来源只能是动态业务组或固定分配池")
+		}
+		if value, ok := v["history_priority"]; ok {
+			if _, valid := value.(bool); !valid {
+				return platform.Fail(400, "invalid_history_priority", "历史客服优先必须为布尔值")
+			}
+		}
+		if algo, ok := v["algorithm"]; ok && !inStrings(fmt.Sprint(algo), "least_load", "round_robin", "manual", "least_ratio", "random", "weighted_round_robin") {
+			return platform.Fail(422, "algorithm_unavailable", "该分配策略尚未开放，请使用已开放的最少会话、轮询、加权轮询、负载比例、随机或人工领取")
 		}
 	}
 	if create && (name == "routing-pools" || name == "access-links") {

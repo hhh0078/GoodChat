@@ -333,6 +333,16 @@ export function ChatPanel({
                     ] ||
                     "消息"}{" "}
                   ·{" "}
+                  {item.sender_kind === "system" && item.source && (
+                    <>
+                      {item.source === "welcome"
+                        ? "欢迎引导"
+                        : item.source === "keyword"
+                          ? "规则回复"
+                          : "系统消息"}{" "}
+                      ·{" "}
+                    </>
+                  )}
                   {item.created_at
                     ? new Date(item.created_at).toLocaleTimeString("zh-CN", {
                         hour: "2-digit",
@@ -361,6 +371,35 @@ export function ChatPanel({
                       {item.content}
                       {item.attachment && (
                         <AttachmentView attachment={item.attachment} identity={identity} />
+                      )}
+                      {item.sender_kind === "system" && Array.isArray(item.options) && (
+                        <Space wrap style={{ marginTop: 10, display: "flex" }}>
+                          {item.options.map((option) => (
+                            <Button
+                              key={option.id}
+                              size="small"
+                              disabled={
+                                !canSend ||
+                                identity.kind !== "visitor" ||
+                                sending ||
+                                chat.messages.some(
+                                  (message) =>
+                                    message.client_message_id === option.client_message_id,
+                                )
+                              }
+                              onClick={() =>
+                                void sendOutgoing({
+                                  client_message_id: option.client_message_id,
+                                  content: option.value,
+                                  message_type: "text",
+                                  audience: "public",
+                                })
+                              }
+                            >
+                              {option.label}
+                            </Button>
+                          ))}
+                        </Space>
                       )}
                     </>
                   )}

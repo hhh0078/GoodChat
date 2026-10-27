@@ -112,6 +112,9 @@ func (s *Service) download(w http.ResponseWriter, r *http.Request) {
 	var key, name, kind string
 	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
 		ctx := r.Context()
+		if err := tenantActive(ctx, tx, a.TenantID); err != nil {
+			return err
+		}
 		if a.ContactID != "" {
 			if err := blocked(ctx, tx, a.ContactID); err != nil {
 				return err
@@ -124,6 +127,13 @@ func (s *Service) download(w http.ResponseWriter, r *http.Request) {
 		var uploader string
 		if err := tx.QueryRow(ctx, "SELECT storage_key,file_name,content_type,uploader_id::text FROM attachments WHERE id=$1", id).Scan(&key, &name, &kind, &uploader); err != nil {
 			return err
+		}
+		shared, err := canReadLeadAttachment(ctx, tx, a, id)
+		if err != nil {
+			return err
+		}
+		if shared {
+			return nil
 		}
 		rows, err := tx.Query(ctx, "SELECT DISTINCT conversation_id::text FROM messages WHERE attachment_id=$1 AND withdrawn_at IS NULL AND (audience='public' OR $2)", id, a.ContactID == "")
 		if err != nil {

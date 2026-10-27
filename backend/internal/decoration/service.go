@@ -27,6 +27,7 @@ type Service struct {
 	cfg            platform.Config
 	client         *http.Client
 	featureChecker func(context.Context, pgx.Tx, string, string) error
+	packageSlots   chan struct{}
 }
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
@@ -36,7 +37,7 @@ func New(pool *pgxpool.Pool, auth platform.Authorizer, cfg platform.Config) (*Se
 	if err := validateOrigins(cfg.PublicURL, cfg.CodeOrigin, cfg.Production); err != nil {
 		return nil, err
 	}
-	return &Service{pool: pool, auth: auth, cfg: cfg, client: &http.Client{Timeout: 100 * time.Second, CheckRedirect: rejectRedirect}}, nil
+	return &Service{pool: pool, auth: auth, cfg: cfg, client: &http.Client{Timeout: 100 * time.Second, CheckRedirect: rejectRedirect}, packageSlots: make(chan struct{}, 2)}, nil
 }
 
 // SetFeatureChecker 注入套餐权益校验，调用方在同一租户事务内执行。
@@ -54,6 +55,7 @@ func (s *Service) checkFeature(ctx context.Context, tx pgx.Tx, tenant, feature s
 
 // Register 注册租户与平台管理接口，所有写操作要求管理员身份。
 func (s *Service) Register(mux *http.ServeMux) {
+	s.registerPackages(mux)
 	mux.HandleFunc("GET /api/v1/tenant/templates", s.auth.RequireTenant(s.listTemplates))
 	mux.HandleFunc("POST /api/v1/tenant/templates", s.auth.RequireAdmin(s.saveTemplate))
 	mux.HandleFunc("PATCH /api/v1/tenant/templates/{id}", s.auth.RequireAdmin(s.saveTemplate))

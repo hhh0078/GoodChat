@@ -5,6 +5,8 @@ Go + PostgreSQL + Redis + Next.js + React + TypeScript + Ant Design 的在线客
 
 已实现邮箱身份、租户成员邀请、链接接入、客户资料与标签、会话分配、实时聊天、进入回调、记录统计、私有装修模板、隔离预览发布、AI 任务和人工确认开通流程。需求中的完整目标范围与实际验证状态分别记录在 `docs/` 的三份主文档和开发验收记录中。
 
+高级路由包含持久加权轮询、必备/可选技能、历史客服优先及当前接待资格重判。接待运营支持分层营业场景欢迎、图片/选项、评价期限和改评历史，以及留言附件和默认关闭的可靠邮件提醒。完整代码装修支持已构建静态ZIP、包内资源、源码另存新版本、受控Logo与独立来源发布；不执行租户构建脚本。AI当前生成结构化页面或内联HTML/CSS/JS，对资源包直接AI改稿会明确拒绝，避免丢失包内依赖。
+
 ## 本机运行
 
 本项目只新增 `goodchat` 一个应用容器，复用现有 `local_postgres` 与 `jijie-redis`。PostgreSQL 使用独立的 `goodchat_saas` 数据库，应用使用非 superuser、非 BYPASSRLS 的 `goodchat_saas_app` 角色。现有其他项目数据库和 Redis 键保持独立，GoodChat 键统一以 `goodchat:` 开头。
@@ -61,9 +63,11 @@ npm run format:check
 npm run build
 ```
 
-PostgreSQL 集成测试在现有独立库中创建随机 schema 并清理，使用非特权应用角色验证 RLS；不会新建数据库或容器。邮件测试使用本地假 SMTP；AI 协议测试使用本地测试供应商。Redis 并发测试只写随机的短期 `goodchat:rate:integration:` 键。浏览器截图与私有验收数据放在 `.local/evidence/`。`python3 scripts/http-smoke.py` 使用本机私有验收账号进行18项实际HTTP检查，不发送业务邮件。
+PostgreSQL 集成测试使用隔离schema或随机租户，使用非特权应用角色验证 RLS；不会新建数据库或容器。装修AI测试另用随机schema中的物理隔离调度队列，正式worker看不到测试任务。邮件测试使用本地假 SMTP；AI 协议测试使用本地测试供应商。Redis 并发测试只写随机的短期 `goodchat:rate:integration:` 键。浏览器截图与私有验收数据放在 `.local/evidence/`。`python3 scripts/http-smoke.py` 使用本机私有验收账号进行26项实际HTTP检查，不发送业务邮件。
 
-`python3 scripts/backup.py --quiesce` 会短暂停止唯一GoodChat应用，再通过现有PostgreSQL生成数据库、附件与身份密钥备份集并恢复应用；本轮已验证备份归档可读，尚未执行恢复演练。备份保存在 `.local/backups/`，包含私有身份数据，不能提交Git。
+`python3 scripts/backup.py --quiesce` 会短暂停止唯一GoodChat应用，再通过现有PostgreSQL生成数据库、附件与身份密钥备份集并恢复应用。`python3 scripts/verify-backup.py 备份目录名 --allow-temporary-database` 在同一现有PG容器的临时库恢复，核对附件与密钥归档后删除本次临时库；不会覆盖运行库或创建容器。本轮已执行隔离恢复，恢复后的应用启动和生产切换仍未演练。备份保存在 `.local/backups/`，包含私有身份数据，不能提交Git。
+
+即时CSV最多10000行/32MiB；批量导出任务最多100000行/64MiB、结果24小时有效，每租户两个待执行任务、每日20次提交、临时结果加待执行预留合计最多256MiB。申请者下载时重新检查角色与权益；有新的已提交消息撤回时，旧正文文件失效并要求重新生成，会话元数据不受影响。当前消息只软撤回；引入物理清理前须将撤回数量快照升级为单调版本。
 
 ## 文档
 

@@ -7,6 +7,7 @@ import { useResource } from "@/lib/use-resource";
 import { api, errorMessage } from "@/lib/api";
 import { requestCSV, startFileDownload } from "@/lib/csv-download";
 import { AttachmentView } from "@/features/chat/attachment";
+import { ExportJobs } from "./export-jobs";
 import { useSession } from "@/features/auth/session";
 import type { ChatMessage, Conversation, Member } from "@/lib/types";
 import { PageTitle, ErrorNotice, EmptyData } from "@/components/page-state";
@@ -107,6 +108,7 @@ export function RecordsPage() {
         action={
           manages && (
             <Space wrap>
+              <ExportJobs filters={params.toString()} />
               <Button
                 icon={<DownloadOutlined />}
                 disabled={

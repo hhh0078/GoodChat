@@ -17,12 +17,13 @@ func (s *Service) createLead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		EntryKey       string `json:"entry_key"`
-		ConversationID string `json:"conversation_id"`
-		ClientID       string `json:"client_request_id"`
-		Name           string `json:"display_name"`
-		Phone          string `json:"phone"`
-		Content        string `json:"content"`
+		EntryKey       string   `json:"entry_key"`
+		ConversationID string   `json:"conversation_id"`
+		ClientID       string   `json:"client_request_id"`
+		Name           string   `json:"display_name"`
+		Phone          string   `json:"phone"`
+		Content        string   `json:"content"`
+		Attachments    []string `json:"attachment_ids"`
 	}
 	if err := platform.Decode(w, r, &in); err != nil {
 		replyError(w, r, err)
@@ -32,6 +33,13 @@ func (s *Service) createLead(w http.ResponseWriter, r *http.Request) {
 		returnError(w, r, "invalid_lead", "请填写有效留言及稳定请求编号")
 		return
 	}
+	if in.Attachments == nil {
+		in.Attachments = []string{}
+	}
+	if len(in.Attachments) > 3 {
+		returnError(w, r, "lead_attachment_limit", "留言最多附带3个文件")
+		return
+	}
 	var result map[string]any
 	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
 		ctx := r.Context()
@@ -39,6 +47,9 @@ func (s *Service) createLead(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if err := blocked(ctx, tx, a.ContactID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, "SELECT id FROM contacts WHERE id=$1 FOR UPDATE", a.ContactID); err != nil {
 			return err
 		}
 		if in.ConversationID != "" {
@@ -51,7 +62,23 @@ func (s *Service) createLead(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		link := entry["id"].(string)
-		_, err = tx.Exec(ctx, "INSERT INTO offline_leads(tenant_id,contact_id,access_link_id,conversation_id,client_request_id,display_name,phone,content) VALUES($1,$2,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8) ON CONFLICT(tenant_id,contact_id,client_request_id) DO NOTHING", a.TenantID, a.ContactID, link, in.ConversationID, in.ClientID, in.Name, in.Phone, in.Content)
+		var replay bool
+		if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM offline_leads WHERE contact_id=$1 AND client_request_id=$2)", a.ContactID, in.ClientID).Scan(&replay); err != nil {
+			return err
+		}
+		if !replay {
+			if err := validateLeadAttachments(ctx, tx, a, in.ConversationID, in.Attachments); err != nil {
+				return err
+			}
+			var count int
+			if err := tx.QueryRow(ctx, "SELECT count(*) FROM offline_leads WHERE contact_id=$1 AND created_at>now()-interval '1 minute'", a.ContactID).Scan(&count); err != nil {
+				return err
+			}
+			if count >= 5 {
+				return platform.Fail(429, "lead_rate_limited", "留言提交过于频繁，请稍后重试")
+			}
+		}
+		created, err := tx.Exec(ctx, "INSERT INTO offline_leads(tenant_id,contact_id,access_link_id,conversation_id,client_request_id,display_name,phone,content) VALUES($1,$2,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8) ON CONFLICT(tenant_id,contact_id,client_request_id) DO NOTHING", a.TenantID, a.ContactID, link, in.ConversationID, in.ClientID, in.Name, in.Phone, in.Content)
 		if err != nil {
 			return err
 		}
@@ -62,6 +89,30 @@ func (s *Service) createLead(w http.ResponseWriter, r *http.Request) {
 		storedConversation, _ := result["conversation_id"].(string)
 		if result["content"] != in.Content || result["phone"] != in.Phone || result["display_name"] != in.Name || result["access_link_id"] != link || storedConversation != in.ConversationID {
 			return platform.Fail(409, "idempotency_conflict", "同一留言编号携带了不同内容")
+		}
+		lead := result["id"].(string)
+		if created.RowsAffected() == 1 {
+			if err := attachLeadFiles(ctx, tx, a.TenantID, lead, in.Attachments); err != nil {
+				return err
+			}
+			if err := s.enqueueLeadNotification(ctx, tx, a.TenantID, lead); err != nil {
+				return err
+			}
+			if err := audit(ctx, tx, a, "lead.created", lead, map[string]any{"attachment_count": len(in.Attachments)}); err != nil {
+				return err
+			}
+		} else {
+			stored, err := leadAttachmentIDs(ctx, tx, lead)
+			if err != nil {
+				return err
+			}
+			if string(jsonValue(stored)) != string(jsonValue(in.Attachments)) {
+				return platform.Fail(409, "idempotency_conflict", "同一留言编号不能替换或增加附件")
+			}
+		}
+		result, err = txJSON(ctx, tx, "SELECT (to_jsonb(t)-'notes')||jsonb_build_object('attachments',"+leadAttachmentProjection+") FROM offline_leads t WHERE id=$1", lead)
+		if err != nil {
+			return err
 		}
 		return nil
 	})
@@ -76,15 +127,15 @@ func (s *Service) createLead(w http.ResponseWriter, r *http.Request) {
 func (s *Service) leads(w http.ResponseWriter, r *http.Request) {
 	a := memberActor(r)
 	var in struct {
-		Status string `json:"status"`
-		Notes  string `json:"notes"`
+		Status string  `json:"status"`
+		Notes  *string `json:"notes"`
 	}
 	if r.Method == http.MethodPatch {
 		if err := platform.Decode(w, r, &in); err != nil {
 			replyError(w, r, err)
 			return
 		}
-		if !inStrings(in.Status, "new", "following", "resolved") || len([]rune(in.Notes)) > 5000 {
+		if !inStrings(in.Status, "new", "following", "resolved") || in.Notes != nil && len([]rune(*in.Notes)) > 5000 {
 			returnError(w, r, "invalid_lead_status", "留言状态或跟进内容不正确")
 			return
 		}
@@ -95,9 +146,9 @@ func (s *Service) leads(w http.ResponseWriter, r *http.Request) {
 		if err := liveMember(ctx, tx, a); err != nil {
 			return err
 		}
-		scope := "($1 OR EXISTS(SELECT 1 FROM access_links l JOIN agent_group_members gm ON gm.group_id=l.service_group_id AND gm.tenant_id=l.tenant_id JOIN tenant_memberships mm ON mm.id=gm.membership_id AND mm.tenant_id=gm.tenant_id WHERE l.id=t.access_link_id AND gm.membership_id=NULLIF($2,'')::uuid AND mm.can_serve AND NOT mm.disabled AND mm.removed_at IS NULL))"
+		scope := leadReadScope
 		if r.Method == http.MethodGet {
-			rows, err := tx.Query(ctx, "SELECT to_jsonb(t) FROM offline_leads t WHERE "+scope+" ORDER BY created_at DESC LIMIT 200", isAdmin(a), a.MemberID)
+			rows, err := tx.Query(ctx, "SELECT to_jsonb(t)||jsonb_build_object('attachments',"+leadAttachmentProjection+") FROM offline_leads t WHERE "+scope+" ORDER BY created_at DESC LIMIT 200", isAdmin(a), a.MemberID)
 			if err != nil {
 				return err
 			}
@@ -106,7 +157,7 @@ func (s *Service) leads(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		id := r.PathValue("id")
-		item, err := txJSON(ctx, tx, "UPDATE offline_leads t SET status=$4,notes=$5,updated_at=now() WHERE "+scope+" AND id=$3 RETURNING to_jsonb(t)", isAdmin(a), a.MemberID, id, in.Status, in.Notes)
+		item, err := txJSON(ctx, tx, "UPDATE offline_leads t SET status=$4,notes=COALESCE($5,notes),updated_at=now() WHERE "+scope+" AND id=$3 RETURNING to_jsonb(t)", isAdmin(a), a.MemberID, id, in.Status, in.Notes)
 		if err != nil {
 			return err
 		}
@@ -120,60 +171,9 @@ func (s *Service) leads(w http.ResponseWriter, r *http.Request) {
 	platform.JSON(w, 200, result)
 }
 
-// evaluate 只允许本次咨询访客在咨询结束后提交一次评分。
+// evaluate 保持原评价提交接口，交由期限和版本策略处理真实访客提交。
 func (s *Service) evaluate(w http.ResponseWriter, r *http.Request) {
-	a := currentActor(r)
-	if a.ContactID == "" {
-		replyError(w, r, platform.Fail(403, "visitor_required", "只有咨询访客可以评价"))
-		return
-	}
-	var in struct {
-		Score   int    `json:"score"`
-		Comment string `json:"comment"`
-	}
-	if err := platform.Decode(w, r, &in); err != nil {
-		replyError(w, r, err)
-		return
-	}
-	if in.Score < 1 || in.Score > 5 || len([]rune(in.Comment)) > 2000 {
-		returnError(w, r, "invalid_evaluation", "请选择一至五星并填写不超过2000字的评价")
-		return
-	}
-	id := r.PathValue("id")
-	var result map[string]any
-	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
-		ctx := r.Context()
-		if err := tenantActive(ctx, tx, a.TenantID); err != nil {
-			return err
-		}
-		if err := canReadConversation(ctx, tx, a, id); err != nil {
-			return err
-		}
-		var status string
-		if err := tx.QueryRow(ctx, "SELECT status FROM conversations WHERE id=$1 FOR UPDATE", id).Scan(&status); err != nil {
-			return err
-		}
-		if status != "closed" {
-			return platform.Fail(409, "conversation_not_closed", "咨询结束后才能评价")
-		}
-		_, err := tx.Exec(ctx, "INSERT INTO conversation_evaluations(tenant_id,conversation_id,contact_id,score,comment) VALUES($1,$2,$3,$4,$5) ON CONFLICT(tenant_id,conversation_id) DO NOTHING", a.TenantID, id, a.ContactID, in.Score, in.Comment)
-		if err != nil {
-			return err
-		}
-		result, err = txJSON(ctx, tx, "SELECT to_jsonb(t) FROM conversation_evaluations t WHERE conversation_id=$1", id)
-		if err != nil {
-			return err
-		}
-		if result["score"] != float64(in.Score) || result["comment"] != in.Comment {
-			return platform.Fail(409, "evaluation_exists", "本次咨询已经评价，不能重复修改")
-		}
-		return nil
-	})
-	if err != nil {
-		replyError(w, r, err)
-		return
-	}
-	platform.JSON(w, 200, result)
+	s.handleEvaluation(w, r)
 }
 
 // evaluations 返回真实评价记录，评分统计由租户统计模块汇总。

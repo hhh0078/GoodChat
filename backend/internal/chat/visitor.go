@@ -290,6 +290,9 @@ func resolveRouting(ctx context.Context, tx pgx.Tx, entry map[string]any, in rou
 			t.AgentID = in.AgentID
 		}
 		if in.AgentMode != "" {
+			if t.AgentMode == "strict" && in.AgentMode != "strict" {
+				return t, platform.Fail(400, "strict_mode_protected", "公开参数不能放宽入口的严格指定客服规则")
+			}
 			t.AgentMode = in.AgentMode
 		}
 	}

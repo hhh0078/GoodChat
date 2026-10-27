@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -46,8 +47,8 @@ func main() {
 		log.Fatal("数据库暂时无法连接")
 	}
 	var elevated bool
-	if err = pool.QueryRow(ctx, "SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user").Scan(&elevated); err != nil || elevated {
-		log.Fatal("应用需要使用非特权数据库账号")
+	if err = pool.QueryRow(ctx, "SELECT r.rolsuper OR r.rolbypassrls OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN('r','p') AND c.relowner=r.oid) FROM pg_roles r WHERE r.rolname=current_user").Scan(&elevated); err != nil || elevated {
+		log.Fatal("应用需要使用非特权且不是业务表所有者的数据库账号")
 	}
 	redisOptions, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
@@ -75,6 +76,7 @@ func main() {
 		log.Fatal(err)
 	}
 	messaging := chat.New(pool, identity, cfg)
+	messaging.SetLeadNotifier(identity.SendNotification)
 	plans := billing.New(pool, identity, cfg)
 	messaging.SetFeatureChecker(plans.CheckFeature)
 	identity.SetSeatChecker(plans.CheckSeats)
@@ -125,6 +127,7 @@ func main() {
 	})
 	identity.Start(ctx)
 	messaging.Start(ctx)
+	messaging.StartLeadNotifications(ctx)
 	hooks.Start(ctx)
 	designs.Start(ctx)
 	codeServer := &http.Server{Addr: ":18081", Handler: designs.CodeHandler(), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
@@ -134,16 +137,13 @@ func main() {
 			cancel()
 		}
 	}()
-	server := &http.Server{Addr: cfg.Address, Handler: middleware(cfg, rateLimits(cache, mux)), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
-	go func() {
-		<-ctx.Done()
-		shutdownCtx, done := context.WithTimeout(context.Background(), 10*time.Second)
-		defer done()
-		_ = server.Shutdown(shutdownCtx)
-		_ = codeServer.Shutdown(shutdownCtx)
-	}()
+	server := &http.Server{Addr: cfg.Address, Handler: observeHTTP(middleware(cfg, rateLimits(cache, mux)), slog.New(slog.NewJSONHandler(os.Stdout, nil))), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
+	shutdownDone := shutdownHTTP(ctx, server, codeServer)
 	log.Printf("GoodChat API已启动，监听%s", cfg.Address)
-	if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	err = server.ListenAndServe()
+	cancel()
+	<-shutdownDone
+	if err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
 }
@@ -154,6 +154,7 @@ func middleware(cfg platform.Config, next http.Handler) http.Handler {
 		identifier := make([]byte, 12)
 		_, _ = rand.Read(identifier)
 		r.Header.Set("X-Request-ID", hex.EncodeToString(identifier))
+		w.Header().Set("X-Request-ID", r.Header.Get("X-Request-ID"))
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		remote, _, _ := net.SplitHostPort(r.RemoteAddr)

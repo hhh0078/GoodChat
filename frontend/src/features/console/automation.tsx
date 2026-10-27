@@ -5,6 +5,7 @@ import {
   App,
   Button,
   Card,
+  Drawer,
   Form,
   Input,
   InputNumber,
@@ -21,7 +22,16 @@ import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { ErrorNotice, PageTitle, EmptyData } from "@/components/page-state";
 import { ResourcePanel } from "./resource-panel";
+import { AutomationPolicy } from "./automation-policy";
+import { WelcomeRules } from "./welcome-rules";
+import { LeadNotifications } from "./lead-notifications";
+import { AttachmentView } from "@/features/chat/attachment";
 import type { Resource } from "@/lib/types";
+type LeadRecord = Resource & {
+  status: string;
+  notes?: string;
+  attachments?: { id: string; file_name: string; content_type: string; size_bytes: number }[];
+};
 /** OperationsSettings 根据配置类型维护服务端持久设置。 */
 export function OperationsSettings({ notifications = false }: { notifications?: boolean }) {
   const { tenantId } = useSession();
@@ -124,7 +134,13 @@ export function OperationsSettings({ notifications = false }: { notifications?: 
 }
 /** LeadList 展示真实离线留言并更新跟进状态，不将聊天记录作为留言。 */
 function LeadList() {
-  const data = useResource<Resource>("/tenant/leads");
+  const data = useResource<LeadRecord>("/tenant/leads");
+  const { current } = useSession();
+  const actorId = current.memberships.find((item) => item.tenant_id === data.tenantId)?.id || "";
+  const [selected, setSelected] = useState<LeadRecord | null>(null);
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<unknown>(null);
   const { message } = App.useApp();
   /** updateStatus 保存留言处理进度后重新查询。 */
   async function updateStatus(id: string, status: string) {
@@ -140,6 +156,26 @@ function LeadList() {
       message.error(errorMessage(problem));
     }
   }
+  /** saveDetails 保存内部跟进内容与状态，附件读取仍由服务端逐次检查权限。 */
+  async function saveDetails() {
+    if (!selected) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const value = await api<LeadRecord>(`/tenant/leads/${selected.id}`, {
+        method: "PATCH",
+        tenantId: data.tenantId,
+        bodyJSON: { status: selected.status, notes },
+      });
+      setSelected((previous) => (previous ? { ...previous, ...value } : null));
+      data.reload();
+      message.success("内部跟进记录已保存");
+    } catch (problem) {
+      setSaveError(problem);
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
     <div className="table-card">
       <ErrorNotice error={data.error} retry={data.reload} />
@@ -153,6 +189,22 @@ function LeadList() {
           { title: "访客", dataIndex: "display_name" },
           { title: "电话", dataIndex: "phone" },
           { title: "留言", dataIndex: "content", ellipsis: true },
+          { title: "附件", render: (_, row) => `${row.attachments?.length || 0} 个` },
+          {
+            title: "详情",
+            render: (_, row) => (
+              <Button
+                type="link"
+                onClick={() => {
+                  setSelected(row);
+                  setNotes(row.notes || "");
+                  setSaveError(null);
+                }}
+              >
+                查看与跟进
+              </Button>
+            ),
+          },
           {
             title: "状态",
             dataIndex: "status",
@@ -176,12 +228,90 @@ function LeadList() {
           },
         ]}
       />
+      <Drawer
+        title="留言详情与跟进"
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        width={600}
+      >
+        <p>
+          {String(selected?.display_name || "访客")} · {String(selected?.phone || "未留电话")}
+        </p>
+        <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+          {String(selected?.content || "")}
+        </p>
+        <Space direction="vertical" style={{ width: "100%", marginBottom: 16 }}>
+          {selected?.attachments?.map((attachment) => (
+            <AttachmentView
+              key={attachment.id}
+              attachment={attachment}
+              identity={{ tenantId: data.tenantId, actorId, kind: "agent" }}
+            />
+          ))}
+        </Space>
+        <p className="form-hint">
+          附件由访客主动共享给留言处理团队，聊天撤回不会撤销这次独立共享。
+        </p>
+        <Form layout="vertical">
+          <Form.Item label="处理状态">
+            <Select
+              value={selected?.status}
+              onChange={(status) =>
+                setSelected((previous) => (previous ? { ...previous, status } : null))
+              }
+              options={[
+                { label: "待跟进", value: "new" },
+                { label: "跟进中", value: "following" },
+                { label: "已处理", value: "resolved" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="内部跟进备注">
+            <Input.TextArea
+              rows={5}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              maxLength={5000}
+            />
+          </Form.Item>
+          <ErrorNotice error={saveError} />
+          <Button type="primary" loading={saving} onClick={() => void saveDetails()}>
+            保存内部跟进
+          </Button>
+        </Form>
+        <p className="form-hint">保存处理记录不代表客户已收到外部回复。</p>
+      </Drawer>
     </div>
   );
 }
 /** EvaluationList 只展示服务端记录的访客评价。 */
 function EvaluationList() {
   const data = useResource<Resource>("/tenant/evaluations");
+  const [selected, setSelected] = useState<Resource | null>(null);
+  const [versions, setVersions] = useState<Resource[]>([]);
+  const [historyError, setHistoryError] = useState<unknown>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  useEffect(() => {
+    setVersions([]);
+    setHistoryError(null);
+    if (!selected) return;
+    const controller = new AbortController();
+    setHistoryLoading(true);
+    api<{ items: Resource[] }>(`/tenant/evaluations/${selected.id}/versions`, {
+      tenantId: data.tenantId,
+      signal: controller.signal,
+    })
+      .then((result) => {
+        if (!controller.signal.aborted) setVersions(result.items || []);
+      })
+      .catch((problem) => {
+        if (!controller.signal.aborted) setHistoryError(problem);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHistoryLoading(false);
+      });
+    return () => controller.abort();
+  }, [selected, data.tenantId]);
   return (
     <div className="table-card">
       <ErrorNotice error={data.error} retry={data.reload} />
@@ -194,6 +324,15 @@ function EvaluationList() {
           { title: "会话编号", dataIndex: "conversation_id", ellipsis: true },
           { title: "评分", dataIndex: "score", render: (value) => <Tag>{String(value)} / 5</Tag> },
           { title: "评价", dataIndex: "comment" },
+          { title: "版本", dataIndex: "version", render: (value) => `v${value || 1}` },
+          {
+            title: "原始记录",
+            render: (_, row) => (
+              <Button type="link" onClick={() => setSelected(row)}>
+                查看评价版本
+              </Button>
+            ),
+          },
           {
             title: "时间",
             dataIndex: "created_at",
@@ -201,6 +340,25 @@ function EvaluationList() {
           },
         ]}
       />
+      <Drawer title="访客评价版本" open={!!selected} onClose={() => setSelected(null)} width={650}>
+        <p className="muted">仅展示访客实际提交，不提供改写历史评分入口。</p>
+        <ErrorNotice error={historyError} />
+        <Table
+          rowKey="id"
+          dataSource={versions}
+          loading={historyLoading}
+          columns={[
+            { title: "版本", dataIndex: "version" },
+            { title: "评分", dataIndex: "score" },
+            { title: "意见", dataIndex: "comment" },
+            {
+              title: "时间",
+              dataIndex: "created_at",
+              render: (value) => new Date(String(value)).toLocaleString("zh-CN"),
+            },
+          ]}
+        />
+      </Drawer>
     </div>
   );
 }
@@ -219,6 +377,12 @@ export function AutomationPage() {
       <Tabs
         items={[
           { key: "settings", label: "服务与欢迎语", children: <OperationsSettings /> },
+          {
+            key: "welcome-rules",
+            label: "高级欢迎规则",
+            children: <WelcomeRules key={tenantId} />,
+          },
+          { key: "policy", label: "营业与评价策略", children: <AutomationPolicy key={tenantId} /> },
           {
             key: "replies",
             label: "快捷话术",
@@ -298,7 +462,12 @@ export function AutomationPage() {
               </div>
             ),
           },
-          { key: "leads", label: "离线留言", children: <LeadList /> },
+          { key: "leads", label: "离线留言", children: <LeadList key={tenantId} /> },
+          {
+            key: "lead-notifications",
+            label: "留言邮件提醒",
+            children: <LeadNotifications key={tenantId} />,
+          },
           { key: "evaluations", label: "服务评价", children: <EvaluationList /> },
           {
             key: "notifications",

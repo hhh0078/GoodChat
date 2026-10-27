@@ -130,6 +130,10 @@ export function publicBridgeMessage(item: ChatMessage, visitorId: string) {
     id: item.id,
     seq: item.seq || item.event_seq,
     is_own: item.sender_kind === "visitor" && item.sender_id === visitorId,
+    client_message_id:
+      item.sender_kind === "visitor" && item.sender_id === visitorId
+        ? item.client_message_id
+        : undefined,
     sender_kind: item.sender_kind,
     sender_name: item.sender_name,
     message_type: item.message_type,
@@ -137,6 +141,29 @@ export function publicBridgeMessage(item: ChatMessage, visitorId: string) {
     text: item.withdrawn_at ? "" : item.content,
     created_at: item.created_at,
     withdrawn_at: item.withdrawn_at,
+    source: typeof item.source === "string" ? item.source : undefined,
+    options:
+      !item.withdrawn_at && item.sender_kind === "system" && Array.isArray(item.options)
+        ? item.options
+            .slice(0, 8)
+            .filter(
+              (option) =>
+                option &&
+                typeof option.id === "string" &&
+                typeof option.label === "string" &&
+                typeof option.value === "string" &&
+                typeof option.client_message_id === "string" &&
+                /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(
+                  option.client_message_id,
+                ),
+            )
+            .map((option) => ({
+              id: option.id,
+              label: option.label,
+              value: option.value,
+              client_message_id: option.client_message_id,
+            }))
+        : undefined,
     reply: item.reply
       ? {
           id: item.reply.id,

@@ -3,6 +3,7 @@ package chat
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"fmt"
 	"net/http"
@@ -60,122 +61,141 @@ func csvValue(value any, location *time.Location) string {
 	return csvSafeCell(fmt.Sprint(value))
 }
 
-// exportRecords 同步构造完整CSV并审计成功结果后返回下载；任何校验、数量或字节超限均不输出半份文件。
+// renderExportCSV 使用统一查询生成完整CSV，异步任务可按实际行数报告进度及检查取消。
+func renderExportCSV(ctx context.Context, tx pgx.Tx, r *http.Request, a actor, rowLimit, byteLimit int, progress func(int) error) ([]byte, int, string, error) {
+	messages, err := exportFlag(r, "include_messages")
+	if err != nil {
+		return nil, 0, "", err
+	}
+	internal, err := exportFlag(r, "include_internal")
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if internal && !messages {
+		return nil, 0, "", platform.Fail(400, "invalid_export_option", "内部备注选项仅适用于消息正文导出")
+	}
+	args, zone, err := conversationFilterArgs(ctx, tx, r, a)
+	if err != nil {
+		return nil, 0, "", err
+	}
+	location, err := time.LoadLocation(zone)
+	if err != nil {
+		return nil, 0, "", platform.Fail(400, "invalid_timezone", "租户时区配置不正确")
+	}
+	headers := []string{"会话编号", "客户编号", "客户名称", "客户电话", "会话状态", "当前客服编号", "当前客服名称", "来源渠道", "会话创建时间（" + zone + "）", "会话结束时间（" + zone + "）"}
+	columns, joins, where, order := exportMetadataColumns, conversationJoins, conversationWhere, " ORDER BY c.updated_at DESC,c.id"
+	if messages {
+		columns += exportMessageColumns
+		joins += " JOIN messages msg ON msg.conversation_id=c.id AND msg.tenant_id=c.tenant_id LEFT JOIN attachments f ON f.id=msg.attachment_id AND f.tenant_id=msg.tenant_id"
+		if !internal {
+			where += " AND msg.audience='public'"
+		}
+		order += ",msg.event_seq"
+		headers = append(headers, "消息编号", "消息序号", "发送者类型", "发送者名称", "消息类型", "可见范围", "消息正文", "附件名称", "是否已撤回", "消息发送时间（"+zone+"）")
+	}
+	rows, err := tx.Query(ctx, "SELECT "+columns+joins+where+order+" LIMIT "+strconv.Itoa(rowLimit+1), args...)
+	if err != nil {
+		return nil, 0, "", err
+	}
+	defer rows.Close()
+	var buffer bytes.Buffer
+	buffer.WriteString("\xef\xbb\xbf")
+	writer := csv.NewWriter(&buffer)
+	if err = writer.Write(headers); err != nil {
+		return nil, 0, "", err
+	}
+	count := 0
+	for rows.Next() {
+		count++
+		if count > rowLimit {
+			return nil, 0, "", platform.Fail(409, "export_limit_exceeded", fmt.Sprintf("导出最多%d条数据，请缩小筛选范围；未生成截断文件", rowLimit))
+		}
+		values, e := rows.Values()
+		if e != nil {
+			return nil, 0, "", e
+		}
+		record := make([]string, len(values))
+		for index, value := range values {
+			record[index] = csvValue(value, location)
+		}
+		if e = writer.Write(record); e != nil {
+			return nil, 0, "", e
+		}
+		writer.Flush()
+		if e = writer.Error(); e != nil {
+			return nil, 0, "", e
+		}
+		if buffer.Len() > byteLimit {
+			return nil, 0, "", platform.Fail(409, "export_size_exceeded", fmt.Sprintf("CSV最多%dMiB，请缩小筛选范围；未生成截断文件", byteLimit>>20))
+		}
+		if progress != nil && count%250 == 0 {
+			if e = progress(count); e != nil {
+				return nil, 0, "", e
+			}
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return nil, 0, "", err
+	}
+	rows.Close()
+	writer.Flush()
+	if err = writer.Error(); err != nil {
+		return nil, 0, "", err
+	}
+	if progress != nil {
+		if err = progress(count); err != nil {
+			return nil, 0, "", err
+		}
+	}
+	return buffer.Bytes(), count, zone, nil
+}
+
+// exportRecords 同步生成完整CSV并审计，所有失败与超限均不输出半份文件。
 func (s *Service) exportRecords(w http.ResponseWriter, r *http.Request) {
 	a := memberActor(r)
 	if !isAdmin(a) {
 		replyError(w, r, platform.Fail(403, "admin_required", "导出聊天记录需要租户管理员权限"))
 		return
 	}
-	messages, err := exportFlag(r, "include_messages")
-	if err != nil {
-		replyError(w, r, err)
-		return
-	}
-	internal, err := exportFlag(r, "include_internal")
-	if err != nil {
-		replyError(w, r, err)
-		return
-	}
-	if internal && !messages {
-		replyError(w, r, platform.Fail(400, "invalid_export_option", "内部备注选项仅适用于消息正文导出"))
-		return
-	}
-	var buffer bytes.Buffer
-	count := 0
-	timezone := ""
-	kind := "conversations"
-	if messages {
-		kind = "messages"
-	}
-	err = platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
-		ctx := r.Context()
-		if err := liveMember(ctx, tx, a); err != nil {
+	var data []byte
+	var count int
+	var zone string
+	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
+		if err := liveMember(r.Context(), tx, a); err != nil {
 			return err
 		}
-		if err := s.checkFeature(ctx, tx, a.TenantID, "export"); err != nil {
+		if err := s.checkFeature(r.Context(), tx, a.TenantID, "export"); err != nil {
 			return err
 		}
-		args, zone, err := conversationFilterArgs(ctx, tx, r, a)
+		var err error
+		data, count, zone, err = renderExportCSV(r.Context(), tx, r, a, maxExportRows, maxExportBytes, nil)
 		if err != nil {
 			return err
 		}
-		timezone = zone
-		location, err := time.LoadLocation(timezone)
-		if err != nil {
-			return platform.Fail(400, "invalid_timezone", "租户时区配置不正确")
-		}
-		headers := []string{"会话编号", "客户编号", "客户名称", "客户电话", "会话状态", "当前客服编号", "当前客服名称", "来源渠道", "会话创建时间（" + timezone + "）", "会话结束时间（" + timezone + "）"}
-		columns := exportMetadataColumns
-		joins := conversationJoins
-		where := conversationWhere
-		order := " ORDER BY c.updated_at DESC,c.id"
-		if messages {
-			columns += exportMessageColumns
-			joins += " JOIN messages msg ON msg.conversation_id=c.id AND msg.tenant_id=c.tenant_id LEFT JOIN attachments f ON f.id=msg.attachment_id AND f.tenant_id=msg.tenant_id"
-			if !internal {
-				where += " AND msg.audience='public'"
-			}
-			order += ",msg.event_seq"
-			headers = append(headers, "消息编号", "消息序号", "发送者类型", "发送者名称", "消息类型", "可见范围", "消息正文", "附件名称", "是否已撤回", "消息发送时间（"+timezone+"）")
-		}
-		rows, err := tx.Query(ctx, "SELECT "+columns+joins+where+order+" LIMIT 10001", args...)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		buffer.WriteString("\xef\xbb\xbf")
-		writer := csv.NewWriter(&buffer)
-		if err := writer.Write(headers); err != nil {
-			return err
-		}
-		for rows.Next() {
-			count++
-			if count > maxExportRows {
-				return platform.Fail(409, "export_limit_exceeded", "导出最多10000条数据，请缩小日期或其他筛选范围；未下载截断文件")
-			}
-			values, err := rows.Values()
-			if err != nil {
-				return err
-			}
-			record := make([]string, len(values))
-			for index, value := range values {
-				record[index] = csvValue(value, location)
-			}
-			if err := writer.Write(record); err != nil {
-				return err
-			}
-			writer.Flush()
-			if err := writer.Error(); err != nil {
-				return err
-			}
-			if buffer.Len() > maxExportBytes {
-				return platform.Fail(409, "export_size_exceeded", "CSV最多32MiB，请缩小筛选范围；未下载截断文件")
-			}
-		}
-		if err := rows.Err(); err != nil {
-			return err
-		}
-		rows.Close()
-		writer.Flush()
-		if err := writer.Error(); err != nil {
-			return err
-		}
-		return audit(ctx, tx, a, "chat_records.exported", "", map[string]any{"kind": kind, "include_internal": internal, "rows": count, "timezone": timezone, "filter_hash": hash(r.URL.Query().Encode()), "row_limit": maxExportRows, "byte_limit": maxExportBytes})
+		return audit(r.Context(), tx, a, "chat_records.exported", "", map[string]any{"include_messages": r.URL.Query().Get("include_messages") == "true", "include_internal": r.URL.Query().Get("include_internal") == "true", "rows": count, "timezone": zone, "filter_hash": hash(r.URL.Query().Encode()), "row_limit": maxExportRows, "byte_limit": maxExportBytes})
 	})
 	if err != nil {
 		replyError(w, r, err)
 		return
 	}
+	kind := "conversations"
+	if r.URL.Query().Get("include_messages") == "true" {
+		kind = "messages"
+	}
+	writeCSVDownload(w, data, count, zone, kind, maxExportRows, maxExportBytes)
+}
+
+// writeCSVDownload 仅对已完整生成且通过授权的CSV发出标准下载头。
+func writeCSVDownload(w http.ResponseWriter, data []byte, count int, zone, kind string, rowLimit, byteLimit int) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="GoodChat-`+kind+`-`+time.Now().UTC().Format("20060102-150405")+`.csv"`)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Export-Row-Count", strconv.Itoa(count))
-	w.Header().Set("X-Export-Row-Limit", strconv.Itoa(maxExportRows))
-	w.Header().Set("X-Export-Byte-Limit", strconv.Itoa(maxExportBytes))
-	w.Header().Set("X-Export-Timezone", timezone)
-	w.Header().Set("Content-Length", strconv.Itoa(buffer.Len()))
+	w.Header().Set("X-Export-Row-Limit", strconv.Itoa(rowLimit))
+	w.Header().Set("X-Export-Byte-Limit", strconv.Itoa(byteLimit))
+	w.Header().Set("X-Export-Timezone", zone)
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(buffer.Bytes())
+	_, _ = w.Write(data)
 }

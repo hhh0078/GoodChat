@@ -42,6 +42,9 @@ export type ChatMessage = Resource & {
   withdrawn_at?: string;
   attachment?: { id: string; file_name: string; content_type: string; size_bytes: number };
   reply?: { id: string; content: string; withdrawn: boolean };
+  options?: { id: string; label: string; value: string; client_message_id: string }[];
+  source?: string;
+  source_version?: string;
 };
 export type Conversation = Resource & {
   status: string;

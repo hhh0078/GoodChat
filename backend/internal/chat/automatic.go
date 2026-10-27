@@ -4,6 +4,7 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,13 +21,20 @@ func (s *Service) enqueueWelcome(ctx context.Context, tx pgx.Tx, tenant, convers
 	if enabled, _ := settings["welcome_enabled"].(bool); !enabled {
 		return nil
 	}
+	if matched, err := s.enqueueRichWelcome(ctx, tx, tenant, conversation); matched || err != nil {
+		return err
+	}
 	text, _ := settings["welcome_text"].(string)
 	if strings.TrimSpace(text) == "" {
 		return nil
 	}
 	delay, _ := settings["welcome_delay_seconds"].(float64)
-	payload := map[string]any{"content": text, "settings_hash": hash(string(jsonValue(settings)))}
-	_, err = tx.Exec(ctx, "INSERT INTO chat_operation_jobs(tenant_id,conversation_id,job_type,trigger_key,payload,run_after) VALUES($1,$2,'welcome',$3,$4,now()+$5*interval '1 second') ON CONFLICT(tenant_id,trigger_key) DO NOTHING", tenant, conversation, "welcome:"+conversation, jsonValue(payload), delay)
+	config, err := loadAutomationConfig(ctx, tx, tenant)
+	if err != nil {
+		return err
+	}
+	payload := map[string]any{"content": text, "settings_hash": hash(string(jsonValue(settings))), "stop_on_agent": config.StopWelcomeOnAgent, "policy_hash": welcomePolicyHash(config)}
+	_, err = tx.Exec(ctx, "INSERT INTO chat_operation_jobs(tenant_id,conversation_id,job_type,trigger_key,payload,run_after) SELECT $1,$2,'welcome',$3,$4,created_at+$5*interval '1 second' FROM conversations WHERE id=$2 ON CONFLICT(tenant_id,trigger_key) DO NOTHING", tenant, conversation, "welcome:"+conversation, jsonValue(payload), delay)
 	return err
 }
 
@@ -84,7 +92,7 @@ func (s *Service) enqueueKeyword(ctx context.Context, tx pgx.Tx, tenant, convers
 // runAutomatic 在同一数据库事务中保存系统消息并完成任务，崩溃不会形成半份回复。
 func (s *Service) runAutomatic(ctx context.Context, tenant string) error {
 	return platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, "SELECT id::text FROM chat_operation_jobs WHERE status='queued' AND run_after<=now() ORDER BY run_after,id LIMIT 20 FOR UPDATE SKIP LOCKED")
+		rows, err := tx.Query(ctx, "SELECT id::text FROM chat_operation_jobs WHERE status='queued' AND run_after<=now() ORDER BY run_after,sort_order,id LIMIT 20 FOR UPDATE SKIP LOCKED")
 		if err != nil {
 			return err
 		}
@@ -137,7 +145,30 @@ func (s *Service) executeAutomatic(ctx context.Context, tx pgx.Tx, tenant, job s
 	}
 	if kind == "welcome" {
 		enabled, _ := settings["welcome_enabled"].(bool)
-		cancel = cancel || !enabled || payload["settings_hash"] != hash(string(jsonValue(settings)))
+		cancel = cancel || !enabled
+		if _, rich := payload["welcome_rule_id"].(string); rich {
+			invalid, err := richWelcomeCancelled(ctx, tx, tenant, conversation, payload)
+			if err != nil {
+				return err
+			}
+			cancel = cancel || invalid
+		} else {
+			cancel = cancel || payload["settings_hash"] != hash(string(jsonValue(settings)))
+			config, err := loadAutomationConfig(ctx, tx, tenant)
+			if err != nil {
+				return err
+			}
+			if policy, exists := payload["policy_hash"]; exists {
+				cancel = cancel || policy != welcomePolicyHash(config)
+			}
+			if config.StopWelcomeOnAgent {
+				var accepted bool
+				if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM conversation_assignments WHERE conversation_id=$1 AND accepted_at IS NOT NULL)", conversation).Scan(&accepted); err != nil {
+					return err
+				}
+				cancel = cancel || accepted
+			}
+		}
 	} else {
 		enabled, _ := settings["keywords_enabled"].(bool)
 		cancel = cancel || !enabled
@@ -159,14 +190,50 @@ func (s *Service) executeAutomatic(ctx context.Context, tx pgx.Tx, tenant, job s
 		_, err := tx.Exec(ctx, "UPDATE chat_operation_jobs SET status='cancelled',completed_at=now(),attempts=attempts+1 WHERE id=$1", job)
 		return err
 	}
+	if kind == "welcome" {
+		var earlier bool
+		if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM chat_operation_jobs earlier JOIN chat_operation_jobs current ON current.id=$2 WHERE earlier.conversation_id=$1 AND earlier.job_type='welcome' AND earlier.status='queued' AND (earlier.run_after,earlier.sort_order,earlier.id)<(current.run_after,current.sort_order,current.id))", conversation, job).Scan(&earlier); err != nil {
+			return err
+		}
+		if earlier {
+			return nil
+		}
+	}
 	message := newID()
 	content, _ := payload["content"].(string)
-	event := map[string]any{"id": message, "client_message_id": job, "sender_kind": "system", "sender_id": tenant, "sender_name": "系统", "message_type": "text", "content": content, "audience": "public", "source": kind, "created_at": nowUTC()}
+	messageType, _ := payload["message_type"].(string)
+	if messageType != "image" {
+		messageType = "text"
+	}
+	attachment, _ := payload["attachment_id"].(string)
+	options := payload["options"]
+	if options == nil {
+		options = []any{}
+	}
+	sourceRule := ""
+	sourceVersion, _ := payload["settings_hash"].(string)
+	if id, ok := payload["welcome_rule_id"].(string); ok {
+		sourceRule = id
+		if version, ok := payload["welcome_rule_version"].(float64); ok {
+			sourceVersion = strconv.FormatFloat(version, 'f', 0, 64)
+		}
+	} else if rule != nil {
+		sourceRule = *rule
+		sourceVersion, _ = payload["rule_updated_at"].(string)
+	}
+	event := map[string]any{"id": message, "client_message_id": job, "sender_kind": "system", "sender_id": tenant, "sender_name": "系统", "message_type": messageType, "content": content, "audience": "public", "source": kind, "created_at": nowUTC()}
 	seq, err := s.emit(ctx, tx, tenant, conversation, "message.created", "public", event)
 	if err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, "INSERT INTO messages(id,tenant_id,conversation_id,sender_id,sender_kind,client_message_id,message_type,content,audience,event_seq) VALUES($1,$2,$3,$2,'system',$4,'text',$5,'public',$6)", message, tenant, conversation, job, content, seq); err != nil {
+	if _, err := tx.Exec(ctx, "INSERT INTO messages(id,tenant_id,conversation_id,sender_id,sender_kind,client_message_id,message_type,content,audience,event_seq,attachment_id,options,source,source_rule_id,source_version) VALUES($1,$2,$3,$2,'system',$4,$5,$6,'public',$7,NULLIF($8,'')::uuid,$9,$10,NULLIF($11,'')::uuid,$12)", message, tenant, conversation, job, messageType, content, seq, attachment, jsonValue(options), kind, sourceRule, sourceVersion); err != nil {
+		return err
+	}
+	projection, err := txJSON(ctx, tx, "SELECT "+messageProjection+" FROM messages m WHERE id=$1", message)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, "UPDATE conversation_events SET payload=$2 WHERE conversation_id=$1 AND seq=$3", conversation, jsonValue(projection), seq); err != nil {
 		return err
 	}
 	_, err = tx.Exec(ctx, "UPDATE chat_operation_jobs SET status='completed',completed_at=now(),attempts=attempts+1 WHERE id=$1", job)

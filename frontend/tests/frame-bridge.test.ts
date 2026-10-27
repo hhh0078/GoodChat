@@ -174,6 +174,35 @@ test("附件预览和下载确认只接受当前公开未撤回附件，不接�
     );
   }
 });
+test("欢迎选项只透出安全文案和服务端稳定编号，撤回或非系统消息不提供选项", () => {
+  const item = {
+    id: "welcome",
+    sender_kind: "system",
+    content: "请选择",
+    options: [
+      {
+        id: "pricing",
+        label: "<script>咨询价格</script>",
+        value: "实际访客内容",
+        client_message_id: "11111111-2222-4333-8444-555555555555",
+        internal_secret: "不得输出",
+      },
+    ],
+  } as unknown as ChatMessage;
+  const result = publicBridgeMessage(item, "visitor-a");
+  assert.equal(result.options?.[0].label, "<script>咨询价格</script>");
+  assert.equal(result.options?.[0].value, "实际访客内容");
+  assert.equal(result.options?.[0].client_message_id, "11111111-2222-4333-8444-555555555555");
+  assert.equal("internal_secret" in (result.options?.[0] || {}), false);
+  assert.equal(
+    publicBridgeMessage({ ...item, sender_kind: "visitor" }, "visitor-a").options,
+    undefined,
+  );
+  assert.equal(
+    publicBridgeMessage({ ...item, withdrawn_at: "2026-10-27T08:00:00Z" }, "visitor-a").options,
+    undefined,
+  );
+});
 test("下载确认不预取文件，确认时附件已撤回则连网络请求也不发起", async () => {
   const original = globalThis.fetch;
   let requests = 0;

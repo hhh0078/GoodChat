@@ -130,7 +130,7 @@ func newFixture(t *testing.T) *fixture {
 	if _, err = bootstrap.Exec(ctx, "SET search_path TO "+quoted+",public"); err != nil {
 		t.Fatal(err)
 	}
-	for _, file := range []string{"000_base.sql", "001_identity.sql", "002_chat.sql", "003_callbacks.sql", "004_operations.sql"} {
+	for _, file := range []string{"000_base.sql", "001_identity.sql", "002_chat.sql", "003_callbacks.sql", "004_operations.sql", "009_advanced_routing.sql", "011_automation_rich.sql", "012_async_exports.sql", "014_lead_attachments_notifications.sql", "015_export_redaction.sql"} {
 		body, readErr := os.ReadFile(filepath.Join("..", "database", "migrations", file))
 		if readErr != nil {
 			t.Fatal(readErr)
@@ -147,6 +147,7 @@ func newFixture(t *testing.T) *fixture {
 		t.Fatal("运行角色配置解析失败")
 	}
 	poolCfg.ConnConfig.RuntimeParams["search_path"] = schema + ",public"
+	poolCfg.ConnConfig.RuntimeParams["application_name"] = schema
 	poolCfg.ConnConfig.Tracer = testQueryTracer{t: t}
 	poolCfg.MaxConns = 16
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)

@@ -12,6 +12,7 @@ import (
 
 // Start 启动可取消的持久任务调度器，不依赖内存定时器保存任务事实。
 func (s *Service) Start(ctx context.Context) {
+	s.startExportWorker(ctx)
 	go func() {
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
@@ -61,108 +62,33 @@ func (s *Service) tick(ctx context.Context) error {
 	return nil
 }
 
-// routeQueues 先锁池再选择最早会话，回收超时预留并限制每轮重试次数。
+// routeQueues 读取租户池目录，每池使用独立事务，避免跨池等待时继续持有共享客服容量锁。
 func (s *Service) routeQueues(ctx context.Context, tenant string) error {
-	return platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error {
+	pools := []string{}
+	err := platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, "SELECT id::text FROM routing_pools WHERE NOT archived ORDER BY id")
 		if err != nil {
 			return err
 		}
-		pools := []string{}
+		defer rows.Close()
 		for rows.Next() {
 			var id string
 			if err := rows.Scan(&id); err != nil {
-				rows.Close()
 				return err
 			}
 			pools = append(pools, id)
 		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
+		return rows.Err()
+	})
+	if err != nil {
+		return err
+	}
+	for _, pool := range pools {
+		if err := platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error { return s.routePool(ctx, tx, tenant, pool) }); err != nil {
 			return err
 		}
-		for _, pool := range pools {
-			if _, err := tx.Exec(ctx, "SELECT id FROM routing_pools WHERE id=$1 FOR UPDATE", pool); err != nil {
-				return err
-			}
-			expiredRows, err := tx.Query(ctx, "SELECT c.id::text,c.current_agent_id::text FROM conversations c JOIN conversation_assignments a ON a.id=c.current_assignment_id AND a.tenant_id=c.tenant_id WHERE c.routing_pool_id=$1 AND c.status='assigned' AND a.expires_at<now() ORDER BY c.id FOR UPDATE OF c", pool)
-			if err != nil {
-				return err
-			}
-			type expired struct{ id, agent string }
-			expiredItems := []expired{}
-			for expiredRows.Next() {
-				var item expired
-				if err := expiredRows.Scan(&item.id, &item.agent); err != nil {
-					expiredRows.Close()
-					return err
-				}
-				expiredItems = append(expiredItems, item)
-			}
-			expiredRows.Close()
-			if err := expiredRows.Err(); err != nil {
-				return err
-			}
-			for _, item := range expiredItems {
-				if err := releaseHolds(ctx, tx, item.id, item.agent); err != nil {
-					return err
-				}
-				if _, err := tx.Exec(ctx, "UPDATE conversation_assignments SET released_at=now() WHERE conversation_id=$1 AND released_at IS NULL", item.id); err != nil {
-					return err
-				}
-				if _, err := tx.Exec(ctx, "UPDATE conversations SET status='queued',current_agent_id=NULL,current_assignment_id=NULL,rejected_agents=rejected_agents||jsonb_build_object($2::text,true),version=version+1 WHERE id=$1", item.id, item.agent); err != nil {
-					return err
-				}
-				if _, err := s.emit(ctx, tx, tenant, item.id, "assignment.expired", "public", map[string]any{"status": "queued"}); err != nil {
-					return err
-				}
-			}
-			transferRows, err := tx.Query(ctx, "SELECT t.id::text,t.conversation_id::text,t.target_agent_id::text FROM transfer_requests t JOIN conversations c ON c.id=t.conversation_id AND c.tenant_id=t.tenant_id WHERE c.routing_pool_id=$1 AND t.status='pending' AND t.expires_at<now() ORDER BY t.conversation_id", pool)
-			if err != nil {
-				return err
-			}
-			type expiredTransfer struct{ id, conversation, agent string }
-			transfers := []expiredTransfer{}
-			for transferRows.Next() {
-				var v expiredTransfer
-				if err := transferRows.Scan(&v.id, &v.conversation, &v.agent); err != nil {
-					transferRows.Close()
-					return err
-				}
-				transfers = append(transfers, v)
-			}
-			transferRows.Close()
-			if err := transferRows.Err(); err != nil {
-				return err
-			}
-			for _, v := range transfers {
-				if _, err := tx.Exec(ctx, "SELECT id FROM conversations WHERE id=$1 FOR UPDATE", v.conversation); err != nil {
-					return err
-				}
-				if err := releaseHolds(ctx, tx, v.conversation, v.agent); err != nil {
-					return err
-				}
-				if _, err := tx.Exec(ctx, "UPDATE transfer_requests SET status='expired' WHERE id=$1 AND status='pending'", v.id); err != nil {
-					return err
-				}
-				if _, err := s.emit(ctx, tx, tenant, v.conversation, "transfer.expired", "public", map[string]any{"transfer_request_id": v.id}); err != nil {
-					return err
-				}
-			}
-			var conversation string
-			err = tx.QueryRow(ctx, "SELECT id::text FROM conversations WHERE routing_pool_id=$1 AND status='queued' AND routing_attempts<3 ORDER BY priority DESC,created_at,id LIMIT 1 FOR UPDATE", pool).Scan(&conversation)
-			if err == pgx.ErrNoRows {
-				continue
-			}
-			if err != nil {
-				return err
-			}
-			if err := s.assignLocked(ctx, tx, tenant, conversation, "", false); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // outboxItem 保存领取后的投递任务及本次租约版本。

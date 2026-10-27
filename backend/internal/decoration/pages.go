@@ -135,6 +135,9 @@ func (s *Service) savePage(w http.ResponseWriter, r *http.Request) {
 		if mode != input.RenderMode {
 			return nil, platform.Fail(400, "mode_change_requires_copy", "切换渲染模式请新建页面，以保留原作品")
 		}
+		if err := checkPackageDesign(r.Context(), tx, mode, design); err != nil {
+			return nil, err
+		}
 		if err := s.checkFeature(r.Context(), tx, platform.Current(r).TenantID, decorationFeature(mode)); err != nil {
 			return nil, err
 		}

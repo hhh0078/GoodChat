@@ -25,6 +25,10 @@ func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "仅支持静态页面读取", http.StatusMethodNotAllowed)
 		return
 	}
+	if strings.HasPrefix(r.URL.Path, "/assets/") || strings.HasPrefix(r.URL.Path, "/preview-assets/") {
+		s.renderPackageAsset(w, r)
+		return
+	}
 	id := strings.TrimPrefix(r.URL.Path, "/render/")
 	if !strings.HasPrefix(r.URL.Path, "/render/") || idValue(id) != nil {
 		http.NotFound(w, r)
@@ -40,22 +44,18 @@ func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := r.URL.Query().Get("preview")
-	var body json.RawMessage
-	if err := s.pool.QueryRow(r.Context(), "SELECT decoration_render($1::uuid,$2)", id, digest([]byte(token))).Scan(&body); err != nil || len(body) == 0 || string(body) == "null" {
+	snapshot, err := s.staticSnapshot(r, id, token)
+	if err != nil {
 		http.NotFound(w, r)
-		return
-	}
-	var snapshot struct {
-		RenderMode string          `json:"render_mode"`
-		Design     json.RawMessage `json:"design"`
-	}
-	if json.Unmarshal(body, &snapshot) != nil {
-		http.Error(w, "页面设计暂不可用", http.StatusInternalServerError)
 		return
 	}
 	design, err := validateDesign(snapshot.RenderMode, snapshot.Design)
 	if err != nil {
 		http.Error(w, "页面校验失败，请使用基础咨询入口", http.StatusUnprocessableEntity)
+		return
+	}
+	if snapshot.Entrypoint != "" {
+		http.Redirect(w, r, packagePrefix(id, token)+escapePackagePath(snapshot.Entrypoint), http.StatusFound)
 		return
 	}
 	nonce, err := newID()
@@ -91,10 +91,15 @@ func setRenderPolicy(w http.ResponseWriter, nonce, parentOrigin string) {
 // schemaCode 将受控页面结构转换为静态独立文档，所有用户文案按文本转义。
 func schemaCode(schema Schema, preview bool) CodeDesign {
 	var out strings.Builder
-	out.WriteString("<main class=\"gc-page\"><header><h1>" + html.EscapeString(schema.Brand.Title) + "</h1><p>" + html.EscapeString(schema.Brand.Subtitle) + "</p></header>")
+	out.WriteString("<main class=\"gc-page\"><header>")
+	controlledLogo := strings.HasPrefix(schema.Brand.LogoURL, "data:image/png;base64,") && validateLogoData(schema.Brand.LogoURL) == nil
+	if controlledLogo {
+		out.WriteString("<img class=\"gc-brand-logo\" width=\"64\" height=\"64\" style=\"object-fit:contain\" alt=\"品牌Logo\" src=\"" + html.EscapeString(schema.Brand.LogoURL) + "\">")
+	}
+	out.WriteString("<h1>" + html.EscapeString(schema.Brand.Title) + "</h1><p>" + html.EscapeString(schema.Brand.Subtitle) + "</p></header>")
 	if preview {
 		out.WriteString("<p class=\"gc-preview\">布局预览 · 此页面不连接真实访客会话</p>")
-		if schema.Brand.LogoURL != "" {
+		if schema.Brand.LogoURL != "" && !controlledLogo {
 			out.WriteString("<p class=\"gc-preview\">品牌Logo尚未导入受控素材；隔离页面暂不加载外链Logo。</p>")
 		}
 	}

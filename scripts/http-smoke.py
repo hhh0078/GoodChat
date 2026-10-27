@@ -38,7 +38,7 @@ def main():
     assert status == 200, "验收账号登录失败"
     assert json.loads(body)["data"]["user"]["is_platform_admin"], "平台初始化身份缺失"
     tenant = account["tenant_id"]
-    for path in ["/healthz", "/api/v1/public/plans", "/api/v1/tenant/subscription", "/api/v1/tenant/statistics", "/api/v1/tenant/callback-settings", "/api/v1/tenant/callback-deliveries", "/api/v1/tenant/access-links", "/api/v1/tenant/contacts", "/api/v1/tenant/chat-records", "/api/v1/tenant/templates", "/api/v1/tenant/pages", "/api/v1/tenant/ai-configuration", "/api/v1/platform/tenants", "/api/v1/platform/plans", "/api/v1/platform/templates"]:
+    for path in ["/healthz", "/api/v1/public/plans", "/api/v1/tenant/subscription", "/api/v1/tenant/statistics", "/api/v1/tenant/callback-settings", "/api/v1/tenant/callback-deliveries", "/api/v1/tenant/access-links", "/api/v1/tenant/contacts", "/api/v1/tenant/chat-records", "/api/v1/tenant/templates", "/api/v1/tenant/pages", "/api/v1/tenant/ai-configuration", "/api/v1/tenant/export-jobs", "/api/v1/tenant/routing-skills", "/api/v1/tenant/routing-members", "/api/v1/tenant/automation-settings", "/api/v1/tenant/welcome-rules", "/api/v1/tenant/code-packages", "/api/v1/tenant/lead-settings", "/api/v1/tenant/lead-notifications", "/api/v1/platform/tenants", "/api/v1/platform/plans", "/api/v1/platform/templates"]:
         status, _, body = request(opener, path, tenant_id=tenant)
         assert status == 200, f"接口失败：{path} HTTP{status}"
         data = json.loads(body)["data"]

@@ -45,6 +45,7 @@
   function updateComposer() {
     const disabled = !ready || busy || state?.conversation?.status === "closed";
     input.disabled = disabled; send.disabled = disabled; file.disabled = disabled;
+    for (const button of messages.querySelectorAll(".gc-welcome-option")) button.disabled = disabled || Boolean(state?.messages?.some(item => item.client_message_id === button.dataset.clientMessageId));
   }
 
   /** 清除待引用消息，不修改已经保存的任何消息。 */
@@ -134,6 +135,25 @@
     if (item.is_own === true) { const withdraw = document.createElement("button"); withdraw.type = "button"; withdraw.textContent = "撤回"; withdraw.onclick = () => confirmWithdraw(actions, item); actions.append(withdraw); }
   }
 
+  /** 欢迎选项按普通访客文字发送，沿用服务端持久UUID使连点和刷新保持幂等。 */
+  function welcomeOptions(node, item) {
+    if (item.sender_kind !== "system" || !Array.isArray(item.options)) return;
+    const options = document.createElement("div");
+    for (const option of item.options.slice(0, 8)) {
+      if (typeof option.label !== "string" || typeof option.value !== "string" || !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(option.client_message_id || "")) continue;
+      const button = document.createElement("button"); button.type = "button"; button.className = "gc-file-save gc-welcome-option"; button.textContent = option.label; button.dataset.clientMessageId = option.client_message_id;
+      button.onclick = async () => {
+        if (button.disabled || busy || state?.conversation?.status === "closed") return;
+        busy = true; updateComposer(); error.textContent = "";
+        try { await chat.sendText(option.value, option.client_message_id); render(await chat.getState()); }
+        catch (problem) { showError(problem); }
+        finally { busy = false; updateComposer(); }
+      };
+      options.append(button);
+    }
+    node.append(options);
+  }
+
   /** 对本人已保存消息展示真实对方已读进度，不把保存成功当作送达。 */
   function updateReceipts() {
     const peerRead = sequence(state?.peer_read_seq);
@@ -156,6 +176,7 @@
       if (item.reply) { const quote = document.createElement("blockquote"); quote.className = "gc-reply"; quote.textContent = `引用：${item.reply.withdrawn ? "消息已撤回" : item.reply.content || "附件消息"}`; bubble.append(quote); }
       const body = document.createElement("div"); body.className = "gc-message-body"; const text = item.text ?? item.content ?? ""; body.textContent = typeof text === "string" ? text : ""; bubble.append(body);
       if (item.attachment) attachment(bubble, item.attachment);
+      welcomeOptions(bubble, item);
     }
     row.append(bubble);
     if (own && !withdrawn) { const receipt = document.createElement("div"); receipt.className = "gc-read-status"; receipt.dataset.seq = String(item.seq || item.event_seq || "0"); row.append(receipt); }

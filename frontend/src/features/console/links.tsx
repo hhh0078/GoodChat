@@ -29,6 +29,7 @@ export function LinksPage() {
   const links = useResource<AccessLink>("/tenant/access-links");
   const groups = useResource<Resource>("/tenant/groups");
   const pools = useResource<Resource>("/tenant/routing-pools");
+  const skills = useResource<Resource>("/tenant/routing-skills");
   const members = useResource<Member>("/tenant/members");
   const [editing, setEditing] = useState<AccessLink | null | undefined>();
   const [sharing, setSharing] = useState<AccessLink | null>(null);
@@ -47,7 +48,13 @@ export function LinksPage() {
     setError(null);
     form.resetFields();
     form.setFieldsValue(
-      item || { status: "active", agent_mode: "prefer", allow_routing_override: false },
+      item || {
+        status: "active",
+        agent_mode: "prefer",
+        allow_routing_override: false,
+        required_skill_ids: [],
+        optional_skill_ids: [],
+      },
     );
     setEditing(item);
   }
@@ -195,6 +202,34 @@ export function LinksPage() {
               allowClear
               placeholder="使用默认分配规则"
               options={pools.items.map((item) => ({ label: item.name || item.id, value: item.id }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="required_skill_ids"
+            label="入口附加必备技能"
+            extra="与分配池必备技能叠加；更换入口或公开参数不能放宽分配池要求。"
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              options={skills.items.map((item) => ({
+                label: item.name || item.id,
+                value: item.id,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="optional_skill_ids"
+            label="入口附加可选技能"
+            extra="与池的可选技能共同排序，必备要求优先。"
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              options={skills.items.map((item) => ({
+                label: item.name || item.id,
+                value: item.id,
+              }))}
             />
           </Form.Item>
           <Form.Item name="agent_id" label="优先指定客服">
