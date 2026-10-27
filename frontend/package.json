@@ -1,0 +1,31 @@
+{
+  "description": "GoodChat 网页前端，提供官网、邮箱身份、租户管理、客服与访客聊天和装修模板。",
+  "name": "goodchat-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 13000",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1 --port 13000",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\" next.config.ts tsconfig.json package.json .prettierrc.cjs",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\" next.config.ts tsconfig.json package.json .prettierrc.cjs"
+  },
+  "dependencies": {
+    "@ant-design/icons": "6.3.4",
+    "@ant-design/nextjs-registry": "1.3.0",
+    "antd": "6.6.8",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.3",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3"
+  },
+  "type": "module"
+}

@@ -1,0 +1,6 @@
+# 文件作用说明：排除依赖、构建输出与自动生成文件，避免格式化产生无意义变动。
+node_modules/
+.next/
+package-lock.json
+next-env.d.ts
+*.tsbuildinfo

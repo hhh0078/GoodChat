@@ -1,0 +1,14 @@
+# 文件作用说明：只向构建器发送项目源文件，排除密钥、数据库、Git和文档中间产物。
+.git
+.local
+.document-work
+文档
+node_modules
+frontend/node_modules
+frontend/.next
+frontend/test-results
+frontend/playwright-report
+**/.env
+**/.env.local
+**/*.log
+**/.DS_Store

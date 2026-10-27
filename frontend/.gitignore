@@ -1,0 +1,6 @@
+# 文件作用说明：排除前端依赖、构建产物、本地配置和类型检查缓存。
+node_modules/
+.next/
+*.tsbuildinfo
+.env.local
+.env.production.local

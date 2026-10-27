@@ -1,0 +1,27 @@
+# 文件作用说明：仅声明GoodChat一个应用容器，现有PostgreSQL与Redis通过主机映射复用。
+name: goodchat
+services:
+  goodchat:
+    container_name: goodchat
+    image: goodchat:local
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SITE_URL: ${SUPPORT_PUBLIC_URL:-http://127.0.0.1:13000}
+    init: true
+    restart: unless-stopped
+    user: "${GOODCHAT_UID:-1000}:${GOODCHAT_GID:-1000}"
+    network_mode: bridge
+    env_file:
+      - .local/docker.env
+    ports:
+      - "127.0.0.1:13000:3000"
+      - "127.0.0.1:18081:18081"
+    volumes:
+      - ./.local/container-data:/data
+    tmpfs:
+      - /tmp:mode=1777,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
