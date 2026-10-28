@@ -21,6 +21,7 @@ import { api, errorMessage } from "@/lib/api";
 import { useSession } from "@/features/auth/session";
 import { useResource } from "@/lib/use-resource";
 import type { Resource } from "@/lib/types";
+import { AvatarSettings } from "./avatar-settings";
 import { ErrorNotice, PageTitle, EmptyData } from "@/components/page-state";
 
 type CallbackSettings = {
@@ -259,10 +260,16 @@ export function SettingsPage() {
             ),
           },
           {
+            key: "avatars",
+            label: "访客头像池",
+            children: <AvatarSettings key={`${tenantId}.pool`} mode="pool" />,
+          },
+          {
             key: "account",
             label: "账号与设备",
             children: (
               <section className="console-account">
+                <AvatarSettings key={`${tenantId}.agent`} mode="agent" />
                 <h2>当前账号</h2>
                 <dl className="console-account-details">
                   <div>

@@ -10,7 +10,7 @@ import (
 	"supportdesk/backend/internal/platform"
 )
 
-const messageProjection = "to_jsonb(m)||jsonb_build_object('seq',m.event_seq::text,'event_seq',m.event_seq::text,'content',CASE WHEN m.withdrawn_at IS NULL THEN m.content ELSE '' END,'attachment',CASE WHEN m.withdrawn_at IS NULL THEN (SELECT to_jsonb(f)-'storage_key'-'sha256' FROM attachments f WHERE f.id=m.attachment_id AND f.tenant_id=m.tenant_id) ELSE NULL END,'sender_name',CASE WHEN m.sender_kind='system' THEN '系统' WHEN m.sender_kind='visitor' THEN (SELECT display_name FROM contacts WHERE id=m.sender_id) ELSE (SELECT u.display_name FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id) END,'reply',CASE WHEN m.reply_to_id IS NULL THEN NULL ELSE (SELECT jsonb_build_object('id',q.id,'content',CASE WHEN q.withdrawn_at IS NULL THEN left(q.content,200) ELSE '' END,'withdrawn',q.withdrawn_at IS NOT NULL) FROM messages q WHERE q.id=m.reply_to_id AND q.tenant_id=m.tenant_id) END)"
+var messageProjection = "to_jsonb(m)||jsonb_build_object('seq',m.event_seq::text,'event_seq',m.event_seq::text,'content',CASE WHEN m.withdrawn_at IS NULL THEN m.content ELSE '' END,'attachment',CASE WHEN m.withdrawn_at IS NULL THEN (SELECT to_jsonb(f)-'storage_key'-'sha256' FROM attachments f WHERE f.id=m.attachment_id AND f.tenant_id=m.tenant_id) ELSE NULL END,'sender_name',CASE WHEN m.sender_kind='system' THEN '系统' WHEN m.sender_kind='visitor' THEN (SELECT display_name FROM contacts WHERE id=m.sender_id) ELSE (SELECT u.display_name FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id) END,'sender_avatar_url',CASE WHEN m.sender_kind='visitor' THEN coalesce((SELECT avatar_url FROM contacts WHERE id=m.sender_id),'') WHEN m.sender_kind='agent' THEN coalesce((SELECT " + platform.AvatarURLSQL("tm") + " FROM tenant_memberships tm WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id),'') ELSE '' END,'reply',CASE WHEN m.reply_to_id IS NULL THEN NULL ELSE (SELECT jsonb_build_object('id',q.id,'content',CASE WHEN q.withdrawn_at IS NULL THEN left(q.content,200) ELSE '' END,'withdrawn',q.withdrawn_at IS NOT NULL) FROM messages q WHERE q.id=m.reply_to_id AND q.tenant_id=m.tenant_id) END)"
 
 // messages 读取历史或提交新消息，接收成功只在事务提交之后返回。
 func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
@@ -272,6 +272,15 @@ func (s *Service) readCursor(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		seq = current
+		if a.ContactID == "" {
+			var receiving bool
+			if err := tx.QueryRow(ctx, "SELECT coalesce(current_agent_id::text,'')=$2 FROM conversations WHERE id=$1", id, a.MemberID).Scan(&receiving); err != nil {
+				return err
+			}
+			if !receiving {
+				return nil
+			}
+		}
 		_, err := s.emit(ctx, tx, a.TenantID, id, "read.updated", "public", map[string]any{"participant_id": actorID(a), "participant_kind": actorKind(a), "last_read_seq": strconv.FormatInt(seq, 10)})
 		return err
 	})

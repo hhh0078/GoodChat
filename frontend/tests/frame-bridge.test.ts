@@ -3,14 +3,121 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   publicBridgeMessage,
+  requestBridgeAvatar,
   requestBridgeAttachment,
   safeRenderURL,
   validBridgeHandshake,
   validateBridgeRequest,
   visibleBridgeAttachment,
+  visibleBridgeAvatar,
 } from "../src/lib/frame-bridge.ts";
 import type { ChatMessage } from "../src/lib/types.ts";
 import { ApiError } from "../src/lib/api.ts";
+
+test("装修头像读取绑定当前公开消息，拒绝任意路径和越权消息", () => {
+  const base = {
+    id: "current",
+    audience: "public",
+    sender_avatar_url: "/images/avatars/default-01.png",
+  } as ChatMessage;
+  assert.equal(visibleBridgeAvatar([base], "current"), base.sender_avatar_url);
+  assert.doesNotThrow(() =>
+    validateBridgeRequest("getAvatar", { message_id: "current" }, [base], "visitor"),
+  );
+  for (const item of [
+    { ...base, audience: "internal" },
+    { ...base, withdrawn_at: "2026-10-28T10:00:00Z" },
+    ...[
+      "https://example.com/a.png",
+      "/api/v1/attachments/private",
+      "/images/avatars/../private",
+      "/images/avatars/default-51.png",
+      "/images/avatars/default-01.png?token=secret",
+    ].map((sender_avatar_url) => ({ ...base, sender_avatar_url })),
+  ])
+    assert.throws(() => visibleBridgeAvatar([item], "current"));
+  assert.throws(() => visibleBridgeAvatar([base], "other-conversation"));
+  assert.throws(() =>
+    validateBridgeRequest(
+      "getAvatar",
+      { message_id: "current", url: "/private" },
+      [base],
+      "visitor",
+    ),
+  );
+});
+
+test("头像桥只读取受控PNG且不携带身份凭证，下载完成再次验证可见性", async () => {
+  const original = globalThis.fetch;
+  const base = {
+    id: "current",
+    audience: "public",
+    sender_avatar_url: "/api/v1/avatar-assets/11111111-1111-1111-1111-111111111111",
+  } as ChatMessage;
+  let messages = [base],
+    requests = 0;
+  try {
+    globalThis.fetch = async (input, options) => {
+      requests++;
+      assert.equal(input, base.sender_avatar_url);
+      assert.equal(options?.credentials, "omit");
+      assert.equal(options?.redirect, "error");
+      assert.equal(options?.headers, undefined);
+      return new Response(new Blob(["controlled-png"], { type: "image/png" }));
+    };
+    assert.equal((await requestBridgeAvatar("current", () => messages)).type, "image/png");
+    await assert.rejects(requestBridgeAvatar("other", () => messages));
+    assert.equal(requests, 1);
+    globalThis.fetch = async () =>
+      new Response("<html>", { headers: { "Content-Type": "text/html" } });
+    await assert.rejects(
+      requestBridgeAvatar("current", () => messages),
+      /格式/,
+    );
+    globalThis.fetch = async () =>
+      new Response(new Blob([new Uint8Array(256 * 1024 + 1)], { type: "image/png" }));
+    await assert.rejects(
+      requestBridgeAvatar("current", () => messages),
+      /格式/,
+    );
+    globalThis.fetch = async () => {
+      messages = [{ ...base, withdrawn_at: "2026-10-28T10:00:00Z" }];
+      return new Response(new Blob(["png"], { type: "image/png" }));
+    };
+    await assert.rejects(
+      requestBridgeAvatar("current", () => messages),
+      /可见/,
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("装修消息仅公开安全头像地址，不导出私有附件、危险协议或带凭证URL", () => {
+  const message = { id: "avatar-message", sender_kind: "agent", content: "你好" } as ChatMessage;
+  for (const url of [
+    "/images/avatars/default-01.png",
+    "/api/v1/avatar-assets/11111111-1111-1111-1111-111111111111",
+    "https://images.example.com/avatar.png",
+  ]) {
+    assert.equal(
+      publicBridgeMessage({ ...message, sender_avatar_url: url }, "visitor").sender_avatar_url,
+      url,
+    );
+  }
+  for (const url of [
+    "javascript:alert(1)",
+    "data:image/svg+xml,x",
+    "https://name:secret@example.com/avatar.png",
+    "/api/v1/attachments/private",
+    "//other.example.com/avatar.png",
+  ]) {
+    assert.equal(
+      publicBridgeMessage({ ...message, sender_avatar_url: url }, "visitor").sender_avatar_url,
+      undefined,
+    );
+  }
+});
 test("装修来源必须跨源且不接受危险协议或内嵌凭证", () => {
   assert.equal(
     safeRenderURL("https://code.example.net/render/release", "https://app.example.com")?.hostname,

@@ -5,6 +5,7 @@ import { Alert, App, Button, Modal } from "antd";
 import {
   publicBridgeMessage,
   requestBridgeAttachment,
+  requestBridgeAvatar,
   safeRenderURL,
   validBridgeHandshake,
   validateBridgeRequest,
@@ -91,7 +92,13 @@ export function DecoratedVisitor({
   }
   /** publicMessage 依据当前访客身份标记本人消息，原始发送者编号不会进入租户代码。 */
   function publicMessage(item: ChatMessage) {
-    return publicBridgeMessage(item, identity.actorId);
+    const result = publicBridgeMessage(item, identity.actorId);
+    return {
+      ...result,
+      sender_avatar_url: result.sender_avatar_url
+        ? new URL(result.sender_avatar_url, location.origin).href
+        : undefined,
+    };
   }
   /** uploadAttachment 为装修SDK与父层通用入口复用校验、上传缓存和幂等发送。 */
   async function uploadAttachment(file: unknown, name: unknown, requestID: string) {
@@ -171,6 +178,14 @@ export function DecoratedVisitor({
       const current = latest.current;
       validateBridgeRequest(method, payload, current.messages, identity.actorId);
       if (method === "getState") return state();
+      if (method === "getAvatar")
+        return {
+          file: await requestBridgeAvatar(
+            String(payload.message_id),
+            () => latest.current.messages,
+            scopeController.signal,
+          ),
+        };
       if (method === "sendText") {
         const text = payload.text ?? payload.content;
         if (typeof text !== "string" || !text.trim() || text.length > 10000)

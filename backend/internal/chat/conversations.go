@@ -10,7 +10,8 @@ import (
 	"supportdesk/backend/internal/platform"
 )
 
-const conversationProjection = "to_jsonb(c)||jsonb_build_object('next_event_seq',c.next_event_seq::text,'version',c.version::text,'contact_online',u.online_until>statement_timestamp(),'contact',jsonb_build_object('id',u.id,'display_name',u.display_name,'phone',u.phone,'avatar_url',u.avatar_url),'agent_name',COALESCE(a.display_name,''))"
+var conversationProjection = "to_jsonb(c)||jsonb_build_object('next_event_seq',c.next_event_seq::text,'version',c.version::text,'last_message_seq',c.last_message_seq::text,'contact_online',u.online_until>statement_timestamp(),'contact',jsonb_build_object('id',u.id,'display_name',u.display_name,'phone',u.phone,'avatar_url',u.avatar_url),'agent_name',COALESCE(a.display_name,''),'agent_avatar_url'," + platform.AvatarURLSQL("m") + ")"
+
 const conversationJoins = " FROM conversations c JOIN contacts u ON u.id=c.contact_id AND u.tenant_id=c.tenant_id LEFT JOIN tenant_memberships m ON m.id=c.current_agent_id AND m.tenant_id=c.tenant_id LEFT JOIN users a ON a.id=m.user_id "
 
 // conversationJSON 返回带字符串序号和展示资料的当前会话快照。
@@ -79,7 +80,9 @@ func (s *Service) listConversations(w http.ResponseWriter, r *http.Request, a ac
 		if err != nil {
 			return err
 		}
-		query := "SELECT " + conversationProjection + conversationJoins + conversationWhere + " ORDER BY c.updated_at DESC,c.id LIMIT 200"
+		// 未读按当前成员自己的已读游标计算，不能由管理员、其他客服或访客的读取代清。
+		unread := `||jsonb_build_object('unread_count',(SELECT count(*) FROM messages unread WHERE unread.tenant_id=c.tenant_id AND unread.conversation_id=c.id AND unread.audience='public' AND unread.sender_kind='visitor' AND unread.withdrawn_at IS NULL AND unread.event_seq>coalesce((SELECT rc.last_read_seq FROM read_cursors rc WHERE rc.tenant_id=c.tenant_id AND rc.conversation_id=c.id AND rc.participant_id=NULLIF($3,'')::uuid AND rc.participant_kind='agent'),0)))`
+		query := "SELECT " + conversationProjection + unread + conversationJoins + conversationWhere + " ORDER BY coalesce(c.last_message_at,c.created_at) DESC,c.id LIMIT 200"
 		rows, err := tx.Query(r.Context(), query, args...)
 		if err != nil {
 			return err

@@ -5,6 +5,8 @@ export type Membership = {
   tenant_name: string;
   role: string;
   can_serve: boolean;
+  avatar_ref?: string;
+  avatar_url?: string;
 };
 export type CurrentUser = {
   user: { id: string; email: string; display_name: string; is_platform_admin: boolean };
@@ -20,6 +22,8 @@ export type Member = Resource & {
   can_serve: boolean;
   disabled: boolean;
   capacity: number;
+  avatar_ref?: string;
+  avatar_url?: string;
 };
 export type AccessLink = Resource & {
   entry_key: string;
@@ -37,6 +41,7 @@ export type ChatMessage = Resource & {
   sender_kind: string;
   sender_id?: string;
   sender_name?: string;
+  sender_avatar_url?: string;
   message_type: string;
   event_seq: string;
   seq: string;
@@ -60,6 +65,9 @@ export type Conversation = Resource & {
   context?: Record<string, unknown>;
   updated_at?: string;
   agent_name?: string;
+  agent_avatar_url?: string;
+  last_message_at?: string;
+  last_message_seq?: string;
   version?: string;
   last_message?: string;
   current_agent_id?: string;

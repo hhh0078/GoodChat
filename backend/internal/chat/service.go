@@ -33,6 +33,7 @@ type Service struct {
 	entryDecoration func(context.Context, pgx.Tx, string, string) (map[string]any, error)
 	featureChecker  func(context.Context, pgx.Tx, string, string) error
 	leadNotifier    func(context.Context, string, string, string) (string, string)
+	avatarSlots     chan struct{}
 }
 
 // VisitorEnteredHook 允许回调模块在访问事务内保存可靠通知任务，不在该事务内发送外部请求。
@@ -65,11 +66,12 @@ func New(pool *pgxpool.Pool, auth platform.Authorizer, cfg platform.Config) *Ser
 			panic("无法初始化安全游标密钥")
 		}
 	}
-	return &Service{pool: pool, auth: auth, cfg: cfg, clients: map[*liveClient]struct{}{}, cursorKey: key[:]}
+	return &Service{pool: pool, auth: auth, cfg: cfg, clients: map[*liveClient]struct{}{}, cursorKey: key[:], avatarSlots: make(chan struct{}, 2)}
 }
 
 // Register 注册真实持久化资源、访客、会话及实时接口。
 func (s *Service) Register(mux *http.ServeMux) {
+	s.registerAvatars(mux)
 	s.registerOperations(mux)
 	s.registerAutomationRich(mux)
 	s.registerAsyncExports(mux)

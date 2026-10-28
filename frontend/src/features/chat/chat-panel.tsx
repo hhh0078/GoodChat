@@ -23,12 +23,14 @@ export function ChatPanel({
   id,
   identity,
   onStatus,
+  onRead,
   readOnly = false,
   canManageReplies = false,
 }: {
   id: string;
   identity: ChatIdentity;
   onStatus?: (status: string) => void;
+  onRead?: () => void;
   readOnly?: boolean;
   canManageReplies?: boolean;
 }) {
@@ -53,6 +55,17 @@ export function ChatPanel({
   const [uploading, setUploading] = useState(false);
   const { recording, toggleRecording } = useVoiceRecorder((file) => uploadAndSend(file, "audio"));
   const [atBottom, setAtBottom] = useState(true);
+  const [pageVisible, setPageVisible] = useState(false);
+  const [readAttempt, setReadAttempt] = useState(0);
+  useEffect(() => {
+    /** updateVisibility 返回前台时重新尝试可见已读，不把后台消息误标已读。 */
+    function updateVisibility() {
+      setPageVisible(document.visibilityState === "visible");
+    }
+    updateVisibility();
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => document.removeEventListener("visibilitychange", updateVisibility);
+  }, []);
   const scroller = useRef<HTMLDivElement | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const composing = useRef(false);
@@ -130,9 +143,9 @@ export function ChatPanel({
     if (current) onStatus?.(current.status);
   }, [current, onStatus]);
   useEffect(() => {
-    if (atBottom)
+    if (atBottom && !chat.loading)
       scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
-  }, [chat.messages.length, pending.length, atBottom]);
+  }, [chat.messages.length, pending.length, atBottom, chat.loading]);
   useEffect(() => {
     const node = scroller.current;
     if (!node || !atBottom || typeof ResizeObserver === "undefined") return;
@@ -145,23 +158,49 @@ export function ChatPanel({
   }, [atBottom]);
   useEffect(() => {
     const latest = visibleMessages.at(-1)?.seq || visibleMessages.at(-1)?.event_seq;
-    if (
-      !latest ||
-      !atBottom ||
-      document.visibilityState !== "visible" ||
-      lastRead.current === latest
-    )
-      return;
-    lastRead.current = latest;
-    chat
-      .request(`/conversations/${id}/read-cursor`, {
-        method: "POST",
-        bodyJSON: { last_read_seq: latest },
-      })
-      .catch(() => {
-        lastRead.current = "0";
-      });
-  }, [chat.messages, atBottom, id, chat.request]);
+    if (!latest || chat.loading || !atBottom || !pageVisible || lastRead.current === latest) return;
+    const controller = new AbortController();
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let frame = 0;
+    let visibleFrames = 0;
+    /** reportVisibleRead 等待真实布局连续两帧到底，避免平滑滚动尚未展示末条消息就清除未读。 */
+    function reportVisibleRead() {
+      const node = scroller.current;
+      if (controller.signal.aborted || document.visibilityState !== "visible") return;
+      const visible =
+        node &&
+        node.clientHeight > 0 &&
+        node.getClientRects().length > 0 &&
+        node.scrollHeight - node.scrollTop - node.clientHeight <= 2;
+      visibleFrames = visible ? visibleFrames + 1 : 0;
+      if (visibleFrames < 2) {
+        frame = requestAnimationFrame(reportVisibleRead);
+        return;
+      }
+      lastRead.current = latest!;
+      chat
+        .request(`/conversations/${id}/read-cursor`, {
+          method: "POST",
+          signal: controller.signal,
+          bodyJSON: { last_read_seq: latest },
+        })
+        .then(() => {
+          if (!controller.signal.aborted) onRead?.();
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return;
+          if (lastRead.current === latest) lastRead.current = "0";
+          retry = setTimeout(() => setReadAttempt((value) => value + 1), 4000);
+        });
+    }
+    frame = requestAnimationFrame(reportVisibleRead);
+    return () => {
+      controller.abort();
+      cancelAnimationFrame(frame);
+      if (retry) clearTimeout(retry);
+      if (lastRead.current === latest) lastRead.current = "0";
+    };
+  }, [chat.messages, chat.loading, atBottom, pageVisible, id, chat.request, onRead, readAttempt]);
   /** sendOutgoing 发送前同步保存原会话完整消息，确认后仅清理原编号，离开会话不丢失在途请求。 */
   async function sendOutgoing(body: Outgoing, onQueued?: () => void) {
     if (sendingLock.current) return;
@@ -343,7 +382,7 @@ export function ChatPanel({
         ref={scroller}
         onScroll={() => {
           const node = scroller.current;
-          if (node) setAtBottom(node.scrollHeight - node.scrollTop - node.clientHeight < 90);
+          if (node) setAtBottom(node.scrollHeight - node.scrollTop - node.clientHeight <= 2);
         }}
       >
         {chat.hasOlder && (

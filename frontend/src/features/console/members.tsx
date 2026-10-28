@@ -151,7 +151,11 @@ export function MembersPage() {
       key: "name",
       render: (_, row) => (
         <Space size={12}>
-          <Avatar size={36} className="console-person-avatar">
+          <Avatar
+            size={36}
+            className="console-person-avatar"
+            src={typeof row.avatar_url === "string" ? row.avatar_url || undefined : undefined}
+          >
             {(row.display_name || row.email || "成").slice(0, 1)}
           </Avatar>
           <div>

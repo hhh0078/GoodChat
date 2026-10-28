@@ -1588,3 +1588,133 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* 咨询卡片留出独立间距，浅蓝选中保持深色文字与未读红色徽标可读。 */
+.agent-layout .conversation-row {
+  width: calc(100% - 24px);
+  margin: 8px 12px;
+  border: 1px solid #e3eaf2;
+  border-left-width: 3px;
+  border-radius: 12px;
+  min-height: 80px;
+  padding: 12px 10px;
+}
+.agent-layout .conversation-row.active,
+.agent-layout .conversation-row.active:hover {
+  background: #eaf2ff;
+  border-color: #8eb4f5;
+  color: var(--ink);
+  box-shadow: 0 0 0 1px #b9d0f7;
+}
+.agent-layout .conversation-row.active p,
+.agent-layout .conversation-row.active time {
+  color: var(--muted);
+}
+.agent-layout .conversation-row.active.is-online .visitor-presence {
+  color: #217a45;
+}
+.agent-layout .conversation-row.active.is-offline .visitor-presence {
+  color: #ba3934;
+}
+.agent-layout .conversation-row.active .ant-tag {
+  color: #2457a7;
+  background: #f5f8ff;
+  border-color: #b5ccef;
+}
+.conversation-row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.conversation-unread .ant-badge-count {
+  background: #dc3946;
+  color: white;
+  box-shadow: none;
+  font-size: 11px;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+}
+
+/* 头像库按紧凑网格预览，选中和键盘焦点可见，手机自动减少列数。 */
+.avatar-settings {
+  max-width: 960px;
+  margin-bottom: 28px;
+}
+.avatar-settings header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+.avatar-settings h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.avatar-settings header p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.avatar-picker-toolbar,
+.avatar-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+.avatar-picker-toolbar > span {
+  font-size: 12px;
+}
+.avatar-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 3px;
+}
+.avatar-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  padding: 10px 6px;
+  border: 1px solid #dfe6f1;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  color: var(--ink);
+}
+.avatar-choice.is-selected {
+  background: #edf4ff;
+  border-color: #84acf0;
+}
+.avatar-choice:focus-visible {
+  outline: 2px solid #1455dc;
+  outline-offset: 1px;
+}
+.avatar-choice > span:last-child {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.avatar-choice-check {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  color: #1455dc;
+}
+@media (max-width: 768px) {
+  .avatar-picker-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .avatar-settings header p {
+    font-size: 12px;
+  }
+}

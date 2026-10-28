@@ -67,6 +67,8 @@ article.own {
   margin-left: auto;
   background: #e2eddd;
 }
+.sender-avatar { width: 32px; height: 32px; object-fit: cover; border-radius: 50%; float: left; margin: 0 8px 5px 0; }
+article.own .sender-avatar { float: right; margin: 0 0 5px 8px; }
 .receipt {
   text-align: right;
   margin-top: 5px;
@@ -160,12 +162,16 @@ function clearReply() {
   replyBox.hidden = true;
   replyText.textContent = "";
 }
+const avatarFiles = new Map();
+let avatarURLs = [];
 /** render 展示当前授权消息，避免执行访客提交的HTML。 */
 function render(next) {
   state = next;
   if (replyTo && !(state.messages || []).some((item) => item.id === replyTo && !item.withdrawn_at))
     clearReply();
   const bottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80;
+  for (const url of avatarURLs) URL.revokeObjectURL(url);
+  avatarURLs = [];
   messages.replaceChildren();
   for (const item of state.messages || []) {
     const row = document.createElement("article"),
@@ -179,6 +185,24 @@ function render(next) {
       (item.is_own ? "我" : item.sender_kind === "system" ? "系统" : "客服") +
       (item.sender_name ? " · " + item.sender_name : "") +
       (time ? " · " + time : "");
+    if (item.sender_avatar_url && typeof chat.getAvatar === "function") {
+      const avatar = document.createElement("img");
+      avatar.className = "sender-avatar";
+      avatar.width = avatar.height = 32;
+      avatar.alt = (item.sender_name || "聊天参与者") + "头像";
+      avatar.referrerPolicy = "no-referrer";
+      row.append(avatar);
+      if (!avatarFiles.has(item.sender_avatar_url)) {
+        if (avatarFiles.size >= 50) avatarFiles.delete(avatarFiles.keys().next().value);
+        avatarFiles.set(item.sender_avatar_url, chat.getAvatar(item.id).then((result) => result.file));
+      }
+      avatarFiles.get(item.sender_avatar_url).then((file) => {
+        if (!avatar.isConnected) return;
+        const url = URL.createObjectURL(file);
+        avatarURLs.push(url);
+        avatar.src = url;
+      }).catch(() => { avatar.remove(); avatarFiles.delete(item.sender_avatar_url); });
+    }
     row.append(label);
     if (!item.withdrawn_at && item.reply) {
       const quote = document.createElement("blockquote");

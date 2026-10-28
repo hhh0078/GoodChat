@@ -36,7 +36,7 @@ import type { Conversation, Resource } from "@/lib/types";
 import { ErrorNotice, EmptyData, PageTitle } from "@/components/page-state";
 import { useReminders } from "./reminders";
 import { ReminderVolume } from "./reminder-volume";
-import { ChatPanel, conversationStatus } from "./chat-panel";
+import { ChatPanel } from "./chat-panel";
 import { CustomerContext } from "./customer-context";
 type AgentStatus = { available: boolean; busy: boolean; current_load: number; capacity: number };
 /** AgentWorkspace 以真实身份接待访客，当前分配权限始终交由后端核验。 */
@@ -270,23 +270,32 @@ export function AgentWorkspace() {
                         <Tag key={channel}>{channel}</Tag>
                       ))}
                     </div>
-                    <time>
-                      {item.updated_at
-                        ? new Date(item.updated_at).toLocaleTimeString("zh-CN", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : ""}
-                    </time>
+                    <div className="conversation-row-meta">
+                      <time>
+                        {item.last_message_at || item.created_at
+                          ? new Date(
+                              String(item.last_message_at || item.created_at),
+                            ).toLocaleTimeString("zh-CN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : ""}
+                      </time>
+                      <Badge
+                        className="conversation-unread"
+                        count={item.unread_count || 0}
+                        overflowCount={99}
+                        size="small"
+                        title={`未读${item.unread_count || 0}条`}
+                      />
+                    </div>
                   </div>
                   <p className="conversation-status" data-status={item.status}>
                     <span className="visitor-presence">
                       {item.contact_online ? "在线" : "离线"}
                     </span>{" "}
-                    · {conversationStatus[item.status] || item.status}
-                    {item.agent_name ? ` · ${item.agent_name}` : ""}
+                    {item.contact?.phone ? ` · ${item.contact.phone}` : ""}
                   </p>
-                  <p>{item.contact?.phone || `咨询 ${item.id.slice(0, 8)}`}</p>
                 </div>
               </button>
             ))
@@ -426,6 +435,7 @@ export function AgentWorkspace() {
                 id={active.id}
                 identity={{ tenantId, actorId: membership.id, kind: "agent" }}
                 canManageReplies={["owner", "admin"].includes(membership.role)}
+                onRead={conversations.reload}
               />
             </>
           )}

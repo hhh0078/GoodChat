@@ -49,7 +49,15 @@ export function MessageHistory({
             <div
               className={`message-row ${own ? "own" : ""} ${item.audience === "internal" ? "internal" : ""}`}
             >
-              <Avatar size={32} className="message-avatar">
+              <Avatar
+                size={32}
+                className="message-avatar"
+                src={
+                  typeof item.sender_avatar_url === "string"
+                    ? item.sender_avatar_url || undefined
+                    : undefined
+                }
+              >
                 {(
                   item.sender_name ||
                   (item.sender_kind === "visitor"

@@ -91,6 +91,15 @@ func identityIntegration(t *testing.T) *identityFixture {
 	if _, err := admin.Exec(ctx, string(file)); err != nil {
 		t.Fatal("隔离平台开通迁移失败", err)
 	}
+	file, err = os.ReadFile(filepath.Join("..", "database", "migrations", "018_avatar_library.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	avatarMigration := strings.ReplaceAll(string(file), "public.", schema+".")
+	avatarMigration = strings.ReplaceAll(avatarMigration, "pg_catalog,public", "pg_catalog,"+schema)
+	if _, err := admin.Exec(ctx, avatarMigration); err != nil {
+		t.Fatal("隔离头像迁移失败", err)
+	}
 	poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
 		t.Fatal("运行数据库配置解析失败")

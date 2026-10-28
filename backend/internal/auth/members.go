@@ -23,11 +23,13 @@ type memberView struct {
 	Disabled    bool      `json:"disabled"`
 	Capacity    int       `json:"capacity"`
 	CreatedAt   time.Time `json:"created_at"`
+	AvatarRef   string    `json:"avatar_ref"`
+	AvatarURL   string    `json:"avatar_url"`
 }
 
 // members 查询认证上下文指定租户的成员，包括停用成员但不包含已移出成员。
 func (s *Service) members(w http.ResponseWriter, r *http.Request) error {
-	rows, err := s.pool.Query(r.Context(), `SELECT m.id::text,m.user_id::text,u.email,COALESCE(NULLIF(m.display_name,''),u.display_name),m.role,m.can_serve,m.disabled,m.capacity,m.created_at FROM tenant_memberships m JOIN users u ON u.id=m.user_id WHERE m.tenant_id=$1 AND m.removed_at IS NULL ORDER BY m.created_at,m.id LIMIT 1000`, platform.Current(r).TenantID)
+	rows, err := s.pool.Query(r.Context(), `SELECT m.id::text,m.user_id::text,u.email,COALESCE(NULLIF(m.display_name,''),u.display_name),m.role,m.can_serve,m.disabled,m.capacity,m.created_at,m.avatar_ref,`+platform.AvatarURLSQL("m")+` FROM tenant_memberships m JOIN users u ON u.id=m.user_id WHERE m.tenant_id=$1 AND m.removed_at IS NULL ORDER BY m.created_at,m.id LIMIT 1000`, platform.Current(r).TenantID)
 	if err != nil {
 		return err
 	}
@@ -35,7 +37,7 @@ func (s *Service) members(w http.ResponseWriter, r *http.Request) error {
 	items := []memberView{}
 	for rows.Next() {
 		var member memberView
-		if err := rows.Scan(&member.ID, &member.UserID, &member.Email, &member.DisplayName, &member.Role, &member.CanServe, &member.Disabled, &member.Capacity, &member.CreatedAt); err != nil {
+		if err := rows.Scan(&member.ID, &member.UserID, &member.Email, &member.DisplayName, &member.Role, &member.CanServe, &member.Disabled, &member.Capacity, &member.CreatedAt, &member.AvatarRef, &member.AvatarURL); err != nil {
 			return err
 		}
 		items = append(items, member)

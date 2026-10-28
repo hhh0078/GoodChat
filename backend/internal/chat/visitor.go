@@ -175,6 +175,12 @@ func (s *Service) visitorSession(w http.ResponseWriter, r *http.Request) {
 		tracking["channel_code"] = entry["channel_code"]
 		tracking["channel_tags"] = entry["channel_tags"]
 		if newVisitor {
+			if in.Profile.AvatarURL == "" {
+				in.Profile.AvatarURL, err = defaultVisitorAvatar(ctx, tx, tenant)
+				if err != nil {
+					return err
+				}
+			}
 			name := strings.TrimSpace(in.Profile.DisplayName)
 			if name == "" {
 				name = "访客"
@@ -190,6 +196,20 @@ func (s *Service) visitorSession(w http.ResponseWriter, r *http.Request) {
 		} else {
 			if err := blocked(ctx, tx, a.ContactID); err != nil {
 				return err
+			}
+			if in.Profile.AvatarURL == "" {
+				var previous string
+				var locked bool
+				if err := tx.QueryRow(ctx, "SELECT avatar_url,locked_fields ? 'avatar_url' FROM contacts WHERE id=$1 AND NOT archived FOR UPDATE", a.ContactID).Scan(&previous, &locked); err != nil {
+					return err
+				}
+				// 旧客户首次回访只补未锁定空头像，行锁保证并发访问和后续刷新不会重新抽取。
+				if previous == "" && !locked {
+					in.Profile.AvatarURL, err = defaultVisitorAvatar(ctx, tx, tenant)
+					if err != nil {
+						return err
+					}
+				}
 			}
 			_, err = tx.Exec(ctx, "UPDATE contacts SET display_name=CASE WHEN $2!='' AND NOT locked_fields ? 'display_name' THEN $2 ELSE display_name END,phone=CASE WHEN $3!='' AND NOT locked_fields ? 'phone' THEN $3 ELSE phone END,avatar_url=CASE WHEN $4!='' AND NOT locked_fields ? 'avatar_url' THEN $4 ELSE avatar_url END,last_source=$5,updated_at=now() WHERE id=$1 AND NOT archived", a.ContactID, in.Profile.DisplayName, in.Profile.Phone, in.Profile.AvatarURL, jsonValue(tracking))
 			if err != nil {

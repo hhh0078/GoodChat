@@ -169,7 +169,8 @@ export function useChat(id: string, identity: ChatIdentity) {
               );
             else if (
               event.event_type === "read.updated" &&
-              event.payload.participant_id !== identity.actorId
+              event.payload.participant_id !== identity.actorId &&
+              event.payload.participant_kind === (identity.kind === "agent" ? "visitor" : "agent")
             )
               setReadSeq(String(event.payload.last_read_seq || "0"));
             else detailDirty = true;

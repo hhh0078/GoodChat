@@ -40,6 +40,8 @@ type Membership struct {
 	TenantName string `json:"tenant_name"`
 	Role       string `json:"role"`
 	CanServe   bool   `json:"can_serve"`
+	AvatarRef  string `json:"avatar_ref"`
+	AvatarURL  string `json:"avatar_url"`
 }
 
 // accountView 为认证成功及me提供一致的账号与租户结构。
@@ -303,14 +305,14 @@ func (s *Service) account(ctx context.Context, userID, selected string) (account
 	if err := s.pool.QueryRow(ctx, "SELECT id::text,email,display_name,is_platform_admin FROM users WHERE id=$1", userID).Scan(&view.User.ID, &view.User.Email, &view.User.DisplayName, &view.User.PlatformAdmin); err != nil {
 		return view, err
 	}
-	rows, err := s.pool.Query(ctx, `SELECT m.id::text,m.tenant_id::text,t.name,m.role,m.can_serve FROM tenant_memberships m JOIN tenants t ON t.id=m.tenant_id WHERE m.user_id=$1 AND NOT m.disabled AND m.removed_at IS NULL AND t.status='active' ORDER BY m.created_at,m.id`, userID)
+	rows, err := s.pool.Query(ctx, `SELECT m.id::text,m.tenant_id::text,t.name,m.role,m.can_serve,m.avatar_ref,`+platform.AvatarURLSQL("m")+` FROM tenant_memberships m JOIN tenants t ON t.id=m.tenant_id WHERE m.user_id=$1 AND NOT m.disabled AND m.removed_at IS NULL AND t.status='active' ORDER BY m.created_at,m.id`, userID)
 	if err != nil {
 		return view, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var member Membership
-		if err := rows.Scan(&member.ID, &member.TenantID, &member.TenantName, &member.Role, &member.CanServe); err != nil {
+		if err := rows.Scan(&member.ID, &member.TenantID, &member.TenantName, &member.Role, &member.CanServe, &member.AvatarRef, &member.AvatarURL); err != nil {
 			return view, err
 		}
 		view.Memberships = append(view.Memberships, member)

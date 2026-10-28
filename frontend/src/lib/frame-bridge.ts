@@ -4,6 +4,7 @@ import { ApiError } from "./api.ts";
 type BridgeHello = { type: "goodchat:init"; version: 1; nonce: string; release_id: string };
 const bridgeFields: Record<string, readonly string[]> = {
   getState: [],
+  getAvatar: ["message_id"],
   sendText: ["text", "content", "client_message_id", "reply_to_id"],
   withdrawMessage: ["message_id"],
   typing: ["active", "is_typing"],
@@ -23,6 +24,10 @@ export function validateBridgeRequest(
   if (!Object.hasOwn(bridgeFields, method)) throw new Error("当前页面无权调用此方法");
   if (Object.keys(payload).some((key) => !bridgeFields[method].includes(key)))
     throw new Error("当前方法包含未授权参数");
+  if (method === "getAvatar") {
+    visibleBridgeAvatar(messages, payload.message_id);
+    return;
+  }
   if (method === "download" || method === "saveAttachment") {
     visibleBridgeAttachment(messages, payload.attachment_id);
     return;
@@ -38,6 +43,53 @@ export function validateBridgeRequest(
     (item.sender_kind !== "visitor" || item.sender_id !== visitorId)
   )
     throw new Error("只能撤回本人消息");
+}
+/** visibleBridgeAvatar 将头像读取绑定到当前公开消息，只允许平台内置或本平台受控上传图片路径。 */
+export function visibleBridgeAvatar(messages: ChatMessage[], messageId: unknown): string {
+  const item = messages.find(
+    (message) => message.id === messageId && message.audience === "public" && !message.withdrawn_at,
+  );
+  const value = item?.sender_avatar_url;
+  if (
+    typeof messageId !== "string" ||
+    typeof value !== "string" ||
+    !(
+      /^\/images\/avatars\/default-(0[1-9]|[1-4][0-9]|50)\.png$/.test(value) ||
+      /^\/api\/v1\/avatar-assets\/[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(
+        value,
+      )
+    )
+  )
+    throw new Error("头像不属于当前可见消息或平台受控图片");
+  return value;
+}
+/** requestBridgeAvatar 在可信父层读取公开PNG字节，使隔离页面可创建本来源Blob，无需放宽图片CSP。 */
+export async function requestBridgeAvatar(
+  messageId: string,
+  getMessages: () => ChatMessage[],
+  signal?: AbortSignal,
+): Promise<Blob> {
+  signal?.throwIfAborted();
+  const path = visibleBridgeAvatar(getMessages(), messageId);
+  const timeout = AbortSignal.timeout(30000);
+  const response = await fetch(path, {
+    credentials: "omit",
+    cache: "force-cache",
+    redirect: "error",
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+  });
+  if (!response.ok || Number(response.headers.get("content-length")) > 256 * 1024)
+    throw new Error("头像暂时无法读取");
+  const blob = await response.blob();
+  signal?.throwIfAborted();
+  if (
+    !blob.size ||
+    blob.size > 256 * 1024 ||
+    blob.type.split(";")[0] !== "image/png" ||
+    visibleBridgeAvatar(getMessages(), messageId) !== path
+  )
+    throw new Error("头像格式或当前消息权限已变化");
+  return blob;
 }
 /** visibleBridgeAttachment 只授权当前会话已加载、公开且未撤回消息中的附件。 */
 export function visibleBridgeAttachment(messages: ChatMessage[], attachmentId: unknown) {
@@ -124,6 +176,21 @@ export function validBridgeHandshake(
     /^[A-Za-z0-9+/_=-]{16,128}$/.test(value.nonce)
   );
 }
+/** publicAvatarURL 仅导出受控平台头像或不带凭证的HTTPS展示地址。 */
+function publicAvatarURL(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value) return undefined;
+  if (
+    /^\/images\/avatars\/default-\d{2}\.png$/.test(value) ||
+    /^\/api\/v1\/avatar-assets\/[a-f\d-]{36}$/i.test(value)
+  )
+    return value;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
 /** publicBridgeMessage 只导出访客可见消息及本人标记，不暴露后台身份或附件凭证。 */
 export function publicBridgeMessage(item: ChatMessage, visitorId: string) {
   return {
@@ -136,6 +203,7 @@ export function publicBridgeMessage(item: ChatMessage, visitorId: string) {
         : undefined,
     sender_kind: item.sender_kind,
     sender_name: item.sender_name,
+    sender_avatar_url: publicAvatarURL(item.sender_avatar_url),
     message_type: item.message_type,
     content: item.withdrawn_at ? "" : item.content,
     text: item.withdrawn_at ? "" : item.content,

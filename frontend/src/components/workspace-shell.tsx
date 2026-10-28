@@ -142,7 +142,9 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
         onClick={({ key }) => navigate(key)}
       />
       <div className="sidebar-bottom">
-        <Avatar size={30}>{(current.user.display_name || current.user.email).slice(0, 1)}</Avatar>
+        <Avatar size={30} src={member?.avatar_url || undefined}>
+          {(current.user.display_name || current.user.email).slice(0, 1)}
+        </Avatar>
         <div>
           <strong>{current.user.display_name || current.user.email}</strong>
           <span>
@@ -215,7 +217,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
                 aria-label="账号与工作空间"
                 onClick={() => navigate("/console/settings")}
               >
-                <Avatar size={30}>
+                <Avatar size={30} src={member?.avatar_url || undefined}>
                   {(current.user.display_name || current.user.email).slice(0, 1)}
                 </Avatar>
               </Button>
@@ -274,7 +276,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
               trigger={["click"]}
             >
               <Button type="text" className="shell-account" aria-label="账号菜单">
-                <Avatar size="small">
+                <Avatar size="small" src={member?.avatar_url || undefined}>
                   {(current.user.display_name || current.user.email).slice(0, 1)}
                 </Avatar>
                 <span style={{ marginLeft: 8 }}>

@@ -1,0 +1,356 @@
+{
+  "description": "文件作用说明：记录50个独立默认头像的分类、中文名称和内置图像生成提示词。",
+  "tool": "image_gen.imagegen",
+  "assets": [
+    {
+      "id": "default-01",
+      "number": 1,
+      "category": "professional",
+      "name": "亲切客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one square avatar for a Chinese customer service SaaS default avatar library. Create exactly ONE original fictional adult East Asian woman, age 28, friendly professional customer support specialist wearing a tailored charcoal blazer, ivory shirt and small unobtrusive modern headset. Genuine relaxed warm smile, natural skin texture, neat shoulder-length dark hair, clear recognizable face. Clean very light warm gray studio background. Centered head-and-shoulders portrait, face large, generous 12% margin around hair and shoulders for circular crop, looking toward camera. Soft diffuse professional portrait lighting. Restrained natural colors. Output square bitmap, crisp enough at 40px thumbnail. No text, no lettering, no logo, no watermark, no circles, no frame, no grid, no collage, no blue-purple gradient."
+    },
+    {
+      "id": "default-02",
+      "number": 2,
+      "category": "professional",
+      "name": "沉稳男客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian man age 32, tidy dark side-parted hair, navy tailored suit and crisp white shirt, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-03",
+      "number": 3,
+      "category": "professional",
+      "name": "知性女顾问",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian woman age 40, chin-length dark bob, thin round eyeglasses, beige blazer and ivory blouse, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-04",
+      "number": 4,
+      "category": "professional",
+      "name": "资深男顾问",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian man age 48, short salt-and-pepper hair, rectangular eyeglasses, gray suit and light blue shirt, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-05",
+      "number": 5,
+      "category": "professional",
+      "name": "活力女客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian woman age 24, neatly tied-back dark hair, navy blazer and white blouse, discreet small headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-06",
+      "number": 6,
+      "category": "professional",
+      "name": "暖心男客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult man age 28 with warm brown skin and short dark curly hair, cream blazer over pale sage shirt, discreet small headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-07",
+      "number": 7,
+      "category": "professional",
+      "name": "清爽女客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian woman age 35, dark shoulder-length hair tucked behind ears, slate blazer and light blue blouse, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-08",
+      "number": 8,
+      "category": "professional",
+      "name": "可靠男顾问",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult man age 52, light olive skin, short salt-and-pepper hair and neatly trimmed beard, olive blazer and white shirt, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-09",
+      "number": 9,
+      "category": "professional",
+      "name": "自信女客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult Black woman age 30, short natural curls, muted moss-green blazer and ivory shirt, discreet small headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-10",
+      "number": 10,
+      "category": "professional",
+      "name": "干练男客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian man age 38, neat buzz cut, charcoal shirt and navy blazer, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-11",
+      "number": 11,
+      "category": "professional",
+      "name": "温柔女顾问",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian woman age 44, softly waved dark bob, muted burgundy blazer and cream blouse, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-12",
+      "number": 12,
+      "category": "professional",
+      "name": "阳光男客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian man age 25, tidy dark hair and round eyeglasses, light gray suit and white shirt, discreet small headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-13",
+      "number": 13,
+      "category": "professional",
+      "name": "亲和女顾问",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian woman age 55, elegant short silver-gray hair, taupe jacket and white blouse, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-14",
+      "number": 14,
+      "category": "professional",
+      "name": "专业男客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult South Asian man age 33, tidy short black hair, dark blue suit and pale shirt, discreet small headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-15",
+      "number": 15,
+      "category": "professional",
+      "name": "利落女客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian woman age 29, neat dark pixie haircut, white blazer and muted teal top, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-16",
+      "number": 16,
+      "category": "professional",
+      "name": "温暖男顾问",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult Mediterranean man age 42, brown wavy hair and neat short mustache, charcoal blazer and white shirt, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-17",
+      "number": 17,
+      "category": "professional",
+      "name": "微笑女客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian woman age 27, straight dark hair with soft bangs, pale stone blazer and white blouse, discreet small headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-18",
+      "number": 18,
+      "category": "professional",
+      "name": "儒雅男顾问",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian man age 57, neatly combed short gray hair, rimless eyeglasses, dark brown blazer and cream shirt, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-19",
+      "number": 19,
+      "category": "professional",
+      "name": "清新女顾问",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult woman age 31, fair skin and auburn hair in a low bun, sage blazer and ivory blouse, no headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-20",
+      "number": 20,
+      "category": "professional",
+      "name": "友善男客服",
+      "prompt": "Use case: photorealistic-natural. Asset type: one default avatar for customer-service SaaS. Subject: fictional adult East Asian man age 30, short slightly wavy dark hair, medium gray blazer over white shirt, discreet small headset. Style: natural professional studio portrait photography, realistic skin texture and relaxed warm smile. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-21",
+      "number": 21,
+      "category": "cartoon",
+      "name": "短发卡通女",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult East Asian woman character with short chestnut bob and round friendly eyes, cream blouse and muted coral cardigan. Style: polished hand-painted 2D editorial character illustration, soft clean shapes and subtle shading. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-22",
+      "number": 22,
+      "category": "cartoon",
+      "name": "眼镜卡通男",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult East Asian man character with neat black hair, dark round glasses and friendly smile, navy blazer. Style: polished 2D character illustration, confident clean linework and soft flat shading. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-23",
+      "number": 23,
+      "category": "cartoon",
+      "name": "元气女客服",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult female support specialist character with dark ponytail, little headset, pale green blazer. Style: friendly modern 3D clay character illustration, rounded handmade materials. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-24",
+      "number": 24,
+      "category": "cartoon",
+      "name": "卷发卡通男",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult male character with warm brown skin, short dark curls, mustard sweater and kind smile. Style: modern 2D editorial portrait illustration, softly textured gouache. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-25",
+      "number": 25,
+      "category": "cartoon",
+      "name": "温柔长发女",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult East Asian woman character with long black wavy hair and sky-blue shirt. Style: delicate modern watercolor character illustration, simplified clear facial features. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-26",
+      "number": 26,
+      "category": "cartoon",
+      "name": "利落寸头男",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult East Asian male character with a neat buzzcut, charcoal jacket and calm smile. Style: stylish high-quality 3D character render, soft matte material and clean silhouette. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-27",
+      "number": 27,
+      "category": "cartoon",
+      "name": "圆镜女顾问",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult female character with purple-black short hair, thin round glasses and tan blazer. Style: clean playful 2D vector-like character illustration with subtle painted texture. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-28",
+      "number": 28,
+      "category": "cartoon",
+      "name": "蓝衣男客服",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult male customer-support character with side-parted dark hair, small headset, pale blue jacket. Style: friendly high-quality 3D clay illustration, soft rounded features. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-29",
+      "number": 29,
+      "category": "cartoon",
+      "name": "棕发卡通女",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult woman character with short curly auburn hair, warm freckles, cream shirt. Style: soft textured gouache portrait illustration, contemporary editorial style. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-30",
+      "number": 30,
+      "category": "cartoon",
+      "name": "温暖大胡子",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult man character with neat black beard and wavy hair, olive sweater. Style: polished 2D editorial character art, warm clean color blocks. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-31",
+      "number": 31,
+      "category": "cartoon",
+      "name": "双丸子女孩",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original young adult East Asian female character with two small hair buns, peach blouse and cheerful eyes. Style: cute high-quality 3D character render, matte rounded forms. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-32",
+      "number": 32,
+      "category": "cartoon",
+      "name": "灰发卡通男",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original older adult East Asian man character with neatly combed gray hair, spectacles and navy cardigan. Style: warm watercolor editorial portrait illustration with clear simplified forms. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-33",
+      "number": 33,
+      "category": "cartoon",
+      "name": "运动短发女",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult Black female character with cropped natural hair and off-white zip jacket. Style: bold modern 2D character illustration, clean confident forms. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-34",
+      "number": 34,
+      "category": "cartoon",
+      "name": "卷发眼镜男",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult man character with curly brown hair, square glasses and sage shirt. Style: polished high-quality 3D clay character portrait. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-35",
+      "number": 35,
+      "category": "cartoon",
+      "name": "西装卡通女",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult East Asian woman character with shoulder-length black hair, little headset and gray suit. Style: sophisticated 2D painted character illustration for professional customer support. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-36",
+      "number": 36,
+      "category": "cartoon",
+      "name": "儒雅卡通男",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult East Asian man character with longish swept-back dark hair and ivory blazer. Style: soft modern anime-inspired portrait illustration, original character, restrained details. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-37",
+      "number": 37,
+      "category": "cartoon",
+      "name": "温暖银发女",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original older adult woman character with short silver curls and moss cardigan. Style: gentle high-quality 3D character render, soft tactile clay material. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-38",
+      "number": 38,
+      "category": "cartoon",
+      "name": "清爽卷发男",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult South Asian male character with short black curls and light beige jacket. Style: contemporary 2D editorial portrait illustration with softly textured shading. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-39",
+      "number": 39,
+      "category": "cartoon",
+      "name": "清新丸子头",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adult East Asian woman character with neat high bun, small gold stud earrings and teal blouse. Style: minimal high-quality 3D matte character render. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-40",
+      "number": 40,
+      "category": "cartoon",
+      "name": "开朗卡通男",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original young adult East Asian man character with soft dark curls, orange-rust sweater and broad kind smile. Style: lively polished 2D gouache character portrait, original design. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-41",
+      "number": 41,
+      "category": "playful",
+      "name": "友好小机器人",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original friendly little ivory robot with two dark oval eyes, tiny cobalt accent on chest and welcoming expression. Style: high-quality 3D clay mascot illustration. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-42",
+      "number": 42,
+      "category": "playful",
+      "name": "温柔橘猫",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original cute orange tabby cat with pale muzzle, small soft ears, warm round eyes and a tiny cream bandana. Style: polished soft 3D clay animal portrait. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-43",
+      "number": 43,
+      "category": "playful",
+      "name": "微笑柴犬",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original friendly tan shiba inu dog with cream muzzle and cheerful gentle expression. Style: modern high-quality hand-painted animal illustration. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-44",
+      "number": 44,
+      "category": "playful",
+      "name": "软萌熊猫",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adorable small panda with warm black eyes and a sage-green scarf. Style: polished high-quality 3D clay mascot portrait. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-45",
+      "number": 45,
+      "category": "playful",
+      "name": "奶白小兔",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original cute ivory rabbit with short upright ears, peach nose and gentle friendly eyes. Style: modern 2D gouache animal portrait illustration. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-46",
+      "number": 46,
+      "category": "playful",
+      "name": "可爱小熊",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original friendly cinnamon-brown teddy bear character with rounded ears and an ivory little bow tie. Style: high-quality 3D tactile clay mascot portrait. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-47",
+      "number": 47,
+      "category": "playful",
+      "name": "聪明小狐",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original friendly rust-orange little fox with cream muzzle and warm attentive eyes. Style: sophisticated soft 2D painted mascot illustration. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-48",
+      "number": 48,
+      "category": "playful",
+      "name": "薄荷机器人",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original small friendly mint-and-ivory customer helper robot with rounded head and two kind dark eyes. Style: polished high-quality 3D matte toy-like character render. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-49",
+      "number": 49,
+      "category": "playful",
+      "name": "奶油小羊",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original adorable cream-colored lamb with soft curled wool, little ears and warm charcoal eyes. Style: modern high-quality 3D clay animal portrait. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    },
+    {
+      "id": "default-50",
+      "number": 50,
+      "category": "playful",
+      "name": "圆脸企鹅",
+      "prompt": "Use case: stylized-concept. Asset type: one default avatar for customer-service SaaS. Subject: original friendly small charcoal-and-ivory penguin with tiny orange beak and soft welcoming eyes. Style: polished 2D gouache mascot portrait illustration. Create exactly ONE original fictional character avatar. Square head-and-shoulders portrait, centered face large and clear, 12% safe margin for circular crop. Friendly welcoming expression. Simple very light neutral or low-saturation natural background, soft diffuse lighting. Strong recognizable silhouette readable at 40px. No text, lettering, logo, watermark, frame, circle, grid, collage, or blue-purple gradient."
+    }
+  ]
+}

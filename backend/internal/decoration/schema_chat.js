@@ -14,6 +14,19 @@
   if (!messages) return;
   let state = null, composing = false, ready = false, busy = false, readSeq = 0n;
   let urls = [], retry = null, reply = null, lastTyping = 0, typingTimer = null, messageSignature = "";
+  const avatarFiles = new Map();
+
+  /** 从可信父层读取受控头像Blob，在本沙箱生成图片地址，不放宽CSP或读取任意网络网址。 */
+  function messageAvatar(meta, item) {
+    if (!item.sender_avatar_url || typeof chat.getAvatar !== "function") return;
+    const avatar = document.createElement("img"); avatar.className = "gc-avatar"; avatar.alt = `${item.sender_name || "聊天参与者"}头像`; avatar.width = avatar.height = 32; meta.prepend(avatar);
+    const key = item.sender_avatar_url;
+    if (!avatarFiles.has(key)) {
+      if (avatarFiles.size >= 50) avatarFiles.delete(avatarFiles.keys().next().value);
+      avatarFiles.set(key, chat.getAvatar(item.id).then(result => result.file));
+    }
+    avatarFiles.get(key).then(file => { if (!avatar.isConnected) return; const url = URL.createObjectURL(file); urls.push(url); avatar.src = url; }).catch(() => { avatar.remove(); avatarFiles.delete(key); });
+  }
 
   /** 展示安全的业务错误文案。 */
   function showError(problem) { error.textContent = problem?.message || "操作未完成，请稍后重试"; }
@@ -168,7 +181,7 @@
     const own = item.is_own === true, system = item.sender_kind === "system";
     const row = document.createElement("div"); row.className = `gc-message-row${own ? " gc-own" : ""}${system ? " gc-system" : ""}`;
     const meta = document.createElement("div"); meta.className = "gc-message-meta";
-    const name = document.createElement("span"); name.textContent = author(item); meta.append(name, timeElement(item.created_at)); row.append(meta);
+    const name = document.createElement("span"); name.textContent = author(item); meta.append(name, timeElement(item.created_at)); row.append(meta); messageAvatar(meta,item);
     const bubble = document.createElement("div"); bubble.className = "gc-message";
     const withdrawn = item.withdrawn_at || item.recalled_at || item.is_recalled;
     if (withdrawn) bubble.textContent = "消息已撤回";
