@@ -125,7 +125,7 @@ func TestContactScopeRequiresCurrentAssignment(t *testing.T) {
 	}
 	status, reply = f.request("POST", "/api/v1/conversations/"+otherConversation+"/close", "", otherToken, map[string]any{})
 	mustData(t, status, reply)
-	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": f.entry, "visitor_token": token, "visit_id": newID(), "context": map[string]any{"新咨询业务": "不对旧接待人开放"}})
+	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": f.entry, "visitor_token": token, "visit_id": newID(), "routing": map[string]any{"agent_id": f.owner}, "context": map[string]any{"新咨询业务": "不对旧接待人开放"}})
 	next := mustData(t, status, reply)["conversation"].(map[string]any)["id"].(string)
 	status, reply = f.request("POST", "/api/v1/conversations/"+next+"/assignments/claim", f.owner, "", map[string]any{})
 	mustData(t, status, reply)

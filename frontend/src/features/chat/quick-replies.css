@@ -1,0 +1,76 @@
+/* 文件作用说明：设置更宽的紧凑快捷栏，只显示可换行小字标题及添加入口，不影响聊天胶囊布局。 */
+.agent-layout .chat-composer.has-quick-replies {
+  --quick-reply-width: 224px;
+  grid-template-columns: var(--quick-reply-width) minmax(0, 1fr);
+}
+.compact-quick-replies.composer-quick-replies {
+  gap: 0;
+  padding: 6px 8px 8px;
+}
+.compact-quick-replies .quick-reply-add {
+  align-self: flex-end;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+}
+.compact-quick-replies .quick-reply-list {
+  max-height: 120px;
+  min-height: 20px;
+}
+.quick-reply-title {
+  display: block;
+  width: 100%;
+  padding: 4px 3px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.quick-reply-title:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.quick-reply-title:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+.quick-reply-title:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.quick-reply-divider {
+  margin: 5px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.quick-reply-media-preview {
+  margin-top: 12px;
+  max-width: 100%;
+  overflow: hidden;
+}
+.quick-reply-option-editor .ant-space {
+  width: 100%;
+}
+.quick-reply-option-editor .ant-space-item {
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .agent-layout .chat-composer.has-quick-replies {
+    --quick-reply-width: 190px;
+  }
+}
+@media (max-width: 600px) {
+  .agent-layout .chat-composer.has-quick-replies {
+    --quick-reply-width: 38%;
+  }
+  .compact-quick-replies.composer-quick-replies {
+    padding-inline: 5px;
+  }
+}

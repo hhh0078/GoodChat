@@ -116,7 +116,7 @@ export function Dashboard() {
       value: members.items.length,
     },
     {
-      title: "接入链接",
+      title: "接入管理",
       text: "网页、手机网页等",
       result: links,
       icon: LinkOutlined,

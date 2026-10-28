@@ -34,7 +34,7 @@ import { useSession } from "@/features/auth/session";
 import { useResource } from "@/lib/use-resource";
 import type { Conversation, Resource } from "@/lib/types";
 import { ErrorNotice, EmptyData, PageTitle } from "@/components/page-state";
-import { useReminders } from "./reminders";
+import { useWorkspaceReminders } from "./workspace-reminders";
 import { ReminderVolume } from "./reminder-volume";
 import { ChatPanel } from "./chat-panel";
 import { CustomerContext } from "./customer-context";
@@ -58,7 +58,7 @@ export function AgentWorkspace() {
   useEffect(() => {
     setHeaderTarget(document.getElementById("workspace-header-actions"));
   }, []);
-  const reminders = useReminders(tenantId);
+  const reminders = useWorkspaceReminders();
   const conversations = useResource<Conversation>(
     membership?.can_serve ? `/conversations?${new URLSearchParams({ status, query })}` : "",
   );
@@ -79,7 +79,6 @@ export function AgentWorkspace() {
       enabled: !!membership?.can_serve,
       onEvent: (event) => {
         conversations.reload();
-        reminders.receive(event);
       },
       onRecover: async () => {
         const [, runtime] = await Promise.all([

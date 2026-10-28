@@ -1,202 +1,123 @@
-/** 文件作用说明：在客服输入框旁展示团队与个人快捷话术，支持个人维护和双击直接发送。 */
+/** 文件作用说明：用紧凑纯文字标题展示个人和公共富话术，双击成功后按真实使用次数排序。 */
 "use client";
-import { useEffect, useState } from "react";
-import { App, Button, Form, Input, Modal, Popconfirm, Select, Tag, Tooltip } from "antd";
-import {
-  DeleteOutlined,
-  EditOutlined,
-  PlusOutlined,
-  SendOutlined,
-  SnippetsOutlined,
-} from "@ant-design/icons";
+import { useEffect, useRef, useState } from "react";
+import { App, Button, Tooltip } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 import { api, errorMessage } from "@/lib/api";
-import type { Resource } from "@/lib/types";
-
-/** QuickReplies 复用后端权限维护公共和个人话术，直接发送始终沿用聊天幂等流程。 */
-export function QuickReplies({
-  tenantId,
-  manages,
-  disabled,
-  onInsert,
-  onSend,
-}: {
+import { groupQuickReplies, type QuickReply } from "@/lib/quick-replies";
+import { QuickReplyEditor } from "./quick-reply-editor";
+import "./quick-replies.css";
+type QuickReplyProps = {
   tenantId: string;
   manages: boolean;
   disabled: boolean;
-  onInsert: (content: string) => void;
-  onSend: (content: string) => void;
-}) {
+  onSend: (item: QuickReply) => Promise<boolean>;
+};
+
+/** QuickReplies 按租户重建内容，防止切换身份后继续维护旧话术。 */
+export function QuickReplies(props: QuickReplyProps) {
+  return <QuickReplyList key={props.tenantId} {...props} />;
+}
+
+/** QuickReplyList 只展示可发送标题和添加入口，维护动作集中在弹框中。 */
+function QuickReplyList({ tenantId, manages, disabled, onSend }: QuickReplyProps) {
   const { message } = App.useApp();
-  const [items, setItems] = useState<Resource[]>([]);
-  const [scope, setScope] = useState("all");
-  const [editing, setEditing] = useState<Resource | null | undefined>(undefined);
-  const [busy, setBusy] = useState(false);
+  const [items, setItems] = useState<QuickReply[]>([]);
+  const [editing, setEditing] = useState<QuickReply | null | undefined>();
   const [revision, setRevision] = useState(0);
-  const [form] = Form.useForm();
+  const [sending, setSending] = useState(false);
+  const locked = useRef(false),
+    mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
-    api<{ items: Resource[] }>("/tenant/quick-replies", { tenantId, signal: controller.signal })
-      .then((data) => setItems((data.items || []).filter((item) => item.enabled !== false)))
+    api<{ items: QuickReply[] }>("/tenant/quick-replies", { tenantId, signal: controller.signal })
+      .then((data) => {
+        if (!controller.signal.aborted) setItems(data.items || []);
+      })
       .catch((problem) => {
         if (!controller.signal.aborted) message.error(errorMessage(problem));
       });
     return () => controller.abort();
   }, [tenantId, revision, message]);
-  /** openEditor 设置本次编辑值，新话术默认仅自己可见。 */
-  function openEditor(item: Resource | null) {
-    setEditing(item);
-    form.setFieldsValue(item || { title: "", content: "", scope: "personal" });
-  }
-  /** save 验证内容后保存，成功才关闭编辑器并刷新话术。 */
-  async function save() {
+  /** send 防止连续双击并发，操作后重读真实次数与版本，不在客户端猜测成功或累计次数。 */
+  async function send(item: QuickReply) {
+    if (disabled || locked.current) return;
+    locked.current = true;
+    setSending(true);
     try {
-      const values = await form.validateFields();
-      setBusy(true);
-      await api(`/tenant/quick-replies${editing ? `/${editing.id}` : ""}`, {
-        tenantId,
-        method: editing ? "PATCH" : "POST",
-        bodyJSON: values,
-      });
-      setEditing(undefined);
-      setRevision((value) => value + 1);
+      await onSend(item);
     } catch (problem) {
-      if (!(problem && typeof problem === "object" && "errorFields" in problem))
-        message.error(errorMessage(problem));
+      if (mounted.current) message.error(errorMessage(problem));
     } finally {
-      setBusy(false);
+      locked.current = false;
+      if (mounted.current) {
+        setSending(false);
+        setRevision((value) => value + 1);
+      }
     }
   }
-  /** remove 停用话术，后端继续核验个人归属和公共维护权限。 */
-  async function remove(item: Resource) {
-    try {
-      await api(`/tenant/quick-replies/${item.id}`, { tenantId, method: "DELETE" });
-      setRevision((value) => value + 1);
-    } catch (problem) {
-      message.error(errorMessage(problem));
-    }
-  }
-  const visible = items.filter((item) => scope === "all" || item.scope === scope);
+  const groups = groupQuickReplies(items);
   return (
-    <aside className="composer-quick-replies" aria-label="快捷回复">
-      <header>
-        <strong>快捷回复</strong>
-        <Tooltip title="添加个人话术">
-          <Button
-            type="text"
-            size="small"
-            icon={<PlusOutlined />}
-            aria-label="添加快捷回复"
-            onClick={() => openEditor(null)}
-          />
-        </Tooltip>
-      </header>
-      <Select
-        size="small"
-        aria-label="快捷回复范围"
-        value={scope}
-        onChange={setScope}
-        options={[
-          { value: "all", label: "全部话术" },
-          { value: "public", label: "租户话术" },
-          { value: "personal", label: "我的话术" },
-        ]}
-      />
+    <aside className="composer-quick-replies compact-quick-replies" aria-label="快捷回复">
+      <Tooltip title="添加和管理快捷回复">
+        <Button
+          type="text"
+          size="small"
+          className="quick-reply-add"
+          icon={<PlusOutlined />}
+          aria-label="添加快捷回复"
+          onClick={() => setEditing(null)}
+        />
+      </Tooltip>
       <div className="quick-reply-list">
-        {visible.length ? (
-          visible.map((item) => (
-            <div className="quick-reply-item" key={item.id}>
-              <button
-                type="button"
-                className="quick-reply-content"
-                disabled={disabled}
-                title={`${String(item.content || "")}\n双击直接发送，使用插入按钮追加到草稿`}
-                onDoubleClick={() => onSend(String(item.content || ""))}
-              >
-                <span>
-                  <Tag>{item.scope === "personal" ? "个人" : "租户"}</Tag>
-                  <strong>{String(item.title || "话术")}</strong>
-                </span>
-                <p>{String(item.content || "")}</p>
-              </button>
-              <div className="quick-reply-actions">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<SnippetsOutlined />}
-                  aria-label={`插入话术${String(item.title)}`}
-                  title="追加到草稿"
-                  disabled={disabled}
-                  onClick={() => onInsert(String(item.content || ""))}
-                />
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<SendOutlined />}
-                  aria-label={`发送话术${String(item.title)}`}
-                  disabled={disabled}
-                  onClick={() => onSend(String(item.content || ""))}
-                />
-                {(manages || item.scope === "personal") && (
-                  <>
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<EditOutlined />}
-                      aria-label={`编辑话术${String(item.title)}`}
-                      onClick={() => openEditor(item)}
-                    />
-                    <Popconfirm title="删除这条快捷回复？" onConfirm={() => remove(item)}>
-                      <Button
-                        type="text"
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
-                        aria-label={`删除话术${String(item.title)}`}
-                      />
-                    </Popconfirm>
-                  </>
-                )}
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="muted quick-reply-empty">暂无话术，可添加自己的常用回复。</p>
+        {groups.personal.map((item) => (
+          <button
+            key={item.id}
+            className="quick-reply-title"
+            type="button"
+            disabled={disabled || sending}
+            onDoubleClick={() => void send(item)}
+            title={item.content || item.title}
+          >
+            {item.title}
+          </button>
+        ))}
+        {!!groups.personal.length && !!groups.shared.length && (
+          <hr className="quick-reply-divider" />
         )}
+        {groups.shared.map((item) => (
+          <button
+            key={item.id}
+            className="quick-reply-title"
+            type="button"
+            disabled={disabled || sending}
+            onDoubleClick={() => void send(item)}
+            title={item.content || item.title}
+          >
+            {item.title}
+          </button>
+        ))}
       </div>
-      <small>双击发送 · 按钮插入</small>
-      <Modal
-        title={editing ? "编辑快捷回复" : "添加快捷回复"}
-        open={editing !== undefined}
-        onCancel={() => setEditing(undefined)}
-        onOk={() => void save()}
-        confirmLoading={busy}
-        destroyOnHidden
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, whitespace: true, message: "请输入标题" }]}
-          >
-            <Input maxLength={100} />
-          </Form.Item>
-          <Form.Item
-            name="content"
-            label="回复内容"
-            rules={[{ required: true, whitespace: true, message: "请输入内容" }]}
-          >
-            <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} maxLength={10000} />
-          </Form.Item>
-          <Form.Item name="scope" label="话术范围">
-            <Select
-              options={[
-                { value: "personal", label: "我的话术" },
-                ...(manages ? [{ value: "public", label: "租户话术" }] : []),
-              ]}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {editing !== undefined && (
+        <QuickReplyEditor
+          tenantId={tenantId}
+          manages={manages}
+          items={items.filter((item) => item.enabled !== false)}
+          item={editing}
+          onSelect={setEditing}
+          onClose={() => setEditing(undefined)}
+          onSaved={() => {
+            setEditing(undefined);
+            setRevision((value) => value + 1);
+          }}
+        />
+      )}
     </aside>
   );
 }

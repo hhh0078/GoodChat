@@ -88,7 +88,11 @@ export function CustomerContext({
   }, [allowed, conversation.contact_id, membership.tenant_id, revision]);
   const name = String(contact?.display_name || conversation.contact?.display_name || "访客");
   const channels = channelTags(conversation.source_snapshot);
-  const fields = customerFields(contact?.attributes, conversation.context);
+  const fields = Object.fromEntries(
+    Object.entries(customerFields(contact?.attributes, conversation.context)).filter(
+      ([key]) => key !== "page_url",
+    ),
+  );
   if (!allowed)
     return (
       <div className="customer-context">
@@ -155,7 +159,7 @@ export function CustomerContext({
                 <dl className="customer-fields">
                   {Object.entries(fields).map(([key, value]) => (
                     <div className="customer-field-pair" key={key}>
-                      <dt>{key === "page_url" ? "访问页面" : key}</dt>
+                      <dt>{key}</dt>
                       <dd>{displayValue(value)}</dd>
                     </div>
                   ))}

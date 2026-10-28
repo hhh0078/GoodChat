@@ -11,13 +11,17 @@ class ElementStub {
   className = "";
   disabled = false;
   hidden = false;
+  dataset: Record<string, string> = {};
+  parentElement: ElementStub | null = null;
+  style: Record<string, string> = {};
   value = "";
-  onclick: (() => unknown) | null = null;
+  onclick: ((event?: { target?: ElementStub }) => unknown) | null = null;
   scrollHeight = 100;
   scrollTop = 0;
   clientHeight = 100;
   /** append 记录安全文本节点，便于断言聊天内容。 */
   append(node: ElementStub) {
+    node.parentElement = this;
     this.children.push(node);
   }
   /** replaceChildren 清理上次渲染结果。 */
@@ -28,6 +32,15 @@ class ElementStub {
   addEventListener() {}
   /** focus 保持初稿焦点操作可在无浏览器环境执行。 */
   focus() {}
+  /** setAttribute 保留控件语义设置所需入口，不执行浏览器外部能力。 */
+  setAttribute() {}
+  /** querySelectorAll 遍历真实渲染生成的动作节点，检查选择消息前后的可见性。 */
+  querySelectorAll(selector: string): ElementStub[] {
+    return this.children.flatMap((node) => [
+      ...(selector.startsWith(".") && node.className === selector.slice(1) ? [node] : []),
+      ...node.querySelectorAll(selector),
+    ]);
+  }
 }
 
 /** mountStarter 执行真实生成代码，并记录白名单SDK调用用于初稿交互验证。 */
@@ -135,6 +148,9 @@ test("代码初稿引用沿用目标ID，撤回必须先行内联确认", async 
   });
   const actions = nodes.get("messages")?.children[0]?.children.at(-1);
   assert.equal(actions?.className, "message-actions");
+  assert.equal(actions?.hidden, true);
+  await nodes.get("messages")?.children[0]?.onclick?.();
+  assert.equal(actions?.hidden, false);
   await actions?.children[0]?.onclick?.();
   assert.equal(nodes.get("reply")?.hidden, false);
   assert.equal(nodes.get("reply-text")?.textContent, "引用：原消息");
@@ -150,4 +166,57 @@ test("代码初稿引用沿用目标ID，撤回必须先行内联确认", async 
   assert.equal(actions?.children[1]?.textContent, "确认撤回");
   await actions?.children[1]?.onclick?.();
   assert.deepEqual(withdrawn, ["message-own"]);
+});
+
+test("代码初稿客服选项使用服务端稳定消息编号且不覆盖访客草稿", async () => {
+  const { nodes, sent, render } = mountStarter();
+  nodes.get("text")!.value = "尚未发送的访客草稿";
+  const optionId = "11111111-2222-4333-8444-555555555555";
+  render({
+    conversation: { status: "active" },
+    messages: [
+      {
+        id: "agent-options",
+        sender_kind: "agent",
+        content: "请选择",
+        seq: "1",
+        options: [
+          { id: "sales", label: "了解价格", value: "我想了解价格", client_message_id: optionId },
+        ],
+      },
+    ],
+  });
+  const options = nodes
+    .get("messages")!
+    .children[0].children.find((node) => node.className === "message-options");
+  assert.equal(options?.children[0].textContent, "了解价格");
+  await options?.children[0].onclick?.();
+  assert.deepEqual(sent, [{ text: "我想了解价格", id: optionId, reply: undefined }]);
+  assert.equal(nodes.get("text")!.value, "尚未发送的访客草稿");
+  render({
+    conversation: { status: "active" },
+    messages: [
+      {
+        id: "agent-options",
+        sender_kind: "agent",
+        content: "请选择",
+        seq: "1",
+        options: [
+          { id: "sales", label: "了解价格", value: "我想了解价格", client_message_id: optionId },
+        ],
+      },
+      {
+        id: "answer",
+        sender_kind: "visitor",
+        client_message_id: optionId,
+        content: "我想了解价格",
+        seq: "2",
+      },
+    ],
+  });
+  assert.equal(
+    nodes.get("messages")!.children[0].children.find((node) => node.className === "message-options")
+      ?.children[0].disabled,
+    true,
+  );
 });

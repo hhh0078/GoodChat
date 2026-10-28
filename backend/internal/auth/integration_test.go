@@ -100,6 +100,20 @@ func identityIntegration(t *testing.T) *identityFixture {
 	if _, err := admin.Exec(ctx, avatarMigration); err != nil {
 		t.Fatal("隔离头像迁移失败", err)
 	}
+	file, err = os.ReadFile(filepath.Join("..", "database", "migrations", "021_member_presence.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, string(file)); err != nil {
+		t.Fatal("隔离成员在线迁移失败", err)
+	}
+	file, err = os.ReadFile(filepath.Join("..", "database", "migrations", "024_platform_capacity.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, string(file)); err != nil {
+		t.Fatal("隔离平台容量迁移失败", err)
+	}
 	poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
 		t.Fatal("运行数据库配置解析失败")

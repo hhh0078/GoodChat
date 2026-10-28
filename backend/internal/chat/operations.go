@@ -55,7 +55,7 @@ func (s *Service) chatSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		for key, value := range values {
 			switch key {
-			case "welcome_enabled", "keywords_enabled", "typing_enabled":
+			case "welcome_enabled", "keywords_enabled", "typing_enabled", "share_previous_chats":
 				if _, ok := value.(bool); !ok {
 					returnError(w, r, "invalid_setting", "设置开关必须为布尔值")
 					return
@@ -70,6 +70,24 @@ func (s *Service) chatSettings(w http.ResponseWriter, r *http.Request) {
 				number, ok := value.(float64)
 				if !ok || number < 0 || number > 60 || number != float64(int(number)) {
 					returnError(w, r, "invalid_setting", "欢迎语延迟应为0至60秒整数")
+					return
+				}
+			case "repeat_unread_seconds":
+				number, ok := value.(float64)
+				if !ok || number < 1 || number > 3600 || number != float64(int(number)) {
+					returnError(w, r, "invalid_setting", "重复提醒间隔应为1至3600秒整数")
+					return
+				}
+			case "history_agent_minutes":
+				number, ok := value.(float64)
+				if !ok || number < 0 || number > 525600 || number != float64(int(number)) {
+					returnError(w, r, "invalid_setting", "历史客服窗口应为0至525600分钟整数，0表示永久")
+					return
+				}
+			case "notification_sound_id":
+				text, ok := value.(string)
+				if !ok || !inStrings(text, "gentle", "glass", "wood", "bell", "bubble") {
+					returnError(w, r, "invalid_setting", "请选择平台提供的提示音")
 					return
 				}
 			default:
@@ -154,14 +172,13 @@ func (s *Service) preferences(w http.ResponseWriter, r *http.Request) {
 
 // operationResources 提供话术与关键词规则的持久增删改查。
 func (s *Service) operationResources(name string) http.HandlerFunc {
+	if name == "quick-replies" {
+		return s.quickReplies
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		a := memberActor(r)
-		table := "quick_replies"
-		allowed := fieldSet("title content shortcut category enabled sort scope")
-		if name == "keyword-rules" {
-			table = "keyword_rules"
-			allowed = fieldSet("name match_mode pattern reply priority cooldown_seconds enabled")
-		}
+		table := "keyword_rules"
+		allowed := fieldSet("name match_mode pattern reply priority cooldown_seconds enabled")
 		values := map[string]any{}
 		if r.Method == http.MethodPost || r.Method == http.MethodPatch {
 			if err := platform.Decode(w, r, &values); err != nil {
@@ -178,7 +195,7 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 				replyError(w, r, err)
 				return
 			}
-			for _, key := range []string{"sort", "priority", "cooldown_seconds"} {
+			for _, key := range []string{"priority", "cooldown_seconds"} {
 				if value, ok := values[key]; ok {
 					n, valid := value.(float64)
 					if !valid || n != float64(int32(n)) {
@@ -193,13 +210,7 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 		err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
 			ctx := r.Context()
 			if r.Method == http.MethodGet {
-				query := "SELECT to_jsonb(t)||jsonb_build_object('scope',CASE WHEN owner_membership_id IS NULL THEN 'public' ELSE 'personal' END) FROM quick_replies t WHERE owner_membership_id IS NULL OR owner_membership_id=$1 ORDER BY sort DESC,created_at DESC"
-				args := []any{a.MemberID}
-				if name == "keyword-rules" {
-					query = "SELECT to_jsonb(t) FROM keyword_rules t ORDER BY priority DESC,id"
-					args = nil
-				}
-				rows, err := tx.Query(ctx, query, args...)
+				rows, err := tx.Query(ctx, "SELECT to_jsonb(t) FROM keyword_rules t ORDER BY priority DESC,id")
 				if err != nil {
 					return err
 				}
@@ -211,15 +222,6 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 			if id != "" && !uuidPattern.MatchString(id) {
 				return platform.Fail(400, "invalid_id", "记录编号格式不正确")
 			}
-			if name == "quick-replies" && r.Method != http.MethodPost {
-				var owner *string
-				if err := tx.QueryRow(ctx, "SELECT owner_membership_id::text FROM quick_replies WHERE id=$1 FOR UPDATE", id).Scan(&owner); err != nil {
-					return err
-				}
-				if owner == nil && !isAdmin(a) || owner != nil && *owner != a.MemberID && !isAdmin(a) {
-					return platform.Fail(403, "reply_not_owned", "无权修改该话术")
-				}
-			}
 			if r.Method == http.MethodDelete {
 				tag, err := tx.Exec(ctx, "UPDATE "+table+" SET enabled=false,updated_at=now() WHERE id=$1", id)
 				if err != nil {
@@ -230,23 +232,6 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 				}
 				result = map[string]any{"id": id, "enabled": false}
 				return audit(ctx, tx, a, name+".disabled", id, nil)
-			}
-			if name == "quick-replies" {
-				scope, _ := values["scope"].(string)
-				delete(values, "scope")
-				if r.Method == http.MethodPost && scope == "" {
-					scope = "personal"
-				}
-				if scope != "" {
-					if scope == "public" {
-						if !isAdmin(a) {
-							return platform.Fail(403, "public_reply_forbidden", "公共话术需要管理员维护")
-						}
-						values["owner_membership_id"] = nil
-					} else {
-						values["owner_membership_id"] = a.MemberID
-					}
-				}
 			}
 			keys := []string{}
 			for key := range values {

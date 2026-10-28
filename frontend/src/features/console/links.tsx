@@ -1,6 +1,6 @@
 /** 文件作用说明：管理接入链接、生成二维码和参数化链接，并调用真实入口接口保存。 */
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   App,
   Button,
@@ -19,6 +19,7 @@ import {
 import { CopyOutlined, PlusOutlined, QrcodeOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { api, errorMessage } from "@/lib/api";
+import { serialPoll } from "@/lib/reporting-state";
 import { entryURL } from "@/lib/urls";
 import { useResource } from "@/lib/use-resource";
 import type { AccessLink, Member, Resource } from "@/lib/types";
@@ -31,10 +32,54 @@ const parameterExamples: Record<string, string> = {
   性别: "男",
   extra: '{"有无房产":"有","是否逾期":"无"}',
 };
+type LinkStatistics = {
+  items: {
+    id: string;
+    visits: number;
+    visitors: number;
+    new_conversations: number;
+    active: number;
+    queued: number;
+    closed: number;
+  }[];
+  timezone: string;
+};
 
 /** LinksPage 为独立业务入口维护路由范围并生成分享与嵌入内容。 */
 export function LinksPage() {
   const links = useResource<AccessLink>("/tenant/access-links");
+  const [statistics, setStatistics] = useState<{ tenantId: string; data: LinkStatistics } | null>(
+    null,
+  );
+  const [statisticsError, setStatisticsError] = useState<unknown>(null);
+  const [statisticsRevision, setStatisticsRevision] = useState(0);
+  useEffect(() => {
+    if (!links.tenantId) return;
+    const controller = new AbortController();
+    /** loadStatistics 读取租户当地今日的入口访问计数，列表无需逐个链接请求。 */
+    const loadStatistics = serialPoll(controller.signal, async () => {
+      try {
+        const data = await api<LinkStatistics>("/tenant/link-statistics", {
+          tenantId: links.tenantId,
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
+          setStatistics({ tenantId: links.tenantId, data });
+          setStatisticsError(null);
+        }
+      } catch (problem) {
+        if (!controller.signal.aborted) setStatisticsError(problem);
+      }
+    });
+    void loadStatistics();
+    const timer = setInterval(() => void loadStatistics(), 30000);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [links.tenantId, statisticsRevision]);
+  const currentStatistics = statistics?.tenantId === links.tenantId ? statistics.data : null;
+  const metrics = new Map(currentStatistics?.items.map((item) => [item.id, item]) || []);
   const groups = useResource<Resource>("/tenant/groups");
   const pools = useResource<Resource>("/tenant/routing-pools");
   const skills = useResource<Resource>("/tenant/routing-skills");
@@ -79,7 +124,7 @@ export function LinksPage() {
           }
         : {
             status: "active",
-            agent_mode: "prefer",
+            agent_mode: "strict",
             reception_mode: "auto",
             channel_tags: [],
             required_skill_ids: [],
@@ -96,7 +141,7 @@ export function LinksPage() {
       await api(`/tenant/access-links${editing ? `/${editing.id}` : ""}`, {
         method: editing ? "PATCH" : "POST",
         tenantId: links.tenantId,
-        bodyJSON: values,
+        bodyJSON: { ...values, agent_mode: "strict" },
         idempotent: true,
       });
       message.success("接入链接已保存");
@@ -145,14 +190,55 @@ export function LinksPage() {
       ),
     },
     {
-      title: "客服业务组",
-      dataIndex: "service_group_id",
-      render: (value) => groups.items.find((item) => item.id === value)?.name || "默认范围",
+      title: "接待范围",
+      key: "routing",
+      render: (_, row) => (
+        <>
+          <div>
+            {groups.items.find((item) => item.id === row.service_group_id)?.name || "默认范围"}
+          </div>
+          <div className="muted" style={{ fontSize: 12 }}>
+            {pools.items.find((item) => item.id === row.routing_pool_id)?.name || "默认分配"}
+          </div>
+        </>
+      ),
     },
     {
-      title: "分配池",
-      dataIndex: "routing_pool_id",
-      render: (value) => pools.items.find((item) => item.id === value)?.name || "默认分配",
+      title: "今日访客",
+      key: "visitors",
+      width: 110,
+      render: (_, row) => (
+        <>
+          <strong>{metrics.get(row.id)?.visitors ?? "—"}</strong>
+          <div className="muted" style={{ fontSize: 12 }}>
+            访问 {metrics.get(row.id)?.visits ?? "—"} 次
+          </div>
+        </>
+      ),
+    },
+    {
+      title: "今日咨询",
+      key: "conversations",
+      width: 110,
+      render: (_, row) => (
+        <>
+          <strong>{metrics.get(row.id)?.new_conversations ?? "—"}</strong>
+          <div className="muted" style={{ fontSize: 12 }}>
+            结束 {metrics.get(row.id)?.closed ?? "—"}
+          </div>
+        </>
+      ),
+    },
+    {
+      title: "当前状态",
+      key: "current",
+      width: 120,
+      render: (_, row) => (
+        <div style={{ fontSize: 12 }}>
+          接待 {metrics.get(row.id)?.active ?? "—"}
+          <div className="muted">排队 {metrics.get(row.id)?.queued ?? "—"}</div>
+        </div>
+      ),
     },
     {
       title: "渠道标识",
@@ -200,13 +286,28 @@ export function LinksPage() {
   return (
     <section className="console-screen console-links">
       <PageTitle
-        title="接入链接"
+        title="接入管理"
         description="不同入口分别配置接待范围、来源和品牌页面，电脑与手机都能打开。"
         action={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => edit(null)}>
             创建接入链接
           </Button>
         }
+      />
+      <p className="muted" style={{ fontSize: 12 }}>
+        今日数据按{currentStatistics?.timezone || "租户当地时区"}
+        统计，每30秒更新。访客按实际访问入口去重，咨询按创建入口统计。{" "}
+        <Button
+          type="link"
+          size="small"
+          onClick={() => setStatisticsRevision((value) => value + 1)}
+        >
+          刷新数据
+        </Button>
+      </p>
+      <ErrorNotice
+        error={statisticsError}
+        retry={() => setStatisticsRevision((value) => value + 1)}
       />
       <div className="table-card">
         <ErrorNotice error={links.error} retry={links.reload} />
@@ -215,7 +316,7 @@ export function LinksPage() {
           columns={columns}
           dataSource={links.items}
           loading={links.loading}
-          scroll={{ x: 950 }}
+          scroll={{ x: 1320 }}
           locale={{ emptyText: <EmptyData text="创建第一个链接，开始接待客户。" /> }}
         />
       </div>
@@ -300,14 +401,9 @@ export function LinksPage() {
                 .map((item) => ({ label: item.display_name || item.email, value: item.id }))}
             />
           </Form.Item>
-          <Form.Item name="agent_mode" label="指定客服不可用时">
-            <Select
-              options={[
-                { label: "优先指定客服，允许规则内兜底", value: "prefer" },
-                { label: "严格等待指定客服", value: "strict" },
-              ]}
-            />
-          </Form.Item>
+          <p className="form-hint">
+            指定客服优先于历史客服。指定客服离线时访客无法进入；历史客服离线才回到正常分配。
+          </p>
           <Form.Item
             name="channel_code"
             label="主渠道标识"

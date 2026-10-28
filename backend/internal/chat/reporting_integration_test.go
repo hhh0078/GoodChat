@@ -65,7 +65,7 @@ func TestReportingSourceMatchesChatAndCSV(t *testing.T) {
 	status, reply = f.request("GET", "/api/v1/tenant/statistics?"+period, f.owner, "", nil)
 	statistics := mustData(t, status, reply)
 	overview := statistics["overview"].(map[string]any)
-	if overview["visitors"] != float64(3) || overview["contacts"] != float64(3) || overview["conversations"] != float64(4) || overview["messages"] != float64(3) || overview["closed"] != float64(1) || overview["queued"] != float64(3) {
+	if overview["visitors"] != float64(3) || overview["contacts"] != float64(3) || overview["conversations"] != float64(4) || overview["messages"] != float64(3) || overview["closed"] != float64(1) || overview["queued"] != float64(2) || overview["active"] != float64(1) {
 		t.Fatalf("真实访问与咨询去重或公开消息统计错误: %+v", overview)
 	}
 	if f.countRows("SELECT count(*) FROM contact_visits") != 5 {

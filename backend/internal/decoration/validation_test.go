@@ -118,14 +118,19 @@ func TestSchemaEscapesTenantText(t *testing.T) {
 	}
 }
 
-// TestSchemaUsesVisibleNativeFileInput 禁止再次退回隐藏输入或仅依赖脚本代点的跨来源附件控件。
-func TestSchemaUsesVisibleNativeFileInput(t *testing.T) {
+// TestSchemaCapsuleAttachmentChooser 验证新胶囊用单一选择器承接三种明确用户点击，下载仍由可信父层确认。
+func TestSchemaCapsuleAttachmentChooser(t *testing.T) {
 	var schema Schema
 	_ = json.Unmarshal(defaultDesign("schema", "附件控件测试"), &schema)
 	code := schemaCode(schema, false)
 	input := regexp.MustCompile(`<input[^>]*id="gc-file"[^>]*>`).FindString(code.HTML)
-	if input == "" || strings.Contains(input, "hidden") || !strings.Contains(input, `type="file"`) || strings.Contains(code.HTML, `id="gc-upload"`) {
-		t.Fatal("添加附件必须使用单一可见原生文件输入，不依赖隐藏控件代点")
+	if input == "" || !strings.Contains(input, "hidden") || !strings.Contains(input, `type="file"`) || strings.Count(code.HTML, `type="file"`) != 1 {
+		t.Fatal("胶囊附件菜单应复用单一系统文件选择器")
+	}
+	for _, marker := range []string{`id="gc-add"`, `data-kind="image"`, `data-kind="file"`, `data-kind="video"`, `aria-label="发送消息"`} {
+		if !strings.Contains(code.HTML, marker) {
+			t.Fatalf("缺少胶囊或附件菜单标记：%s", marker)
+		}
 	}
 	if !strings.Contains(code.Javascript, "saveAttachment") || strings.Contains(code.Javascript, "element.download") {
 		t.Fatal("沙箱文件保存必须通过可信父层，不创建子页下载链接")

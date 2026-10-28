@@ -72,6 +72,7 @@ func New(pool *pgxpool.Pool, auth platform.Authorizer, cfg platform.Config) *Ser
 // Register 注册真实持久化资源、访客、会话及实时接口。
 func (s *Service) Register(mux *http.ServeMux) {
 	s.registerAvatars(mux)
+	s.registerAttention(mux)
 	s.registerOperations(mux)
 	s.registerAutomationRich(mux)
 	s.registerAsyncExports(mux)

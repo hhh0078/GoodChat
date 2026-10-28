@@ -1,6 +1,6 @@
 /** 文件作用说明：提供真实接口驱动的通用资源列表、表单编辑与归档交互。 */
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   App,
   Button,
@@ -41,6 +41,10 @@ type Props = {
   help?: string;
   onChanged?: () => void;
   canEdit?: (item: Resource) => boolean;
+  searchOptions?: { value: string; label: string }[];
+  tools?: ReactNode;
+  canCreate?: boolean;
+  tableMinWidth?: number;
 };
 /** ResourcePanel 使用统一状态维护资源的查询、新增、编辑与归档。 */
 export function ResourcePanel({
@@ -52,9 +56,21 @@ export function ResourcePanel({
   help,
   onChanged,
   canEdit,
+  searchOptions,
+  tools,
+  canCreate = true,
+  tableMinWidth = 640,
 }: Props) {
-  const resource = useResource<Resource>(path, platform);
   const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [searchField, setSearchField] = useState("all");
+  const resource = useResource<Resource>(
+    path +
+      (searchOptions
+        ? `?${new URLSearchParams({ query: submittedQuery, search_field: searchField })}`
+        : ""),
+    platform,
+  );
   const [editing, setEditing] = useState<Resource | null | undefined>();
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<unknown>(null);
@@ -62,10 +78,12 @@ export function ResourcePanel({
   const { message } = App.useApp();
   const visible = useMemo(
     () =>
-      resource.items.filter((item) =>
-        JSON.stringify(item).toLowerCase().includes(query.toLowerCase()),
-      ),
-    [resource.items, query],
+      searchOptions
+        ? resource.items
+        : resource.items.filter((item) =>
+            JSON.stringify(item).toLowerCase().includes(query.toLowerCase()),
+          ),
+    [resource.items, query, searchOptions],
   );
   /** openEditor 初始化字段默认值，保留已有字段内容。 */
   function openEditor(item: Resource | null) {
@@ -155,6 +173,18 @@ export function ResourcePanel({
   return (
     <section className="console-resource-panel">
       <div className="resource-tools">
+        {searchOptions && (
+          <Select
+            aria-label="客户搜索类型"
+            value={searchField}
+            options={searchOptions}
+            style={{ minWidth: 128 }}
+            onChange={(value) => {
+              setSearchField(value);
+              setSubmittedQuery(query);
+            }}
+          />
+        )}
         <Input.Search
           aria-label={`搜索${title}`}
           placeholder={`搜索${title}`}
@@ -162,10 +192,14 @@ export function ResourcePanel({
           allowClear
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onSearch={(value) => setSubmittedQuery(value)}
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor(null)}>
-          新增{title}
-        </Button>
+        {canCreate && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor(null)}>
+            新增{title}
+          </Button>
+        )}
+        {tools}
       </div>
       {help && (
         <p className="muted" style={{ fontSize: 13 }}>
@@ -178,7 +212,7 @@ export function ResourcePanel({
         columns={tableColumns}
         dataSource={visible}
         loading={resource.loading}
-        scroll={{ x: 640 }}
+        scroll={{ x: tableMinWidth }}
         locale={{ emptyText: <EmptyData text={`还没有${title}，可以先创建一条。`} /> }}
         pagination={{
           pageSize: 10,

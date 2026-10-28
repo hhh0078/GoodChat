@@ -49,5 +49,10 @@ func conversationJSONForActor(ctx context.Context, tx pgx.Tx, id string, a actor
 	if err := addPendingTransfers(ctx, tx, []map[string]any{item}, a); err != nil {
 		return nil, err
 	}
+	scope, err := historyScope(ctx, tx, a, id)
+	if err != nil {
+		return nil, err
+	}
+	item["history_scope"] = scope
 	return item, nil
 }

@@ -7,6 +7,7 @@
   const input = document.getElementById("gc-text");
   const send = document.getElementById("gc-send");
   const file = document.getElementById("gc-file");
+  const add = document.getElementById("gc-add"), attachmentMenu = document.getElementById("gc-attachment-menu");
   const typing = document.getElementById("gc-typing");
   const error = document.getElementById("gc-error");
   const replyBar = document.getElementById("gc-reply-bar");
@@ -15,6 +16,7 @@
   let state = null, composing = false, ready = false, busy = false, readSeq = 0n;
   let urls = [], retry = null, reply = null, lastTyping = 0, typingTimer = null, messageSignature = "";
   const avatarFiles = new Map();
+  let selectedMessage = "";
 
   /** 从可信父层读取受控头像Blob，在本沙箱生成图片地址，不放宽CSP或读取任意网络网址。 */
   function messageAvatar(meta, item) {
@@ -104,7 +106,7 @@
       urls.push(objectURL);
       let element;
       if (String(item.content_type || "").startsWith("image/")) { element = document.createElement("img"); element.alt = item.file_name || "图片消息"; element.src = objectURL; }
-      else { element = document.createElement("audio"); element.controls = true; element.src = objectURL; }
+      else { element = document.createElement(item.content_type.startsWith("video/") && item.message_type !== "audio" ? "video" : "audio"); element.controls = true; element.playsInline = true; element.src = objectURL; }
       node.textContent = ""; node.append(element);
     } catch (problem) {
       if (!node.isConnected) return;
@@ -120,7 +122,7 @@
   function attachment(node, item) {
     const container = document.createElement("div"); container.className = "gc-attachment"; node.append(container);
     attachmentSave(container, item);
-    if (String(item.content_type || "").startsWith("image/") || String(item.content_type || "").startsWith("audio/") || item.content_type === "video/webm") {
+    if (String(item.content_type || "").startsWith("image/") || String(item.content_type || "").startsWith("audio/") || String(item.content_type || "").startsWith("video/")) {
       const preview = document.createElement("div"); preview.className = "gc-attachment-preview"; container.append(preview); void attachmentPreview(preview, item);
     }
   }
@@ -150,7 +152,7 @@
 
   /** 欢迎选项按普通访客文字发送，沿用服务端持久UUID使连点和刷新保持幂等。 */
   function welcomeOptions(node, item) {
-    if (item.sender_kind !== "system" || !Array.isArray(item.options)) return;
+    if (!["system","agent"].includes(item.sender_kind) || !Array.isArray(item.options)) return;
     const options = document.createElement("div");
     for (const option of item.options.slice(0, 8)) {
       if (typeof option.label !== "string" || typeof option.value !== "string" || !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(option.client_message_id || "")) continue;
@@ -180,6 +182,7 @@
   function messageElement(item) {
     const own = item.is_own === true, system = item.sender_kind === "system";
     const row = document.createElement("div"); row.className = `gc-message-row${own ? " gc-own" : ""}${system ? " gc-system" : ""}`;
+    row.dataset.clientMessageId = item.client_message_id || ""; row.dataset.messageId = item.id;
     const meta = document.createElement("div"); meta.className = "gc-message-meta";
     const name = document.createElement("span"); name.textContent = author(item); meta.append(name, timeElement(item.created_at)); row.append(meta); messageAvatar(meta,item);
     const bubble = document.createElement("div"); bubble.className = "gc-message";
@@ -188,12 +191,20 @@
     else {
       if (item.reply) { const quote = document.createElement("blockquote"); quote.className = "gc-reply"; quote.textContent = `引用：${item.reply.withdrawn ? "消息已撤回" : item.reply.content || "附件消息"}`; bubble.append(quote); }
       const body = document.createElement("div"); body.className = "gc-message-body"; const text = item.text ?? item.content ?? ""; body.textContent = typeof text === "string" ? text : ""; bubble.append(body);
-      if (item.attachment) attachment(bubble, item.attachment);
+      if (item.attachment) attachment(bubble, { ...item.attachment, message_type:item.message_type });
       welcomeOptions(bubble, item);
     }
     row.append(bubble);
     if (own && !withdrawn) { const receipt = document.createElement("div"); receipt.className = "gc-read-status"; receipt.dataset.seq = String(item.seq || item.event_seq || "0"); row.append(receipt); }
-    const actions = document.createElement("div"); actions.className = "gc-message-actions"; renderActions(actions, item); row.append(actions);
+    const actions = document.createElement("div"); actions.className = "gc-message-actions"; actions.hidden = selectedMessage !== item.id; renderActions(actions, item); row.append(actions);
+    /** select 只在选择消息本身时展示引用撤回，媒体及选项保持自身点击行为。 */
+    function select(event) {
+      if (withdrawn || event.target.closest("button,audio,video,a,input,.gc-attachment")) return;
+      selectedMessage = selectedMessage === item.id ? "" : item.id;
+      for (const menu of messages.querySelectorAll(".gc-message-actions")) menu.hidden = menu.parentElement.dataset.messageId !== selectedMessage;
+    }
+    bubble.tabIndex = withdrawn ? -1 : 0; bubble.onclick = select;
+    bubble.onkeydown = event => { if (event.target === bubble && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); select(event); } };
     return row;
   }
 
@@ -221,19 +232,22 @@
     const replyID = reply?.id;
     const operation = retry && retry.text === text && retry.replyID === replyID ? retry : { text, id: crypto.randomUUID(), replyID };
     retry = operation;
-    try { await chat.sendText(operation.text, operation.id, operation.replyID); input.value = ""; retry = null; cancelReply(); void chat.typing(false).catch(() => {}); render(await chat.getState()); }
+    try { const saved = chat.sendText(operation.text, operation.id, operation.replyID); if (typeof chat.animateSend === "function") chat.animateSend({input,messages,client_message_id:operation.id,text:operation.text,after:saved}); await saved; input.value = ""; input.style.height="auto"; retry = null; cancelReply(); void chat.typing(false).catch(() => {}); render(await chat.getState()); }
     catch (problem) { showError(problem); }
     finally { busy = false; updateComposer(); }
   }
 
   /** 仅上报输入与停止状态，不传递任何未发送正文。 */
   function inputActivity() {
+    input.style.height="auto"; input.style.height=`${Math.min(input.scrollHeight,120)}px`;
     clearTimeout(typingTimer);
     if (!input.value) { void chat.typing(false).catch(() => {}); return; }
     if (Date.now() - lastTyping >= 2500) { lastTyping = Date.now(); void chat.typing(true).catch(() => {}); }
     typingTimer = setTimeout(() => { void chat.typing(false).catch(() => {}); }, 3000);
   }
 
+  add.onclick = () => { attachmentMenu.hidden = !attachmentMenu.hidden; add.setAttribute("aria-expanded",String(!attachmentMenu.hidden)); };
+  for (const button of attachmentMenu.querySelectorAll("button")) button.onclick = () => { file.accept = button.dataset.kind === "image" ? "image/*" : button.dataset.kind === "video" ? "video/*" : ""; attachmentMenu.hidden=true; add.setAttribute("aria-expanded","false"); file.click(); };
   send.onclick = () => { void submit(); };
   document.getElementById("gc-reply-cancel").onclick = cancelReply;
   input.addEventListener("compositionstart", () => { composing = true; });

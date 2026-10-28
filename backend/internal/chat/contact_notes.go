@@ -67,8 +67,8 @@ func (s *Service) contactNotes(w http.ResponseWriter, r *http.Request) {
  UNION ALL
  SELECT m.id,m.content,m.created_at,coalesce(nullif(tm.display_name,''),u.display_name,'历史客服') author_name,m.message_type,c.id conversation_id,
  CASE WHEN f.id IS NOT NULL THEN jsonb_build_object('file_name',f.file_name,'content_type',f.content_type,'size_bytes',f.size_bytes,'download_path','/tenant/contacts/'||c.contact_id::text||'/notes/'||m.id::text||'/attachment') ELSE NULL END attachment
- FROM messages m JOIN conversations c ON c.id=m.conversation_id AND c.tenant_id=m.tenant_id LEFT JOIN tenant_memberships tm ON tm.id=m.sender_id AND tm.tenant_id=m.tenant_id LEFT JOIN users u ON u.id=tm.user_id LEFT JOIN attachments f ON f.id=m.attachment_id AND f.tenant_id=m.tenant_id WHERE c.contact_id=$1 AND m.audience='internal' AND m.withdrawn_at IS NULL
- ) n WHERE ($2='' OR (n.created_at,n.id)<(NULLIF($2,'')::timestamptz,NULLIF($3,'')::uuid)) ORDER BY n.created_at DESC,n.id DESC LIMIT $4`, contact, before, beforeID, limit+1)
+ FROM messages m JOIN conversations c ON c.id=m.conversation_id AND c.tenant_id=m.tenant_id LEFT JOIN tenant_memberships tm ON tm.id=m.sender_id AND tm.tenant_id=m.tenant_id LEFT JOIN users u ON u.id=tm.user_id LEFT JOIN attachments f ON f.id=m.attachment_id AND f.tenant_id=m.tenant_id WHERE c.contact_id=$1 AND m.audience='internal' AND m.withdrawn_at IS NULL AND chat_message_visible(NULLIF($5,'')::uuid,NULL,$6,m.id)
+ ) n WHERE ($2='' OR (n.created_at,n.id)<(NULLIF($2,'')::timestamptz,NULLIF($3,'')::uuid)) ORDER BY n.created_at DESC,n.id DESC LIMIT $4`, contact, before, beforeID, limit+1, a.MemberID, isAdmin(a))
 		if err != nil {
 			return err
 		}

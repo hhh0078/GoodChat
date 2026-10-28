@@ -919,3 +919,43 @@
     min-height: 180px;
   }
 }
+
+/* 客户表把身份、业务值和时间各自合并，名称下直接显示电话。 */
+.contact-list-identity,
+.contact-list-times {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.contact-list-identity > span,
+.contact-list-identity > small,
+.contact-list-times {
+  font-size: 12px;
+  color: var(--muted);
+}
+.contact-list-identity > strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+.contact-list-information {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 480px;
+}
+.contact-list-information .ant-tag {
+  margin-bottom: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.console-contacts .resource-tools {
+  justify-content: flex-start;
+  gap: 8px;
+}
+@media (max-width: 600px) {
+  .console-contacts .resource-tools > .ant-input-search {
+    flex: 1;
+    min-width: 150px;
+  }
+}

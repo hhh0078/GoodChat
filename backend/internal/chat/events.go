@@ -36,11 +36,17 @@ type syncCursor struct {
 	Conversation string `json:"c"`
 	Actor        string `json:"a"`
 	Seq          int64  `json:"s"`
+	Scope        string `json:"v,omitempty"`
 }
 
 // encodeCursor 签名游标，避免客户端自行拼接越过未完成扫描的位置。
 func (s *Service) encodeCursor(a actor, conversation string, seq int64) string {
-	raw := jsonValue(syncCursor{conversation, a.TenantID + actorKind(a) + actorID(a) + a.Role, seq})
+	return s.encodeScopedCursor(a, conversation, seq, "")
+}
+
+// encodeScopedCursor 将历史分享策略与接待段指纹纳入服务端签名，禁止旧范围缓存继续推进。
+func (s *Service) encodeScopedCursor(a actor, conversation string, seq int64, scope string) string {
+	raw := jsonValue(syncCursor{Conversation: conversation, Actor: a.TenantID + actorKind(a) + actorID(a) + a.Role, Seq: seq, Scope: scope})
 	mac := hmac.New(sha256.New, s.cursorKey)
 	mac.Write(raw)
 	return base64.RawURLEncoding.EncodeToString(raw) + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
@@ -70,16 +76,21 @@ func (s *Service) decodeCursor(a actor, conversation, text string) (int64, error
 func (s *Service) events(w http.ResponseWriter, r *http.Request) {
 	a := currentActor(r)
 	id := r.PathValue("id")
-	after, err := s.decodeCursor(a, id, r.URL.Query().Get("after_cursor"))
-	if err != nil {
-		replyError(w, r, err)
-		return
-	}
 	var items []map[string]any
 	var watermark, end int64
-	err = platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
+	scope := ""
+	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
 		ctx := r.Context()
 		if err := canReadConversation(ctx, tx, a, id); err != nil {
+			return err
+		}
+		var err error
+		scope, err = historyScope(ctx, tx, a, id)
+		if err != nil {
+			return err
+		}
+		after, err := s.decodeHistoryCursor(a, id, r.URL.Query().Get("after_cursor"), scope)
+		if err != nil {
 			return err
 		}
 		if err := tx.QueryRow(ctx, "SELECT next_event_seq FROM conversations WHERE id=$1", id).Scan(&watermark); err != nil {
@@ -92,16 +103,25 @@ func (s *Service) events(w http.ResponseWriter, r *http.Request) {
 		if end > watermark {
 			end = watermark
 		}
-		rows, err := tx.Query(ctx, "SELECT to_jsonb(e)||jsonb_build_object('seq',e.seq::text,'protocol_version',1) FROM conversation_events e WHERE conversation_id=$1 AND seq>$2 AND seq<=$3 AND (audience='public' OR $4) ORDER BY seq", id, after, end, a.ContactID == "")
+		rows, err := tx.Query(ctx, "SELECT to_jsonb(e)||jsonb_build_object('seq',e.seq::text,'protocol_version',1) FROM conversation_events e WHERE conversation_id=$1 AND seq>$2 AND seq<=$3 AND chat_event_visible(NULLIF($4,'')::uuid,NULLIF($5,'')::uuid,$6,e.id) ORDER BY seq", id, after, end, a.MemberID, a.ContactID, isAdmin(a))
 		if err != nil {
 			return err
 		}
 		items, err = jsonRows(rows)
-		return err
+		if err != nil {
+			return err
+		}
+		messages := []map[string]any{}
+		for _, event := range items {
+			if payload, ok := event["payload"].(map[string]any); ok {
+				messages = append(messages, payload)
+			}
+		}
+		return redactMessageReplies(ctx, tx, a, messages)
 	})
 	if err != nil {
 		replyError(w, r, err)
 		return
 	}
-	platform.JSON(w, 200, map[string]any{"items": items, "next_cursor": s.encodeCursor(a, id, end), "watermark": strconv.FormatInt(watermark, 10), "has_more": end < watermark})
+	platform.JSON(w, 200, map[string]any{"items": items, "next_cursor": s.encodeScopedCursor(a, id, end, scope), "watermark": strconv.FormatInt(watermark, 10), "has_more": end < watermark, "history_scope": scope})
 }

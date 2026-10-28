@@ -9,9 +9,11 @@ import type { ChatIdentity } from "./use-chat";
 export function AttachmentView({
   attachment,
   identity,
+  messageType,
 }: {
   attachment: { id: string; file_name: string; content_type: string };
   identity: ChatIdentity;
+  messageType?: string;
 }) {
   const [url, setURL] = useState("");
   const [failed, setFailed] = useState(false);
@@ -61,8 +63,22 @@ export function AttachmentView({
         style={{ maxWidth: 260, maxHeight: 260, objectFit: "contain" }}
       />
     );
-  if (attachment.content_type.startsWith("audio/") || attachment.content_type === "video/webm")
+  if (
+    attachment.content_type.startsWith("audio/") ||
+    (attachment.content_type === "video/webm" && messageType !== "file")
+  )
     return <VoiceCard url={url} name={attachment.file_name} />;
+  if (attachment.content_type.startsWith("video/"))
+    return (
+      <video
+        className="message-video"
+        src={url}
+        controls
+        playsInline
+        preload="metadata"
+        aria-label={attachment.file_name}
+      />
+    );
   return (
     <Button icon={<DownloadOutlined />} href={url} download={attachment.file_name}>
       {attachment.file_name}

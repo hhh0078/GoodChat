@@ -84,17 +84,14 @@ func (s *Service) assignLocked(ctx context.Context, tx pgx.Tx, tenant, id, reque
 		}
 		return nil
 	}
-	if v.Algorithm == "manual" && !manual {
-		return nil
-	}
 	items, err := routingCandidates(ctx, tx, v)
 	if err != nil {
 		return err
 	}
 	reason := "algorithm"
 	if requested != "" {
-		if v.Desired != "" && v.Mode == "strict" && requested != v.Desired {
-			return platform.Fail(409, "strict_target_required", "此咨询严格等待指定客服，不能由其他客服领取")
+		if v.Desired != "" && requested != v.Desired {
+			return platform.Fail(409, "strict_target_required", "此咨询等待指定客服，不能由其他客服领取")
 		}
 		found := []routeCandidate{}
 		for _, item := range items {
@@ -117,7 +114,7 @@ func (s *Service) assignLocked(ctx context.Context, tx pgx.Tx, tenant, id, reque
 		if len(desired) > 0 {
 			items = desired
 			reason = "specified"
-		} else if v.Desired != "" && v.Mode == "strict" {
+		} else if v.Desired != "" {
 			return nil
 		} else {
 			items, reason, err = preferredCandidates(ctx, tx, v, items)
@@ -125,6 +122,9 @@ func (s *Service) assignLocked(ctx context.Context, tx pgx.Tx, tenant, id, reque
 				return err
 			}
 		}
+	}
+	if v.Algorithm == "manual" && !manual && reason == "algorithm" {
+		return nil
 	}
 	if len(items) == 0 {
 		return nil

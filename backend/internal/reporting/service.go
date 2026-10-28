@@ -32,6 +32,8 @@ func (s *Service) SetFeatureChecker(checker func(context.Context, pgx.Tx, string
 func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/tenant/statistics", s.auth.RequireAdmin(s.statistics))
 	mux.HandleFunc("GET /api/v1/platform/overview", s.auth.RequirePlatform(s.overview))
+	mux.HandleFunc("GET /api/v1/tenant/member-statistics", s.auth.RequireAdmin(s.memberStatistics))
+	mux.HandleFunc("GET /api/v1/tenant/link-statistics", s.auth.RequireAdmin(s.linkStatistics))
 }
 
 // statistics 按创建咨询和发送消息分别统计，系统自动消息不计人工首响。

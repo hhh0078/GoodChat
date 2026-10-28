@@ -1,6 +1,7 @@
 /** 文件作用说明：维护真实访客进入回调配置、投递日志和当前账号设备退出。 */
 "use client";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Alert,
   App,
@@ -22,6 +23,8 @@ import { useSession } from "@/features/auth/session";
 import { useResource } from "@/lib/use-resource";
 import type { Resource } from "@/lib/types";
 import { AvatarSettings } from "./avatar-settings";
+import { TenantReminders } from "./tenant-reminders";
+import { VisitorRoutingSettings } from "./visitor-routing-settings";
 import { ErrorNotice, PageTitle, EmptyData } from "@/components/page-state";
 
 type CallbackSettings = {
@@ -39,6 +42,21 @@ export function SettingsPage() {
   const manages = current.memberships.some(
     (member) => member.tenant_id === tenantId && ["owner", "admin"].includes(member.role),
   );
+  const search = useSearchParams();
+  const requestedTab = search.get("tab");
+  const [activeTab, setActiveTab] = useState(manages ? "callback" : "account");
+  useEffect(() => {
+    setActiveTab(
+      manages &&
+        ["callback", "deliveries", "avatars", "reminders", "routing", "account"].includes(
+          requestedTab || "",
+        )
+        ? requestedTab!
+        : requestedTab === "account" || !manages
+          ? "account"
+          : "callback",
+    );
+  }, [tenantId, manages, requestedTab]);
   const [form] = Form.useForm<CallbackSettings>();
   const [settings, setSettings] = useState<CallbackSettings | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -118,6 +136,8 @@ export function SettingsPage() {
         description="管理访客进入回调、查看投递结果和账号设备会话。"
       />
       <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
         items={[
           {
             key: "callback",
@@ -263,6 +283,16 @@ export function SettingsPage() {
             key: "avatars",
             label: "访客头像池",
             children: <AvatarSettings key={`${tenantId}.pool`} mode="pool" />,
+          },
+          {
+            key: "reminders",
+            label: "接待提醒",
+            children: <TenantReminders key={tenantId} />,
+          },
+          {
+            key: "routing",
+            label: "复访与历史",
+            children: <VisitorRoutingSettings key={tenantId} />,
           },
           {
             key: "account",

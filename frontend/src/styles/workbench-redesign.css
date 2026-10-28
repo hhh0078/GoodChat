@@ -1198,7 +1198,7 @@
 }
 .agent-layout .chat-composer.has-quick-replies {
   display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
+  grid-template-columns: var(--quick-reply-width, 168px) minmax(0, 1fr);
   gap: 12px;
   padding: 0;
 }
@@ -1534,13 +1534,13 @@
     grid-template-columns: 264px minmax(0, 1fr) 254px;
   }
   .agent-layout .chat-composer.has-quick-replies {
-    grid-template-columns: 140px minmax(0, 1fr);
+    grid-template-columns: var(--quick-reply-width, 140px) minmax(0, 1fr);
     gap: 8px;
   }
 }
 @media (max-width: 768px) {
   .agent-layout .chat-composer.has-quick-replies {
-    grid-template-columns: 116px minmax(0, 1fr);
+    grid-template-columns: var(--quick-reply-width, 116px) minmax(0, 1fr);
     gap: 8px;
   }
   .has-quick-replies .composer-input-area {
@@ -1717,4 +1717,106 @@
   .avatar-settings header p {
     font-size: 12px;
   }
+}
+
+/* 输入胶囊共用紧凑布局；发送只移动浮层，真实消息状态与布局保持稳定。 */
+.message-capsule {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--white, #fff);
+  min-height: 56px;
+}
+.message-capsule > .ant-input-textarea,
+.message-capsule > textarea {
+  flex: 1;
+  min-width: 0;
+}
+.message-capsule textarea.ant-input,
+.message-capsule > textarea.ant-input {
+  background: transparent;
+  border: 0;
+  box-shadow: none !important;
+  border-radius: 0;
+  resize: none;
+  padding: 8px 2px;
+  font-size: 14px;
+  line-height: 24px;
+}
+.message-capsule > .ant-btn {
+  flex-shrink: 0;
+  min-width: 36px;
+  height: 36px;
+}
+.agent-capsule > .ant-btn-primary {
+  min-width: 86px;
+  padding-inline: 18px;
+}
+.message-attachment-menu {
+  display: flex;
+  gap: 4px;
+}
+.message-attachment-menu .ant-btn {
+  height: 40px;
+}
+.message-send-flight {
+  max-width: none;
+  position: fixed;
+  z-index: 1100;
+  pointer-events: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  will-change: transform, opacity;
+  animation: none;
+  box-shadow: 0 3px 12px #1a38641a;
+  border: 1px solid var(--line);
+}
+.message-video {
+  display: block;
+  max-width: min(320px, 100%);
+  max-height: 300px;
+  border-radius: 10px;
+  background: #17212e;
+}
+.message-bubble.is-selectable {
+  cursor: pointer;
+}
+.message-bubble.is-selectable:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+.visitor-default .chat-composer {
+  padding: 12px 16px !important;
+}
+.agent-layout .chat-composer.has-quick-replies .composer-input-area {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+@media (max-width: 600px) {
+  .message-capsule {
+    gap: 4px;
+    padding: 6px;
+    border-radius: 25px;
+  }
+  .message-capsule textarea.ant-input {
+    font-size: 14px;
+  }
+  .agent-capsule > .ant-btn-primary {
+    min-width: 72px;
+    padding-inline: 12px;
+  }
+  .visitor-default .chat-composer {
+    padding: 10px !important;
+  }
+}
+.agent-layout .message-capsule textarea.ant-input {
+  min-height: 40px !important;
+  padding: 8px 2px !important;
+  line-height: 24px;
 }

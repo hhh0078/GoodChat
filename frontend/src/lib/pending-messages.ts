@@ -6,6 +6,8 @@ export type PendingMessage = {
   audience: string;
   attachment_id?: string;
   reply_to_id?: string;
+  quick_reply_id?: string;
+  quick_reply_version?: string;
 };
 type MessageStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const maxMessages = 100;
@@ -27,6 +29,15 @@ function cleanMessage(value: unknown): PendingMessage {
     !["public", "internal"].includes(item.audience)
   )
     throw new Error("待确认消息格式无效，请保留当前页面并联系管理员。");
+  if (
+    (item.quick_reply_id !== undefined || item.quick_reply_version !== undefined) &&
+    (typeof item.quick_reply_id !== "string" ||
+      !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(item.quick_reply_id) ||
+      typeof item.quick_reply_version !== "string" ||
+      !/^[1-9]\d{0,18}$/.test(item.quick_reply_version) ||
+      item.audience !== "public")
+  )
+    throw new Error("待确认话术缺少有效编号或版本，请保留原数据并重新核对。");
   return {
     client_message_id: item.client_message_id,
     content: item.content,
@@ -34,6 +45,10 @@ function cleanMessage(value: unknown): PendingMessage {
     audience: item.audience,
     ...(typeof item.attachment_id === "string" ? { attachment_id: item.attachment_id } : {}),
     ...(typeof item.reply_to_id === "string" ? { reply_to_id: item.reply_to_id } : {}),
+    ...(typeof item.quick_reply_id === "string" ? { quick_reply_id: item.quick_reply_id } : {}),
+    ...(typeof item.quick_reply_version === "string"
+      ? { quick_reply_version: item.quick_reply_version }
+      : {}),
   };
 }
 /** readPending 读取原会话完整暂存，损坏或受限存储明确报错而不默默丢弃内容。 */

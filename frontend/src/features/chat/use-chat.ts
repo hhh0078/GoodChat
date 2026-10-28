@@ -20,6 +20,8 @@ export type Outgoing = {
   audience: string;
   attachment_id?: string;
   reply_to_id?: string;
+  quick_reply_id?: string;
+  quick_reply_version?: string;
 };
 type ChatEvent = {
   id: string;
@@ -151,6 +153,10 @@ export function useChat(id: string, identity: ChatIdentity) {
             ) {
               cursor.current = "";
               seen.clear();
+              // 可见范围变更时先清除旧资料，重建失败也不能继续展示已无权的历史。
+              setMessages([]);
+              setConversation(null);
+              setSynced(false);
               await snapshot();
               continue;
             }
@@ -194,6 +200,11 @@ export function useChat(id: string, identity: ChatIdentity) {
         }
       } catch (problem) {
         if (!cancelled) {
+          if (problem instanceof ApiError && [401, 403, 404].includes(problem.status)) {
+            setMessages([]);
+            setConversation(null);
+            initialized = false;
+          }
           setError(problem);
           setLoading(false);
           setSynced(false);

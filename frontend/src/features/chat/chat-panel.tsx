@@ -1,17 +1,26 @@
 /** 文件作用说明：提供访客与客服共用的消息界面、幂等重试、附件、语音、引用与可见已读。 */
 "use client";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Alert, App, Avatar, Button, Input, Popconfirm, Space, Spin, Tooltip } from "antd";
-import { AudioOutlined, CloseOutlined, PaperClipOutlined, SendOutlined } from "@ant-design/icons";
+import { useEffect, useRef, useState } from "react";
+import { Alert, App, Button, Input, Popconfirm, Popover, Space, Spin } from "antd";
+import {
+  CloseOutlined,
+  FileOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  SendOutlined,
+  VideoCameraOutlined,
+} from "@ant-design/icons";
 import { ErrorNotice, EmptyData } from "@/components/page-state";
 import { errorMessage } from "@/lib/api";
 import type { ChatMessage } from "@/lib/types";
 import { useChat, type ChatIdentity, type Outgoing } from "./use-chat";
 import { MessageHistory } from "./message-history";
-import { insertReplyText } from "@/lib/workspace-display";
+import { animateMessageFlight } from "@/lib/message-flight";
+import type { QuickReply } from "@/lib/quick-replies";
 import { acknowledgePending, readPending, stagePending } from "@/lib/pending-messages";
 import { QuickReplies } from "./quick-replies";
-import { useVoiceRecorder } from "./use-voice-recorder";
+import { useVisitorReminders } from "./use-visitor-reminders";
+
 export const conversationStatus: Record<string, string> = {
   queued: "正在排队",
   assigned: "等待客服接单",
@@ -26,6 +35,7 @@ export function ChatPanel({
   onRead,
   readOnly = false,
   canManageReplies = false,
+  notificationSound,
 }: {
   id: string;
   identity: ChatIdentity;
@@ -33,19 +43,22 @@ export function ChatPanel({
   onRead?: () => void;
   readOnly?: boolean;
   canManageReplies?: boolean;
+  notificationSound?: string;
 }) {
   const chat = useChat(id, identity);
+  useVisitorReminders(chat.messages, {
+    enabled: identity.kind === "visitor",
+    loading: chat.loading || !chat.conversation,
+    conversationId: id,
+    sound: notificationSound,
+  });
   const { message } = App.useApp();
   const [draft, setDraft] = useState("");
   const audience = "public";
   const [pending, setPending] = useState<Outgoing[]>([]);
-  const [flight, setFlight] = useState<{
-    id: string;
-    content: string;
-    style: CSSProperties;
-  } | null>(null);
   const sendingLock = useRef(false);
-  const flightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flightCleanup = useRef<() => void>(() => {});
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const composerNode = useRef<HTMLDivElement | null>(null);
   const [reply, setReply] = useState<ChatMessage | null>(null);
   const [failed, setFailed] = useState<Outgoing[]>([]);
@@ -53,7 +66,6 @@ export function ChatPanel({
   const [storageWarning, setStorageWarning] = useState("");
   const [draftHydrated, setDraftHydrated] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const { recording, toggleRecording } = useVoiceRecorder((file) => uploadAndSend(file, "audio"));
   const [atBottom, setAtBottom] = useState(true);
   const [pageVisible, setPageVisible] = useState(false);
   const [readAttempt, setReadAttempt] = useState(0);
@@ -70,11 +82,12 @@ export function ChatPanel({
   const fileInput = useRef<HTMLInputElement | null>(null);
   const composing = useRef(false);
   const mounted = useRef(true);
-  const lastRead = useRef("0");
+  const lastRead = useRef("");
   const draftKey = `goodchat.draft.${identity.tenantId || "visitor"}.${identity.actorId}.${id}`;
   const scope = useRef(draftKey);
   scope.current = draftKey;
   const current = chat.conversation;
+  const readContext = `${current?.current_assignment_id || ""}:${current?.current_agent_id || ""}`;
   const visibleMessages = chat.messages.filter((item) => item.audience !== "internal");
   const confirmedIds = new Set(
     chat.messages
@@ -104,10 +117,10 @@ export function ChatPanel({
     }
     setDraftHydrated(true);
     setReply(null);
-    lastRead.current = "0";
+    lastRead.current = "";
     return () => {
       mounted.current = false;
-      if (flightTimer.current) clearTimeout(flightTimer.current);
+      flightCleanup.current();
     };
   }, [draftKey]);
   useEffect(() => {
@@ -157,8 +170,11 @@ export function ChatPanel({
     return () => observer.disconnect();
   }, [atBottom]);
   useEffect(() => {
-    const latest = visibleMessages.at(-1)?.seq || visibleMessages.at(-1)?.event_seq;
-    if (!latest || chat.loading || !atBottom || !pageVisible || lastRead.current === latest) return;
+    const latest =
+      visibleMessages.at(-1)?.seq || visibleMessages.at(-1)?.event_seq || (current ? "0" : "");
+    const readKey = `${readContext}:${latest}`;
+    if (!latest || chat.loading || !atBottom || !pageVisible || lastRead.current === readKey)
+      return;
     const controller = new AbortController();
     let retry: ReturnType<typeof setTimeout> | undefined;
     let frame = 0;
@@ -177,7 +193,7 @@ export function ChatPanel({
         frame = requestAnimationFrame(reportVisibleRead);
         return;
       }
-      lastRead.current = latest!;
+      lastRead.current = readKey;
       chat
         .request(`/conversations/${id}/read-cursor`, {
           method: "POST",
@@ -189,7 +205,7 @@ export function ChatPanel({
         })
         .catch(() => {
           if (controller.signal.aborted) return;
-          if (lastRead.current === latest) lastRead.current = "0";
+          if (lastRead.current === readKey) lastRead.current = "";
           retry = setTimeout(() => setReadAttempt((value) => value + 1), 4000);
         });
     }
@@ -198,12 +214,22 @@ export function ChatPanel({
       controller.abort();
       cancelAnimationFrame(frame);
       if (retry) clearTimeout(retry);
-      if (lastRead.current === latest) lastRead.current = "0";
+      if (lastRead.current === readKey) lastRead.current = "";
     };
-  }, [chat.messages, chat.loading, atBottom, pageVisible, id, chat.request, onRead, readAttempt]);
+  }, [
+    chat.messages,
+    chat.loading,
+    atBottom,
+    pageVisible,
+    id,
+    chat.request,
+    onRead,
+    readAttempt,
+    readContext,
+  ]);
   /** sendOutgoing 发送前同步保存原会话完整消息，确认后仅清理原编号，离开会话不丢失在途请求。 */
-  async function sendOutgoing(body: Outgoing, onQueued?: () => void) {
-    if (sendingLock.current) return;
+  async function sendOutgoing(body: Outgoing, onQueued?: () => void): Promise<boolean> {
+    if (sendingLock.current) return false;
     const operationScope = draftKey;
     const storageKey = `${operationScope}.pending`;
     /** isCurrent 拦截切换会话后的异步界面更新，存储清理仍使用原会话键。 */
@@ -213,7 +239,7 @@ export function ChatPanel({
     } catch (problem) {
       setStorageWarning(errorMessage(problem));
       message.error(errorMessage(problem));
-      return;
+      return false;
     }
     sendingLock.current = true;
     setSending(true);
@@ -227,20 +253,22 @@ export function ChatPanel({
       } catch (problem) {
         if (isCurrent()) setStorageWarning(errorMessage(problem));
       }
-      if (!isCurrent()) return;
+      if (!isCurrent()) return true;
       setFailed((previous) =>
         previous.filter((item) => item.client_message_id !== body.client_message_id),
       );
       chat.typing(false);
       setAtBottom(true);
+      return true;
     } catch (problem) {
-      if (!isCurrent()) return;
+      if (!isCurrent()) return false;
       setFailed((previous) =>
         previous.some((item) => item.client_message_id === body.client_message_id)
           ? previous
           : [...previous, body],
       );
       message.error(errorMessage(problem));
+      return false;
     } finally {
       sendingLock.current = false;
       if (isCurrent()) {
@@ -251,50 +279,41 @@ export function ChatPanel({
       }
     }
   }
-  /** animateText 以输入位置到消息区的短动画表达发送过程，不提前标记服务端成功。 */
-  function animateText(content: string, id: string) {
-    if (identity.kind !== "agent" || window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-      return;
-    const from = composerNode.current?.getBoundingClientRect();
-    const to = scroller.current?.getBoundingClientRect();
-    if (!from || !to) return;
-    if (flightTimer.current) clearTimeout(flightTimer.current);
-    setFlight({
-      id,
-      content,
-      style: {
-        left: from.left + Math.min(180, from.width / 3),
-        top: from.top + 24,
-        "--flight-x": `${to.right - Math.min(260, to.width / 2) - from.left - Math.min(180, from.width / 3)}px`,
-        "--flight-y": `${to.bottom - 64 - from.top - 24}px`,
-      } as CSSProperties,
-    });
-    flightTimer.current = setTimeout(() => setFlight(null), 340);
+  /** animateText 使用真实输入框与对应气泡布局，让客服和访客共享平滑发送效果。 */
+  function animateText(content: string, clientId: string) {
+    const root = scroller.current?.closest<HTMLElement>(".chat-thread");
+    const input = composerNode.current?.querySelector<HTMLElement>("textarea");
+    if (!root || !input) return;
+    flightCleanup.current();
+    flightCleanup.current = animateMessageFlight(root, input, clientId, content);
   }
-  /** sendQuickReply 双击或发送按钮直接发送独立文字，仍沿用当前会话权限和幂等编号。 */
-  function sendQuickReply(content: string) {
-    if (!content.trim() || sendingLock.current || !canSend) return;
-    const body = {
+  /** sendQuickReply 发送服务端模板引用，成功结果供快捷区刷新真实使用次数，保留未发送草稿。 */
+  async function sendQuickReply(item: QuickReply): Promise<boolean> {
+    if (sendingLock.current || !canSend) return false;
+    const body: Outgoing = {
       client_message_id: crypto.randomUUID(),
-      content,
-      message_type: "text",
+      quick_reply_id: item.id,
+      quick_reply_version: String(item.version),
+      content: item.content,
+      message_type: item.message_type,
       audience: "public",
+      ...(item.attachment_id ? { attachment_id: item.attachment_id } : {}),
     };
-    void sendOutgoing(body, () => {
-      animateText(content, body.client_message_id);
+    return sendOutgoing(body, () => {
+      if (item.content) animateText(item.content, body.client_message_id);
     });
+  }
+  /** chooseAttachment 仅改变系统文件选择器范围，具体文件内容与大小仍由服务端核验。 */
+  function chooseAttachment(kind: "image" | "file" | "video") {
+    const node = fileInput.current;
+    if (!node) return;
+    node.accept = kind === "image" ? "image/*" : kind === "video" ? "video/*" : "";
+    setAttachmentsOpen(false);
+    node.click();
   }
   /** sendText 从当前输入构建消息，引用内部备注时不允许发给访客。 */
   function sendText() {
-    if (
-      !draft.trim() ||
-      sendingLock.current ||
-      uploading ||
-      recording ||
-      !canSend ||
-      composing.current
-    )
-      return;
+    if (!draft.trim() || sendingLock.current || uploading || !canSend || composing.current) return;
     const body = {
       client_message_id: crypto.randomUUID(),
       content: draft,
@@ -345,6 +364,15 @@ export function ChatPanel({
   async function withdraw(item: ChatMessage) {
     try {
       await chat.withdraw(item.id);
+    } catch (problem) {
+      message.error(errorMessage(problem));
+    }
+  }
+  /** removeFailed 由用户明确移除本机待确认记录，不撤回或删除服务端已经保存的消息。 */
+  function removeFailed(clientId: string) {
+    try {
+      acknowledgePending(sessionStorage, `${draftKey}.pending`, [clientId]);
+      setFailed((previous) => previous.filter((item) => item.client_message_id !== clientId));
     } catch (problem) {
       message.error(errorMessage(problem));
     }
@@ -420,6 +448,7 @@ export function ChatPanel({
             <div
               className="message-row own message-pending"
               key={`pending-${item.client_message_id}`}
+              data-client-message-id={item.client_message_id}
             >
               <div className="message-bubble">{item.content || "附件消息"}</div>
               <span className="message-delivery">
@@ -446,22 +475,21 @@ export function ChatPanel({
               >
                 发送未确认，点击重试
               </Button>
+              <Popconfirm
+                title="移除本机重试记录？"
+                description="请先刷新核对。仅移除本机记录，服务端已保存的消息会保留。"
+                onConfirm={() => removeFailed(item.client_message_id)}
+              >
+                <Button size="small" type="text">
+                  移除记录
+                </Button>
+              </Popconfirm>
             </div>
           ))}
       </div>
       {chat.typingUntil > Date.now() && (
         <div style={{ fontSize: 12, color: "var(--muted)", padding: "0 20px 8px" }}>
           对方正在输入…
-        </div>
-      )}
-      {flight && (
-        <div
-          key={flight.id}
-          className="message-send-flight"
-          style={flight.style}
-          aria-hidden="true"
-        >
-          {flight.content.slice(0, 80)}
         </div>
       )}
       <div
@@ -471,8 +499,7 @@ export function ChatPanel({
           <QuickReplies
             tenantId={identity.tenantId}
             manages={canManageReplies}
-            disabled={sending || uploading || recording}
-            onInsert={(content) => setDraft((previous) => insertReplyText(previous, content))}
+            disabled={sending || uploading}
             onSend={sendQuickReply}
           />
         )}
@@ -502,77 +529,97 @@ export function ChatPanel({
                   />
                 </div>
               )}
-              <Input.TextArea
-                aria-label="消息内容"
-                autoSize={{ minRows: 2, maxRows: 4 }}
-                maxLength={10000}
-                value={draft}
-                placeholder="输入消息，Enter 发送，Shift + Enter 换行"
+              <input
+                hidden
+                type="file"
+                ref={fileInput}
                 onChange={(event) => {
-                  setDraft(event.target.value);
-                  chat.typing(!!event.target.value);
-                }}
-                onCompositionStart={() => {
-                  composing.current = true;
-                }}
-                onCompositionEnd={() => {
-                  composing.current = false;
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing &&
-                    !composing.current
-                  ) {
-                    event.preventDefault();
-                    sendText();
-                  }
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) void uploadAndSend(file);
                 }}
               />
-              <div className="composer-bottom">
-                <Space>
-                  <input
-                    hidden
-                    type="file"
-                    ref={fileInput}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      event.target.value = "";
-                      if (file) void uploadAndSend(file);
-                    }}
+              <div
+                className={`message-capsule ${identity.kind === "agent" ? "agent-capsule" : "visitor-capsule"}`}
+              >
+                <Popover
+                  trigger="click"
+                  placement="topLeft"
+                  open={attachmentsOpen}
+                  onOpenChange={setAttachmentsOpen}
+                  content={
+                    <div className="message-attachment-menu">
+                      <Button
+                        type="text"
+                        icon={<PictureOutlined />}
+                        onClick={() => chooseAttachment("image")}
+                      >
+                        图片
+                      </Button>
+                      <Button
+                        type="text"
+                        icon={<FileOutlined />}
+                        onClick={() => chooseAttachment("file")}
+                      >
+                        文件
+                      </Button>
+                      <Button
+                        type="text"
+                        icon={<VideoCameraOutlined />}
+                        onClick={() => chooseAttachment("video")}
+                      >
+                        视频
+                      </Button>
+                    </div>
+                  }
+                >
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<PlusOutlined />}
+                    aria-label="添加附件"
+                    loading={uploading}
+                    disabled={sending || uploading}
                   />
-                  <Tooltip title="图片或文件，最大 20MB">
-                    <Button
-                      size="small"
-                      icon={<PaperClipOutlined />}
-                      aria-label="上传图片或文件"
-                      disabled={sending || recording}
-                      loading={uploading}
-                      onClick={() => fileInput.current?.click()}
-                    />
-                  </Tooltip>
-                  <Tooltip title="最长 60 秒，点击停止后发送">
-                    <Button
-                      size="small"
-                      danger={recording}
-                      icon={<AudioOutlined />}
-                      aria-label={recording ? "停止并发送录音" : "开始录音"}
-                      disabled={sending || uploading}
-                      onClick={() => void toggleRecording()}
-                    >
-                      {recording ? "停止并发送" : ""}
-                    </Button>
-                  </Tooltip>
-                </Space>
+                </Popover>
+                <Input.TextArea
+                  aria-label="消息内容"
+                  autoSize={{ minRows: 1, maxRows: 4 }}
+                  maxLength={10000}
+                  value={draft}
+                  placeholder="输入消息…"
+                  onChange={(event) => {
+                    setDraft(event.target.value);
+                    chat.typing(!!event.target.value);
+                  }}
+                  onCompositionStart={() => {
+                    composing.current = true;
+                  }}
+                  onCompositionEnd={() => {
+                    composing.current = false;
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing &&
+                      !composing.current
+                    ) {
+                      event.preventDefault();
+                      sendText();
+                    }
+                  }}
+                />
                 <Button
                   type="primary"
+                  shape={identity.kind === "agent" ? "round" : "circle"}
                   icon={<SendOutlined />}
+                  aria-label="发送消息"
                   loading={sending}
-                  disabled={!draft.trim() || uploading || recording}
+                  disabled={!draft.trim() || uploading}
                   onClick={sendText}
                 >
-                  发送
+                  {identity.kind === "agent" ? "发送" : null}
                 </Button>
               </div>
             </>

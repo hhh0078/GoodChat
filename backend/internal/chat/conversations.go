@@ -34,7 +34,7 @@ func canReadConversation(ctx context.Context, tx pgx.Tx, a actor, id string) err
 		}
 	}
 	var ok bool
-	err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM conversations c WHERE c.id=$1 AND (c.contact_id=NULLIF($2,'')::uuid OR $3 OR c.current_agent_id=NULLIF($4,'')::uuid OR (c.status='queued' AND EXISTS(SELECT 1 FROM agent_group_members gm JOIN tenant_memberships mm ON mm.id=gm.membership_id AND mm.tenant_id=gm.tenant_id WHERE gm.group_id=c.service_group_id AND gm.membership_id=NULLIF($4,'')::uuid AND mm.can_serve AND NOT mm.disabled)) OR EXISTS(SELECT 1 FROM transfer_requests tr WHERE tr.conversation_id=c.id AND tr.target_agent_id=NULLIF($4,'')::uuid AND tr.status='pending' AND tr.expires_at>statement_timestamp())))", id, a.ContactID, isAdmin(a), a.MemberID).Scan(&ok)
+	err := tx.QueryRow(ctx, "SELECT chat_conversation_visible(NULLIF($4,'')::uuid,NULLIF($2,'')::uuid,$3,$1)", id, a.ContactID, isAdmin(a), a.MemberID).Scan(&ok)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (s *Service) listConversations(w http.ResponseWriter, r *http.Request, a ac
 			return err
 		}
 		// 未读按当前成员自己的已读游标计算，不能由管理员、其他客服或访客的读取代清。
-		unread := `||jsonb_build_object('unread_count',(SELECT count(*) FROM messages unread WHERE unread.tenant_id=c.tenant_id AND unread.conversation_id=c.id AND unread.audience='public' AND unread.sender_kind='visitor' AND unread.withdrawn_at IS NULL AND unread.event_seq>coalesce((SELECT rc.last_read_seq FROM read_cursors rc WHERE rc.tenant_id=c.tenant_id AND rc.conversation_id=c.id AND rc.participant_id=NULLIF($3,'')::uuid AND rc.participant_kind='agent'),0)))`
+		unread := `||jsonb_build_object('unread_count',(SELECT count(*) FROM messages unread WHERE unread.tenant_id=c.tenant_id AND unread.conversation_id=c.id AND unread.audience='public' AND unread.sender_kind='visitor' AND unread.withdrawn_at IS NULL AND chat_message_visible(NULLIF($3,'')::uuid,NULLIF($1,'')::uuid,$2,unread.id) AND unread.event_seq>coalesce((SELECT rc.last_read_seq FROM read_cursors rc WHERE rc.tenant_id=c.tenant_id AND rc.conversation_id=c.id AND rc.participant_id=NULLIF($3,'')::uuid AND rc.participant_kind='agent'),0)))`
 		query := "SELECT " + conversationProjection + unread + conversationJoins + conversationWhere + " ORDER BY coalesce(c.last_message_at,c.created_at) DESC,c.id LIMIT 200"
 		rows, err := tx.Query(r.Context(), query, args...)
 		if err != nil {

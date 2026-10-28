@@ -96,7 +96,7 @@ func TestContactNoteAttachmentCurrentScope(t *testing.T) {
 	}
 	status, reply = f.request("POST", "/api/v1/conversations/"+conversation+"/close", "", token, map[string]any{})
 	mustData(t, status, reply)
-	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": f.entry, "visitor_token": token, "visit_id": newID()})
+	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": f.entry, "visitor_token": token, "visit_id": newID(), "routing": map[string]any{"agent_id": f.agent}})
 	next := mustData(t, status, reply)["conversation"].(map[string]any)["id"].(string)
 	status, reply = f.request("POST", "/api/v1/conversations/"+next+"/assignments/claim", f.agent, "", map[string]any{})
 	mustData(t, status, reply)

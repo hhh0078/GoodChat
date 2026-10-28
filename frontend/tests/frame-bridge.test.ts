@@ -281,7 +281,7 @@ test("附件预览和下载确认只接受当前公开未撤回附件，不接�
     );
   }
 });
-test("欢迎选项只透出安全文案和服务端稳定编号，撤回或非系统消息不提供选项", () => {
+test("欢迎和客服选项只透出安全文案和稳定编号，撤回或访客消息不提供选项", () => {
   const item = {
     id: "welcome",
     sender_kind: "system",
@@ -301,6 +301,10 @@ test("欢迎选项只透出安全文案和服务端稳定编号，撤回或非�
   assert.equal(result.options?.[0].value, "实际访客内容");
   assert.equal(result.options?.[0].client_message_id, "11111111-2222-4333-8444-555555555555");
   assert.equal("internal_secret" in (result.options?.[0] || {}), false);
+  assert.equal(
+    publicBridgeMessage({ ...item, sender_kind: "agent" }, "visitor-a").options?.[0].label,
+    "<script>咨询价格</script>",
+  );
   assert.equal(
     publicBridgeMessage({ ...item, sender_kind: "visitor" }, "visitor-a").options,
     undefined,

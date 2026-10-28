@@ -28,7 +28,7 @@ func (s *Service) contactNoteAttachment(w http.ResponseWriter, r *http.Request) 
 		return tx.QueryRow(r.Context(), `SELECT f.storage_key,f.file_name,f.content_type
  FROM messages m JOIN conversations c ON c.id=m.conversation_id AND c.tenant_id=m.tenant_id
  JOIN attachments f ON f.id=m.attachment_id AND f.tenant_id=m.tenant_id
- WHERE c.contact_id=$1 AND m.id=$2 AND m.audience='internal' AND m.withdrawn_at IS NULL`, contact, note).Scan(&key, &name, &kind)
+ WHERE c.contact_id=$1 AND m.id=$2 AND m.audience='internal' AND m.withdrawn_at IS NULL AND chat_message_visible(NULLIF($3,'')::uuid,NULL,$4,m.id)`, contact, note, a.MemberID, isAdmin(a)).Scan(&key, &name, &kind)
 	})
 	if err != nil {
 		replyError(w, r, err)

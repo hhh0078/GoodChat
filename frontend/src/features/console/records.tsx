@@ -1,7 +1,19 @@
 /** 文件作用说明：独立查询授权聊天记录，并按相同筛选分别下载会话元数据或默认不含内部备注的正文CSV。 */
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { App, Button, DatePicker, Drawer, Input, Select, Space, Spin, Table, Tag } from "antd";
+import {
+  App,
+  Avatar,
+  Button,
+  DatePicker,
+  Drawer,
+  Input,
+  Select,
+  Space,
+  Spin,
+  Table,
+  Tag,
+} from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import { useResource } from "@/lib/use-resource";
 import { api, errorMessage } from "@/lib/api";
@@ -57,18 +69,45 @@ export function RecordsPage() {
     setError(null);
     setMessages([]);
     setLoading(true);
-    api<{ items: ChatMessage[] }>(`/conversations/${selected.id}/messages?limit=100`, {
-      tenantId,
-      signal: controller.signal,
-    })
-      .then((data) => setMessages(data.items || []))
-      .catch((problem) => {
-        if (!controller.signal.aborted) setError(problem);
-      })
-      .finally(() => {
+    let pending = false;
+    const conversationId = selected.id;
+    /** load 复核所选历史的实时权限，旧范围不因网络错误持续留在资料抽屉。 */
+    async function load() {
+      if (pending || controller.signal.aborted) return;
+      pending = true;
+      try {
+        const data = await api<{ items: ChatMessage[] }>(
+          `/conversations/${conversationId}/messages?limit=100`,
+          { tenantId, signal: controller.signal },
+        );
+        if (!controller.signal.aborted) {
+          setMessages(data.items || []);
+          setError(null);
+        }
+      } catch (problem) {
+        if (!controller.signal.aborted) {
+          setMessages([]);
+          setError(problem);
+        }
+      } finally {
+        pending = false;
         if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
+      }
+    }
+    void load();
+    const interval = setInterval(() => void load(), 4000);
+    /** resume 回到前台立即重验权限，避免后台定时器限流留下旧范围。 */
+    function resume() {
+      if (document.visibilityState === "visible") void load();
+    }
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("focus", resume);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("focus", resume);
+    };
   }, [selected, tenantId]);
   /** exportRecords 复用当前筛选，拒绝JSON错误、空实体和异常成功响应。 */
   async function exportRecords(includeMessages: boolean) {
@@ -206,6 +245,20 @@ export function RecordsPage() {
                 row.contact_id?.slice(0, 8) ||
                 "访客",
             },
+            {
+              title: "接待客服",
+              render: (_, row) =>
+                row.agent_name ? (
+                  <Space size={8}>
+                    <Avatar size={28} src={row.agent_avatar_url || undefined}>
+                      {String(row.agent_name).slice(0, 1)}
+                    </Avatar>
+                    <span>{row.agent_name}</span>
+                  </Space>
+                ) : (
+                  <span className="muted">尚未分配</span>
+                ),
+            },
             { title: "会话编号", dataIndex: "id", ellipsis: true, className: "console-record-id" },
             {
               title: "状态",
@@ -266,6 +319,7 @@ export function RecordsPage() {
                     {item.attachment && (
                       <AttachmentView
                         attachment={item.attachment}
+                        messageType={item.message_type}
                         identity={{
                           tenantId,
                           actorId:

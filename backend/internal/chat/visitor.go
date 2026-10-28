@@ -22,12 +22,13 @@ type routingInput struct {
 
 // visitorInput 定义统一初始化请求，未验证资料与身份凭证分别保存。
 type visitorInput struct {
-	EntryKey     string       `json:"entry_key"`
-	VisitorToken string       `json:"visitor_token"`
-	VisitID      string       `json:"visit_id"`
-	HandoffCode  string       `json:"handoff_code"`
-	Routing      routingInput `json:"routing"`
-	Profile      struct {
+	EntryKey             string       `json:"entry_key"`
+	VisitorToken         string       `json:"visitor_token"`
+	ResumeConversationID string       `json:"resume_conversation_id"`
+	VisitID              string       `json:"visit_id"`
+	HandoffCode          string       `json:"handoff_code"`
+	Routing              routingInput `json:"routing"`
+	Profile              struct {
 		DisplayName    string `json:"display_name"`
 		Phone          string `json:"phone"`
 		AvatarURL      string `json:"avatar_url"`
@@ -87,7 +88,7 @@ func (s *Service) entryTenant(ctx context.Context, key string) (string, error) {
 
 // entryJSON 返回公开配置并确认入口未停用或过期。
 func entryJSON(ctx context.Context, tx pgx.Tx, key string) (map[string]any, error) {
-	return txJSON(ctx, tx, "SELECT jsonb_build_object('id',l.id,'entry_key',l.entry_key,'name',l.name,'tenant_name',t.name,'service_space_id',l.service_space_id,'service_group_id',l.service_group_id,'routing_pool_id',l.routing_pool_id,'agent_id',l.agent_id,'agent_mode',l.agent_mode,'channel_code',l.channel_code,'channel_tags',l.channel_tags,'reception_mode',l.reception_mode,'allow_routing_override',true,'page_id',l.page_id,'pinned_release_id',l.pinned_release_id,'binding_mode',l.binding_mode) FROM access_links l JOIN tenants t ON t.id=l.tenant_id WHERE l.entry_key=$1 AND l.status='active' AND (l.expires_at IS NULL OR l.expires_at>now())", key)
+	return txJSON(ctx, tx, "SELECT jsonb_build_object('id',l.id,'entry_key',l.entry_key,'name',l.name,'tenant_name',t.name,'service_space_id',l.service_space_id,'service_group_id',l.service_group_id,'routing_pool_id',l.routing_pool_id,'agent_id',l.agent_id,'agent_mode',l.agent_mode,'channel_code',l.channel_code,'channel_tags',l.channel_tags,'reception_mode',l.reception_mode,'notification_sound_id',coalesce((SELECT settings->>'notification_sound_id' FROM chat_settings WHERE tenant_id=l.tenant_id),'gentle'),'history_agent_minutes',coalesce((SELECT (settings->>'history_agent_minutes')::integer FROM chat_settings WHERE tenant_id=l.tenant_id),0),'share_previous_chats',coalesce((SELECT (settings->>'share_previous_chats')::boolean FROM chat_settings WHERE tenant_id=l.tenant_id),true),'allow_routing_override',true,'page_id',l.page_id,'pinned_release_id',l.pinned_release_id,'binding_mode',l.binding_mode) FROM access_links l JOIN tenants t ON t.id=l.tenant_id WHERE l.entry_key=$1 AND l.status='active' AND (l.expires_at IS NULL OR l.expires_at>now())", key)
 }
 
 // visitorSession 只通过独立随机凭证恢复客户，手机号永远只作为资料。
@@ -150,6 +151,10 @@ func (s *Service) visitorSession(w http.ResponseWriter, r *http.Request) {
 		}
 		token = "v_" + value
 		a.ContactID = newID()
+	}
+	if in.ResumeConversationID != "" && (newVisitor || !uuidPattern.MatchString(in.ResumeConversationID)) {
+		replyError(w, r, platform.Fail(400, "invalid_resume", "恢复咨询必须提供有效访客凭证和咨询编号"))
+		return
 	}
 	if in.VisitID == "" {
 		in.VisitID = newID()
@@ -235,62 +240,17 @@ func (s *Service) visitorSession(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
-		var conversationID string
-		err = tx.QueryRow(ctx, "SELECT id::text FROM conversations WHERE contact_id=$1 AND service_space_id=$2 AND status!='closed'", a.ContactID, entry["service_space_id"]).Scan(&conversationID)
-		if err == pgx.ErrNoRows {
-			if err := s.checkFeature(ctx, tx, tenant, "chat"); err != nil {
-				return err
-			}
-			target, err := resolveRouting(ctx, tx, entry, in.Routing)
-			if err != nil {
-				return err
-			}
-			if _, err := tx.Exec(ctx, "SELECT id FROM routing_pools WHERE id=$1 FOR UPDATE", target.PoolID); err != nil {
-				return err
-			}
-			if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", tenant+a.ContactID+entry["service_space_id"].(string)); err != nil {
-				return err
-			}
-			err = tx.QueryRow(ctx, "SELECT id::text FROM conversations WHERE contact_id=$1 AND service_space_id=$2 AND status!='closed'", a.ContactID, entry["service_space_id"]).Scan(&conversationID)
-			if err == pgx.ErrNoRows {
-				conversationID = newID()
-				_, err = tx.Exec(ctx, "INSERT INTO conversations(id,tenant_id,service_space_id,contact_id,created_entry_id,service_group_id,routing_pool_id,desired_agent_id,agent_mode,source_snapshot,context) VALUES($1,$2,$3,$4,$5,$6,$7,NULLIF($8,'')::uuid,$9,$10,$11)", conversationID, tenant, entry["service_space_id"], a.ContactID, entry["id"], target.GroupID, target.PoolID, target.AgentID, target.AgentMode, jsonValue(map[string]any{"entry": entry, "tracking": tracking, "routing": target}), jsonValue(in.Context))
-				if err != nil {
-					return err
-				}
-				if _, err := s.emit(ctx, tx, tenant, conversationID, "conversation.created", "public", map[string]any{"status": "queued"}); err != nil {
-					return err
-				}
-				if err := s.assignLocked(ctx, tx, tenant, conversationID, "", false); err != nil {
-					return err
-				}
-				if err := s.enqueueWelcome(ctx, tx, tenant, conversationID); err != nil {
-					return err
-				}
-			} else if err != nil {
-				return err
-			}
-		} else if err != nil {
+		minutes, shared, err := historyPolicy(ctx, tx, tenant)
+		if err != nil {
 			return err
 		}
-		// 复访保留最初来源快照，只合并本次提供的业务资料；未提供字段保持原值。
-		if visitTag.RowsAffected() > 0 && len(in.Context) > 0 {
-			var previous []byte
-			if err := tx.QueryRow(ctx, "SELECT context FROM conversations WHERE id=$1 FOR UPDATE", conversationID).Scan(&previous); err != nil {
-				return err
-			}
-			merged := decodeJSONMap(previous)
-			for key, value := range in.Context {
-				merged[key] = value
-			}
-			if err := validateContext(merged); err != nil {
-				return err
-			}
-			if _, err := tx.Exec(ctx, "UPDATE conversations SET context=$2 WHERE id=$1", conversationID, jsonValue(merged)); err != nil {
-				return err
-			}
+		entry["history_agent_minutes"] = minutes
+		entry["share_previous_chats"] = shared
+		resume, err := s.visitorConversation(ctx, tx, a, entry, in, tracking, visitTag.RowsAffected() > 0, minutes)
+		if err != nil {
+			return err
 		}
-		conversation, err := conversationJSON(ctx, tx, conversationID)
+		conversation, err := conversationJSONForActor(ctx, tx, resume.ID, a)
 		if err != nil {
 			return err
 		}
@@ -298,7 +258,7 @@ func (s *Service) visitorSession(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		result = map[string]any{"token": token, "contact": contact, "conversation": conversation, "entry": entry, "visit_id": in.VisitID}
+		result = map[string]any{"token": token, "contact": contact, "conversation": conversation, "entry": entry, "visit_id": in.VisitID, "resumed": resume.Resumed, "history_expired": resume.Expired, "previous_conversation_id": resume.PreviousID}
 		return nil
 	})
 	if err != nil {
@@ -335,9 +295,14 @@ func resolveRouting(ctx context.Context, tx pgx.Tx, entry map[string]any, in rou
 		return t, platform.Fail(400, "invalid_routing", "接待目标格式不正确")
 	}
 	var valid bool
-	err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM routing_pools p JOIN agent_groups g ON g.id=p.service_group_id AND g.tenant_id=p.tenant_id WHERE p.id=$1 AND p.service_group_id=$2 AND NOT p.archived AND NOT g.archived AND ($3='' OR (EXISTS(SELECT 1 FROM agent_group_members gm WHERE gm.group_id=g.id AND gm.membership_id=NULLIF($3,'')::uuid) AND (p.members_mode='group' OR EXISTS(SELECT 1 FROM routing_pool_members pm WHERE pm.routing_pool_id=p.id AND pm.membership_id=NULLIF($3,'')::uuid)))))", t.PoolID, t.GroupID, t.AgentID).Scan(&valid)
+	err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM routing_pools p JOIN agent_groups g ON g.id=p.service_group_id AND g.tenant_id=p.tenant_id WHERE p.id=$1 AND p.service_group_id=$2 AND NOT p.archived AND NOT g.archived )", t.PoolID, t.GroupID).Scan(&valid)
 	if err != nil {
 		return t, err
+	}
+	if valid && t.AgentID != "" {
+		if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM tenant_memberships WHERE id=$1 AND tenant_id=nullif(current_setting('app.tenant_id',true),'')::uuid)", t.AgentID).Scan(&valid); err != nil {
+			return t, err
+		}
 	}
 	if !valid {
 		return t, platform.Fail(400, "routing_conflict", "指定客服、分配池与业务组不兼容")

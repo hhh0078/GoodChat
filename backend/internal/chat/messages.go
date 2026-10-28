@@ -10,7 +10,7 @@ import (
 	"supportdesk/backend/internal/platform"
 )
 
-var messageProjection = "to_jsonb(m)||jsonb_build_object('seq',m.event_seq::text,'event_seq',m.event_seq::text,'content',CASE WHEN m.withdrawn_at IS NULL THEN m.content ELSE '' END,'attachment',CASE WHEN m.withdrawn_at IS NULL THEN (SELECT to_jsonb(f)-'storage_key'-'sha256' FROM attachments f WHERE f.id=m.attachment_id AND f.tenant_id=m.tenant_id) ELSE NULL END,'sender_name',CASE WHEN m.sender_kind='system' THEN '系统' WHEN m.sender_kind='visitor' THEN (SELECT display_name FROM contacts WHERE id=m.sender_id) ELSE (SELECT u.display_name FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id) END,'sender_avatar_url',CASE WHEN m.sender_kind='visitor' THEN coalesce((SELECT avatar_url FROM contacts WHERE id=m.sender_id),'') WHEN m.sender_kind='agent' THEN coalesce((SELECT " + platform.AvatarURLSQL("tm") + " FROM tenant_memberships tm WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id),'') ELSE '' END,'reply',CASE WHEN m.reply_to_id IS NULL THEN NULL ELSE (SELECT jsonb_build_object('id',q.id,'content',CASE WHEN q.withdrawn_at IS NULL THEN left(q.content,200) ELSE '' END,'withdrawn',q.withdrawn_at IS NOT NULL) FROM messages q WHERE q.id=m.reply_to_id AND q.tenant_id=m.tenant_id) END)"
+var messageProjection = "to_jsonb(m)||jsonb_build_object('seq',m.event_seq::text,'event_seq',m.event_seq::text,'quick_reply_version',m.quick_reply_version::text,'options',CASE WHEN m.withdrawn_at IS NULL THEN m.options ELSE '[]'::jsonb END,'content',CASE WHEN m.withdrawn_at IS NULL THEN m.content ELSE '' END,'attachment',CASE WHEN m.withdrawn_at IS NULL THEN (SELECT to_jsonb(f)-'storage_key'-'sha256' FROM attachments f WHERE f.id=m.attachment_id AND f.tenant_id=m.tenant_id) ELSE NULL END,'sender_name',CASE WHEN m.sender_kind='system' THEN '系统' WHEN m.sender_kind='visitor' THEN (SELECT display_name FROM contacts WHERE id=m.sender_id) ELSE (SELECT u.display_name FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id) END,'sender_avatar_url',CASE WHEN m.sender_kind='visitor' THEN coalesce((SELECT avatar_url FROM contacts WHERE id=m.sender_id),'') WHEN m.sender_kind='agent' THEN coalesce((SELECT " + platform.AvatarURLSQL("tm") + " FROM tenant_memberships tm WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id),'') ELSE '' END,'reply',CASE WHEN m.reply_to_id IS NULL THEN NULL ELSE (SELECT jsonb_build_object('id',q.id,'content',CASE WHEN q.withdrawn_at IS NULL THEN left(q.content,200) ELSE '' END,'withdrawn',q.withdrawn_at IS NOT NULL) FROM messages q WHERE q.id=m.reply_to_id AND q.tenant_id=m.tenant_id) END)"
 
 // messages 读取历史或提交新消息，接收成功只在事务提交之后返回。
 func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
@@ -20,14 +20,7 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		s.messageHistory(w, r, a, id)
 		return
 	}
-	var in struct {
-		ClientID     string `json:"client_message_id"`
-		Content      string `json:"content"`
-		Type         string `json:"message_type"`
-		Audience     string `json:"audience"`
-		AttachmentID string `json:"attachment_id"`
-		ReplyID      string `json:"reply_to_id"`
-	}
+	var in messageInput
 	if err := platform.Decode(w, r, &in); err != nil {
 		replyError(w, r, err)
 		return
@@ -46,7 +39,22 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		returnError(w, r, "invalid_audience", "访客不能发送内部备注")
 		return
 	}
-	if in.Type == "text" && strings.TrimSpace(in.Content) == "" {
+	if in.QuickReplyID != "" {
+		version, err := strconv.ParseInt(in.QuickReplyVersion, 10, 64)
+		if !uuidPattern.MatchString(in.QuickReplyID) || err != nil || version < 1 {
+			returnError(w, r, "invalid_quick_reply", "请选择有效话术与版本")
+			return
+		}
+		in.QuickReplyVersion = strconv.FormatInt(version, 10)
+		if a.ContactID != "" || in.Audience != "public" {
+			replyError(w, r, platform.Fail(403, "quick_reply_forbidden", "只有接待客服可以发送公开快捷回复"))
+			return
+		}
+	} else if in.QuickReplyVersion != "" {
+		returnError(w, r, "invalid_quick_reply", "话术版本必须同时提供话术编号")
+		return
+	}
+	if in.QuickReplyID == "" && in.Type == "text" && strings.TrimSpace(in.Content) == "" {
 		returnError(w, r, "empty_message", "请输入消息内容")
 		return
 	}
@@ -66,14 +74,14 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		existing, err := txJSON(ctx, tx, "SELECT "+messageProjection+" FROM messages m WHERE conversation_id=$1 AND sender_kind=$2 AND sender_id=$3 AND client_message_id=$4", id, actorKind(a), actorID(a), in.ClientID)
 		if err == nil {
 			var matches bool
-			if err := tx.QueryRow(ctx, "SELECT content=$5 AND message_type=$6 AND audience=$7 AND COALESCE(attachment_id::text,'')=$8 AND COALESCE(reply_to_id::text,'')=$9 FROM messages WHERE conversation_id=$1 AND sender_kind=$2 AND sender_id=$3 AND client_message_id=$4", id, actorKind(a), actorID(a), in.ClientID, in.Content, in.Type, in.Audience, in.AttachmentID, in.ReplyID).Scan(&matches); err != nil {
+			if err := tx.QueryRow(ctx, "SELECT audience=$7 AND COALESCE(reply_to_id::text,'')=$9 AND CASE WHEN $10<>'' THEN coalesce(quick_reply_id::text,'')=$10 AND coalesce(quick_reply_version::text,'')=$11 ELSE quick_reply_id IS NULL AND content=$5 AND message_type=$6 AND COALESCE(attachment_id::text,'')=$8 END FROM messages WHERE conversation_id=$1 AND sender_kind=$2 AND sender_id=$3 AND client_message_id=$4", id, actorKind(a), actorID(a), in.ClientID, in.Content, in.Type, in.Audience, in.AttachmentID, in.ReplyID, in.QuickReplyID, in.QuickReplyVersion).Scan(&matches); err != nil {
 				return err
 			}
 			if !matches {
 				return platform.Fail(409, "idempotency_conflict", "相同消息编号携带了不同内容")
 			}
 			result = existing
-			return nil
+			return redactMessageReplies(ctx, tx, a, []map[string]any{result})
 		}
 		if err != pgx.ErrNoRows {
 			return err
@@ -84,12 +92,18 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		if a.ContactID == "" && (current != a.MemberID || status != "active" || !a.CanServe) {
 			return platform.Fail(403, "not_current_agent", "只有正式接待客服可以发送消息")
 		}
+		if err := prepareQuickReplyMessage(ctx, tx, a, &in); err != nil {
+			return err
+		}
+		if in.Type == "text" && in.AttachmentID != "" {
+			return platform.Fail(400, "unexpected_attachment", "媒体附件请使用对应的图片、语音或文件类型")
+		}
 		if in.Type != "text" {
 			if !uuidPattern.MatchString(in.AttachmentID) {
 				return platform.Fail(400, "attachment_required", "请先上传有效附件")
 			}
 			var mime string
-			if err := tx.QueryRow(ctx, "SELECT content_type FROM attachments WHERE id=$1 AND uploader_id=$2 AND uploader_kind=$3", in.AttachmentID, actorID(a), actorKind(a)).Scan(&mime); err != nil {
+			if err := tx.QueryRow(ctx, "SELECT content_type FROM attachments WHERE id=$1 AND ((uploader_id=$2 AND uploader_kind=$3) OR $4<>'')", in.AttachmentID, actorID(a), actorKind(a), in.QuickReplyID).Scan(&mime); err != nil {
 				return err
 			}
 			if in.Type == "image" && !strings.HasPrefix(mime, "image/") || in.Type == "audio" && !strings.HasPrefix(mime, "audio/") && !strings.HasPrefix(mime, "video/webm") {
@@ -107,6 +121,13 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 			if !visible {
 				return platform.Fail(403, "reply_not_visible", "不能引用不可见的消息")
 			}
+			visible, err = messageVisible(ctx, tx, a, in.ReplyID)
+			if err != nil {
+				return err
+			}
+			if !visible {
+				return platform.Fail(403, "reply_not_visible", "不能引用当前接待范围外的历史消息")
+			}
 		}
 		messageID := newID()
 		payload := map[string]any{"id": messageID, "client_message_id": in.ClientID, "conversation_id": id, "sender_id": actorID(a), "sender_kind": actorKind(a), "message_type": in.Type, "content": in.Content, "audience": in.Audience, "attachment_id": in.AttachmentID, "reply_to_id": in.ReplyID, "created_at": nowUTC()}
@@ -114,8 +135,14 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, "INSERT INTO messages(id,tenant_id,conversation_id,sender_id,sender_kind,client_message_id,message_type,content,audience,attachment_id,reply_to_id,event_seq) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,'')::uuid,NULLIF($11,'')::uuid,$12)", messageID, a.TenantID, id, actorID(a), actorKind(a), in.ClientID, in.Type, in.Content, in.Audience, in.AttachmentID, in.ReplyID, seq)
+		if in.Options == nil {
+			in.Options = []welcomeOption{}
+		}
+		_, err = tx.Exec(ctx, "INSERT INTO messages(id,tenant_id,conversation_id,sender_id,sender_kind,client_message_id,message_type,content,audience,attachment_id,reply_to_id,event_seq,options,quick_reply_id,quick_reply_version) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,'')::uuid,NULLIF($11,'')::uuid,$12,$13,NULLIF($14,'')::uuid,NULLIF($15,'')::bigint)", messageID, a.TenantID, id, actorID(a), actorKind(a), in.ClientID, in.Type, in.Content, in.Audience, in.AttachmentID, in.ReplyID, seq, jsonValue(in.Options), in.QuickReplyID, in.QuickReplyVersion)
 		if err != nil {
+			return err
+		}
+		if err := recordQuickReplyUse(ctx, tx, a, in.QuickReplyID); err != nil {
 			return err
 		}
 		result, err = txJSON(ctx, tx, "SELECT "+messageProjection+" FROM messages m WHERE id=$1", messageID)
@@ -126,7 +153,10 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		if err == nil && a.ContactID != "" && in.Type == "text" {
 			err = s.enqueueKeyword(ctx, tx, a.TenantID, id, messageID, in.Content)
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		return redactMessageReplies(ctx, tx, a, []map[string]any{result})
 	})
 	if err != nil {
 		replyError(w, r, err)
@@ -157,6 +187,7 @@ func (s *Service) messageHistory(w http.ResponseWriter, r *http.Request, a actor
 	}
 	var items []map[string]any
 	var watermark int64
+	scope := ""
 	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
 		if err := canReadConversation(r.Context(), tx, a, id); err != nil {
 			return err
@@ -170,12 +201,20 @@ func (s *Service) messageHistory(w http.ResponseWriter, r *http.Request, a actor
 				return err
 			}
 		}
-		rows, err := tx.Query(r.Context(), "SELECT "+messageProjection+" FROM messages m WHERE conversation_id=$1 AND ($2=0 OR event_seq<$2) AND (audience='public' OR $3) ORDER BY event_seq DESC LIMIT $4", id, before, a.ContactID == "", limit)
+		var err error
+		scope, err = historyScope(r.Context(), tx, a, id)
+		if err != nil {
+			return err
+		}
+		rows, err := tx.Query(r.Context(), "SELECT "+messageProjection+" FROM messages m WHERE conversation_id=$1 AND ($2=0 OR event_seq<$2) AND chat_message_visible(NULLIF($3,'')::uuid,NULLIF($4,'')::uuid,$5,m.id) ORDER BY event_seq DESC LIMIT $6", id, before, a.MemberID, a.ContactID, isAdmin(a), limit)
 		if err != nil {
 			return err
 		}
 		items, err = jsonRows(rows)
-		return err
+		if err != nil {
+			return err
+		}
+		return redactMessageReplies(r.Context(), tx, a, items)
 	})
 	if err != nil {
 		replyError(w, r, err)
@@ -188,9 +227,9 @@ func (s *Service) messageHistory(w http.ResponseWriter, r *http.Request, a actor
 	for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
 		items[i], items[j] = items[j], items[i]
 	}
-	result := map[string]any{"items": items, "next_cursor": cursor, "has_more": len(items) == limit}
+	result := map[string]any{"items": items, "next_cursor": cursor, "has_more": len(items) == limit, "history_scope": scope}
 	if before == 0 {
-		result["sync_cursor"] = s.encodeCursor(a, id, watermark)
+		result["sync_cursor"] = s.encodeScopedCursor(a, id, watermark, scope)
 	}
 	platform.JSON(w, 200, result)
 }
@@ -215,6 +254,13 @@ func (s *Service) withdraw(w http.ResponseWriter, r *http.Request) {
 		if owner != actorID(a) {
 			return platform.Fail(403, "not_message_author", "只能撤回本人发送的消息")
 		}
+		visible, err := messageVisible(ctx, tx, a, message)
+		if err != nil {
+			return err
+		}
+		if !visible {
+			return platform.Fail(404, "message_not_found", "消息不属于当前接待可见范围")
+		}
 		if withdrawn {
 			return nil
 		}
@@ -224,10 +270,10 @@ func (s *Service) withdraw(w http.ResponseWriter, r *http.Request) {
 		if _, err := tx.Exec(ctx, "UPDATE messages SET withdrawn_at=now() WHERE id=$1", message); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, "UPDATE conversation_events SET payload=payload||jsonb_build_object('content','','attachment',NULL,'withdrawn_at',now()) WHERE conversation_id=$1 AND event_type='message.created' AND payload->>'id'=$2", id, message); err != nil {
+		if _, err := tx.Exec(ctx, "UPDATE conversation_events SET payload=payload||jsonb_build_object('content','','attachment',NULL,'options','[]'::jsonb,'withdrawn_at',now()) WHERE conversation_id=$1 AND event_type='message.created' AND payload->>'id'=$2", id, message); err != nil {
 			return err
 		}
-		_, err := s.emit(ctx, tx, a.TenantID, id, "message.withdrawn", audience, map[string]any{"id": message})
+		_, err = s.emit(ctx, tx, a.TenantID, id, "message.withdrawn", audience, map[string]any{"id": message})
 		return err
 	})
 	if err != nil {
@@ -258,9 +304,15 @@ func (s *Service) readCursor(w http.ResponseWriter, r *http.Request) {
 		if err := canReadConversation(ctx, tx, a, id); err != nil {
 			return err
 		}
+		// 与提醒领取使用相同咨询行锁，避免已确认查看后仍被另一个标签领取旧提醒。
+		if a.ContactID == "" {
+			if _, err := tx.Exec(ctx, "SELECT id FROM conversations WHERE id=$1 FOR UPDATE", id); err != nil {
+				return err
+			}
+		}
 		if seq > 0 {
 			var visible bool
-			if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM messages WHERE conversation_id=$1 AND event_seq=$2 AND (audience='public' OR $3))", id, seq, a.ContactID == "").Scan(&visible); err != nil {
+			if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM messages WHERE conversation_id=$1 AND event_seq=$2 AND (audience='public' OR $3) AND chat_message_visible(NULLIF($4,'')::uuid,NULLIF($5,'')::uuid,$6,id))", id, seq, a.ContactID == "", a.MemberID, a.ContactID, isAdmin(a)).Scan(&visible); err != nil {
 				return err
 			}
 			if !visible {
@@ -279,6 +331,9 @@ func (s *Service) readCursor(w http.ResponseWriter, r *http.Request) {
 			}
 			if !receiving {
 				return nil
+			}
+			if err := attentionViewed(ctx, tx, a, id); err != nil {
+				return err
 			}
 		}
 		_, err := s.emit(ctx, tx, a.TenantID, id, "read.updated", "public", map[string]any{"participant_id": actorID(a), "participant_kind": actorKind(a), "last_read_seq": strconv.FormatInt(seq, 10)})

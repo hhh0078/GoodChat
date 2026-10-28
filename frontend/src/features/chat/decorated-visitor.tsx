@@ -17,6 +17,7 @@ import { uploadAndSendAttachment, type AttachmentAttempt } from "@/lib/attachmen
 import { useChat, type ChatIdentity } from "./use-chat";
 import { AttachmentSender } from "./attachment-sender";
 import { UnconfirmedMessages } from "./unconfirmed-messages";
+import { useVisitorReminders } from "./use-visitor-reminders";
 import type { ChatMessage } from "@/lib/types";
 type Decoration = { render_url: string; release_id: string };
 type PendingDownload = { id: string; name: string };
@@ -26,13 +27,21 @@ export function DecoratedVisitor({
   identity,
   decoration,
   onStatus,
+  notificationSound,
 }: {
   id: string;
   identity: ChatIdentity;
   decoration: Decoration;
   onStatus: (value: string) => void;
+  notificationSound?: string;
 }) {
   const chat = useChat(id, identity);
+  useVisitorReminders(chat.messages, {
+    enabled: true,
+    loading: chat.loading || !chat.conversation,
+    conversationId: id,
+    sound: notificationSound,
+  });
   const { message } = App.useApp();
   const latest = useRef(chat);
   latest.current = chat;

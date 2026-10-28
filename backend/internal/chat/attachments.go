@@ -97,7 +97,7 @@ func (s *Service) upload(w http.ResponseWriter, r *http.Request) {
 
 // allowedMedia 禁止可执行HTML与SVG，允许受支持的图片、音频和常用文件。
 func allowedMedia(kind string) bool {
-	return strings.HasPrefix(kind, "image/") && kind != "image/svg+xml" || strings.HasPrefix(kind, "audio/") || inStrings(kind, "video/webm", "application/pdf", "application/zip", "application/x-gzip", "application/x-rar-compressed", "application/vnd.ms-office", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain; charset=utf-8")
+	return strings.HasPrefix(kind, "image/") && kind != "image/svg+xml" || strings.HasPrefix(kind, "audio/") || inStrings(kind, "video/webm", "video/mp4", "video/quicktime", "application/pdf", "application/zip", "application/x-gzip", "application/x-rar-compressed", "application/vnd.ms-office", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain; charset=utf-8")
 }
 
 // download 从私有目录读取附件，猜测对象编号不能跳过会话可见与撤回检查。
@@ -127,6 +127,15 @@ func (s *Service) download(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(ctx, "SELECT storage_key,file_name,content_type,uploader_id::text FROM attachments WHERE id=$1", id).Scan(&key, &name, &kind, &uploader); err != nil {
 			return err
 		}
+		if a.ContactID == "" {
+			var visibleReply bool
+			if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM quick_replies WHERE attachment_id=$1 AND enabled AND (owner_membership_id IS NULL OR owner_membership_id=$2))", id, a.MemberID).Scan(&visibleReply); err != nil {
+				return err
+			}
+			if visibleReply {
+				return nil
+			}
+		}
 		shared, err := canReadLeadAttachment(ctx, tx, a, id)
 		if err != nil {
 			return err
@@ -134,7 +143,7 @@ func (s *Service) download(w http.ResponseWriter, r *http.Request) {
 		if shared {
 			return nil
 		}
-		rows, err := tx.Query(ctx, "SELECT DISTINCT conversation_id::text FROM messages WHERE attachment_id=$1 AND withdrawn_at IS NULL AND (audience='public' OR $2)", id, a.ContactID == "")
+		rows, err := tx.Query(ctx, "SELECT DISTINCT conversation_id::text FROM messages WHERE attachment_id=$1 AND withdrawn_at IS NULL AND chat_message_visible(NULLIF($2,'')::uuid,NULLIF($3,'')::uuid,$4,id)", id, a.MemberID, a.ContactID, isAdmin(a))
 		if err != nil {
 			return err
 		}

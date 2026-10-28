@@ -159,7 +159,7 @@ function Pools({
         member_weights: {},
         required_skill_ids: [],
         optional_skill_ids: [],
-        history_priority: false,
+        history_priority: true,
       },
     );
     setError(null);
@@ -235,7 +235,7 @@ function Pools({
             title: "组合规则",
             render: (_, row) => (
               <Space wrap>
-                {row.history_priority && <Tag>历史优先</Tag>}
+                <Tag>历史策略随租户配置</Tag>
                 <Tag>必备 {row.required_skill_ids?.length || 0}</Tag>
                 <Tag>可选 {row.optional_skill_ids?.length || 0}</Tag>
               </Space>
@@ -355,14 +355,9 @@ function Pools({
           >
             <Select mode="multiple" allowClear options={skillOptions} />
           </Form.Item>
-          <Form.Item
-            name="history_priority"
-            label="历史接待客服优先"
-            valuePropName="checked"
-            extra="仅用于新的分配。历史客服仍须在当前组/池内且满足技能、在线、忙闲和容量。"
-          >
-            <Switch />
-          </Form.Item>
+          <p className="form-hint">
+            历史客服优先窗口在租户设置的“复访与历史”统一配置；历史客服仍须满足当前组池、技能、在线、忙闲和容量。
+          </p>
           <Form.Item name="assignment_mode" label="接待方式">
             <Select
               options={[

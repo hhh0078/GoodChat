@@ -191,12 +191,18 @@ func TestHistoryPreferenceAndStrictTarget(t *testing.T) {
 	mustData(t, status, reply)
 	f.routingPatch("access-links/"+entry, map[string]any{"agent_id": f.owner, "agent_mode": "strict", "allow_routing_override": true})
 	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": f.entry, "visitor_token": token, "visit_id": newID()})
-	strict := mustData(t, status, reply)["conversation"].(map[string]any)["id"].(string)
-	if f.countRows("SELECT count(*) FROM conversations WHERE id=$1 AND status='queued'", strict) != 1 {
-		t.Fatal("严格指定不可用时不能回退历史或普通候选")
+	if status != 409 || reply["code"] != "candidate_unavailable" {
+		t.Fatal("指定客服忙碌应明确拒绝，不得排队或改派")
 	}
+	f.online(f.owner)
+	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": f.entry, "visitor_token": token, "visit_id": newID()})
+	strict := mustData(t, status, reply)["conversation"].(map[string]any)["id"].(string)
+	if f.countRows("SELECT count(*) FROM conversations WHERE id=$1 AND status='active' AND current_agent_id=$2", strict, f.owner) != 1 {
+		t.Fatal("指定客服恢复合格后必须优先接待")
+	}
+
 	status, reply = f.request("POST", "/api/v1/conversations/"+strict+"/assignments/claim", f.agent, "", map[string]any{})
-	if status != 409 {
+	if status != 409 && status != 404 {
 		t.Fatalf("人工领取不能放宽严格指定: %d %v", status, reply["code"])
 	}
 	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": f.entry, "visit_id": newID(), "routing": map[string]string{"agent_mode": "prefer"}})

@@ -14,18 +14,17 @@ export function starterCodeDesign(): Design {
   <div id="reply" hidden>
     <span id="reply-text"></span><button id="cancel-reply" type="button">取消引用</button>
   </div>
-  <textarea id="text" aria-label="消息内容" placeholder="输入消息，Enter 发送"></textarea>
-  <div class="actions">
-    <input id="file" type="file" aria-label="上传附件" /><button id="send" type="button">
-      发送
-    </button>
+  <div class="composer">
+  <div class="capsule"><button id="add" type="button" aria-label="添加附件" aria-expanded="false">＋</button><textarea id="text" rows="1" aria-label="消息内容" placeholder="输入消息…"></textarea><button id="send" type="button" aria-label="发送消息">➤</button></div>
+  <div id="attachment-menu" hidden><button type="button" data-kind="image">图片</button><button type="button" data-kind="file">文件</button><button type="button" data-kind="video">视频</button></div>
   </div>
+  <input id="file" type="file" aria-label="选择附件" hidden />
 </main>
 `,
     css: `body {
   margin: 0;
-  background: #f4f6f2;
-  color: #21342c;
+  background: #f5f7fb;
+  color: #182238;
   font-family: system-ui;
 }
 main {
@@ -37,7 +36,7 @@ main {
 }
 header {
   padding: 18px 22px;
-  background: #23684e;
+  background: #165dff;
   color: white;
 }
 h1 {
@@ -56,7 +55,7 @@ header p {
 article {
   max-width: 85%;
   background: white;
-  border: 1px solid #dfe6dc;
+  border: 1px solid #dce5f1;
   border-radius: 12px;
   padding: 12px;
   margin-bottom: 14px;
@@ -65,7 +64,7 @@ article {
 }
 article.own {
   margin-left: auto;
-  background: #e2eddd;
+  background: #eaf2ff;
 }
 .sender-avatar { width: 32px; height: 32px; object-fit: cover; border-radius: 50%; float: left; margin: 0 8px 5px 0; }
 article.own .sender-avatar { float: right; margin: 0 0 5px 8px; }
@@ -76,19 +75,19 @@ article.own .sender-avatar { float: right; margin: 0 0 5px 8px; }
 blockquote {
   margin: 0 0 8px;
   padding-left: 8px;
-  border-left: 2px solid #a7b99f;
-  color: #68776e;
+  border-left: 2px solid #adc4e7;
+  color: #65758f;
   font-size: 12px;
 }
 #typing {
-  color: #68776e;
+  color: #65758f;
   padding: 0 18px;
   font-size: 12px;
   min-height: 1em;
 }
 #reply {
   padding: 8px 18px;
-  color: #68776e;
+  color: #65758f;
   font-size: 12px;
 }
 .message-actions {
@@ -99,20 +98,20 @@ blockquote {
 .message-actions button,
 #cancel-reply {
   background: transparent;
-  color: #23684e;
+  color: #165dff;
   padding: 2px 6px;
   font-size: 11px;
 }
 small {
   display: block;
-  color: #68776e;
+  color: #65758f;
   font-size: 11px;
   margin-bottom: 5px;
 }
 textarea {
   margin: 0 18px;
   min-height: 64px;
-  border: 1px solid #dfe6dc;
+  border: 1px solid #dce5f1;
   border-radius: 10px;
   padding: 12px;
   font: inherit;
@@ -124,7 +123,7 @@ textarea {
   gap: 12px;
 }
 button {
-  background: #23684e;
+  background: #165dff;
   color: white;
   border: 0;
   padding: 10px 22px;
@@ -139,10 +138,25 @@ button:disabled {
   padding: 0 18px;
   font-size: 12px;
 }
+.composer {position:relative;}
+.capsule { display:flex; align-items:flex-end; gap:7px; margin:10px 14px 14px; padding:7px; border:1px solid #dce5f1; border-radius:28px; background:white; }
+.capsule textarea {flex:1;min-width:0;min-height:0;max-height:120px;margin:0;padding:8px 2px;border:0;outline:none;border-radius:0;resize:none;line-height:24px;font-size:14px;}
+#add,#send {flex-shrink:0;width:38px;height:38px;border-radius:50%;padding:0;font-size:20px;}
+#add { background:transparent;color:inherit;font-size:26px; }
+#attachment-menu {position:absolute;z-index:10;left:14px;bottom:calc(100% + 2px);display:flex;gap:6px;padding:8px;background:#fff;border:1px solid #dce5f1;border-radius:12px;box-shadow:0 8px 24px #172b4d18;}
+#attachment-menu button {font-size:13px;padding:6px 12px;}
+#attachment-menu[hidden],.message-actions[hidden] {display:none;}
+article:focus-visible {outline:2px solid #165dff;outline-offset:3px;}
+.message-attachment img,.message-attachment video {max-width:100%;max-height:280px;border-radius:10px;}
+.message-options {display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.message-options button,.message-file-save {font-size:12px;padding:6px 10px;}
+
 `,
     javascript: `const chat = window.GoodChat,
   input = document.getElementById("text"),
   send = document.getElementById("send"),
+  add = document.getElementById("add"),
+  attachmentMenu = document.getElementById("attachment-menu"),
   messages = document.getElementById("messages"),
   status = document.getElementById("status"),
   error = document.getElementById("error"),
@@ -164,6 +178,7 @@ function clearReply() {
 }
 const avatarFiles = new Map();
 let avatarURLs = [];
+let selectedMessage = "";
 /** render 展示当前授权消息，避免执行访客提交的HTML。 */
 function render(next) {
   state = next;
@@ -177,6 +192,8 @@ function render(next) {
     const row = document.createElement("article"),
       label = document.createElement("small");
     row.className = item.is_own ? "own" : "";
+    row.dataset.clientMessageId = item.client_message_id || "";
+    row.dataset.messageId = item.id;
     const date = new Date(item.created_at || ""),
       time = Number.isNaN(date.getTime())
         ? ""
@@ -215,6 +232,27 @@ function render(next) {
       ? "消息已撤回"
       : item.content || item.text || (item.attachment ? "附件消息" : "");
     row.append(text);
+    if (!item.withdrawn_at && item.attachment) {
+      const media = document.createElement("div"); media.className = "message-attachment";
+      const save = document.createElement("button"); save.type="button"; save.className="message-file-save"; save.textContent="下载 "+(item.attachment.file_name||"附件");
+      save.onclick=async()=>{save.disabled=true;try{await chat.saveAttachment(item.attachment.id);}catch(problem){error.textContent=problem.message;}finally{save.disabled=false;}};
+      media.append(save); row.append(media);
+      if (["image","audio","video"].some(kind=>String(item.attachment.content_type||"").startsWith(kind+"/"))) chat.download(item.attachment.id).then(result=>{
+        if(!media.isConnected)return;
+        const objectURL=URL.createObjectURL(result.file);avatarURLs.push(objectURL);
+        const kind=item.attachment.content_type.startsWith("image/")?"img":item.attachment.content_type.startsWith("audio/")||item.message_type==="audio"?"audio":"video";
+        const element=document.createElement(kind);element.src=objectURL;element.alt=item.attachment.file_name||"图片消息";element.controls=true;element.playsInline=true;media.append(element);
+      }).catch(problem=>{if(media.isConnected)error.textContent=problem.message;});
+    }
+    if (!item.withdrawn_at && ["system","agent"].includes(item.sender_kind) && Array.isArray(item.options)) {
+      const options=document.createElement("div");options.className="message-options";
+      for(const option of item.options.slice(0,8)){
+        if(typeof option.label!=="string"||typeof option.value!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(option.client_message_id||""))continue;
+        const button=document.createElement("button");button.type="button";button.textContent=option.label;
+        button.disabled=state.conversation?.status==="closed"||state.messages.some(message=>message.client_message_id===option.client_message_id);
+        button.onclick=async()=>{button.disabled=true;try{await chat.sendText(option.value,option.client_message_id);}catch(problem){button.disabled=false;error.textContent=problem.message;}};options.append(button);
+      }row.append(options);
+    }
     const seq = String(item.seq || "0"),
       peer = String(state.peer_read_seq || "0");
     if (item.is_own && !item.withdrawn_at && /^\\d+$/.test(seq) && /^\\d+$/.test(peer)) {
@@ -227,6 +265,7 @@ function render(next) {
       const actions = document.createElement("div"),
         quote = document.createElement("button");
       actions.className = "message-actions";
+      actions.hidden = selectedMessage !== item.id;
       quote.type = "button";
       quote.textContent = "引用";
       quote.onclick = () => {
@@ -270,6 +309,14 @@ function render(next) {
       }
       row.append(actions);
     }
+    /** selectMessage 只选择消息本身，媒体播放器、选项和动作按钮保留自己的点击行为。 */
+    function selectMessage(event) {
+      if(item.withdrawn_at||event?.target?.closest?.("button,audio,video,a,input,.message-attachment"))return;
+      selectedMessage=selectedMessage===item.id?"":item.id;
+      for(const menu of messages.querySelectorAll(".message-actions"))menu.hidden=menu.parentElement.dataset.messageId!==selectedMessage;
+    }
+    row.tabIndex=item.withdrawn_at?-1:0;row.onclick=selectMessage;
+    row.onkeydown=event=>{if(event.target===row&&(event.key==="Enter"||event.key===" ")){event.preventDefault();selectMessage(event);}};
     messages.append(row);
   }
   if (bottom) messages.scrollTop = messages.scrollHeight;
@@ -317,7 +364,9 @@ async function submit() {
   send.disabled = true;
   error.textContent = "";
   try {
-    await chat.sendText(operation.text, operation.id, operation.reply);
+    const saved=chat.sendText(operation.text, operation.id, operation.reply);
+    if(typeof chat.animateSend==="function")chat.animateSend({input,messages,client_message_id:operation.id,text:operation.text,after:saved});
+    await saved;
     if (input.value === operation.text) input.value = "";
     retry = null;
     clearReply();
@@ -329,6 +378,8 @@ async function submit() {
   }
 }
 send.onclick = submit;
+add.onclick=()=>{attachmentMenu.hidden=!attachmentMenu.hidden;add.setAttribute("aria-expanded",String(!attachmentMenu.hidden));};
+for(const button of attachmentMenu.querySelectorAll("button"))button.onclick=()=>{file.accept=button.dataset.kind==="image"?"image/*":button.dataset.kind==="video"?"video/*":"";attachmentMenu.hidden=true;add.setAttribute("aria-expanded","false");file.click();};
 cancelReply.onclick = clearReply;
 input.addEventListener("compositionstart", () => {
   composing = true;
@@ -342,7 +393,7 @@ input.addEventListener("keydown", (event) => {
     submit();
   }
 });
-input.addEventListener("input", () => chat.typing(!!input.value).catch(() => {}));
+input.addEventListener("input", () => { input.style.height="auto";input.style.height=Math.min(input.scrollHeight,120)+"px";chat.typing(!!input.value).catch(() => {}); });
 file.onchange = async () => {
   const chosen = file.files?.[0];
   if (!chosen) return;

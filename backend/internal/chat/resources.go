@@ -71,9 +71,12 @@ func (s *Service) resources(name string) http.HandlerFunc {
 			if r.Method == http.MethodGet {
 				query := resourceQuery(name)
 				args := []any{}
-				if name == "contacts" && !isAdmin(a) {
-					query += " AND " + currentContactAssignment
-					args = append(args, a.MemberID)
+				if name == "contacts" {
+					var err error
+					query, args, err = contactListQuery(r, a)
+					if err != nil {
+						return err
+					}
 				}
 				query += " ORDER BY t.created_at DESC,t.id LIMIT 500"
 				rows, err := tx.Query(ctx, query, args...)

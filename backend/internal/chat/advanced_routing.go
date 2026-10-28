@@ -112,14 +112,25 @@ func requireCandidate(ctx context.Context, tx pgx.Tx, v routeState, member strin
 
 // preferredCandidates 在技能合格候选内执行历史偏好和可选技能排序，指定客服的优先级由调用方先行处理。
 func preferredCandidates(ctx context.Context, tx pgx.Tx, v routeState, items []routeCandidate) ([]routeCandidate, string, error) {
-	if v.History {
-		var previous string
-		err := tx.QueryRow(ctx, `SELECT a.membership_id::text FROM conversation_assignments a JOIN conversations past ON past.id=a.conversation_id AND past.tenant_id=a.tenant_id JOIN conversations current ON current.id=$1 AND current.tenant_id=past.tenant_id WHERE past.contact_id=current.contact_id AND past.service_space_id=current.service_space_id AND past.status='closed' AND past.id<>current.id AND a.accepted_at IS NOT NULL ORDER BY past.closed_at DESC,a.accepted_at DESC,a.id DESC LIMIT 1`, v.ID).Scan(&previous)
+	if v.ID != "" {
+		var previous *string
+		// 当前指针明确记录最终接待；旧指针缺失时只用唯一冻结结束水位，未知段不按事务时间或随机编号猜测。
+		err := tx.QueryRow(ctx, `SELECT coalesce(
+ (SELECT final.membership_id::text FROM conversation_assignments final WHERE final.id=past.current_assignment_id AND final.tenant_id=past.tenant_id AND final.conversation_id=past.id AND final.membership_id=past.current_agent_id AND final.accepted_at IS NOT NULL),
+ (SELECT min(a.membership_id::text) FROM conversation_assignments a
+ WHERE a.tenant_id=past.tenant_id AND a.conversation_id=past.id AND a.accepted_at IS NOT NULL AND a.visibility_through_seq IS NOT NULL
+ AND a.visibility_through_seq=(SELECT max(last.visibility_through_seq) FROM conversation_assignments last WHERE last.tenant_id=past.tenant_id AND last.conversation_id=past.id AND last.accepted_at IS NOT NULL)
+ AND NOT EXISTS(SELECT 1 FROM conversation_assignments unknown WHERE unknown.tenant_id=past.tenant_id AND unknown.conversation_id=past.id AND unknown.accepted_at IS NOT NULL AND unknown.visibility_through_seq IS NULL)
+ HAVING count(*)=1))
+ FROM conversations past JOIN conversations current ON current.id=$1 AND current.tenant_id=past.tenant_id
+ WHERE past.contact_id=current.contact_id AND past.service_space_id=current.service_space_id AND past.status='closed' AND past.id<>current.id AND past.service_group_id=current.service_group_id
+ AND (coalesce((SELECT (settings->>'history_agent_minutes')::integer FROM chat_settings WHERE tenant_id=current.tenant_id),0)=0 OR coalesce(past.last_message_at,past.created_at)>=statement_timestamp()-coalesce((SELECT (settings->>'history_agent_minutes')::integer FROM chat_settings WHERE tenant_id=current.tenant_id),0)*interval '1 minute')
+ ORDER BY coalesce(past.last_message_at,past.created_at) DESC LIMIT 1`, v.ID).Scan(&previous)
 		if err != nil && err != pgx.ErrNoRows {
 			return nil, "", err
 		}
 		for _, item := range items {
-			if item.ID == previous {
+			if previous != nil && item.ID == *previous {
 				return []routeCandidate{item}, "history", nil
 			}
 		}

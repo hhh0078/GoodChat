@@ -211,7 +211,9 @@ export function publicBridgeMessage(item: ChatMessage, visitorId: string) {
     withdrawn_at: item.withdrawn_at,
     source: typeof item.source === "string" ? item.source : undefined,
     options:
-      !item.withdrawn_at && item.sender_kind === "system" && Array.isArray(item.options)
+      !item.withdrawn_at &&
+      (item.sender_kind === "system" || item.sender_kind === "agent") &&
+      Array.isArray(item.options)
         ? item.options
             .slice(0, 8)
             .filter(

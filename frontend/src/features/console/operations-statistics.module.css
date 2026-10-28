@@ -1,0 +1,137 @@
+/* 文件作用说明：为成员统计和平台资源监控提供紧凑的指标、工具栏与平滑采样布局。 */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 20px;
+}
+.metricValue {
+  font-size: 28px;
+  font-weight: 650;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  margin-top: 6px;
+}
+.metricValue small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-left: 6px;
+}
+.notes {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+  margin-top: 18px;
+}
+.notes p {
+  margin: 4px 0;
+}
+.resourceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.resourceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.resourceHeader h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.resourceChart {
+  width: 100%;
+  height: 130px;
+  margin-top: 20px;
+  overflow: visible;
+}
+.resourceChart path {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.resourceChart line {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.resourceReading {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.resourceReading strong {
+  font-size: 32px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.resourceDetails {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 14px;
+}
+.monitorFoot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.monitorFoot h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+.health {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .resourceGrid,
+  .monitorFoot {
+    grid-template-columns: 1fr;
+  }
+  .metricValue {
+    font-size: 25px;
+  }
+}
+@media (max-width: 480px) {
+  .toolbar {
+    align-items: flex-start;
+  }
+  .metrics {
+    gap: 8px;
+  }
+  .resourceDetails {
+    gap: 8px;
+  }
+  .metrics :global(.ant-card-body) {
+    padding: 12px;
+  }
+  .resourceGrid {
+    gap: 10px;
+  }
+  .resourceReading strong {
+    font-size: 28px;
+  }
+}

@@ -2,6 +2,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { uploadAndSendAttachment, type AttachmentAttempt } from "../src/lib/attachment-upload.ts";
+test("服务端同为WebM时按原始媒体区分视频和历史录音，视频不能降为音频", async () => {
+  for (const [type, expected] of [
+    ["video/webm", "file"],
+    ["audio/webm", "audio"],
+    ["", "file"],
+  ]) {
+    const result = await uploadAndSendAttachment(
+      new Blob(["webm media"], { type }),
+      "媒体.webm",
+      { clientId: "webm-media" },
+      async () => ({ id: "webm-attachment", content_type: "video/webm" }),
+      async (body) => body,
+    );
+    assert.equal(result.message_type, expected);
+  }
+});
 test("非法空附件与超20MB附件在网络请求之前拒绝", async () => {
   let uploads = 0;
   const upload = async () => {

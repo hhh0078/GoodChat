@@ -87,6 +87,7 @@ func renderExportCSV(ctx context.Context, tx pgx.Tx, r *http.Request, a actor, r
 	if messages {
 		columns += exportMessageColumns
 		joins += " JOIN messages msg ON msg.conversation_id=c.id AND msg.tenant_id=c.tenant_id LEFT JOIN attachments f ON f.id=msg.attachment_id AND f.tenant_id=msg.tenant_id"
+		where += " AND chat_message_visible(NULLIF($3,'')::uuid,NULLIF($1,'')::uuid,$2,msg.id)"
 		if !internal {
 			where += " AND msg.audience='public'"
 		}

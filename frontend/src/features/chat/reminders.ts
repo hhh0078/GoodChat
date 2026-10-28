@@ -1,7 +1,10 @@
-/** 文件作用说明：默认接收新消息提醒，以音量和系统通知偏好控制实际播放，并在首次交互解锁浏览器声音。 */
+/** 文件作用说明：按服务端持久未读原子领取提醒，离开工作台仍重复提示，遵守成员音量和通知偏好。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { createReminderRequests, reminderEventInvalidates } from "@/lib/reminder-state";
+import type { RealtimeEvent } from "@/lib/realtime/client";
+import { useNotificationAudio } from "./use-notification-audio";
 export type ReminderPreferences = {
   sound_enabled: boolean;
   speech_enabled: boolean;
@@ -10,73 +13,278 @@ export type ReminderPreferences = {
   muted: boolean;
   volume: number;
 };
-type ReminderEvent = {
-  id?: string;
-  conversation_id?: string;
-  event_type?: string;
-  payload?: { sender_kind?: string; content?: string };
+type ReminderItem = { conversation_id: string; reminder_key: string; preview: string };
+type Claimed = {
+  items: ReminderItem[];
+  pending_count: number;
+  repeat_unread_seconds: number;
+  notification_sound_id: string;
 };
-/** useReminders 将音量与隐私偏好用于真实访客新消息，不再设置工作台启用开关。 */
-export function useReminders(tenantId: string) {
+
+/** useReminders 由真实未读与归属决定是否提醒，多个标签通过服务端领取避免同一周期叠响。 */
+export function useReminders(tenantId: string, enabled = true, memberId = "") {
   const prefs = useRef<ReminderPreferences | null>(null);
   const [preferences, setPreferences] = useState<ReminderPreferences | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const [audioReady, setAudioReady] = useState(false);
-  const audio = useRef<AudioContext | null>(null);
+  const audio = useNotificationAudio(enabled);
+  const poll = useRef<() => Promise<void>>(async () => {});
+  const epoch = useRef(0),
+    consumed = useRef(0);
   const seen = useRef(new Set<string>());
+  const eventReceiver = useRef<(event: RealtimeEvent) => void>(() => {});
+  const activeScope = useRef<{
+    tenantId: string;
+    memberId: string;
+    controller: AbortController;
+    requests: ReturnType<typeof createReminderRequests>;
+    cancel: () => void;
+  } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
+    const requests = createReminderRequests();
+    const pendingConversations = new Set<string>();
+    /** cancel 立即停止声音、语音和旧领取响应，保留服务端持久未读供后续核验。 */
+    function cancel() {
+      requests.invalidateAttention();
+      audio.stop();
+      if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+    }
+    const scope = { tenantId, memberId, controller, requests, cancel };
+    activeScope.current = scope;
     prefs.current = null;
     setPreferences(null);
-    seen.current.clear();
     setError(null);
-    api<ReminderPreferences>("/tenant/notification-preferences", {
-      tenantId,
-      signal: controller.signal,
-    })
-      .then((value) => {
-        if (!controller.signal.aborted) {
-          prefs.current = value;
-          setPreferences(value);
+    seen.current.clear();
+    epoch.current = consumed.current = 0;
+    if (!enabled || !tenantId)
+      return () => {
+        controller.abort();
+        cancel();
+        if (activeScope.current === scope) activeScope.current = null;
+      };
+    let running = false;
+    let claiming = false;
+    let rerun = false;
+    let preferencesCheckedAt = 0;
+    /** notify 将同周期多个咨询合成一次提示音和通知，不把客服静音改成开启。 */
+    function notify(result: Claimed) {
+      const settings = prefs.current;
+      if (result.pending_count === 0) {
+        pendingConversations.clear();
+        cancel();
+        return;
+      }
+      if (!settings || settings.muted || !result.items.length) return;
+      for (const item of result.items) pendingConversations.add(item.conversation_id);
+      const preview = settings.content_preview
+        ? result.items[0].preview || "访客发送了附件消息"
+        : "有咨询尚未查看，请回到工作台处理。";
+      const body =
+        result.items.length > 1 ? `${preview}（共${result.items.length}条待处理咨询）` : preview;
+      if (
+        settings.system_enabled &&
+        document.visibilityState !== "visible" &&
+        typeof Notification !== "undefined" &&
+        Notification.permission === "granted"
+      ) {
+        try {
+          new Notification("GoodChat 接待提醒", { body, tag: "goodchat-pending-attention" });
+        } catch (problem) {
+          // 单个通知通道故障不能阻断已可用的声音通道。
+          setError(problem);
         }
-      })
-      .catch((problem) => {
-        if (!controller.signal.aborted) setError(problem);
-      });
-    return () => controller.abort();
-  }, [tenantId]);
-  useEffect(() => {
-    /** unlock 由真实用户交互解锁声音，不自动申请系统通知或播放测试音。 */
-    async function unlock() {
-      if (typeof AudioContext === "undefined") return;
-      try {
-        audio.current ||= new AudioContext();
-        if (audio.current.state === "suspended") await audio.current.resume();
-        setAudioReady(audio.current.state === "running");
-      } catch {
-        setAudioReady(false);
+      }
+      const volume = Math.max(0, Math.min(1, settings.volume));
+      if (volume > 0 && settings.sound_enabled)
+        void audio.play(result.notification_sound_id, volume);
+      if (
+        volume > 0 &&
+        settings.speech_enabled &&
+        typeof speechSynthesis !== "undefined" &&
+        !speechSynthesis.speaking
+      ) {
+        const speech = new SpeechSynthesisUtterance(
+          settings.content_preview ? body : "你有未处理的访客咨询",
+        );
+        speech.lang = "zh-CN";
+        speech.volume = volume;
+        speechSynthesis.speak(speech);
       }
     }
-    document.addEventListener("pointerdown", unlock);
-    document.addEventListener("keydown", unlock);
+    /** claim 使用服务端最早未读期限，断网后重新领取，不依赖浏览器本地计时起点。 */
+    async function claim() {
+      if (controller.signal.aborted || !enabled || !tenantId || requests.preferenceChanging) return;
+      if (running) {
+        rerun = true;
+        return;
+      }
+      running = true;
+      const version = epoch.current;
+      try {
+        if (!prefs.current || Date.now() - preferencesCheckedAt >= 30000) {
+          const currentRead = requests.preferenceRead();
+          const value = await api<ReminderPreferences>("/tenant/notification-preferences", {
+            tenantId,
+            signal: controller.signal,
+          });
+          if (controller.signal.aborted || !currentRead()) return;
+          prefs.current = value;
+          preferencesCheckedAt = Date.now();
+          setPreferences(value);
+          if (value.muted || value.volume <= 0 || !value.sound_enabled) audio.stop();
+          if (
+            (value.muted || value.volume <= 0 || !value.speech_enabled) &&
+            typeof speechSynthesis !== "undefined"
+          )
+            speechSynthesis.cancel();
+        }
+        const settings = prefs.current;
+        const canSound =
+          !!settings &&
+          settings.volume > 0 &&
+          audio.isReady() &&
+          (settings.sound_enabled ||
+            (settings.speech_enabled && typeof speechSynthesis !== "undefined"));
+        const canNotify =
+          !!settings?.system_enabled &&
+          document.visibilityState !== "visible" &&
+          typeof Notification !== "undefined" &&
+          Notification.permission === "granted";
+        // 无可用播放通道的标签不抢占提醒，让已解锁的另一标签或设备领取。
+        if (!settings || settings.muted || (!canSound && !canNotify)) return;
+        const currentClaim = requests.attentionRead();
+        claiming = true;
+        const result = await api<Claimed>("/agent/attention-reminders/claim", {
+          tenantId,
+          method: "POST",
+          signal: controller.signal,
+          bodyJSON: { initial: version !== consumed.current },
+        });
+        if (controller.signal.aborted || !currentClaim()) return;
+        consumed.current = version;
+        setError(null);
+        notify(result);
+      } catch (problem) {
+        if (!controller.signal.aborted) setError(problem);
+      } finally {
+        claiming = false;
+        running = false;
+        if (rerun) {
+          rerun = false;
+          void claim();
+        }
+      }
+    }
+    poll.current = claim;
+    /** receiveEvent 处理本人已读和咨询失效，不能用旧领取响应重新播放已取消的声音。 */
+    function receiveEvent(event: RealtimeEvent) {
+      if (!event.id || seen.current.has(event.id)) return;
+      const invalidates = reminderEventInvalidates(event, memberId);
+      const refreshes =
+        event.event_type === "assignment.changed" ||
+        (event.event_type === "message.created" && event.payload?.sender_kind === "visitor");
+      if (!invalidates && !refreshes) return;
+      seen.current.add(event.id);
+      if (seen.current.size > 500) seen.current.delete(seen.current.values().next().value!);
+      if (invalidates) {
+        if (
+          event.event_type === "read.updated" ||
+          claiming ||
+          !event.conversation_id ||
+          pendingConversations.has(event.conversation_id)
+        )
+          cancel();
+        if (event.conversation_id) pendingConversations.delete(event.conversation_id);
+      }
+      if (refreshes) epoch.current++;
+      void claim();
+    }
+    eventReceiver.current = receiveEvent;
+    void claim();
+    let worker: Worker | undefined;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    /** fallbackClock 在Worker不可用时保留普通定时核验，前台恢复仍会立即补查。 */
+    function fallbackClock() {
+      worker?.terminate();
+      worker = undefined;
+      timer ||= setInterval(() => void claim(), 2000);
+    }
+    try {
+      worker = new Worker(new URL("./attention.worker.ts", import.meta.url), {
+        type: "module",
+        name: "goodchat-attention-clock",
+      });
+      worker.onmessage = () => void claim();
+      worker.onerror = fallbackClock;
+    } catch {
+      fallbackClock();
+    }
+    /** resume 前台恢复或网络回归时立即读持久状态，避免后台定时器被限流后还等待旧计时。 */
+    function resume() {
+      void claim();
+    }
+    /** preferencesChanged 立即应用同页面设置更改，其他设备偏好由周期刷新收敛。 */
+    function preferencesChanged(event: Event) {
+      if ((event as CustomEvent<{ tenantId: string }>).detail?.tenantId !== tenantId) return;
+      const finish = requests.preferenceChange();
+      finish();
+      prefs.current = null;
+      setPreferences(null);
+      cancel();
+      preferencesCheckedAt = 0;
+      void claim();
+    }
+    window.addEventListener("online", resume);
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("goodchat:notification-preferences", preferencesChanged);
     return () => {
-      document.removeEventListener("pointerdown", unlock);
-      document.removeEventListener("keydown", unlock);
-      void audio.current?.close();
-      audio.current = null;
+      controller.abort();
+      cancel();
+      if (timer) clearInterval(timer);
+      worker?.terminate();
+      poll.current = async () => {};
+      eventReceiver.current = () => {};
+      if (activeScope.current === scope) activeScope.current = null;
+      window.removeEventListener("online", resume);
+      window.removeEventListener("focus", resume);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("goodchat:notification-preferences", preferencesChanged);
       if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     };
-  }, []);
-  /** updatePreferences 保存真实偏好，音量调整后提示音可用，零音量即静音。 */
+  }, [tenantId, memberId, enabled, audio.play, audio.stop, audio.isReady]);
+  useEffect(() => {
+    if (audio.ready) void poll.current();
+  }, [audio.ready]);
+  /** updatePreferences 等服务端确认保存成员偏好，之后的提醒使用新音量。 */
   async function updatePreferences(values: Partial<ReminderPreferences>) {
-    const saved = await api<ReminderPreferences>("/tenant/notification-preferences", {
-      tenantId,
-      method: "PATCH",
-      bodyJSON: values,
-    });
-    prefs.current = saved;
-    setPreferences(saved);
-    setError(null);
+    const scope = activeScope.current;
+    if (!scope || scope.tenantId !== tenantId || scope.memberId !== memberId) return;
+    const finish = scope.requests.preferenceChange();
+    scope.cancel();
+    try {
+      const saved = await api<ReminderPreferences>("/tenant/notification-preferences", {
+        tenantId,
+        method: "PATCH",
+        signal: scope.controller.signal,
+        bodyJSON: values,
+      });
+      if (activeScope.current !== scope || scope.controller.signal.aborted || !finish()) return;
+      prefs.current = saved;
+      setPreferences(saved);
+      setError(null);
+    } catch (problem) {
+      if (activeScope.current === scope && !scope.controller.signal.aborted && finish()) {
+        // PATCH失败可能是响应丢失，重新读服务端事实，不能盲目恢复旧设置。
+        prefs.current = null;
+        setPreferences(null);
+        setError(problem);
+      }
+      throw problem;
+    } finally {
+      finish();
+      if (activeScope.current === scope && !scope.controller.signal.aborted) void poll.current();
+    }
   }
   /** setSystemNotifications 仅在用户主动勾选时申请系统通知权限。 */
   async function setSystemNotifications(enabled: boolean) {
@@ -91,58 +299,17 @@ export function useReminders(tenantId: string) {
     }
     await updatePreferences({ system_enabled: enabled });
   }
-  /** receive 按事件编号去重，零音量不播放声音但仍遵循独立系统通知选择。 */
-  function receive(event: ReminderEvent) {
-    const settings = prefs.current;
-    if (
-      !settings ||
-      event.event_type !== "message.created" ||
-      event.payload?.sender_kind !== "visitor" ||
-      !event.id ||
-      seen.current.has(event.id)
-    )
-      return;
-    seen.current.add(event.id);
-    if (seen.current.size > 500) seen.current.delete(seen.current.values().next().value!);
-    if (settings.muted) return;
-    const preview = settings.content_preview
-      ? event.payload.content?.slice(0, 100) || "访客发送了附件消息"
-      : "有访客发送了新消息，请回到工作台查看。";
-    if (
-      settings.system_enabled &&
-      document.visibilityState !== "visible" &&
-      typeof Notification !== "undefined" &&
-      Notification.permission === "granted"
-    )
-      new Notification("GoodChat 新咨询消息", { body: preview, tag: event.conversation_id });
-    const volume = Math.max(0, Math.min(settings.volume, 1));
-    if (volume > 0 && settings.sound_enabled && audio.current?.state === "running") {
-      const oscillator = audio.current.createOscillator();
-      const gain = audio.current.createGain();
-      oscillator.frequency.value = 660;
-      gain.gain.value = volume * 0.12;
-      oscillator.connect(gain);
-      gain.connect(audio.current.destination);
-      oscillator.onended = () => {
-        oscillator.disconnect();
-        gain.disconnect();
-      };
-      oscillator.start();
-      oscillator.stop(audio.current.currentTime + 0.12);
-    }
-    if (
-      volume > 0 &&
-      settings.speech_enabled &&
-      typeof speechSynthesis !== "undefined" &&
-      !speechSynthesis.speaking
-    ) {
-      const speech = new SpeechSynthesisUtterance(
-        settings.content_preview ? preview : "你有一条新的访客消息",
-      );
-      speech.lang = "zh-CN";
-      speech.volume = volume;
-      speechSynthesis.speak(speech);
-    }
-  }
-  return { preferences, error, audioReady, updatePreferences, setSystemNotifications, receive };
+  /** receive 将新消息与分配变更作为立即核验提示，不能凭WS消息替任何客服构造待处理状态。 */
+  const receive = useCallback((event: RealtimeEvent) => eventReceiver.current(event), []);
+  /** recover 让共享实时连接恢复后重新检查持久提醒。 */
+  const recover = useCallback(() => poll.current(), []);
+  return {
+    preferences,
+    error,
+    audioReady: audio.ready,
+    updatePreferences,
+    setSystemNotifications,
+    receive,
+    recover,
+  };
 }

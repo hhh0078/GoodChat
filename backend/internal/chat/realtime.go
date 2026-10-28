@@ -13,6 +13,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/jackc/pgx/v5"
 	"supportdesk/backend/internal/platform"
+	"supportdesk/backend/internal/presence"
 )
 
 // liveClient 保存本进程实时连接的授权身份和有界发送队列。
@@ -220,6 +221,9 @@ func (s *Service) heartbeat(ctx context.Context, a actor) error {
 		if err := liveMember(ctx, tx, a); err != nil {
 			return err
 		}
+		if err := presence.Renew(ctx, tx, a.TenantID, a.MemberID); err != nil {
+			return err
+		}
 		if a.CanServe {
 			_, err := tx.Exec(ctx, "UPDATE agent_runtime SET online_until=now()+interval '45 seconds',updated_at=now() WHERE membership_id=$1", a.MemberID)
 			return err
@@ -277,14 +281,43 @@ func (s *Service) broadcast(ctx context.Context, tenant, conversation, audience 
 		}
 	}
 	s.mu.Unlock()
-	raw := jsonValue(value)
 	for _, c := range clients {
-		err := platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error { return canReadConversation(ctx, tx, c.actor, conversation) })
+		outgoing := value
+		err := platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error {
+			if err := canReadConversation(ctx, tx, c.actor, conversation); err != nil {
+				return err
+			}
+			if value["type"] != "event" {
+				return nil
+			}
+			data, ok := value["data"].(map[string]any)
+			if !ok {
+				return platform.Fail(404, "event_not_visible", "事件不存在")
+			}
+			id, ok := data["id"].(string)
+			if !ok || !uuidPattern.MatchString(id) {
+				return platform.Fail(404, "event_not_visible", "事件不存在")
+			}
+			// 出站任务认领后可能已撤回消息，发送前重读当前事件，不能重放认领时的旧正文副本。
+			event, err := txJSON(ctx, tx, "SELECT to_jsonb(e)||jsonb_build_object('seq',e.seq::text,'protocol_version',1) FROM conversation_events e WHERE e.id=$1 AND e.conversation_id=$2 AND chat_event_visible(NULLIF($3,'')::uuid,NULLIF($4,'')::uuid,$5,e.id)", id, conversation, c.actor.MemberID, c.actor.ContactID, isAdmin(c.actor))
+			if err != nil {
+				return err
+			}
+			// 每个接收身份单独复制并裁剪引用，不能修改下一位接收者共享的原始事件。
+			outgoing = decodeJSONMap(jsonValue(value))
+			outgoing["data"] = event
+			copyData := event
+			payload, _ := copyData["payload"].(map[string]any)
+			if payload != nil {
+				return redactMessageReplies(ctx, tx, c.actor, []map[string]any{payload})
+			}
+			return nil
+		})
 		if err != nil {
 			continue
 		}
 		select {
-		case c.send <- raw:
+		case c.send <- jsonValue(outgoing):
 		default:
 			c.cancel()
 		}

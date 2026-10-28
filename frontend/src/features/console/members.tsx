@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   App,
   Avatar,
+  Badge,
   Button,
   Drawer,
   Modal,
@@ -43,6 +44,10 @@ export function MembersPage() {
     return () => clearTimeout(timer);
   }, [transferCodeWait]);
   const members = useResource<Member>("/tenant/members");
+  useEffect(() => {
+    const timer = setInterval(members.reload, 15000);
+    return () => clearInterval(timer);
+  }, [members.tenantId, members.reload]);
   const invitations = useResource<Resource>("/tenant/invitations");
   const [editing, setEditing] = useState<Member | null | undefined>();
   const [saving, setSaving] = useState(false);
@@ -168,6 +173,28 @@ export function MembersPage() {
       ),
     },
     {
+      title: "在线状态",
+      key: "online",
+      width: 130,
+      render: (_, row) => (
+        <div>
+          <Badge
+            status={row.online === true ? "success" : "error"}
+            text={row.online === true ? "在线" : "离线"}
+          />
+          {typeof row.last_seen_at === "string" && (
+            <div className="muted" style={{ fontSize: 11 }}>
+              最近{" "}
+              {new Date(row.last_seen_at).toLocaleTimeString("zh-CN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
       title: "角色",
       dataIndex: "role",
       render: (value) => (
@@ -257,6 +284,7 @@ export function MembersPage() {
         description="管理员与客服分别授权，邀请成员加入当前租户。"
         action={
           <Space>
+            <Button href="/console/member-statistics">成员统计</Button>
             {owns && (
               <Button
                 onClick={() => {
@@ -289,7 +317,7 @@ export function MembersPage() {
                     columns={memberColumns}
                     dataSource={members.items}
                     loading={members.loading}
-                    scroll={{ x: 900 }}
+                    scroll={{ x: 1100 }}
                     locale={{ emptyText: <EmptyData /> }}
                   />
                 </>

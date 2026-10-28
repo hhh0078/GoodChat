@@ -14,35 +14,41 @@ import (
 
 // memberView 返回租户成员及独立接待属性，不暴露密码和认证凭证。
 type memberView struct {
-	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"`
-	Email       string    `json:"email"`
-	DisplayName string    `json:"display_name"`
-	Role        string    `json:"role"`
-	CanServe    bool      `json:"can_serve"`
-	Disabled    bool      `json:"disabled"`
-	Capacity    int       `json:"capacity"`
-	CreatedAt   time.Time `json:"created_at"`
-	AvatarRef   string    `json:"avatar_ref"`
-	AvatarURL   string    `json:"avatar_url"`
+	ID          string     `json:"id"`
+	UserID      string     `json:"user_id"`
+	Email       string     `json:"email"`
+	DisplayName string     `json:"display_name"`
+	Role        string     `json:"role"`
+	CanServe    bool       `json:"can_serve"`
+	Disabled    bool       `json:"disabled"`
+	Capacity    int        `json:"capacity"`
+	CreatedAt   time.Time  `json:"created_at"`
+	AvatarRef   string     `json:"avatar_ref"`
+	AvatarURL   string     `json:"avatar_url"`
+	Online      bool       `json:"online"`
+	LastSeenAt  *time.Time `json:"last_seen_at"`
+	OnlineUntil *time.Time `json:"online_until"`
 }
 
 // members 查询认证上下文指定租户的成员，包括停用成员但不包含已移出成员。
 func (s *Service) members(w http.ResponseWriter, r *http.Request) error {
-	rows, err := s.pool.Query(r.Context(), `SELECT m.id::text,m.user_id::text,u.email,COALESCE(NULLIF(m.display_name,''),u.display_name),m.role,m.can_serve,m.disabled,m.capacity,m.created_at,m.avatar_ref,`+platform.AvatarURLSQL("m")+` FROM tenant_memberships m JOIN users u ON u.id=m.user_id WHERE m.tenant_id=$1 AND m.removed_at IS NULL ORDER BY m.created_at,m.id LIMIT 1000`, platform.Current(r).TenantID)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
 	items := []memberView{}
-	for rows.Next() {
-		var member memberView
-		if err := rows.Scan(&member.ID, &member.UserID, &member.Email, &member.DisplayName, &member.Role, &member.CanServe, &member.Disabled, &member.Capacity, &member.CreatedAt, &member.AvatarRef, &member.AvatarURL); err != nil {
+	err := platform.TenantTx(r.Context(), s.pool, platform.Current(r).TenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), `SELECT m.id::text,m.user_id::text,u.email,COALESCE(NULLIF(m.display_name,''),u.display_name),m.role,m.can_serve,m.disabled,m.capacity,m.created_at,m.avatar_ref,`+platform.AvatarURLSQL("m")+`,NOT m.disabled AND coalesce(p.online_until>statement_timestamp(),false),p.last_seen_at,p.online_until FROM tenant_memberships m JOIN users u ON u.id=m.user_id LEFT JOIN LATERAL(SELECT last_seen_at,online_until FROM member_presence_intervals p WHERE p.tenant_id=m.tenant_id AND p.membership_id=m.id ORDER BY online_until DESC LIMIT 1)p ON true WHERE m.tenant_id=$1 AND m.removed_at IS NULL ORDER BY m.created_at,m.id LIMIT 1000`, platform.Current(r).TenantID)
+		if err != nil {
 			return err
 		}
-		items = append(items, member)
-	}
-	if err := rows.Err(); err != nil {
+		defer rows.Close()
+		for rows.Next() {
+			var member memberView
+			if err := rows.Scan(&member.ID, &member.UserID, &member.Email, &member.DisplayName, &member.Role, &member.CanServe, &member.Disabled, &member.Capacity, &member.CreatedAt, &member.AvatarRef, &member.AvatarURL, &member.Online, &member.LastSeenAt, &member.OnlineUntil); err != nil {
+				return err
+			}
+			items = append(items, member)
+		}
+		return rows.Err()
+	})
+	if err != nil {
 		return err
 	}
 	platform.JSON(w, 200, map[string]any{"items": items})

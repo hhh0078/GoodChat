@@ -1,6 +1,6 @@
 /** 文件作用说明：渲染访客可见消息、日期分组、附件、引用和已读状态，内部备注不进入对话流。 */
 "use client";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { Avatar, Button, Popconfirm, Space } from "antd";
 import type { ChatMessage } from "@/lib/types";
 import type { ChatIdentity, Outgoing } from "./use-chat";
@@ -34,8 +34,9 @@ export function MessageHistory({
   readSeq: string;
   onReply: (message: ChatMessage) => void;
   onWithdraw: (message: ChatMessage) => Promise<void>;
-  onSend: (body: Outgoing) => Promise<void>;
+  onSend: (body: Outgoing) => Promise<unknown>;
 }) {
+  const [selectedMessage, setSelectedMessage] = useState("");
   return (
     <>
       {messages.map((item, index) => {
@@ -48,6 +49,7 @@ export function MessageHistory({
             {showDate && <div className="message-day-divider">{dateLabel}</div>}
             <div
               className={`message-row ${own ? "own" : ""} ${item.audience === "internal" ? "internal" : ""}`}
+              data-client-message-id={item.client_message_id}
             >
               <Avatar
                 size={32}
@@ -92,7 +94,25 @@ export function MessageHistory({
                     })
                   : ""}
               </div>
-              <div className="message-bubble">
+              <div
+                className={`message-bubble ${identity.kind === "visitor" ? "is-selectable" : ""}`}
+                tabIndex={identity.kind === "visitor" && !item.withdrawn_at ? 0 : undefined}
+                aria-label={identity.kind === "visitor" ? "选择消息以引用或撤回" : undefined}
+                onClick={() =>
+                  identity.kind === "visitor" &&
+                  setSelectedMessage((previous) => (previous === item.id ? "" : item.id))
+                }
+                onKeyDown={(event) => {
+                  if (
+                    identity.kind === "visitor" &&
+                    event.target === event.currentTarget &&
+                    (event.key === "Enter" || event.key === " ")
+                  ) {
+                    event.preventDefault();
+                    setSelectedMessage((previous) => (previous === item.id ? "" : item.id));
+                  }
+                }}
+              >
                 {item.withdrawn_at ? (
                   <span className="muted">消息已撤回</span>
                 ) : (
@@ -112,42 +132,57 @@ export function MessageHistory({
                     )}
                     {item.content}
                     {item.attachment && (
-                      <AttachmentView attachment={item.attachment} identity={identity} />
+                      <div
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <AttachmentView
+                          attachment={item.attachment}
+                          messageType={item.message_type}
+                          identity={identity}
+                        />
+                      </div>
                     )}
-                    {item.sender_kind === "system" && Array.isArray(item.options) && (
-                      <Space wrap style={{ marginTop: 10, display: "flex" }}>
-                        {item.options.map((option) => (
-                          <Button
-                            key={option.id}
-                            size="small"
-                            disabled={
-                              !canSend ||
-                              identity.kind !== "visitor" ||
-                              sending ||
-                              messages.some(
-                                (message) => message.client_message_id === option.client_message_id,
-                              )
-                            }
-                            onClick={() =>
-                              void onSend({
-                                client_message_id: option.client_message_id,
-                                content: option.value,
-                                message_type: "text",
-                                audience: "public",
-                              })
-                            }
-                          >
-                            {option.label}
-                          </Button>
-                        ))}
-                      </Space>
-                    )}
+                    {(item.sender_kind === "system" || item.sender_kind === "agent") &&
+                      Array.isArray(item.options) && (
+                        <Space
+                          wrap
+                          style={{ marginTop: 10, display: "flex" }}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {item.options.map((option) => (
+                            <Button
+                              key={option.id}
+                              size="small"
+                              disabled={
+                                !canSend ||
+                                identity.kind !== "visitor" ||
+                                sending ||
+                                messages.some(
+                                  (message) =>
+                                    message.client_message_id === option.client_message_id,
+                                )
+                              }
+                              onClick={() =>
+                                void onSend({
+                                  client_message_id: option.client_message_id,
+                                  content: option.value,
+                                  message_type: "text",
+                                  audience: "public",
+                                })
+                              }
+                            >
+                              {option.label}
+                            </Button>
+                          ))}
+                        </Space>
+                      )}
                   </>
                 )}
               </div>
               {!item.withdrawn_at && (
                 <Space className="message-actions" size={10} style={{ fontSize: 11, marginTop: 4 }}>
-                  {canSend && (
+                  {canSend && (identity.kind === "agent" || selectedMessage === item.id) && (
                     <Button
                       type="link"
                       size="small"
@@ -158,7 +193,7 @@ export function MessageHistory({
                       引用
                     </Button>
                   )}
-                  {own && canSend && (
+                  {own && canSend && (identity.kind === "agent" || selectedMessage === item.id) && (
                     <Popconfirm title="撤回这条消息？" onConfirm={() => onWithdraw(item)}>
                       <Button type="link" size="small">
                         撤回

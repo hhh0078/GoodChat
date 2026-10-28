@@ -26,6 +26,7 @@ import { AutomationPolicy } from "./automation-policy";
 import { WelcomeRules } from "./welcome-rules";
 import { LeadNotifications } from "./lead-notifications";
 import { AttachmentView } from "@/features/chat/attachment";
+import { QuickReplyManager } from "./quick-reply-manager";
 import type { Resource } from "@/lib/types";
 type LeadRecord = Resource & {
   status: string;
@@ -64,6 +65,10 @@ export function OperationsSettings({ notifications = false }: { notifications?: 
       const data = await api(path, { method: "PATCH", tenantId, bodyJSON: values });
       form.setFieldsValue(data);
       setError(null);
+      if (notifications)
+        window.dispatchEvent(
+          new CustomEvent("goodchat:notification-preferences", { detail: { tenantId } }),
+        );
       message.success("设置已保存");
     } catch (problem) {
       setError(problem);
@@ -405,41 +410,7 @@ export function AutomationPage() {
           {
             key: "replies",
             label: "快捷话术",
-            children: (
-              <div className="table-card">
-                <ResourcePanel
-                  title="话术"
-                  path="/tenant/quick-replies"
-                  canEdit={(item) => manages || item.scope === "personal"}
-                  columns={[
-                    { title: "标题", dataIndex: "title" },
-                    { title: "内容", dataIndex: "content", ellipsis: true },
-                    {
-                      title: "范围",
-                      dataIndex: "scope",
-                      render: (value) => (value === "personal" ? "个人" : "团队公共"),
-                    },
-                  ]}
-                  fields={[
-                    { name: "title", label: "话术标题", required: true },
-                    { name: "content", label: "话术内容", type: "textarea", required: true },
-                    { name: "shortcut", label: "快捷编号" },
-                    { name: "category", label: "话术分类" },
-                    {
-                      name: "scope",
-                      label: "使用范围",
-                      type: "select",
-                      initial: manages ? "public" : "personal",
-                      options: [
-                        ...(manages ? [{ label: "团队公共", value: "public" }] : []),
-                        { label: "仅自己", value: "personal" },
-                      ],
-                    },
-                    { name: "enabled", label: "启用", type: "switch", initial: true },
-                  ]}
-                />
-              </div>
-            ),
+            children: <QuickReplyManager key={tenantId} manages={manages} />,
           },
           {
             key: "keywords",

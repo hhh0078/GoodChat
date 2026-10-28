@@ -1,5 +1,5 @@
 /** 文件作用说明：解析中英文公开接入参数和任意业务JSON，展示资料不能变成认证身份或扩大接待权限。 */
-type VisitorParameters = {
+export type VisitorParameters = {
   routing: Record<string, string>;
   profile: Record<string, string>;
   context: Record<string, unknown>;

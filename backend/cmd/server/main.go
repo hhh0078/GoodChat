@@ -26,6 +26,7 @@ import (
 	"supportdesk/backend/internal/callbacks"
 	"supportdesk/backend/internal/chat"
 	"supportdesk/backend/internal/decoration"
+	"supportdesk/backend/internal/monitoring"
 	"supportdesk/backend/internal/platform"
 	"supportdesk/backend/internal/reporting"
 )
@@ -112,6 +113,9 @@ func main() {
 	reports := reporting.New(pool, identity)
 	reports.SetFeatureChecker(plans.CheckFeature)
 	reports.Register(mux)
+	monitor := monitoring.New(pool, identity, messaging.RealtimeStats)
+	monitor.Register(mux)
+	go monitor.Start(ctx)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		pingCtx, done := context.WithTimeout(r.Context(), 2*time.Second)
 		defer done()

@@ -35,7 +35,8 @@ export async function uploadAndSendAttachment<T>(
     content: "",
     message_type: attachment.content_type.startsWith("image/")
       ? "image"
-      : attachment.content_type.startsWith("audio/") || attachment.content_type === "video/webm"
+      : attachment.content_type.startsWith("audio/") ||
+          (attachment.content_type === "video/webm" && file.type.startsWith("audio/"))
         ? "audio"
         : "file",
     attachment_id: attachment.id,

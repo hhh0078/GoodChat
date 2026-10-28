@@ -10,9 +10,7 @@ import (
 	"supportdesk/backend/internal/platform"
 )
 
-const conversationWhere = ` WHERE (c.contact_id=NULLIF($1,'')::uuid OR $2 OR c.current_agent_id=NULLIF($3,'')::uuid
- OR (c.status='queued' AND EXISTS(SELECT 1 FROM agent_group_members gm JOIN tenant_memberships mm ON mm.id=gm.membership_id AND mm.tenant_id=gm.tenant_id WHERE gm.group_id=c.service_group_id AND gm.tenant_id=c.tenant_id AND gm.membership_id=NULLIF($3,'')::uuid AND mm.can_serve AND NOT mm.disabled AND mm.removed_at IS NULL))
- OR EXISTS(SELECT 1 FROM transfer_requests tr WHERE tr.conversation_id=c.id AND tr.target_agent_id=NULLIF($3,'')::uuid AND tr.status='pending' AND tr.expires_at>statement_timestamp()))
+const conversationWhere = ` WHERE chat_conversation_visible(NULLIF($3,'')::uuid,NULLIF($1,'')::uuid,$2,c.id)
  AND ($4='' OR c.status=$4) AND ($5='' OR c.current_agent_id=NULLIF($5,'')::uuid) AND ($6='' OR c.contact_id=NULLIF($6,'')::uuid)
  AND ($7='' OR ` + platform.ConversationChannelSQL + `=$7)
  AND ($8='' OR u.display_name ILIKE '%'||$8||'%' OR u.phone ILIKE '%'||$8||'%')
