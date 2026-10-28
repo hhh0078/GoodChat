@@ -163,6 +163,44 @@
   object-fit: contain;
   pointer-events: none;
 }
+.cobalt-rings-fallback,
+.cobalt-rings-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.cobalt-rings-fallback {
+  object-fit: contain;
+}
+.cobalt-rings-canvas {
+  opacity: 0;
+}
+.cobalt-rings-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.cobalt-hero-rings[data-scene-state="ready"] .cobalt-rings-fallback {
+  visibility: hidden;
+}
+.cobalt-hero-rings[data-scene-state="ready"] .cobalt-rings-canvas {
+  opacity: 1;
+}
+.public-home-hero .cobalt-hero-motion-control {
+  position: absolute;
+  z-index: 2;
+  right: 4px;
+  top: 492px;
+  min-height: 44px;
+  padding: 0 14px;
+  color: #52617b;
+  border-color: #dce5f3;
+  border-radius: 24px;
+  background: rgb(255 255 255 / 90%);
+  box-shadow: 0 4px 16px rgb(40 73 135 / 5%);
+  font-size: 12px;
+}
 .public-hero-copy {
   position: relative;
   width: 100%;
@@ -2200,9 +2238,13 @@
   .cobalt-hero-rings {
     width: 100%;
     height: 340px;
-    right: -82px;
+    right: -32px;
     top: 215px;
     opacity: 0.92;
+  }
+  .public-home-hero .cobalt-hero-motion-control {
+    top: 440px;
+    right: 0;
   }
   .cobalt-hero-callout {
     display: none;

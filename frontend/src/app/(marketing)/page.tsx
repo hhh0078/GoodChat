@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "antd";
 import { ProductPreview } from "@/components/product-preview";
+import { HeroRings } from "@/components/hero-rings";
 import {
   ArrowRightOutlined,
   ApartmentOutlined,
@@ -53,15 +54,7 @@ export default function HomePage() {
           priority
           sizes="100vw"
         />
-        <Image
-          className="cobalt-hero-rings"
-          src="/images/cobalt-communication-rings.png"
-          alt=""
-          width={1600}
-          height={1100}
-          priority
-          sizes="(max-width: 768px) 90vw, 65vw"
-        />
+        <HeroRings />
         <div className="public-hero-copy">
           <h1>
             连接每一位客户。
