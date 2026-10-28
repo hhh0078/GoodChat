@@ -805,3 +805,117 @@
     transition: none;
   }
 }
+
+/* 服务统计使用紧凑读数与平滑曲线，原始小时或日明细仍可逐行核对。 */
+.console-report-period {
+  margin: -12px 0 24px;
+  color: var(--ink);
+  font-size: 13px;
+}
+.report-trend {
+  margin: 24px 0;
+  padding: 24px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.report-trend-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.report-trend-heading h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.report-trend-heading .muted {
+  font-size: 12px;
+}
+.report-trend-legend,
+.report-trend-reading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  font-size: 13px;
+}
+.report-trend-legend span {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.report-trend-legend i {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.report-trend .visitors {
+  color: #168767;
+  stroke: #168767;
+}
+.report-trend .conversations {
+  color: var(--muted);
+  stroke: var(--muted);
+}
+.report-trend .messages {
+  color: var(--brand);
+  stroke: var(--brand);
+}
+.report-trend-reading {
+  margin: 20px 0 12px;
+  min-height: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.report-trend-reading b {
+  margin-left: 4px;
+}
+.report-trend svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.report-trend svg text {
+  fill: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.report-trend-grid {
+  stroke: var(--line);
+  stroke-dasharray: 4 5;
+}
+.report-trend-line {
+  fill: none;
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.report-trend-hit {
+  fill: transparent;
+}
+.report-trend-hit:focus-visible {
+  outline: 2px solid var(--brand);
+  fill: var(--brand-soft);
+  fill-opacity: 0.25;
+}
+.report-trend-loading {
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+}
+@media (max-width: 640px) {
+  .report-trend {
+    padding: 16px 12px;
+  }
+  .report-trend-reading {
+    gap: 12px;
+  }
+  .report-trend svg {
+    min-height: 180px;
+  }
+}

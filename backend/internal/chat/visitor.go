@@ -87,7 +87,7 @@ func (s *Service) entryTenant(ctx context.Context, key string) (string, error) {
 
 // entryJSON 返回公开配置并确认入口未停用或过期。
 func entryJSON(ctx context.Context, tx pgx.Tx, key string) (map[string]any, error) {
-	return txJSON(ctx, tx, "SELECT jsonb_build_object('id',l.id,'entry_key',l.entry_key,'name',l.name,'tenant_name',t.name,'service_space_id',l.service_space_id,'service_group_id',l.service_group_id,'routing_pool_id',l.routing_pool_id,'agent_id',l.agent_id,'agent_mode',l.agent_mode,'channel_code',l.channel_code,'allow_routing_override',l.allow_routing_override,'page_id',l.page_id,'pinned_release_id',l.pinned_release_id,'binding_mode',l.binding_mode) FROM access_links l JOIN tenants t ON t.id=l.tenant_id WHERE l.entry_key=$1 AND l.status='active' AND (l.expires_at IS NULL OR l.expires_at>now())", key)
+	return txJSON(ctx, tx, "SELECT jsonb_build_object('id',l.id,'entry_key',l.entry_key,'name',l.name,'tenant_name',t.name,'service_space_id',l.service_space_id,'service_group_id',l.service_group_id,'routing_pool_id',l.routing_pool_id,'agent_id',l.agent_id,'agent_mode',l.agent_mode,'channel_code',l.channel_code,'channel_tags',l.channel_tags,'reception_mode',l.reception_mode,'allow_routing_override',true,'page_id',l.page_id,'pinned_release_id',l.pinned_release_id,'binding_mode',l.binding_mode) FROM access_links l JOIN tenants t ON t.id=l.tenant_id WHERE l.entry_key=$1 AND l.status='active' AND (l.expires_at IS NULL OR l.expires_at>now())", key)
 }
 
 // visitorSession 只通过独立随机凭证恢复客户，手机号永远只作为资料。
@@ -173,6 +173,7 @@ func (s *Service) visitorSession(w http.ResponseWriter, r *http.Request) {
 		}
 		tracking := cleanTracking(in.Tracking)
 		tracking["channel_code"] = entry["channel_code"]
+		tracking["channel_tags"] = entry["channel_tags"]
 		if newVisitor {
 			name := strings.TrimSpace(in.Profile.DisplayName)
 			if name == "" {
@@ -252,6 +253,23 @@ func (s *Service) visitorSession(w http.ResponseWriter, r *http.Request) {
 		} else if err != nil {
 			return err
 		}
+		// 复访保留最初来源快照，只合并本次提供的业务资料；未提供字段保持原值。
+		if visitTag.RowsAffected() > 0 && len(in.Context) > 0 {
+			var previous []byte
+			if err := tx.QueryRow(ctx, "SELECT context FROM conversations WHERE id=$1 FOR UPDATE", conversationID).Scan(&previous); err != nil {
+				return err
+			}
+			merged := decodeJSONMap(previous)
+			for key, value := range in.Context {
+				merged[key] = value
+			}
+			if err := validateContext(merged); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, "UPDATE conversations SET context=$2 WHERE id=$1", conversationID, jsonValue(merged)); err != nil {
+				return err
+			}
+		}
 		conversation, err := conversationJSON(ctx, tx, conversationID)
 		if err != nil {
 			return err
@@ -277,9 +295,6 @@ func resolveRouting(ctx context.Context, tx pgx.Tx, entry map[string]any, in rou
 		t.AgentID = v
 	}
 	if in.GroupID != "" || in.PoolID != "" || in.AgentID != "" || in.AgentMode != "" {
-		if allowed, _ := entry["allow_routing_override"].(bool); !allowed {
-			return t, platform.Fail(400, "routing_override_disabled", "该入口不允许覆盖接待目标")
-		}
 		if in.GroupID != "" && in.GroupID != t.GroupID {
 			return t, platform.Fail(400, "group_not_allowed", "该入口未授权其他客服组")
 		}

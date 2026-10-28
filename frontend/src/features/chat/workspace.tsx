@@ -14,25 +14,28 @@ import {
   Drawer,
   Input,
   Popconfirm,
+  Popover,
   Select,
   Space,
   Tag,
 } from "antd";
 import {
   ArrowLeftOutlined,
-  BellOutlined,
   CustomerServiceOutlined,
   ReloadOutlined,
   SwapOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { canTransferTo, isTransferRecipient } from "@/lib/assignment-state";
-import { api, errorMessage } from "@/lib/api";
+import { channelTags } from "@/lib/workspace-display";
+import { useRealtime } from "@/lib/realtime/use-realtime";
+import { api } from "@/lib/api";
 import { useSession } from "@/features/auth/session";
 import { useResource } from "@/lib/use-resource";
 import type { Conversation, Resource } from "@/lib/types";
 import { ErrorNotice, EmptyData, PageTitle } from "@/components/page-state";
 import { useReminders } from "./reminders";
+import { ReminderVolume } from "./reminder-volume";
 import { ChatPanel, conversationStatus } from "./chat-panel";
 import { CustomerContext } from "./customer-context";
 type AgentStatus = { available: boolean; busy: boolean; current_load: number; capacity: number };
@@ -49,7 +52,6 @@ export function AgentWorkspace() {
   const [busy, setBusy] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [target, setTarget] = useState<string | undefined>();
-  const [live, setLive] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
   const screens = Grid.useBreakpoint();
@@ -71,74 +73,38 @@ export function AgentWorkspace() {
     if (!membership?.can_serve) return;
     api<AgentStatus>("/agent/status", { tenantId }).then(setRuntime).catch(setError);
   }, [tenantId, membership?.can_serve]);
+  const realtime = useRealtime(
+    { tenantId, actorId: membership?.id || "", kind: "agent" },
+    {
+      enabled: !!membership?.can_serve,
+      onEvent: (event) => {
+        conversations.reload();
+        reminders.receive(event);
+      },
+      onRecover: async () => {
+        const [, runtime] = await Promise.all([
+          api(`/conversations?${new URLSearchParams({ status, query })}`, { tenantId }),
+          api<AgentStatus>("/agent/status", { tenantId }),
+        ]);
+        setRuntime(runtime);
+        conversations.reload();
+      },
+    },
+  );
   useEffect(() => {
     if (!membership?.can_serve) return;
-    let disposed = false;
-    let ws: WebSocket | null = null;
-    let reconnect: ReturnType<typeof setTimeout> | undefined;
-    /** connect 保持咨询列表的实时连接与客服在线租约。 */
-    async function connect() {
-      try {
-        const ticket = await api<{ url: string }>("/realtime/ticket", {
-          method: "POST",
-          tenantId,
-          bodyJSON: {},
-        });
-        if (disposed) return;
-        const url = new URL(ticket.url, location.origin);
-        if (url.origin !== location.origin) throw new Error("实时来源无效");
-        url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
-        ws = new WebSocket(url);
-        ws.onopen = () => {
-          setLive(true);
-          conversations.reload();
-        };
-        ws.onmessage = (event) => {
-          try {
-            const payload = JSON.parse(String(event.data));
-            if (payload.type !== "event") return;
-            conversations.reload();
-            reminders.receive(payload.data);
-          } catch {
-            /* 异常帧由列表定时同步恢复。 */
-          }
-        };
-        ws.onclose = () => {
-          if (!disposed) {
-            setLive(false);
-            reconnect = setTimeout(() => void connect(), 4000);
-          }
-        };
-        ws.onerror = () => ws?.close();
-      } catch {
-        if (!disposed) {
-          setLive(false);
-          reconnect = setTimeout(() => void connect(), 5000);
-        }
-      }
-    }
-    void connect();
-    const heartbeat = setInterval(() => {
-      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "heartbeat" }));
-    }, 15000);
+    const controller = new AbortController();
     const polling = setInterval(() => {
       conversations.reload();
-      api<AgentStatus>("/agent/status", { tenantId })
-        .then((value) => {
-          if (!disposed) setRuntime(value);
-        })
+      api<AgentStatus>("/agent/status", { tenantId, signal: controller.signal })
+        .then(setRuntime)
         .catch(() => {});
     }, 10000);
     return () => {
-      disposed = true;
-      if (reconnect) clearTimeout(reconnect);
-      clearInterval(heartbeat);
+      controller.abort();
       clearInterval(polling);
-      ws?.close();
     };
-    // 列表刷新函数稳定，查询变更由资源钩子负责，不重建在线连接。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, membership?.can_serve]);
+  }, [tenantId, membership?.can_serve, conversations.reload]);
   /** updateStatus 由客服明确选择上下班和示忙，不因打开页面自动上班。 */
   async function updateStatus(values: Partial<AgentStatus>) {
     setBusy(true);
@@ -175,27 +141,36 @@ export function AgentWorkspace() {
       setBusy(false);
     }
   }
-  /** enableNotifications 只在用户点击时申请浏览器通知权限。 */
-  async function enableNotifications() {
-    try {
-      await reminders.enable();
-      message.success("本机提醒已启用，将按消息提醒偏好执行");
-    } catch (problem) {
-      message.error(errorMessage(problem));
-    }
-  }
   const controls = (
     <Space className="agent-controls" size={14}>
       <Tooltip title={`当前接待 ${runtime?.current_load ?? "—"} / ${runtime?.capacity ?? "—"}`}>
-        <Badge
-          color={live ? "var(--brand)" : undefined}
-          status={live ? "success" : "warning"}
-          text={live ? "实时在线" : "恢复连接中"}
-        />
+        <Popover
+          trigger="click"
+          title="实时连接诊断"
+          content={
+            <div className="realtime-diagnostics">
+              <p>连接状态：{realtime.status}</p>
+              <pre>{JSON.stringify(realtime.diagnostics, null, 2)}</pre>
+              <Button size="small" onClick={realtime.reconnect}>
+                重新连接
+              </Button>
+            </div>
+          }
+        >
+          <button
+            className={`connection-status-button ${realtime.connected ? "is-connected" : "is-disconnected"}`}
+            type="button"
+          >
+            <Badge
+              status={realtime.connected ? "success" : "error"}
+              text={realtime.connected ? "实时在线" : "恢复连接中"}
+            />
+          </button>
+        </Popover>
       </Tooltip>
       <Select
         aria-label="接待状态"
-        className={`agent-availability ${runtime?.available && !runtime.busy ? "is-ready" : ""}`}
+        className={`agent-availability ${!runtime?.available ? "is-offline" : runtime.busy ? "is-busy" : "is-ready"}`}
         variant="outlined"
         value={!runtime?.available ? "offline" : runtime.busy ? "busy" : "ready"}
         disabled={!runtime || busy}
@@ -208,14 +183,7 @@ export function AgentWorkspace() {
           { value: "offline", label: "下班" },
         ]}
       />
-      <Button
-        type="text"
-        icon={<BellOutlined />}
-        aria-label={reminders.active ? "本机提醒已启用" : "启用本机提醒"}
-        onClick={() => void enableNotifications()}
-      >
-        <span className="agent-reminder-label">{reminders.active ? "提醒已启用" : "提醒"}</span>
-      </Button>
+      <ReminderVolume reminders={reminders} />
     </Space>
   );
   if (!membership?.can_serve)
@@ -283,7 +251,7 @@ export function AgentWorkspace() {
             conversations.items.map((item) => (
               <button
                 key={item.id}
-                className={`conversation-row ${item.id === selected ? "active" : ""}`}
+                className={`conversation-row ${item.contact_online ? "is-online" : "is-offline"} ${item.id === selected ? "active" : ""}`}
                 aria-pressed={item.id === selected}
                 onClick={() => setSelected(item.id)}
               >
@@ -296,7 +264,12 @@ export function AgentWorkspace() {
                 </Avatar>
                 <div className="conversation-summary">
                   <div className="conversation-row-title">
-                    <strong>{item.contact?.display_name || item.contact_name || "访客"}</strong>
+                    <div className="conversation-name-channels">
+                      <strong>{item.contact?.display_name || item.contact_name || "访客"}</strong>
+                      {channelTags(item.source_snapshot).map((channel) => (
+                        <Tag key={channel}>{channel}</Tag>
+                      ))}
+                    </div>
                     <time>
                       {item.updated_at
                         ? new Date(item.updated_at).toLocaleTimeString("zh-CN", {
@@ -307,7 +280,10 @@ export function AgentWorkspace() {
                     </time>
                   </div>
                   <p className="conversation-status" data-status={item.status}>
-                    {conversationStatus[item.status] || item.status}
+                    <span className="visitor-presence">
+                      {item.contact_online ? "在线" : "离线"}
+                    </span>{" "}
+                    · {conversationStatus[item.status] || item.status}
                     {item.agent_name ? ` · ${item.agent_name}` : ""}
                   </p>
                   <p>{item.contact?.phone || `咨询 ${item.id.slice(0, 8)}`}</p>
@@ -354,7 +330,12 @@ export function AgentWorkspace() {
                     {(active.contact?.display_name || "访").slice(0, 1)}
                   </Avatar>
                   <div>
-                    <strong>{active.contact?.display_name || "访客"}</strong>
+                    <div className="chat-name-channels">
+                      <strong>{active.contact?.display_name || "访客"}</strong>
+                      {channelTags(active.source_snapshot).map((channel) => (
+                        <Tag key={channel}>{channel}</Tag>
+                      ))}
+                    </div>
                     <div className="form-hint">
                       {active.contact?.phone || "未留电话"} · {active.id.slice(0, 8)}
                     </div>
@@ -444,6 +425,7 @@ export function AgentWorkspace() {
                 key={`${tenantId}.${active.id}`}
                 id={active.id}
                 identity={{ tenantId, actorId: membership.id, kind: "agent" }}
+                canManageReplies={["owner", "admin"].includes(membership.role)}
               />
             </>
           )}

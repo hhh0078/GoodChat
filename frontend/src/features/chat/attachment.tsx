@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button, Image, Spin } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
+import { VoiceCard } from "./voice-card";
 import type { ChatIdentity } from "./use-chat";
 /** AttachmentView 下载私有附件生成临时 Blob 地址，卸载后释放。 */
 export function AttachmentView({
@@ -61,18 +62,7 @@ export function AttachmentView({
       />
     );
   if (attachment.content_type.startsWith("audio/") || attachment.content_type === "video/webm")
-    return (
-      <audio
-        controls
-        onPlay={(event) =>
-          document.querySelectorAll("audio").forEach((audio) => {
-            if (audio !== event.currentTarget) audio.pause();
-          })
-        }
-        src={url}
-        style={{ maxWidth: "100%" }}
-      />
-    );
+    return <VoiceCard url={url} name={attachment.file_name} />;
   return (
     <Button icon={<DownloadOutlined />} href={url} download={attachment.file_name}>
       {attachment.file_name}

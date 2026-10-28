@@ -15,6 +15,7 @@ import { exportFilename, startFileDownload } from "@/lib/csv-download";
 import { uploadAndSendAttachment, type AttachmentAttempt } from "@/lib/attachment-upload";
 import { useChat, type ChatIdentity } from "./use-chat";
 import { AttachmentSender } from "./attachment-sender";
+import { UnconfirmedMessages } from "./unconfirmed-messages";
 import type { ChatMessage } from "@/lib/types";
 type Decoration = { render_url: string; release_id: string };
 type PendingDownload = { id: string; name: string };
@@ -376,6 +377,13 @@ export function DecoratedVisitor({
           }
         />
       )}
+      <UnconfirmedMessages
+        key={`${id}.${identity.actorId}.${identity.tenantId || "visitor"}`}
+        items={chat.unconfirmed}
+        loading={chat.loading}
+        pendingError={chat.pendingError}
+        onRetry={chat.send}
+      />
       <iframe
         key={`${source}.${revision}`}
         ref={frame}

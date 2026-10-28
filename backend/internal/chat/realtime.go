@@ -4,6 +4,8 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -80,7 +82,11 @@ func (s *Service) consumeTicket(ctx context.Context, ticket string) (actor, erro
 			return err
 		}
 		if a.ContactID != "" {
-			return blocked(ctx, tx, a.ContactID)
+			if err := blocked(ctx, tx, a.ContactID); err != nil {
+				return err
+			}
+			_, err := tx.Exec(ctx, "UPDATE contacts SET online_until=now()+interval '45 seconds' WHERE id=$1", a.ContactID)
+			return err
 		}
 		if err := tx.QueryRow(ctx, "SELECT user_id::text,role,can_serve FROM tenant_memberships WHERE id=$1 AND tenant_id=$2 AND NOT disabled", a.MemberID, a.TenantID).Scan(&a.UserID, &a.Role, &a.CanServe); err != nil {
 			return err
@@ -110,18 +116,42 @@ func (s *Service) websocket(w http.ResponseWriter, r *http.Request) {
 	}
 	conn.SetReadLimit(4096)
 	ctx, cancel := context.WithCancel(r.Context())
-	client := &liveClient{actor: a, send: make(chan []byte, 128), cancel: cancel, lastTyping: map[string]time.Time{}}
+	connectionID := newID()
+	ended := make(chan realtimeClose, 1)
+	// finish 先记录安全关闭原因再取消所有连接任务，避免旧任务继续续租。
+	finish := func(code websocket.StatusCode, reason string) {
+		select {
+		case ended <- realtimeClose{code, reason}:
+		default:
+		}
+		cancel()
+	}
+	client := &liveClient{actor: a, send: make(chan []byte, 128), cancel: func() { finish(websocket.StatusTryAgainLater, "slow_consumer") }, lastTyping: map[string]time.Time{}}
 	s.mu.Lock()
 	s.clients[client] = struct{}{}
 	s.mu.Unlock()
+	slog.Info("realtime_connection", "connection_id", connectionID, "request_id", r.Header.Get("X-Request-ID"), "tenant_id", a.TenantID, "actor_kind", actorKind(a), "phase", "opened")
 	defer func() {
 		cancel()
 		s.mu.Lock()
 		delete(s.clients, client)
 		s.mu.Unlock()
-		_ = conn.Close(websocket.StatusNormalClosure, "连接结束")
+		result := realtimeClose{websocket.StatusNormalClosure, "connection_ended"}
+		select {
+		case result = <-ended:
+		default:
+		}
+		slog.Info("realtime_connection", "connection_id", connectionID, "phase", "closed", "close_code", int(result.code), "reason", result.reason)
+		_ = conn.Close(result.code, result.reason)
 	}()
-	client.send <- jsonValue(map[string]any{"type": "ready", "data": map[string]any{"protocol_version": 1, "heartbeat_seconds": 15}})
+	if err := s.heartbeat(ctx, a); err != nil {
+		finish(realtimeErrorCode(err), "initial_authorization_failed")
+		return
+	}
+	go keepRealtimeAlive(ctx, conn, 15*time.Second, 10*time.Second, func(renewCtx context.Context) error { return s.heartbeat(renewCtx, a) }, func(err error) {
+		finish(realtimeErrorCode(err), "probe_failed")
+	})
+	client.send <- jsonValue(map[string]any{"type": "ready", "data": map[string]any{"protocol_version": 1, "heartbeat_seconds": 15, "connection_id": connectionID, "request_id": r.Header.Get("X-Request-ID")}})
 	go func() {
 		for {
 			select {
@@ -132,7 +162,7 @@ func (s *Service) websocket(w http.ResponseWriter, r *http.Request) {
 				err := conn.Write(writeCtx, websocket.MessageText, value)
 				stop()
 				if err != nil {
-					cancel()
+					finish(websocket.StatusInternalError, "write_failed")
 					return
 				}
 			}
@@ -154,6 +184,7 @@ func (s *Service) websocket(w http.ResponseWriter, r *http.Request) {
 		switch frame.Type {
 		case "heartbeat":
 			if err := s.heartbeat(ctx, a); err != nil {
+				finish(realtimeErrorCode(err), "heartbeat_authorization_failed")
 				return
 			}
 			select {
@@ -180,7 +211,11 @@ func (s *Service) heartbeat(ctx context.Context, a actor) error {
 			return err
 		}
 		if a.ContactID != "" {
-			return blocked(ctx, tx, a.ContactID)
+			if err := blocked(ctx, tx, a.ContactID); err != nil {
+				return err
+			}
+			_, err := tx.Exec(ctx, "UPDATE contacts SET online_until=now()+interval '45 seconds' WHERE id=$1", a.ContactID)
+			return err
 		}
 		if err := liveMember(ctx, tx, a); err != nil {
 			return err
@@ -254,4 +289,19 @@ func (s *Service) broadcast(ctx context.Context, tenant, conversation, audience 
 			c.cancel()
 		}
 	}
+}
+
+// realtimeClose 保存不会泄露票据或消息内容的连接关闭原因。
+type realtimeClose struct {
+	code   websocket.StatusCode
+	reason string
+}
+
+// realtimeErrorCode 将身份撤销与网络故障区分，身份失效不应由客户端无限重连。
+func realtimeErrorCode(err error) websocket.StatusCode {
+	var apiError *platform.APIError
+	if errors.As(err, &apiError) && (apiError.Status == 401 || apiError.Status == 403 || apiError.Status == 404) {
+		return websocket.StatusPolicyViolation
+	}
+	return websocket.StatusInternalError
 }

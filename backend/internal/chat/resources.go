@@ -31,7 +31,7 @@ var resourceSpecs = map[string]resourceSpec{
 	"routing-skills": {"routing_skills", fieldSet("name archived")},
 	"groups":         {"agent_groups", fieldSet("name archived member_ids")},
 	"routing-pools":  {"routing_pools", fieldSet("name service_group_id algorithm assignment_mode members_mode agent_mode archived member_ids member_weights required_skill_ids optional_skill_ids history_priority")},
-	"access-links":   {"access_links", fieldSet("name service_space_id service_group_id routing_pool_id agent_id agent_mode status channel_code allow_routing_override expires_at binding_mode page_id pinned_release_id required_skill_ids optional_skill_ids")},
+	"access-links":   {"access_links", fieldSet("name service_space_id service_group_id routing_pool_id agent_id agent_mode status channel_code channel_tags reception_mode allow_routing_override expires_at binding_mode page_id pinned_release_id required_skill_ids optional_skill_ids")},
 	"contacts":       {"contacts", fieldSet("display_name remark_name phone avatar_url category_id attributes notes archived tag_ids locked_fields")},
 	"categories":     {"contact_categories", fieldSet("name archived")},
 	"tag-categories": {"tag_categories", fieldSet("name archived")},
@@ -157,7 +157,7 @@ func (s *Service) resources(name string) http.HandlerFunc {
 				if text, ok := v.(string); ok && text == "" && strings.HasSuffix(k, "_id") {
 					v = nil
 				}
-				if k == "attributes" || k == "options" || k == "locked_fields" {
+				if k == "attributes" || k == "options" || k == "locked_fields" || k == "channel_tags" {
 					v = jsonValue(v)
 				}
 				args = append(args, v)
@@ -246,6 +246,38 @@ func prepareResource(ctx context.Context, tx pgx.Tx, name string, v map[string]a
 		n, _ := v["name"].(string)
 		if strings.TrimSpace(n) == "" || len([]rune(n)) > 80 {
 			return platform.Fail(400, "invalid_name", "请填写不超过80字的名称")
+		}
+	}
+	if name == "access-links" {
+		if mode, ok := v["reception_mode"]; ok && !inStrings(fmt.Sprint(mode), "inherit", "auto", "manual") {
+			return platform.Fail(400, "invalid_reception_mode", "接待方式只能为自动分配或客服领取")
+		}
+		// 资料参数始终接收；动态接待目标仍由resolveRouting执行租户范围与组池交集校验。
+		v["allow_routing_override"] = true
+		if raw, ok := v["channel_tags"]; ok {
+			items, valid := raw.([]any)
+			if !valid || len(items) > 20 {
+				return platform.Fail(400, "invalid_channel_tags", "渠道标识最多20个标签")
+			}
+			tags, seen := []string{}, map[string]bool{}
+			for _, item := range items {
+				value, valid := item.(string)
+				value = strings.TrimSpace(value)
+				if !valid || value == "" || len([]rune(value)) > 100 {
+					return platform.Fail(400, "invalid_channel_tags", "每个渠道标识须为1至100字")
+				}
+				if !seen[value] {
+					tags, seen[value] = append(tags, value), true
+				}
+			}
+			v["channel_tags"] = tags
+		}
+		if raw, ok := v["channel_code"]; ok {
+			value, valid := raw.(string)
+			if !valid || len([]rune(value)) > 100 {
+				return platform.Fail(400, "invalid_channel", "主渠道标识最多100字")
+			}
+			v["channel_code"] = strings.TrimSpace(value)
 		}
 	}
 	if name == "routing-pools" {

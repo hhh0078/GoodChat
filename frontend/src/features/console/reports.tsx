@@ -1,11 +1,12 @@
 /** 文件作用说明：在独立页面加载真实服务统计，按时间筛选并展示统一口径。 */
 "use client";
-import { useEffect, useState } from "react";
-import { Card, DatePicker, Space, Spin, Table } from "antd";
+import { useEffect, useState, type ComponentProps } from "react";
+import { Button, Card, DatePicker, Space, Spin, Table } from "antd";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { api } from "@/lib/api";
 import { useSession } from "@/features/auth/session";
 import { ErrorNotice, PageTitle, EmptyData } from "@/components/page-state";
+import { ReportTrend, type TrendPoint } from "./report-trend";
 const metricNumber = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 });
 type Statistics = {
   overview: Record<string, number>;
@@ -17,15 +18,23 @@ type Statistics = {
     closed: number;
   }[];
   by_channel: { channel_code: string; conversations: number; visitors: number }[];
-  daily: { date: string; visitors: number; conversations: number; messages: number }[];
+  daily: TrendPoint[];
+  trend: TrendPoint[];
+  trend_interval: "hour" | "day";
+  from: string;
+  to: string;
+  timezone: string;
 };
+type PickerRange = Parameters<
+  NonNullable<ComponentProps<typeof DatePicker.RangePicker>["onChange"]>
+>[0];
 /** ReportsPage 将统计与聊天记录分开，所有指标来自服务端。 */
 export function ReportsPage() {
   const { tenantId } = useSession();
   const [data, setData] = useState<Statistics | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
-  const [range, setRange] = useState<string[]>([]);
+  const [range, setRange] = useState<PickerRange>(null);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
@@ -33,8 +42,8 @@ export function ReportsPage() {
     setError(null);
     setLoading(true);
     const query = new URLSearchParams();
-    if (range[0]) query.set("from", range[0]);
-    if (range[1]) query.set("to", range[1]);
+    if (range?.[0]) query.set("from", range[0].format("YYYY-MM-DD"));
+    if (range?.[1]) query.set("to", range[1].format("YYYY-MM-DD"));
     api<Statistics>(`/tenant/statistics?${query}`, { tenantId, signal: controller.signal })
       .then(setData)
       .catch((problem) => {
@@ -63,19 +72,39 @@ export function ReportsPage() {
         action={
           <Space wrap>
             <span className="muted">统计时间</span>
+            <Button
+              type={range ? "default" : "primary"}
+              onClick={() => {
+                setRange(null);
+                setRevision((value) => value + 1);
+              }}
+            >
+              今天
+            </Button>
             <DatePicker.RangePicker
-              onChange={(values) =>
-                setRange(
-                  values?.[0] && values?.[1]
-                    ? [values[0].startOf("day").toISOString(), values[1].endOf("day").toISOString()]
-                    : [],
-                )
-              }
+              value={range}
+              placeholder={["自定义开始日期", "自定义结束日期"]}
+              onChange={setRange}
             />
           </Space>
         }
       />
       <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
+      {data && (
+        <p className="console-report-period">
+          {range ? "所选日期" : "今天"} ·{" "}
+          {new Intl.DateTimeFormat("zh-CN", {
+            timeZone: data.timezone,
+            dateStyle: "medium",
+          }).format(new Date(data.from))}{" "}
+          —{" "}
+          {new Intl.DateTimeFormat("zh-CN", {
+            timeZone: data.timezone,
+            dateStyle: "medium",
+          }).format(new Date(new Date(data.to).getTime() - 1))}{" "}
+          <span className="muted">（{data.timezone}）</span>
+        </p>
+      )}
 
       <div className="stat-grid">
         {metrics.map(([label, key]) => (
@@ -94,6 +123,18 @@ export function ReportsPage() {
           </Card>
         ))}
       </div>
+      {loading ? (
+        <div className="report-trend-loading">
+          <Spin description="正在读取服务趋势" />
+        </div>
+      ) : (
+        data && (
+          <ReportTrend
+            items={data.trend || data.daily || []}
+            hourly={data.trend_interval === "hour"}
+          />
+        )
+      )}
       <div className="two-columns console-report-tables">
         <section className="console-report-section">
           <h2>按客服统计</h2>
@@ -129,15 +170,15 @@ export function ReportsPage() {
         </section>
       </div>
       <section className="console-report-section console-report-daily">
-        <h2>每日趋势</h2>
+        <h2>{data?.trend_interval === "hour" ? "时段明细" : "每日明细"}</h2>
         <Table
-          rowKey="date"
+          rowKey={(item) => item.timestamp || item.date}
           loading={loading}
-          dataSource={data?.daily || []}
+          dataSource={data?.trend || data?.daily || []}
           pagination={{ pageSize: 14 }}
           locale={{ emptyText: <EmptyData /> }}
           columns={[
-            { title: "日期", dataIndex: "date" },
+            { title: data?.trend_interval === "hour" ? "时段" : "日期", dataIndex: "date" },
             { title: "访客数", dataIndex: "visitors" },
             { title: "咨询数", dataIndex: "conversations" },
             { title: "消息数", dataIndex: "messages" },

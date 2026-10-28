@@ -37,7 +37,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 // statistics 按创建咨询和发送消息分别统计，系统自动消息不计人工首响。
 func (s *Service) statistics(w http.ResponseWriter, r *http.Request) {
 	tenant := platform.Current(r).TenantID
-	result := map[string]any{"by_agent": []map[string]any{}, "by_channel": []map[string]any{}, "daily": []map[string]any{}}
+	result := map[string]any{"by_agent": []map[string]any{}, "by_channel": []map[string]any{}, "daily": []map[string]any{}, "trend": []map[string]any{}}
 	err := platform.TenantTx(r.Context(), s.pool, tenant, func(tx pgx.Tx) error {
 		if s.featureChecker != nil {
 			if err := s.featureChecker(r.Context(), tx, tenant, "statistics"); err != nil {
@@ -96,6 +96,18 @@ func (s *Service) statistics(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		result["daily"] = daily
+		result["trend"], result["trend_interval"] = daily, "day"
+		if !end.After(start.AddDate(0, 0, 1)) {
+			hourly, err := queryMaps(r, tx, `SELECT to_char(bucket,'HH24:MI')||CASE WHEN extract(timezone FROM $2::timestamptz)<>extract(timezone FROM ($3::timestamptz-interval '1 microsecond')) THEN ' '||to_char(bucket,'OF') ELSE '' END date,bucket timestamp,
+ (SELECT count(DISTINCT v.contact_id) FROM contact_visits v WHERE v.tenant_id=$1 AND v.created_at>=bucket AND v.created_at<least(bucket+interval '1 hour',$3))visitors,
+ (SELECT count(*) FROM conversations c WHERE c.tenant_id=$1 AND c.created_at>=bucket AND c.created_at<least(bucket+interval '1 hour',$3))conversations,
+ (SELECT count(*) FROM messages m WHERE m.tenant_id=$1 AND m.created_at>=bucket AND m.created_at<least(bucket+interval '1 hour',$3) AND m.audience='public')messages
+ FROM generate_series($2::timestamptz,$3::timestamptz-interval '1 microsecond',interval '1 hour')bucket ORDER BY bucket`, tenant, start, end)
+			if err != nil {
+				return err
+			}
+			result["trend"], result["trend_interval"] = hourly, "hour"
+		}
 		return nil
 	})
 	if err != nil {
@@ -138,11 +150,11 @@ func queryMaps(r *http.Request, tx pgx.Tx, query string, args ...any) ([]map[str
 	return items, rows.Err()
 }
 
-// dateRange 解析最近七天或指定日期，限制跨度防止不受控聚合。
+// dateRange 默认租户当地今天，也接受显式日期并限制跨度防止不受控聚合。
 func dateRange(r *http.Request, zone *time.Location) (time.Time, time.Time, error) {
 	today := time.Now().In(zone)
 	end := time.Date(today.Year(), today.Month(), today.Day()+1, 0, 0, 0, 0, zone)
-	start := end.AddDate(0, 0, -7)
+	start := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, zone)
 	for _, item := range []struct {
 		key       string
 		target    *time.Time

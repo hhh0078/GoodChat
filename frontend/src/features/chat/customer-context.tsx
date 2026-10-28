@@ -1,4 +1,4 @@
-/** 文件作用说明：在当前接待权限内显示客户档案、备注和真实入口访问记录，失权后清除资料。 */
+/** 文件作用说明：以紧凑客户卡片展示真实资料、渠道、入口额外参数和跨会话备注，访问记录可折叠。 */
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -7,23 +7,28 @@ import { ReloadOutlined } from "@ant-design/icons";
 import { api } from "@/lib/api";
 import { ErrorNotice } from "@/components/page-state";
 import type { Conversation, Membership, Resource } from "@/lib/types";
+import { channelTags, customerFields, displayValue, recordValue } from "@/lib/workspace-display";
+import { CustomerNotes } from "./customer-notes";
 
-/** contextValue 保留零、布尔和结构化资料，未填写时统一显示占位文字。 */
-function contextValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "—";
-  return typeof value === "object" ? JSON.stringify(value) : String(value);
-}
-
-/** visitSource 只展示实际填写的来源信息，空渠道和技术JSON不占据访问时间线。 */
+/** visitSource 展示真实访问来源，空渠道不占据时间线。 */
 function visitSource(value: unknown): string {
-  if (!value || typeof value !== "object") return "";
-  const tracking = value as Record<string, unknown>;
+  const tracking = recordValue(value);
   return [tracking.channel_code, tracking.utm_source, tracking.source]
     .filter((item): item is string => typeof item === "string" && !!item.trim())
     .join(" · ");
 }
-
-/** CustomerContext 随租户、接待对象或授权状态重新挂载，禁止复用前一会话的客户缓存。 */
+/** formatTime 将建档和访问时间压缩为次要文本，缺失时显示占位。 */
+function formatTime(value: unknown): string {
+  return typeof value === "string" && Number.isFinite(new Date(value).getTime())
+    ? new Date(value).toLocaleString("zh-CN", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "—";
+}
+/** CustomerContext 在当前授权范围内加载客户，失权或请求失败立即清除缓存资料。 */
 export function CustomerContext({
   conversation,
   membership,
@@ -45,7 +50,7 @@ export function CustomerContext({
     const controller = new AbortController();
     if (!allowed) return () => controller.abort();
     let pending = false;
-    /** load 重新核验后端权限，失败时移除旧资料而非继续显示缓存。 */
+    /** load 并行读取档案与访问记录，不把前一客户资料带到新会话。 */
     async function load() {
       if (pending) return;
       pending = true;
@@ -81,12 +86,14 @@ export function CustomerContext({
       clearInterval(timer);
     };
   }, [allowed, conversation.contact_id, membership.tenant_id, revision]);
-  const name = conversation.contact?.display_name || "访客";
+  const name = String(contact?.display_name || conversation.contact?.display_name || "访客");
+  const channels = channelTags(conversation.source_snapshot);
+  const fields = customerFields(contact?.attributes, conversation.context);
   if (!allowed)
     return (
       <div className="customer-context">
         <h2>客户资料</h2>
-        <p className="muted">当前未接待此客户，详细资料仅向当前接待客服或管理员开放。</p>
+        <p className="muted">详细资料仅向当前接待客服或管理员开放。</p>
       </div>
     );
   return (
@@ -109,7 +116,7 @@ export function CustomerContext({
           <>
             <div className="customer-identity">
               <Avatar
-                size={44}
+                size={40}
                 src={
                   typeof contact.avatar_url === "string"
                     ? contact.avatar_url || undefined
@@ -120,95 +127,72 @@ export function CustomerContext({
               </Avatar>
               <div>
                 <strong>{name}</strong>
-                <span>客户档案</span>
+                <span className="customer-phone">{displayValue(contact.phone)}</span>
               </div>
             </div>
-            <div className="customer-tags">
-              {Array.isArray(contact.tags) &&
-                contact.tags.map((tag: Resource) => (
-                  <Tag key={tag.id}>{contextValue(tag.name)}</Tag>
-                ))}
+            <div className="customer-created">
+              建档 {formatTime(contact.created_at)}
+              {contact.blocked ? <Tag color="red">已封禁</Tag> : null}
             </div>
-            <dl className="customer-fields">
-              <dt>电话</dt>
-              <dd>{contextValue(contact.phone)}</dd>
-              <dt>建档时间</dt>
-              <dd>
-                {contact.created_at
-                  ? new Date(contact.created_at).toLocaleString("zh-CN", {
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "—"}
-              </dd>
-              <dt>客户状态</dt>
-              <dd>{contact.blocked ? "已封禁" : "正常"}</dd>
-            </dl>
-            <section>
-              <h3>客户备注</h3>
-              <p className="customer-note">
-                {typeof contact.notes === "string" && contact.notes
-                  ? contact.notes
-                  : "暂无客户资料备注"}
-              </p>
-              {manages && (
-                <Link className="customer-manage" href="/console/contacts">
-                  管理客户档案
-                </Link>
-              )}
-            </section>
-            {contact.attributes &&
-            typeof contact.attributes === "object" &&
-            Object.keys(contact.attributes).length > 0 ? (
+            {channels.length > 0 && (
+              <div className="customer-channels">
+                <span>渠道</span>
+                {channels.map((channel) => (
+                  <Tag key={channel}>{channel}</Tag>
+                ))}
+              </div>
+            )}
+            {Array.isArray(contact.tags) && contact.tags.length > 0 && (
+              <div className="customer-tags">
+                {contact.tags.map((tag: Resource) => (
+                  <Tag key={tag.id}>{displayValue(tag.name)}</Tag>
+                ))}
+              </div>
+            )}
+            {Object.keys(fields).length > 0 && (
               <section>
-                <h3>自定义资料</h3>
+                <h3>客户信息</h3>
                 <dl className="customer-fields">
-                  {Object.entries(contact.attributes).map(([key, value]) => (
+                  {Object.entries(fields).map(([key, value]) => (
                     <div className="customer-field-pair" key={key}>
-                      <dt>{key}</dt>
-                      <dd>{contextValue(value)}</dd>
+                      <dt>{key === "page_url" ? "访问页面" : key}</dt>
+                      <dd>{displayValue(value)}</dd>
                     </div>
                   ))}
                 </dl>
               </section>
-            ) : null}
-            <section>
-              <h3>
-                访问记录 <span>咨询入口访问</span>
-              </h3>
+            )}
+            {typeof contact.notes === "string" && contact.notes.trim() && (
+              <p className="customer-note">{contact.notes}</p>
+            )}
+            {manages && (
+              <Link className="customer-manage" href="/console/contacts">
+                管理客户档案
+              </Link>
+            )}
+            <CustomerNotes
+              key={`${membership.tenant_id}.${conversation.contact_id}`}
+              contactId={conversation.contact_id}
+              tenantId={membership.tenant_id}
+            />
+            <details className="customer-visit-details">
+              <summary>
+                访问记录 <span>{visits.length} 次入口访问</span>
+              </summary>
               {visits.length === 0 ? (
                 <p className="muted">暂无访问记录</p>
               ) : (
                 <ol className="customer-visits">
                   {visits.slice(0, 8).map((visit) => (
                     <li key={visit.id}>
-                      <time>
-                        {visit.created_at
-                          ? new Date(visit.created_at).toLocaleString("zh-CN", {
-                              month: "2-digit",
-                              day: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "—"}
-                      </time>
+                      <time>{formatTime(visit.created_at)}</time>
                       <strong>进入咨询</strong>
-                      {visitSource(visit.tracking) ? (
-                        <span>{visitSource(visit.tracking)}</span>
-                      ) : null}
+                      {visitSource(visit.tracking) && <span>{visitSource(visit.tracking)}</span>}
                     </li>
                   ))}
                 </ol>
               )}
-            </section>
-            {conversation.context && Object.keys(conversation.context).length > 0 ? (
-              <details className="customer-parameters">
-                <summary>当前会话参数</summary>
-                <pre>{JSON.stringify(conversation.context, null, 2)}</pre>
-              </details>
-            ) : null}
+            </details>
           </>
         )
       )}

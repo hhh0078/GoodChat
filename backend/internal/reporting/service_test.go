@@ -8,6 +8,20 @@ import (
 	_ "time/tzdata"
 )
 
+// TestDefaultDateRangeIsToday 验证未传日期时使用租户日历当天，不沿用最近七天或浏览器时区。
+func TestDefaultDateRangeIsToday(t *testing.T) {
+	zone := time.FixedZone("租户时区", 8*60*60)
+	before := time.Now().In(zone)
+	start, end, err := dateRange(httptest.NewRequest("GET", "/statistics", nil), zone)
+	after := time.Now().In(zone)
+	if err != nil || start.Hour() != 0 || start.Location() != zone || !end.Equal(start.AddDate(0, 0, 1)) {
+		t.Fatalf("默认应为租户当天：%v %v %v", start, end, err)
+	}
+	if start.Format("2006-01-02") != before.Format("2006-01-02") && start.Format("2006-01-02") != after.Format("2006-01-02") {
+		t.Fatal("默认日期不在当前租户当天")
+	}
+}
+
 // TestDateRangeUsesTenantCalendar 验证含夏令时的日历范围没有被固定24小时截断。
 func TestDateRangeUsesTenantCalendar(t *testing.T) {
 	zone, err := time.LoadLocation("America/New_York")

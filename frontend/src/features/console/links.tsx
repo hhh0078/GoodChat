@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   App,
   Button,
+  Checkbox,
   Drawer,
   Form,
   Input,
@@ -12,7 +13,6 @@ import {
   QRCode,
   Select,
   Space,
-  Switch,
   Table,
   Tag,
 } from "antd";
@@ -24,6 +24,14 @@ import { useResource } from "@/lib/use-resource";
 import type { AccessLink, Member, Resource } from "@/lib/types";
 import { PageTitle, ErrorNotice, EmptyData } from "@/components/page-state";
 
+const parameterExamples: Record<string, string> = {
+  姓名: "张三",
+  手机号: "13800000000",
+  头像: "https://example.com/avatar.png",
+  性别: "男",
+  extra: '{"有无房产":"有","是否逾期":"无"}',
+};
+
 /** LinksPage 为独立业务入口维护路由范围并生成分享与嵌入内容。 */
 export function LinksPage() {
   const links = useResource<AccessLink>("/tenant/access-links");
@@ -33,28 +41,50 @@ export function LinksPage() {
   const members = useResource<Member>("/tenant/members");
   const [editing, setEditing] = useState<AccessLink | null | undefined>();
   const [sharing, setSharing] = useState<AccessLink | null>(null);
+  const [parameterKeys, setParameterKeys] = useState<string[]>([]);
+  const [parameterValues, setParameterValues] = useState(parameterExamples);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [form] = Form.useForm();
   const { message } = App.useApp();
   /** link 通过当前站点生成标准公开聊天地址。 */
   function link(item: AccessLink) {
+    const profile = Object.fromEntries(parameterKeys.map((key) => [key, parameterValues[key]]));
     return typeof window === "undefined"
       ? `/c/${item.entry_key}`
-      : entryURL(window.location.origin, item.entry_key);
+      : entryURL(window.location.origin, item.entry_key, profile);
   }
+  let parameterError = "";
+  if (parameterKeys.includes("extra")) {
+    try {
+      const extra = JSON.parse(parameterValues.extra);
+      if (!extra || typeof extra !== "object" || Array.isArray(extra))
+        parameterError = "extra 必须是 JSON 对象";
+    } catch {
+      parameterError = "extra 必须是合法 JSON 对象";
+    }
+  }
+  if (!parameterError && sharing && new TextEncoder().encode(link(sharing)).length > 2048)
+    parameterError = "链接超过2 KiB，请减少资料，或改用POST初始化接口传递较大的JSON。";
   /** edit 将已有入口或初始配置填入真实保存表单。 */
   function edit(item: AccessLink | null) {
     setError(null);
     form.resetFields();
     form.setFieldsValue(
-      item || {
-        status: "active",
-        agent_mode: "prefer",
-        allow_routing_override: false,
-        required_skill_ids: [],
-        optional_skill_ids: [],
-      },
+      item
+        ? {
+            ...item,
+            reception_mode: item.reception_mode || "inherit",
+            channel_tags: item.channel_tags || (item.channel_code ? [item.channel_code] : []),
+          }
+        : {
+            status: "active",
+            agent_mode: "prefer",
+            reception_mode: "auto",
+            channel_tags: [],
+            required_skill_ids: [],
+            optional_skill_ids: [],
+          },
     );
     setEditing(item);
   }
@@ -81,6 +111,10 @@ export function LinksPage() {
   /** copy 只有系统剪贴板写入成功后才反馈已复制。 */
   async function copy(value: string) {
     try {
+      if (parameterError) {
+        message.warning(parameterError);
+        return;
+      }
       await navigator.clipboard.writeText(value);
       message.success("已复制");
     } catch {
@@ -120,7 +154,17 @@ export function LinksPage() {
       dataIndex: "routing_pool_id",
       render: (value) => pools.items.find((item) => item.id === value)?.name || "默认分配",
     },
-    { title: "来源", dataIndex: "channel_code", render: (value) => value || "—" },
+    {
+      title: "渠道标识",
+      dataIndex: "channel_code",
+      render: (value, row) => (
+        <Space size={[0, 4]} wrap>
+          {Array.from(new Set([value, ...(row.channel_tags || [])].filter(Boolean))).map((tag) => (
+            <Tag key={tag}>{tag}</Tag>
+          ))}
+        </Space>
+      ),
+    },
     {
       title: "状态",
       dataIndex: "status",
@@ -141,8 +185,8 @@ export function LinksPage() {
           <Button type="link" size="small" onClick={() => setSharing(row)}>
             分享
           </Button>
-          <Button type="link" size="small" href={`/c/${row.entry_key}`} target="_blank">
-            访问
+          <Button type="link" size="small" onClick={() => setSharing(row)}>
+            访问与参数
           </Button>
           <Popconfirm title="归档该入口？" onConfirm={() => archive(row)}>
             <Button type="link" danger size="small">
@@ -233,6 +277,21 @@ export function LinksPage() {
               }))}
             />
           </Form.Item>
+          <Form.Item
+            name="reception_mode"
+            label="接待方式"
+            extra="仅影响此链接；自动分配仍遵守客服组、技能与接待容量限制。"
+          >
+            <Select
+              options={[
+                { label: "自动分配", value: "auto" },
+                { label: "客服自行领取", value: "manual" },
+                ...(editing?.reception_mode === "inherit"
+                  ? [{ label: "沿用分配池的接待方式", value: "inherit" }]
+                  : []),
+              ]}
+            />
+          </Form.Item>
           <Form.Item name="agent_id" label="优先指定客服">
             <Select
               allowClear
@@ -249,8 +308,24 @@ export function LinksPage() {
               ]}
             />
           </Form.Item>
-          <Form.Item name="channel_code" label="来源标识">
-            <Input placeholder="例如 website、campaign-a" maxLength={100} />
+          <Form.Item
+            name="channel_code"
+            label="主渠道标识"
+            extra="用于来源筛选与统计，已有来源标识保持兼容。"
+          >
+            <Input placeholder="例如：官网、广告A" maxLength={100} />
+          </Form.Item>
+          <Form.Item
+            name="channel_tags"
+            label="渠道标签"
+            extra="可输入多个标签并按回车确认，展示在客户姓名旁。"
+          >
+            <Select
+              mode="tags"
+              maxCount={20}
+              tokenSeparators={[",", "，"]}
+              placeholder="例如：官网、售前、广告A"
+            />
           </Form.Item>
           <Form.Item name="status" label="入口状态">
             <Select
@@ -259,14 +334,6 @@ export function LinksPage() {
                 { label: "停用", value: "disabled" },
               ]}
             />
-          </Form.Item>
-          <Form.Item
-            name="allow_routing_override"
-            label="允许参数选择接待范围"
-            valuePropName="checked"
-            extra="动态参数仍受服务端授权范围约束，不能扩大接待权限。"
-          >
-            <Switch />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={saving}>
             保存入口
@@ -283,7 +350,7 @@ export function LinksPage() {
         }
         open={!!sharing}
         onClose={() => setSharing(null)}
-        width={420}
+        width={620}
         mask={false}
         destroyOnHidden
       >
@@ -295,6 +362,69 @@ export function LinksPage() {
               label: "链接",
               children: (
                 <Form layout="vertical">
+                  <Form.Item
+                    label="勾选要拼接的资料参数"
+                    extra="资料参数始终接收，中文字段更易读；phone、name、avatar_url、sex 等英文写法也兼容。"
+                  >
+                    <Checkbox.Group
+                      value={parameterKeys}
+                      onChange={(keys) => setParameterKeys(keys as string[])}
+                      options={Object.keys(parameterExamples).map((key) => ({
+                        label: key === "extra" ? "额外资料（extra JSON）" : key,
+                        value: key,
+                      }))}
+                    />
+                  </Form.Item>
+                  {parameterKeys.map((key) => (
+                    <Form.Item
+                      key={key}
+                      label={key === "extra" ? "额外资料 extra" : key}
+                      validateStatus={key === "extra" && parameterError ? "error" : undefined}
+                      help={key === "extra" ? parameterError || undefined : undefined}
+                    >
+                      {key === "性别" ? (
+                        <Select
+                          value={parameterValues[key]}
+                          onChange={(value) =>
+                            setParameterValues((previous) => ({ ...previous, [key]: value }))
+                          }
+                          options={["男", "女", "未知"].map((value) => ({ value, label: value }))}
+                        />
+                      ) : key === "extra" ? (
+                        <Input.TextArea
+                          rows={3}
+                          value={parameterValues[key]}
+                          onChange={(event) =>
+                            setParameterValues((previous) => ({
+                              ...previous,
+                              [key]: event.target.value,
+                            }))
+                          }
+                        />
+                      ) : (
+                        <Input
+                          value={parameterValues[key]}
+                          onChange={(event) =>
+                            setParameterValues((previous) => ({
+                              ...previous,
+                              [key]: event.target.value,
+                            }))
+                          }
+                        />
+                      )}
+                    </Form.Item>
+                  ))}
+                  <p className="form-hint">
+                    性别支持“男、女、未知”，也支持
+                    sex=man、sex=woman、sex=unknown。字段不能满足需求时，可在链接后添加 extra=
+                    {parameterExamples.extra}
+                    。也可直接传入自定义字段；客服右侧客户资料会逐行显示。复制时会自动编码中文、JSON与特殊字符。
+                  </p>
+                  {parameterError && (
+                    <p role="alert" className="form-hint">
+                      {parameterError}
+                    </p>
+                  )}
                   <Form.Item label="聊天链接">
                     <Input
                       readOnly
@@ -310,10 +440,20 @@ export function LinksPage() {
                       }
                     />
                   </Form.Item>
-                  <p className="form-hint">访客通过此链接即可发起咨询。</p>
+                  <Button
+                    type="primary"
+                    href={sharing && !parameterError ? link(sharing) : undefined}
+                    target="_blank"
+                    disabled={!!parameterError}
+                  >
+                    打开此链接
+                  </Button>
+                  <p className="form-hint">
+                    访客通过此链接即可发起咨询；公开参数仅为展示资料，不用于恢复身份。
+                  </p>
                   <section className="console-share-qr">
                     <h3>预览二维码</h3>
-                    {sharing && <QRCode value={link(sharing)} />}
+                    {sharing && !parameterError && <QRCode value={link(sharing)} />}
                   </section>
                 </Form>
               ),
@@ -323,7 +463,7 @@ export function LinksPage() {
               label: "二维码",
               children: (
                 <div className="console-share-qr">
-                  {sharing && <QRCode value={link(sharing)} />}
+                  {sharing && !parameterError && <QRCode value={link(sharing)} />}
                   <p className="form-hint">可用手机扫描，打开对应咨询入口。</p>
                 </div>
               ),

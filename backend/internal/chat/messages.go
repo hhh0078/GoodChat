@@ -156,9 +156,19 @@ func (s *Service) messageHistory(w http.ResponseWriter, r *http.Request, a actor
 		before = n
 	}
 	var items []map[string]any
+	var watermark int64
 	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
 		if err := canReadConversation(r.Context(), tx, a, id); err != nil {
 			return err
+		}
+		if before == 0 {
+			// 与发送和撤回的会话行锁串行，确保最近消息和恢复游标属于同一个快照。
+			if err := tx.QueryRow(r.Context(), "SELECT next_event_seq FROM conversations WHERE id=$1 FOR SHARE", id).Scan(&watermark); err != nil {
+				return err
+			}
+			if err := canReadConversation(r.Context(), tx, a, id); err != nil {
+				return err
+			}
 		}
 		rows, err := tx.Query(r.Context(), "SELECT "+messageProjection+" FROM messages m WHERE conversation_id=$1 AND ($2=0 OR event_seq<$2) AND (audience='public' OR $3) ORDER BY event_seq DESC LIMIT $4", id, before, a.ContactID == "", limit)
 		if err != nil {
@@ -178,7 +188,11 @@ func (s *Service) messageHistory(w http.ResponseWriter, r *http.Request, a actor
 	for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
 		items[i], items[j] = items[j], items[i]
 	}
-	platform.JSON(w, 200, map[string]any{"items": items, "next_cursor": cursor, "has_more": len(items) == limit})
+	result := map[string]any{"items": items, "next_cursor": cursor, "has_more": len(items) == limit}
+	if before == 0 {
+		result["sync_cursor"] = s.encodeCursor(a, id, watermark)
+	}
+	platform.JSON(w, 200, result)
 }
 
 // withdraw 保留消息身份，在时间窗内撤回正文和附件展示。

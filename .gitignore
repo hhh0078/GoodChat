@@ -15,6 +15,7 @@ dev-postgres/
 backend/bin/
 frontend/playwright-report/
 frontend/test-results/
+.playwright-cli/
 
 __pycache__/
 *.pyc

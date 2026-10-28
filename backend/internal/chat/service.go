@@ -57,11 +57,15 @@ var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 
 // New 创建客服服务，不启动独立数据库或修改其他模块配置。
 func New(pool *pgxpool.Pool, auth platform.Authorizer, cfg platform.Config) *Service {
-	key := make([]byte, 32)
-	if _, err := rand.Read(key); err != nil {
-		panic("无法初始化安全游标密钥")
+	// 使用运行配置的稳定密钥派生独立游标密钥，使重启后仍可恢复；不得复用认证签名用途。
+	key := sha256.Sum256([]byte("goodchat:event-cursor:v1:" + cfg.AuthSecret))
+	if cfg.AuthSecret == "" {
+		// 隔离测试等无认证配置场景仍保持不可预测；正常运行由LoadConfig提供私有稳定密钥。
+		if _, err := rand.Read(key[:]); err != nil {
+			panic("无法初始化安全游标密钥")
+		}
 	}
-	return &Service{pool: pool, auth: auth, cfg: cfg, clients: map[*liveClient]struct{}{}, cursorKey: key}
+	return &Service{pool: pool, auth: auth, cfg: cfg, clients: map[*liveClient]struct{}{}, cursorKey: key[:]}
 }
 
 // Register 注册真实持久化资源、访客、会话及实时接口。
@@ -85,6 +89,9 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/tenant/contacts/{id}/block", s.auth.RequireAdmin(s.blockContact))
 	mux.HandleFunc("DELETE /api/v1/tenant/contacts/{id}/block", s.auth.RequireAdmin(s.blockContact))
 	mux.HandleFunc("GET /api/v1/tenant/contacts/{id}/visits", s.auth.RequireTenant(s.contactVisits))
+	mux.HandleFunc("GET /api/v1/tenant/contacts/{id}/notes", s.auth.RequireTenant(s.contactNotes))
+	mux.HandleFunc("GET /api/v1/tenant/contacts/{id}/notes/{note_id}/attachment", s.auth.RequireTenant(s.contactNoteAttachment))
+	mux.HandleFunc("POST /api/v1/tenant/contacts/{id}/notes", s.auth.RequireTenant(s.contactNotes))
 	mux.HandleFunc("GET /api/v1/tenant/contacts/{id}", s.auth.RequireTenant(s.contactDetail))
 	mux.HandleFunc("GET /api/v1/tenant/chat-records", s.auth.RequireTenant(s.chatRecords))
 	mux.HandleFunc("GET /api/v1/tenant/chat-records/export", s.auth.RequireAdmin(s.exportRecords))

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Avatar, Button, Drawer, Dropdown, Menu, Select, Space, Tag, App, Tooltip } from "antd";
+import { Avatar, Button, Drawer, Dropdown, Menu, Space, Tag, App, Tooltip } from "antd";
 import {
   AppstoreOutlined,
   BarChartOutlined,
@@ -25,7 +25,7 @@ import { api, errorMessage } from "@/lib/api";
 
 /** WorkspaceChrome 根据身份呈现工作端导航与租户切换。 */
 function WorkspaceChrome({ children }: { children: React.ReactNode }) {
-  const { current, tenantId, setTenantId } = useSession();
+  const { current, tenantId } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -103,20 +103,6 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
     .filter((group) => group.items.length > 0);
   const serving = pathname === "/workspace";
   const pageLabel = entries.find((entry) => entry.key === selected)?.label || "工作空间";
-  const tenantSelector = (
-    <Select
-      className="shell-tenant"
-      aria-label="当前工作空间"
-      value={tenantId || undefined}
-      placeholder="选择工作空间"
-      options={current.memberships.map((item) => ({
-        label: item.tenant_name,
-        value: item.tenant_id,
-      }))}
-      onChange={setTenantId}
-      disabled={!current.memberships.length}
-    />
-  );
   const sections = [
     { label: "工作空间", paths: ["/console", "/workspace"] },
     { label: "客户服务", paths: ["/console/contacts", "/console/records", "/console/reports"] },
@@ -146,7 +132,9 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
       <div className="sidebar-brand">
         <Brand />
       </div>
-      <div className="sidebar-workspace">{tenantSelector}</div>
+      <div className="sidebar-workspace">
+        <span className="shell-tenant-name">{member?.tenant_name || "工作空间"}</span>
+      </div>
       <Menu
         mode="inline"
         items={sections}
@@ -258,7 +246,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
                 {selected === "/console" ? "概览" : pageLabel}
               </span>
             )}
-            {serving && tenantSelector}
+            {serving && <span className="shell-tenant-name">{member?.tenant_name}</span>}
             {serving && <span className="shell-page-label">{pageLabel}</span>}
             {member && !serving && (
               <Tag className="shell-role">

@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -172,13 +171,5 @@ func (s *Service) download(w http.ResponseWriter, r *http.Request) {
 		replyError(w, r, err)
 		return
 	}
-	disposition := "attachment"
-	if strings.HasPrefix(kind, "image/") || strings.HasPrefix(kind, "audio/") || kind == "video/webm" {
-		disposition = "inline"
-	}
-	w.Header().Set("Content-Type", kind)
-	w.Header().Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": name}))
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Cache-Control", "private, no-store")
-	http.ServeFile(w, r, filepath.Join(s.cfg.DataDir, "chat-attachments", key))
+	s.serveChatAttachment(w, r, key, name, kind)
 }

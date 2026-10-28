@@ -28,6 +28,9 @@ export type AccessLink = Resource & {
   routing_pool_id: string;
   status: string;
   agent_mode: string;
+  reception_mode?: "inherit" | "auto" | "manual";
+  channel_code?: string;
+  channel_tags?: string[];
 };
 export type ChatMessage = Resource & {
   content: string;
@@ -48,6 +51,7 @@ export type ChatMessage = Resource & {
 };
 export type Conversation = Resource & {
   status: string;
+  contact_online?: boolean;
   contact_id: string;
   contact_name?: string;
   display_name?: string;

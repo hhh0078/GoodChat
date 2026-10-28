@@ -76,7 +76,7 @@ func (s *Service) routePool(ctx context.Context, tx pgx.Tx, tenant, pool string)
 		}
 	}
 	var conversation string
-	err = tx.QueryRow(ctx, "SELECT id::text FROM conversations WHERE routing_pool_id=$1 AND status='queued' AND routing_attempts<3 ORDER BY priority DESC,created_at,id LIMIT 1 FOR UPDATE", pool).Scan(&conversation)
+	err = tx.QueryRow(ctx, "SELECT c.id::text FROM conversations c JOIN access_links l ON l.id=c.created_entry_id AND l.tenant_id=c.tenant_id JOIN routing_pools p ON p.id=c.routing_pool_id AND p.tenant_id=c.tenant_id WHERE c.routing_pool_id=$1 AND c.status='queued' AND c.routing_attempts<3 AND (COALESCE(c.source_snapshot->'entry'->>'reception_mode',l.reception_mode)='auto' OR (COALESCE(c.source_snapshot->'entry'->>'reception_mode',l.reception_mode)='inherit' AND p.algorithm<>'manual')) ORDER BY c.priority DESC,c.created_at,c.id LIMIT 1 FOR UPDATE OF c", pool).Scan(&conversation)
 	if err == pgx.ErrNoRows {
 		return nil
 	}

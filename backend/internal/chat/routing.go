@@ -13,12 +13,12 @@ import (
 
 // routeState 保存已锁定会话与分配池的决策字段。
 type routeState struct {
-	ID, Pool, Group, Status, Agent, Desired, Mode, Algorithm, AssignmentMode string
-	Cursor, Version                                                          int64
-	History                                                                  bool
-	Required, Optional                                                       []string
-	Decision                                                                 map[string]any
-	ReservedFor                                                              string
+	ID, Pool, Group, Status, Agent, Desired, Mode, Algorithm, AssignmentMode, ReceptionMode string
+	Cursor, Version                                                                         int64
+	History                                                                                 bool
+	Required, Optional                                                                      []string
+	Decision                                                                                map[string]any
+	ReservedFor                                                                             string
 }
 
 // lockedRoute 按队列分片在前、会话在后的顺序取得事务锁。
@@ -34,10 +34,11 @@ func lockedRoute(ctx context.Context, tx pgx.Tx, id string) (routeState, error) 
 	if _, err := tx.Exec(ctx, "SELECT id FROM access_links WHERE id=$1 FOR SHARE", link); err != nil {
 		return v, err
 	}
-	err := tx.QueryRow(ctx, "SELECT c.id::text,c.routing_pool_id::text,c.service_group_id::text,c.status,COALESCE(c.current_agent_id::text,''),COALESCE(c.desired_agent_id::text,''),c.agent_mode,p.algorithm,p.assignment_mode,p.rr_cursor,c.version,p.history_priority FROM conversations c JOIN routing_pools p ON p.id=c.routing_pool_id AND p.tenant_id=c.tenant_id WHERE c.id=$1 FOR UPDATE OF c", id).Scan(&v.ID, &v.Pool, &v.Group, &v.Status, &v.Agent, &v.Desired, &v.Mode, &v.Algorithm, &v.AssignmentMode, &v.Cursor, &v.Version, &v.History)
+	err := tx.QueryRow(ctx, "SELECT c.id::text,c.routing_pool_id::text,c.service_group_id::text,c.status,COALESCE(c.current_agent_id::text,''),COALESCE(c.desired_agent_id::text,''),c.agent_mode,p.algorithm,p.assignment_mode,p.rr_cursor,c.version,p.history_priority,COALESCE(c.source_snapshot->'entry'->>'reception_mode',l.reception_mode) FROM conversations c JOIN routing_pools p ON p.id=c.routing_pool_id AND p.tenant_id=c.tenant_id JOIN access_links l ON l.id=c.created_entry_id AND l.tenant_id=c.tenant_id WHERE c.id=$1 FOR UPDATE OF c", id).Scan(&v.ID, &v.Pool, &v.Group, &v.Status, &v.Agent, &v.Desired, &v.Mode, &v.Algorithm, &v.AssignmentMode, &v.Cursor, &v.Version, &v.History, &v.ReceptionMode)
 	if err != nil {
 		return v, err
 	}
+	v.Algorithm = linkAlgorithm(v.Algorithm, v.ReceptionMode)
 	v.Required, v.Optional, err = loadRouteSkills(ctx, tx, p, link)
 	return v, err
 }
@@ -102,7 +103,7 @@ func (s *Service) assignLocked(ctx context.Context, tx pgx.Tx, tenant, id, reque
 			}
 		}
 		if len(found) == 0 {
-			return platform.Fail(409, "candidate_unavailable", "当前客服不满足组池、技能或容量要求")
+			return candidateFailure(ctx, tx, v, requested)
 		}
 		items = found
 		reason = "requested"
@@ -153,7 +154,7 @@ func (s *Service) assignLocked(ctx context.Context, tx pgx.Tx, tenant, id, reque
 		return nil
 	}
 	v.Decision = map[string]any{"algorithm": v.Algorithm, "reason": reason, "required_skill_ids": v.Required, "optional_skill_ids": v.Optional, "optional_matched": selected.Optional, "weight": selected.Weight}
-	if err := s.createAssignment(ctx, tx, tenant, v, selected.ID, v.AssignmentMode == "confirm"); err != nil {
+	if err := s.createAssignment(ctx, tx, tenant, v, selected.ID, v.ReceptionMode != "manual" && v.AssignmentMode == "confirm"); err != nil {
 		return err
 	}
 	if v.Algorithm == "weighted_round_robin" && reason == "algorithm" {

@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/jackc/pgx/v5"
-	"supportdesk/backend/internal/platform"
 )
 
 // routeCandidate 保存经过统一资格过滤的候选及当前算法需要的指标。
@@ -108,7 +107,7 @@ func requireCandidate(ctx context.Context, tx pgx.Tx, v routeState, member strin
 			return nil
 		}
 	}
-	return platform.Fail(409, "candidate_unavailable", "客服当前不满足组池、技能、在线忙闲或容量要求")
+	return candidateFailure(ctx, tx, v, member)
 }
 
 // preferredCandidates 在技能合格候选内执行历史偏好和可选技能排序，指定客服的优先级由调用方先行处理。

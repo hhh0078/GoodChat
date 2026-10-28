@@ -25,6 +25,8 @@ COPY --from=frontend-build /build/.next/standalone /app/frontend/
 COPY --from=frontend-build /build/.next/static /app/frontend/.next/static/
 COPY --from=frontend-build /build/public /app/frontend/public/
 COPY deploy/ /app/deploy/
+# 图片优化缓存供运行时非特权用户写入，避免只读源码目录导致Next.js图片请求失败。
+RUN mkdir -p /app/frontend/.next/cache && chmod 1777 /app/frontend/.next/cache
 EXPOSE 3000 18081
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 CMD node -e "fetch('http://127.0.0.1:18080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node","/app/deploy/start.mjs"]

@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import type { ChatMessage, Conversation } from "@/lib/types";
+import { useRealtime } from "@/lib/realtime/use-realtime";
+import { createSyncPump } from "@/lib/realtime/sync-pump";
+import { acknowledgePending, readPending, stagePending } from "@/lib/pending-messages";
 
 export type ChatIdentity = {
   tenantId?: string;
@@ -32,17 +35,39 @@ export function useChat(id: string, identity: ChatIdentity) {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
-  const [connected, setConnected] = useState(false);
+  const [synced, setSynced] = useState(false);
   const [typingUntil, setTypingUntil] = useState(0);
   const [olderCursor, setOlderCursor] = useState("");
   const [hasOlder, setHasOlder] = useState(false);
   const [readSeq, setReadSeq] = useState("0");
   const [revision, setRevision] = useState(0);
-  const socket = useRef<WebSocket | null>(null);
+  const [unconfirmed, setUnconfirmed] = useState<Outgoing[]>([]);
+  const [pendingError, setPendingError] = useState<unknown>(null);
+  const synchronize = useRef<() => Promise<void>>(() => Promise.resolve());
   const cursor = useRef("");
   const typingSent = useRef(0);
+  const scope = `${identity.kind}:${identity.tenantId || ""}:${identity.actorId}:${id}`;
+  const activeScope = useRef(scope);
+  activeScope.current = scope;
   const token = identity.token,
     tenantId = identity.tenantId;
+  const pendingKey = `goodchat.draft.${tenantId || "visitor"}.${identity.actorId}.${id}.pending`;
+  useEffect(() => {
+    try {
+      acknowledgePending(
+        sessionStorage,
+        pendingKey,
+        messages
+          .filter((item) => item.sender_id === identity.actorId && item.conversation_id === id)
+          .map((item) => item.client_message_id)
+          .filter((value): value is string => !!value),
+      );
+      setUnconfirmed(readPending(sessionStorage, pendingKey));
+      setPendingError(null);
+    } catch (problem) {
+      setPendingError(problem);
+    }
+  }, [pendingKey, messages, identity.actorId, id]);
   /** request 仅通过请求头附加独立访客凭证，不把凭证放进网址。 */
   const request = useCallback(
     <T>(path: string, options: Parameters<typeof api>[1] = {}) =>
@@ -53,50 +78,89 @@ export function useChat(id: string, identity: ChatIdentity) {
       }),
     [tenantId, token],
   );
+  const live = useRealtime(identity, {
+    enabled: !!id,
+    onEvent: (event) => {
+      if (event.conversation_id === id) void synchronize.current().catch(() => {});
+    },
+    onRecover: () => synchronize.current(),
+    onFrame: (frame) => {
+      const data = frame.data;
+      if (
+        frame.type === "typing" &&
+        data?.conversation_id === id &&
+        data.participant_id !== identity.actorId
+      )
+        setTypingUntil(data.is_typing ? new Date(String(data.expires_at)).getTime() : 0);
+    },
+  });
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
-    let polling = false;
-    let reconnect: ReturnType<typeof setTimeout> | undefined;
+    let initialized = false;
+    let detailDirty = false;
+    const seen = new Set<string>();
     const controller = new AbortController();
     cursor.current = "";
     setMessages([]);
     setConversation(null);
     setLoading(true);
+    setSynced(false);
     setError(null);
     setReadSeq("0");
-    /** snapshot 读取授权快照与最近历史，不根据可见序号推断全局连续性。 */
+    /** snapshot 获取授权快照，游标失效时立即重建，再继续补齐期间发生的事件。 */
     async function snapshot() {
-      const [detail, history] = await Promise.all([
-        request<Conversation>(`/conversations/${id}`, { signal: controller.signal }),
-        request<{ items: ChatMessage[]; next_cursor: string; has_more: boolean }>(
-          `/conversations/${id}/messages?limit=50`,
-          { signal: controller.signal },
-        ),
-      ]);
+      const history = await request<{
+        items: ChatMessage[];
+        next_cursor: string;
+        has_more: boolean;
+        sync_cursor: string;
+      }>(`/conversations/${id}/messages?limit=50`, { signal: controller.signal });
+      // 先取得消息水位再读取资料，避免旧资料对应的变更已经落在恢复游标之前。
+      const detail = await request<Conversation>(`/conversations/${id}`, {
+        signal: controller.signal,
+      });
       if (cancelled) return;
+      if (!history.sync_cursor) throw new Error("消息快照缺少恢复游标，请刷新后重试。");
+      cursor.current = history.sync_cursor;
       setConversation(detail);
       setMessages(history.items || []);
       setOlderCursor(history.next_cursor);
       setHasOlder(history.has_more);
+      initialized = true;
+      detailDirty = false;
     }
-    /** sync 扫描持久事件并只使用服务端签名游标推进恢复位置。 */
-    async function sync() {
-      if (cancelled || polling) return;
-      polling = true;
+    /** scan 扫描服务端签名游标，遇到失效立即快照并继续，不能吞掉进行中收到的唤醒。 */
+    async function scan() {
       try {
+        if (!initialized) await snapshot();
         let more = true;
+        let resets = 0;
         while (more && !cancelled) {
-          const batch = await request<{
-            items: ChatEvent[];
-            next_cursor: string;
-            has_more: boolean;
-          }>(`/conversations/${id}/events?after_cursor=${encodeURIComponent(cursor.current)}`, {
-            signal: controller.signal,
-          });
+          let batch: { items: ChatEvent[]; next_cursor: string; has_more: boolean };
+          try {
+            batch = await request(
+              `/conversations/${id}/events?after_cursor=${encodeURIComponent(cursor.current)}`,
+              { signal: controller.signal },
+            );
+          } catch (problem) {
+            if (
+              problem instanceof ApiError &&
+              problem.code === "resync_required" &&
+              resets++ === 0
+            ) {
+              cursor.current = "";
+              seen.clear();
+              await snapshot();
+              continue;
+            }
+            throw problem;
+          }
           if (cancelled) return;
-          let changed = false;
           for (const event of batch.items || []) {
+            if (seen.has(event.id)) continue;
+            seen.add(event.id);
+            if (seen.size > 1000) seen.delete(seen.values().next().value!);
             if (event.event_type === "message.created")
               setMessages((previous) => mergeMessages(previous, [event.payload as ChatMessage]));
             else if (event.event_type === "message.withdrawn")
@@ -108,120 +172,76 @@ export function useChat(id: string, identity: ChatIdentity) {
               event.payload.participant_id !== identity.actorId
             )
               setReadSeq(String(event.payload.last_read_seq || "0"));
-            else changed = true;
+            else detailDirty = true;
           }
           cursor.current = batch.next_cursor;
           more = batch.has_more;
-          if (changed) {
-            const detail = await request<Conversation>(`/conversations/${id}`, {
-              signal: controller.signal,
-            });
-            if (!cancelled) setConversation(detail);
-          }
         }
-        if (!cancelled) setError(null);
-      } catch (problem) {
-        if (!cancelled) {
-          if (problem instanceof ApiError && problem.code === "resync_required") {
-            cursor.current = "";
-            await snapshot().catch(setError);
-          } else setError(problem);
-        }
-      } finally {
-        polling = false;
-      }
-    }
-    /** connect 重新申请一次性票据，在断开后恢复持久事件。 */
-    async function connect() {
-      try {
-        const ticket = await request<{ url: string }>("/realtime/ticket", {
-          method: "POST",
-          bodyJSON: { conversation_id: id },
-        });
-        if (cancelled) return;
-        const url = new URL(ticket.url, location.origin);
-        if (url.origin !== location.origin) throw new Error("实时连接来源无效");
-        url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
-        const ws = new WebSocket(url);
-        socket.current = ws;
-        ws.onopen = () => {
-          if (cancelled) {
-            ws.close();
-            return;
-          }
-          setConnected(true);
-          void sync();
-        };
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(String(event.data));
-            if (data.type === "event") void sync();
-            if (
-              data.type === "typing" &&
-              data.data?.conversation_id === id &&
-              data.data?.participant_id !== identity.actorId
-            )
-              setTypingUntil(data.data.is_typing ? new Date(data.data.expires_at).getTime() : 0);
-          } catch {
-            /* 非法实时帧不推进持久游标。 */
-          }
-        };
-        ws.onclose = () => {
+        if (detailDirty && !cancelled) {
+          const detail = await request<Conversation>(`/conversations/${id}`, {
+            signal: controller.signal,
+          });
           if (!cancelled) {
-            setConnected(false);
-            reconnect = setTimeout(() => void connect(), 3000);
+            setConversation(detail);
+            detailDirty = false;
           }
-        };
-        ws.onerror = () => ws.close();
+        }
+        if (!cancelled) {
+          setError(null);
+          setLoading(false);
+          setSynced(true);
+        }
       } catch (problem) {
         if (!cancelled) {
-          setConnected(false);
           setError(problem);
-          reconnect = setTimeout(() => void connect(), 5000);
+          setLoading(false);
+          setSynced(false);
         }
+        throw problem;
       }
     }
-    void snapshot()
-      .then(() => {
-        if (!cancelled) {
-          setLoading(false);
-          void sync();
-          void connect();
-        }
-      })
-      .catch((problem) => {
-        if (!cancelled) {
-          setError(problem);
-          setLoading(false);
-        }
-      });
-    const poll = setInterval(() => void sync(), 4000);
-    const heartbeat = setInterval(() => {
-      if (socket.current?.readyState === WebSocket.OPEN)
-        socket.current.send(JSON.stringify({ type: "heartbeat" }));
-    }, 15000);
+    const pump = createSyncPump(scan);
+    synchronize.current = pump.trigger;
+    void pump.trigger().catch(() => {});
+    const poll = setInterval(() => {
+      void pump.trigger().catch(() => {});
+    }, 4000);
     const lease = setInterval(
       () => setTypingUntil((previous) => (previous > Date.now() ? previous : 0)),
       1000,
     );
     return () => {
       cancelled = true;
+      pump.stop();
       controller.abort();
       clearInterval(poll);
-      clearInterval(heartbeat);
       clearInterval(lease);
-      if (reconnect) clearTimeout(reconnect);
-      socket.current?.close();
-      socket.current = null;
+      if (synchronize.current === pump.trigger) synchronize.current = () => Promise.resolve();
     };
   }, [id, request, identity.actorId, revision]);
-  /** send 提交消息，只有服务端确认写入后才加入成功消息列表。 */
+  /** send 在统一可信层暂存完整消息，覆盖原生及装修访客；只有服务端确认后才清理原身份会话的暂存。 */
   async function send(body: Outgoing) {
+    try {
+      stagePending(sessionStorage, pendingKey, body);
+      if (activeScope.current === scope) {
+        setUnconfirmed(readPending(sessionStorage, pendingKey));
+        setPendingError(null);
+      }
+    } catch (problem) {
+      if (activeScope.current === scope) setPendingError(problem);
+      throw problem;
+    }
     const item = await request<ChatMessage>(`/conversations/${id}/messages`, {
       method: "POST",
       bodyJSON: body,
     });
-    setMessages((previous) => mergeMessages(previous, [item]));
+    try {
+      acknowledgePending(sessionStorage, pendingKey, [body.client_message_id]);
+      if (activeScope.current === scope) setUnconfirmed(readPending(sessionStorage, pendingKey));
+    } catch (problem) {
+      if (activeScope.current === scope) setPendingError(problem);
+    }
+    if (activeScope.current === scope) setMessages((previous) => mergeMessages(previous, [item]));
     return item;
   }
   /** withdraw 仅在服务端确认作者和时间窗后更新消息及引用，失败时保留原内容。 */
@@ -230,13 +250,15 @@ export function useChat(id: string, identity: ChatIdentity) {
       method: "POST",
       bodyJSON: {},
     });
-    setMessages((previous) => withdrawMessages(previous, messageId, new Date().toISOString()));
+    if (activeScope.current === scope)
+      setMessages((previous) => withdrawMessages(previous, messageId, new Date().toISOString()));
   }
   /** loadOlder 使用消息历史游标追加旧记录，不覆盖实时新增消息。 */
   async function loadOlder() {
     const data = await request<{ items: ChatMessage[]; next_cursor: string; has_more: boolean }>(
       `/conversations/${id}/messages?before_seq=${encodeURIComponent(olderCursor)}&limit=50`,
     );
+    if (activeScope.current !== scope) return;
     setMessages((previous) => mergeMessages(previous, data.items || []));
     setOlderCursor(data.next_cursor);
     setHasOlder(data.has_more);
@@ -245,17 +267,18 @@ export function useChat(id: string, identity: ChatIdentity) {
   function typing(active: boolean) {
     if (active && Date.now() - typingSent.current < 1200) return;
     typingSent.current = Date.now();
-    if (socket.current?.readyState === WebSocket.OPEN)
-      socket.current.send(
-        JSON.stringify({ type: "typing", conversation_id: id, is_typing: active }),
-      );
+    live.send({ type: "typing", conversation_id: id, is_typing: active });
   }
   return {
     messages,
+    unconfirmed,
+    pendingError,
     conversation,
     error,
     loading,
-    connected,
+    connected: live.connected && synced,
+    connectionStatus: live.status,
+    diagnostics: live.diagnostics,
     typingUntil,
     hasOlder,
     readSeq,

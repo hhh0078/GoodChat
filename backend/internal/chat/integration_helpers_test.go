@@ -130,7 +130,7 @@ func newFixture(t *testing.T) *fixture {
 	if _, err = bootstrap.Exec(ctx, "SET search_path TO "+quoted+",public"); err != nil {
 		t.Fatal(err)
 	}
-	for _, file := range []string{"000_base.sql", "001_identity.sql", "002_chat.sql", "003_callbacks.sql", "004_operations.sql", "009_advanced_routing.sql", "011_automation_rich.sql", "012_async_exports.sql", "014_lead_attachments_notifications.sql", "015_export_redaction.sql"} {
+	for _, file := range []string{"000_base.sql", "001_identity.sql", "002_chat.sql", "003_callbacks.sql", "004_operations.sql", "009_advanced_routing.sql", "011_automation_rich.sql", "012_async_exports.sql", "014_lead_attachments_notifications.sql", "015_export_redaction.sql", "016_link_reception.sql", "017_customer_workspace.sql"} {
 		body, readErr := os.ReadFile(filepath.Join("..", "database", "migrations", file))
 		if readErr != nil {
 			t.Fatal(readErr)
