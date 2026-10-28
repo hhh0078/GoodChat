@@ -21,6 +21,7 @@ import {
 import {
   ArrowLeftOutlined,
   BellOutlined,
+  CustomerServiceOutlined,
   ReloadOutlined,
   SwapOutlined,
   UserOutlined,
@@ -190,8 +191,8 @@ export function AgentWorkspace() {
       </Tooltip>
       <Select
         aria-label="接待状态"
-        className="agent-availability"
-        variant="filled"
+        className={`agent-availability ${runtime?.available && !runtime.busy ? "is-ready" : ""}`}
+        variant="outlined"
         value={!runtime?.available ? "offline" : runtime.busy ? "busy" : "ready"}
         disabled={!runtime || busy}
         onChange={(value) =>
@@ -278,6 +279,7 @@ export function AgentWorkspace() {
               <button
                 key={item.id}
                 className={`conversation-row ${item.id === selected ? "active" : ""}`}
+                aria-pressed={item.id === selected}
                 onClick={() => setSelected(item.id)}
               >
                 <Avatar
@@ -299,7 +301,7 @@ export function AgentWorkspace() {
                         : ""}
                     </time>
                   </div>
-                  <p>
+                  <p className="conversation-status" data-status={item.status}>
                     {conversationStatus[item.status] || item.status}
                     {item.agent_name ? ` · ${item.agent_name}` : ""}
                   </p>
@@ -311,11 +313,23 @@ export function AgentWorkspace() {
         </div>
         <div className="chat-main">
           {!active ? (
-            <div style={{ margin: "auto", padding: 30 }}>
-              <EmptyData text="选择左侧咨询开始接待" />
-              <p className="form-hint">
-                当前接待 {runtime?.current_load ?? "—"} / {runtime?.capacity ?? "—"}
+            <div className="agent-welcome">
+              <div className="agent-welcome-mark" aria-hidden="true">
+                <CustomerServiceOutlined />
+                <span />
+              </div>
+              <span className="agent-welcome-eyebrow">你的接待空间</span>
+              <h2>准备好，回应每一份期待。</h2>
+              <p>
+                选择左侧咨询，在这里开始对话。
+                <br />
+                客户资料与访问记录会随会话呈现。
               </p>
+              <div className="agent-load-summary">
+                <span>当前接待</span>
+                <strong>{runtime?.current_load ?? "—"}</strong>
+                <span>/ {runtime?.capacity ?? "—"}</span>
+              </div>
             </div>
           ) : (
             <>

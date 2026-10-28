@@ -12,7 +12,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <nav className="public-nav" aria-label="官网导航">
             <Link href="/features">产品功能</Link>
             <Link href="/solutions">使用场景</Link>
-            <Link href="/pricing">套餐说明</Link>
+            <Link href="/pricing">价格方案</Link>
             <Link href="/help">接入帮助</Link>
           </nav>
           <div className="public-actions">
@@ -28,11 +28,14 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         <div className="public-width footer-row">
           <div>
             <Brand />
-            <p style={{ margin: "10px 0 0" }}>把咨询接起来，把服务做好。</p>
+            <p className="public-footer-description">每一次对话，都值得好好回应。</p>
+            <span className="public-footer-note">网页在线客服 · 免费开始</span>
           </div>
           <nav className="footer-links" aria-label="页脚导航">
-            <Link href="/features">功能</Link>
-            <Link href="/help">帮助</Link>
+            <Link href="/features">产品功能</Link>
+            <Link href="/solutions">使用场景</Link>
+            <Link href="/pricing">价格方案</Link>
+            <Link href="/help">接入帮助</Link>
             <Link href="/privacy">隐私政策</Link>
             <Link href="/terms">服务条款</Link>
             <Link href="/console">工作台</Link>

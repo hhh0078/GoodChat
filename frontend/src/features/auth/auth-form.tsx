@@ -146,9 +146,41 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <aside className="auth-intro">
         <Brand />
         <div className="auth-intro-content">
-          <div className="public-overline">SIMPLE SERVICE</div>
-          <h1>把咨询接起来，把服务做好。</h1>
-          <p className="muted">一个工作空间，连接入口、团队与每一位客户。</p>
+          <div className="public-overline">让好服务，自然发生</div>
+          <h1>
+            好的对话，
+            <br />
+            从这里开始。
+          </h1>
+          <p className="muted">连接每一位客户，也连接你和团队。</p>
+          <div className="auth-conversation-preview" aria-label="客户沟通界面示意">
+            <div className="auth-preview-heading">
+              <span className="auth-preview-avatar">顾</span>
+              <div>
+                <strong>你的品牌 · 客户服务</strong>
+                <small>
+                  <i />
+                  在线，随时为你解答
+                </small>
+              </div>
+              <span className="auth-preview-more">···</span>
+            </div>
+            <div className="auth-preview-message">
+              <span>
+                你好，很高兴遇见你。
+                <br />
+                有什么可以帮到你？
+              </span>
+            </div>
+            <div className="auth-preview-message own">
+              <span>想了解一下你们的产品。</span>
+            </div>
+            <div className="auth-preview-input">
+              <span>从一句你好开始…</span>
+              <ArrowRightOutlined />
+            </div>
+            <small className="auth-preview-caption">客户沟通界面示意</small>
+          </div>
           <div className="auth-capabilities">
             <div>
               <LinkOutlined />
@@ -173,7 +205,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
             </div>
           </div>
         </div>
-        <p className="auth-free-note">免费包含 2 个客服坐席。</p>
+        <p className="auth-free-note">
+          <span>2 个免费客服坐席</span>
+          <i />
+          基础服务长期免费
+        </p>
       </aside>
       <main className="auth-form-side">
         <div className="auth-form">

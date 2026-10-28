@@ -104,7 +104,7 @@ export function LinksPage() {
       render: (value, row) => (
         <>
           <strong>{value}</strong>
-          <div className="muted" style={{ fontSize: 12 }}>
+          <div className="console-entry-key" title={row.entry_key}>
             {row.entry_key}
           </div>
         </>

@@ -1,0 +1,323 @@
+[
+  {
+    "file": "01-home.png",
+    "route": "/",
+    "family": "public"
+  },
+  {
+    "file": "12-dashboard.png",
+    "route": "/console",
+    "family": "admin"
+  },
+  {
+    "file": "13-workspace.png",
+    "route": "/workspace",
+    "family": "agent"
+  },
+  {
+    "file": "02-features.png",
+    "route": "/features",
+    "family": "public",
+    "brief": "产品功能页：title 从接入到接待，一处连起来。Three product sections for multi links/routing/messages and contact dossiers, large clear product specimens, no claims about native apps already shipped."
+  },
+  {
+    "file": "03-solutions.png",
+    "route": "/solutions",
+    "family": "public",
+    "brief": "使用场景页：title 适合你的生意，也适合你的团队。Use-case selector 售前咨询 售后服务 门店与广告; one featured scenario layout illustrating link to routing to customer conversation, three panels meaningful."
+  },
+  {
+    "file": "04-help.png",
+    "route": "/help",
+    "family": "public",
+    "brief": "接入帮助页：title 从一个链接开始接待。White readable docs navigation 接待准备 分享链接 网站嵌入 参数传递, main numbered instructions plus contextual code snippet, no tinytext."
+  },
+  {
+    "file": "05-privacy.png",
+    "route": "/privacy",
+    "family": "public",
+    "brief": "隐私政策页：restrained editorial legal document with header 隐私政策, narrow readable text measure, short numbered sections and updateddate, tableofcontents right."
+  },
+  {
+    "file": "06-terms.png",
+    "route": "/terms",
+    "family": "public",
+    "brief": "服务条款页：restrained editorial legal document header 服务条款, numbered sections and right table of contents, clear readingtype."
+  },
+  {
+    "file": "07-pricing.png",
+    "route": "/pricing",
+    "family": "public",
+    "brief": "官网定价页：免费开始，按需成长。3 vertically aligned plan cards 免费版 ¥0/长期有效/2客服坐席, 团队版 按后台价格显示, 专业版 按后台价格显示. Feature comparisonbelow and clearCTA. Use sample data marked pricing示意, not falsefees."
+  },
+  {
+    "file": "08-login.png",
+    "route": "/login",
+    "family": "public",
+    "brief": "登录页面：two-column generous layout, left lightneutral brand statement 让每一次沟通都有着落 with tiny conversation specimen, right whiteform email password segmented 密码登录 验证码登录, 登录 greenbutton, 忘记密码/免费注册. No heroimage no largegreenareas."
+  },
+  {
+    "file": "09-register.png",
+    "route": "/register",
+    "family": "public",
+    "brief": "邮箱注册页面：two-column brand/whiteform. 创建你的工作空间, fields 邮箱 验证码 获取验证码 密码 团队名称, 注册并开始, cleartermscheckbox. Note 免费包含2个客服坐席 subtle."
+  },
+  {
+    "file": "10-reset.png",
+    "route": "/reset-password",
+    "family": "public",
+    "brief": "重置密码页：brandaside white focused form 重置密码, 邮箱 验证码 新密码 and 确认重置, 返回登录."
+  },
+  {
+    "file": "11-invitation.png",
+    "route": "/accept-invitation",
+    "family": "public",
+    "brief": "接受邀请页：minimalbrand plus whiteform 加入团队, invitedemail, displayname, password orlogin, 接受邀请, concise role/team details."
+  },
+  {
+    "file": "14-members.png",
+    "route": "/console/members",
+    "family": "admin",
+    "brief": "团队成员 management table page, title/subtitle then white card with tabs 团队成员 邀请记录. toolbar 搜索成员 + 邀请成员. columns 成员 邮箱 角色 接待资格 状态 操作. 3 demonstration rows, smallavatar. Onlytrue primaryCTA. selectednavigation团队成员."
+  },
+  {
+    "file": "15-invitations.png",
+    "route": "/console/members#invitations",
+    "family": "admin",
+    "brief": "团队成员 邀请记录 active tab, whitepanel, invite table 邮箱 角色 接待资格 有效期 状态 操作, rows 已发送 已接受 已过期, resend/revoke actions. No decorative charts."
+  },
+  {
+    "file": "16-links.png",
+    "route": "/console/links",
+    "family": "admin",
+    "brief": "接入链接 page with cleartitle and 创建链接 button. Whitepanel table 入口名称 分配范围 指定客服 状态 操作; rows 售前咨询 售后服务 门店咨询, share/editbuttons. Small footer hint 链接支持自定义参数."
+  },
+  {
+    "file": "17-routing-groups.png",
+    "route": "/console/routing#groups",
+    "family": "admin",
+    "brief": "分组与分配 page left horizontaltabs 客服分组 分配池 技能字典 客服技能. active客服分组, whitepanel table 分组名称 描述 状态 操作, 新建分组. Calm taskdense."
+  },
+  {
+    "file": "18-routing-pools.png",
+    "route": "/console/routing#pools",
+    "family": "admin",
+    "brief": "分组与分配 active 分配池, whitepanel table 名称 所属分组 分配算法 历史优先 状态 操作. 新建分配池. Information hierarchy only, no fake flowgraph."
+  },
+  {
+    "file": "19-routing-skills.png",
+    "route": "/console/routing#skills",
+    "family": "admin",
+    "brief": "分组与分配 active 技能字典, whitecard table 技能名称 描述 状态 操作, 新建技能."
+  },
+  {
+    "file": "20-agent-skills.png",
+    "route": "/console/routing#members",
+    "family": "admin",
+    "brief": "分组与分配 active 客服技能, whitepanel table 客服 技能 权重 可接待 状态. Fields compact tags, no coloredrandomavatars."
+  },
+  {
+    "file": "21-contacts.png",
+    "route": "/console/contacts",
+    "family": "admin",
+    "brief": "客户资料 page, tabs 客户档案 分类 标签 标签分组 自定义字段. active客户档案. searchbar and 分类筛选, white table 客户 电话 分类 标签 建档时间 操作, avatars small andgreenlighttags."
+  },
+  {
+    "file": "22-categories.png",
+    "route": "/console/contacts#categories",
+    "family": "admin",
+    "brief": "客户资料 active 分类 tab, white tidy resource table 分类名称 描述 排序 操作, 创建分类."
+  },
+  {
+    "file": "23-tags.png",
+    "route": "/console/contacts#tags",
+    "family": "admin",
+    "brief": "客户资料 active 标签 tab, whitepanel resource table 标签名称 所属分组 描述 操作, 创建标签."
+  },
+  {
+    "file": "24-tag-groups.png",
+    "route": "/console/contacts#tag-categories",
+    "family": "admin",
+    "brief": "客户资料 active 标签分组, whitepanel table 分组名称 描述 操作, 创建分组."
+  },
+  {
+    "file": "25-fields.png",
+    "route": "/console/contacts#fields",
+    "family": "admin",
+    "brief": "客户资料 active 自定义字段, whitepanel table 字段名称 字段标识 字段类型 必填 状态 操作, 新建字段."
+  },
+  {
+    "file": "26-templates.png",
+    "route": "/console/templates",
+    "family": "admin",
+    "brief": "装修与模板 page, tabs 我的模板 模板市场 代码包 AI创作 发布页面. active我的模板. title and primary 创建模板. White panel with 3column portfolio of true chat page thumbnail covers, neutral ecommerce/travel/service mini previews, card bottomtitle type and 编辑/复制. Visually distinctive curated gallery, no rainbow."
+  },
+  {
+    "file": "27-template-market.png",
+    "route": "/console/templates#market",
+    "family": "admin",
+    "brief": "装修与模板 active公共模板/模板市场, 3column beautiful template chatpage thumbnails withcover/titles 基础客服 品牌咨询 简约服务, 预览 and 复制到我的模板. Clarifyplatformtemplate."
+  },
+  {
+    "file": "28-code-packages.png",
+    "route": "/console/templates#packages",
+    "family": "admin",
+    "brief": "装修与模板 active代码包, whitepanel uploadZIP action then table 包名称 版本 文件数 状态 操作. concise securityhint隔离预览, no codeexecutedinadmin."
+  },
+  {
+    "file": "29-ai.png",
+    "route": "/console/templates#ai",
+    "family": "admin",
+    "brief": "装修与模板 AI创作 tab active. Two-column 60/40 whitepanels: left form 描述你的品牌页面 textarea, 参考图片 optional, modelstatus, primary 生成草稿; right recentgeneration tasklist and smallpreview. Clarify 私有模板·预览后发布. No sparkleicon no gradients."
+  },
+  {
+    "file": "30-pages.png",
+    "route": "/console/templates#pages",
+    "family": "admin",
+    "brief": "装修与模板 active发布页面, white table 页面名称 使用模板 当前版本 发布时间 操作. preview/publishrollback, statuspill; primary创建页面."
+  },
+  {
+    "file": "31-template-editor.png",
+    "route": "/console/templates/[id]",
+    "family": "admin",
+    "brief": "Template editor full usable workbench: heading 编辑模板 with 保存 and 返回. tabs 基础配置 组件布局 自定义CSS 代码装修. left compact labelled brand color/title fields, central responsive chatpreview, right properties panel. Basicform not densecodewall."
+  },
+  {
+    "file": "32-page-editor.png",
+    "route": "/console/pages/[id]",
+    "family": "admin",
+    "brief": "Brandpage editor preview/publish UI: top 页面装修 title and desktop/mobile switch, 保存草稿/预览/发布; threecolumns componentlist/large live chatpagepreview/propertysettings, neutralwhite panels smallgreencontrols. Clear版本状态."
+  },
+  {
+    "file": "33-service.png",
+    "route": "/console/automation",
+    "family": "admin",
+    "brief": "回复与运营 page left verticaltabs 基础服务 欢迎规则 营业时间 快捷回复 关键词 留言 邮件通知 满意度 提醒. active基础服务, whiteform panel 欢迎语 离线提示 收集客户信息 and 保存. Widthlimitedreading."
+  },
+  {
+    "file": "34-welcome.png",
+    "route": "/console/automation#welcome",
+    "family": "admin",
+    "brief": "回复与运营 欢迎规则 active. whitecard rulelist name condition priority enabled action. primary新增规则, no fakeautomationdiagram."
+  },
+  {
+    "file": "35-policy.png",
+    "route": "/console/automation#policy",
+    "family": "admin",
+    "brief": "回复与运营 营业时间与评价 active. Whiteform sections 营业时间 days/time and 离线策略, 满意度邀请开关, savebutton. clearlabelshelpertext."
+  },
+  {
+    "file": "36-canned.png",
+    "route": "/console/automation#canned",
+    "family": "admin",
+    "brief": "回复与运营 快捷回复 active. white table 标题 分组 内容 操作, search and 新建回复. Multi-line preview readable."
+  },
+  {
+    "file": "37-keywords.png",
+    "route": "/console/automation#keywords",
+    "family": "admin",
+    "brief": "回复与运营 关键词回复 active. whitepanel table 规则名称 匹配方式 关键词 回复内容 状态 操作. 新建规则."
+  },
+  {
+    "file": "38-leads.png",
+    "route": "/console/automation#leads",
+    "family": "admin",
+    "brief": "回复与运营 客户留言 active. white listtable 客户 电话 问题 状态 提交时间 操作. filter 待跟进 已处理, no madeupsummary."
+  },
+  {
+    "file": "39-mail.png",
+    "route": "/console/automation#lead-email",
+    "family": "admin",
+    "brief": "回复与运营 留言邮件通知 active. white focusedform 开启邮件通知, 接收邮箱, 通知范围 and 保存设置. Below deliverylogtable status. no visible SMTPsecret."
+  },
+  {
+    "file": "40-evaluations.png",
+    "route": "/console/automation#evaluations",
+    "family": "admin",
+    "brief": "回复与运营 满意度评价 active, whitepanel table 客户 服务客服 评分 评价内容 时间 操作. Staricons restrained goldsemantic only."
+  },
+  {
+    "file": "41-reminders.png",
+    "route": "/console/automation#reminders",
+    "family": "admin",
+    "brief": "回复与运营 本机提醒 active. whitepanel section 浏览器通知 state button启用; 声音提醒 switch, 新消息/等待超时 options, 保存. Clear optinstate no hugeillustration."
+  },
+  {
+    "file": "42-records.png",
+    "route": "/console/records",
+    "family": "admin",
+    "brief": "聊天记录 page focused searchfilter 客服 日期范围 客户关键词 会话状态 + 查询/导出. white table 客户 接待客服 来源 开始时间 结束时间 状态 操作. recorddetail opensdrawer hint no extra fakecharts."
+  },
+  {
+    "file": "43-reports.png",
+    "route": "/console/reports",
+    "family": "admin",
+    "brief": "服务统计 page date range onright, 8 small true metriccards (访客数 客户数 咨询会话 消息数 排队中 接待中 已结束 平均首次回复), belowwhite tables 按客服统计 按入口统计 每日统计. zero data shows emdash, no fabricatedcharts."
+  },
+  {
+    "file": "44-billing.png",
+    "route": "/console/billing",
+    "family": "admin",
+    "brief": "套餐与坐席 page with current免费版 white subscriptionpanel ¥0/长期有效 and 1/2坐席 progress, availableplan cards restrained, 升级申请 action, underneath申请记录table. No paymentformalreadycharged."
+  },
+  {
+    "file": "45-callback.png",
+    "route": "/console/settings",
+    "family": "admin",
+    "brief": "租户设置 page tabs 回调地址 投递记录 账号与设备. active回调地址. whiteform 回调URL 事件订阅 签名密钥 masked 安全说明 保存设置, no actualkeyvisible."
+  },
+  {
+    "file": "46-deliveries.png",
+    "route": "/console/settings#deliveries",
+    "family": "admin",
+    "brief": "租户设置 投递记录 active. whitepanel table 事件类型 目标地址 状态 尝试次数 时间 操作, retry action and filter."
+  },
+  {
+    "file": "47-account.png",
+    "route": "/console/settings#account",
+    "family": "admin",
+    "brief": "租户设置 账号与设备 active. whitepanel profile name/email avatar, emailverificationstatus, separate table 登录设备 最后活动 当前设备/撤销. name 陈可 fake no credentials."
+  },
+  {
+    "file": "48-platform.png",
+    "route": "/platform",
+    "family": "admin",
+    "brief": "平台管理 active平台概览. Two compact actual resource counts 租户总数 公开模板 onwhitepanels; actionable sections 租户运营/公共模板/套餐版本/升级申请. Mainactivityno fakegraph."
+  },
+  {
+    "file": "49-tenants.png",
+    "route": "/platform#tenants",
+    "family": "admin",
+    "brief": "平台管理 租户运营 active. white table 租户名称 管理员 创建时间 状态 操作; managementfilters. Clear platformrole context."
+  },
+  {
+    "file": "50-platform-templates.png",
+    "route": "/platform#templates",
+    "family": "admin",
+    "brief": "平台管理 公共装修模板 active. 3column thumbnailgallerywhitecards, primary 新建公共模板, publish/unpublishstatuses, info关于租户复制. No tenantsprivatecontent."
+  },
+  {
+    "file": "51-plans.png",
+    "route": "/platform#plans",
+    "family": "admin",
+    "brief": "平台管理 套餐版本与官网价格 active. white table 版本名称 价格 有效期 坐席数 状态 操作, free0 perpetual2 and placeholders for paid; button新建版本. clear免费版invariant."
+  },
+  {
+    "file": "52-upgrades.png",
+    "route": "/platform#upgrades",
+    "family": "admin",
+    "brief": "平台管理 升级申请与人工开通 active. whitepanel table 租户 申请套餐 价格 状态 申请时间 操作, 审核开通button only on pending; caution人工确认 semantic."
+  },
+  {
+    "file": "53-visitor.png",
+    "route": "/c/[entryKey]",
+    "family": "visitor",
+    "brief": "Default visitor chat webpage light customerfriendly centered 880px chatwindow, brandheader 在线客服 smallavailabledot, messagebubbleswhiteandpalegreen and footertextarea/tinyimage/file/audio tools green发送; 留言 满意度 actions actual available. No adminsidebar. Mobilefriendly."
+  },
+  {
+    "file": "54-notfound.png",
+    "route": "/404",
+    "family": "public",
+    "brief": "404 page in normal public header/footer. sparse intentional title 页面暂时找不到了, small404 light neutralglyph, useful main button返回首页 secondary前往工作空间. No cartoonvectorplaceholder."
+  }
+]

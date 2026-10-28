@@ -1,8 +1,8 @@
 /** 文件作用说明：提供产品、场景、套餐、帮助与隐私条款的服务端公开页面。 */
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Button } from "antd";
+import { ProductPreview } from "@/components/product-preview";
 
 const pages: Record<
   string,
@@ -143,15 +143,19 @@ export default async function PublicContentPage({ params }: { params: Promise<{ 
   if (!page) notFound();
   const illustrated = slug === "features" || slug === "solutions";
   const legal = slug === "privacy" || slug === "terms";
-  const previews = [
-    { path: "/images/access-links-preview.png", label: "接入链接与分享界面示意" },
-    { path: "/images/routing-preview.png", label: "团队接待与分配规则界面示意" },
-    { path: "/images/editor-preview.png", label: "品牌页面装修界面示意" },
-  ];
+  const previews = ["links", "routing", "design"] as const;
   return (
     <div className="public-width public-content" data-public-page={slug}>
       <header className="public-content-heading">
-        <div className="public-overline">GOODCHAT / {slug.toUpperCase()}</div>
+        <div className="public-overline">
+          {slug === "features"
+            ? "围绕每一次客户对话"
+            : slug === "solutions"
+              ? "适合你的业务，也适合你的团队"
+              : slug === "help"
+                ? "GoodChat 使用指南"
+                : "GoodChat 服务约定"}
+        </div>
         <h1>{page.title}</h1>
         <p className="page-lead">{page.lead}</p>
       </header>
@@ -185,18 +189,7 @@ export default async function PublicContentPage({ params }: { params: Promise<{ 
                   )}
                 </div>
               </div>
-              {illustrated && previews[index] && (
-                <figure className="public-detail-preview">
-                  <Image
-                    src={previews[index].path}
-                    alt={previews[index].label}
-                    width={1488}
-                    height={1056}
-                    sizes="(max-width: 768px) calc(100vw - 40px), 40vw"
-                  />
-                  <figcaption>界面示意 · 非真实业务资料</figcaption>
-                </figure>
-              )}
+              {illustrated && previews[index] && <ProductPreview kind={previews[index]} />}
             </section>
           ))}
           {!legal && (

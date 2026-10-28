@@ -6,6 +6,7 @@ import { InfoCircleOutlined } from "@ant-design/icons";
 import { api } from "@/lib/api";
 import { useSession } from "@/features/auth/session";
 import { ErrorNotice, PageTitle, EmptyData } from "@/components/page-state";
+const metricNumber = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 });
 type Statistics = {
   overview: Record<string, number>;
   by_agent: {
@@ -81,7 +82,14 @@ export function ReportsPage() {
           <Card size="small" key={key}>
             <div className="muted">{label}</div>
             <div className="stat-value">
-              {loading ? <Spin size="small" /> : (data?.overview?.[key] ?? "—")}
+              {loading ? (
+                <Spin size="small" />
+              ) : typeof data?.overview?.[key] === "number" &&
+                Number.isFinite(data.overview[key]) ? (
+                metricNumber.format(data.overview[key])
+              ) : (
+                "—"
+              )}
             </div>
           </Card>
         ))}

@@ -1,7 +1,7 @@
 /** 文件作用说明：按明亮品牌设计图展示 GoodChat 免费客服定位、真实产品能力与可索引的注册入口。 */
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Button } from "antd";
+import { ProductPreview } from "@/components/product-preview";
 import {
   ArrowRightOutlined,
   ApartmentOutlined,
@@ -32,64 +32,69 @@ const highlights = [
 const features = [
   {
     icon: LinkOutlined,
-    title: "入口",
+    title: "让客户更容易找到你",
     text: "售前、售后、广告和门店各用自己的链接，电脑与手机打开即可咨询。",
   },
   {
     icon: ApartmentOutlined,
-    title: "分配",
+    title: "让每次咨询找到对的人",
     text: "按客服组、分配池、技能与接待状态安排咨询，支持自动分配和人工领取。",
   },
   {
     icon: MessageOutlined,
-    title: "沟通",
+    title: "把沟通留在同一个地方",
     text: "文字、图片、文件和语音集中接待，保留来源、客户资料与沟通记录。",
   },
   {
     icon: SkinOutlined,
-    title: "装修",
+    title: "服务页面，也有你的风格",
     text: "从基础配色、组件布局到代码装修与 AI 创作，预览后发布自己的页面。",
   },
   {
     icon: TeamOutlined,
-    title: "团队",
+    title: "一个团队，清晰协作",
     text: "分别设置管理员与客服角色、接待资格和服务范围，让成员清楚分工。",
   },
   {
     icon: SafetyOutlined,
-    title: "权限",
+    title: "各自的工作空间，各自管理",
     text: "按租户、角色和接待范围授权，客户记录与私有模板在各自工作空间内管理。",
   },
 ];
-/** HomePage 以文字排版和明确标注的产品示意图呈现官网首页。 */
+/** HomePage 通过居中品牌主张、大幅原生产品示意与能力分区呈现免费客服服务。 */
 export default function HomePage() {
   return (
     <div data-public-page="home">
       <section className="public-width public-home-hero">
         <div className="public-hero-copy">
-          <span className="public-kicker">免费包含 2 个客服坐席</span>
-          <h1>基础客服，永久免费。</h1>
-          <p>从一个聊天链接开始，把入口、分配、消息和品牌页面连在一起。团队扩展时，再按需升级。</p>
+          <h1>
+            每一次对话，
+            <br />
+            都值得<span>好好回应。</span>
+          </h1>
+          <span className="public-kicker">
+            <i /> 基础客服长期免费 · 含 2 个坐席
+          </span>
+          <p>从一个链接开始，把客户、团队和品牌连在一起。</p>
           <div className="public-hero-actions">
             <Button type="primary" size="large" href="/register">
-              免费开始
+              免费开始 <ArrowRightOutlined />
             </Button>
             <Button size="large" href="/features">
-              了解产品
+              探索产品
             </Button>
           </div>
+          <div className="public-hero-assurance">
+            <span>免费 2 个客服坐席</span>
+            <i />
+            <span>基础服务长期免费</span>
+            <i />
+            <span>邮箱注册即可使用</span>
+          </div>
         </div>
-        <figure className="public-hero-preview">
-          <figcaption>界面示意 · 示例聊天与客户资料</figcaption>
-          <Image
-            src="/images/workspace-preview.png"
-            alt="GoodChat 明亮客服工作台设计示意，包含咨询列表、聊天和客户资料，非真实业务数据"
-            width={1488}
-            height={1056}
-            priority
-            sizes="(max-width: 768px) calc(100vw - 40px), 56vw"
-          />
-        </figure>
+        <div className="public-hero-product">
+          <ProductPreview />
+        </div>
       </section>
       <section className="public-highlights-band" aria-label="产品重点">
         <div className="public-width public-highlights">
@@ -106,7 +111,10 @@ export default function HomePage() {
       </section>
       <section className="public-width public-capabilities">
         <div className="public-section-title">
-          <h2>覆盖客服全流程的核心能力</h2>
+          <div>
+            <div className="public-overline">从找到你，到服务好</div>
+            <h2>服务的每一步，都有着落。</h2>
+          </div>
           <a href="/features">
             了解更多功能 <ArrowRightOutlined />
           </a>
@@ -125,10 +133,11 @@ export default function HomePage() {
       </section>
       <section className="public-start-band">
         <div className="public-width">
-          <h2>从一次对话开始。</h2>
-          <p>免费包含 2 个客服坐席，从网页开始，把接待做扎实。</p>
-          <Button type="primary" href="/register">
-            免费开始 <ArrowRightOutlined />
+          <span className="public-kicker">免费开始 · 按需成长</span>
+          <h2>下一次好对话，从这里开始。</h2>
+          <p>2 个客服坐席，足够开始。团队成长后，再选择适合你的套餐。</p>
+          <Button type="primary" size="large" href="/register">
+            创建你的工作空间 <ArrowRightOutlined />
           </Button>
         </div>
       </section>

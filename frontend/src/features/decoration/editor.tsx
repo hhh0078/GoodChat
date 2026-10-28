@@ -277,19 +277,21 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
       />
       <ErrorNotice error={error} />
       <div className="editor-grid">
-        <Card
-          className="studio-settings-pane"
-          title={
+        <Card className="studio-settings-pane" title="设计设置">
+          <div className="studio-design-name">
+            <label htmlFor="goodchat-design-name">设计名称</label>
             <Input
+              id="goodchat-design-name"
               aria-label="设计名称"
               value={name}
               onChange={(event) => setName(event.target.value)}
               maxLength={100}
             />
-          }
-        >
-          <Tag>{item.render_mode === "code" ? "代码装修" : "基础设置与可视化装修"}</Tag>
-          <p className="form-hint">服务端草稿版本 {item.version}</p>
+          </div>
+          <div className="studio-editor-meta">
+            <Tag>{item.render_mode === "code" ? "代码装修" : "可视化装修"}</Tag>
+            <span>草稿 v{item.version}</span>
+          </div>
           {item.render_mode === "schema" ? (
             <Tabs
               items={[
@@ -559,8 +561,8 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
             />
           )}
         </Card>
-        <div>
-          <Card title="布局示意" className="studio-preview-pane">
+        <div className="studio-preview-column">
+          <Card title="页面布局预览" className="studio-preview-pane">
             <div
               className="design-preview"
               style={{
@@ -577,6 +579,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                 />
               ) : (
                 <div
+                  className="studio-preview-document"
                   style={{
                     maxWidth: 390,
                     margin: "auto",
@@ -586,6 +589,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                   }}
                 >
                   <div
+                    className="studio-preview-brand"
                     style={{
                       padding: 24,
                       background: /^#[\da-f]{6}$/i.test(design.theme?.primary_color || "")
@@ -599,7 +603,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                     </h3>
                     <small>{design.brand?.subtitle}</small>
                   </div>
-                  <div style={{ padding: 20 }}>
+                  <div className="studio-preview-blocks" style={{ padding: 20 }}>
                     {design.blocks?.map((block) => (
                       <div key={block.id} style={{ marginBottom: 20 }}>
                         <strong>{block.title || blockNames[block.type]}</strong>

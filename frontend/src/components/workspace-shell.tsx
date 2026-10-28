@@ -102,83 +102,139 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
     .filter((group) => group.items.length > 0);
   const serving = pathname === "/workspace";
   const pageLabel = entries.find((entry) => entry.key === selected)?.label || "工作空间";
+  const tenantSelector = (
+    <Select
+      className="shell-tenant"
+      aria-label="当前工作空间"
+      value={tenantId || undefined}
+      placeholder="选择工作空间"
+      options={current.memberships.map((item) => ({
+        label: item.tenant_name,
+        value: item.tenant_id,
+      }))}
+      onChange={setTenantId}
+      disabled={!current.memberships.length}
+    />
+  );
+  const sections = [
+    { label: "工作空间", paths: ["/console", "/workspace"] },
+    { label: "客户服务", paths: ["/console/contacts", "/console/records", "/console/reports"] },
+    {
+      label: "服务管理",
+      paths: [
+        "/console/members",
+        "/console/links",
+        "/console/routing",
+        "/console/automation",
+        "/console/templates",
+        "/console/billing",
+        "/console/settings",
+        "/platform",
+      ],
+    },
+  ]
+    .map((section) => ({
+      type: "group" as const,
+      key: section.label,
+      label: section.label,
+      children: section.paths.flatMap((path) => entries.filter((entry) => entry.key === path)),
+    }))
+    .filter((section) => section.children.length > 0);
   const nav = (
     <>
       <div className="sidebar-brand">
         <Brand />
       </div>
+      <div className="sidebar-workspace">{tenantSelector}</div>
       <Menu
         mode="inline"
-        items={entries}
+        items={sections}
         selectedKeys={[selected]}
         onClick={({ key }) => navigate(key)}
       />
       <div className="sidebar-bottom">
-        GoodChat 网页工作端
-        <br />
-        让每一次沟通都有着落
+        <Avatar size={30}>{(current.user.display_name || current.user.email).slice(0, 1)}</Avatar>
+        <div>
+          <strong>{current.user.display_name || current.user.email}</strong>
+          <span>
+            {member?.role === "owner"
+              ? "工作空间所有者"
+              : member?.role === "admin"
+                ? "租户管理员"
+                : "客服成员"}
+          </span>
+        </div>
       </div>
     </>
   );
   return (
     <div className={`workspace workbench-shell ${serving ? "is-serving" : ""}`}>
-      <aside className="workspace-sidebar workspace-rail" aria-label="工作端主导航">
-        <div className="rail-brand">
-          <Brand />
-        </div>
-        <nav className="rail-links">
-          {groups.map((group) => {
-            const active = group.items.some((entry) => entry.key === selected);
-            const content = (
-              <>
-                {group.icon}
-                <span>{group.label}</span>
-              </>
-            );
-            return group.items.length === 1 ? (
-              <Tooltip key={group.label} title={group.items[0].label} placement="right">
-                <Link
-                  className={`rail-link ${active ? "active" : ""}`}
-                  aria-label={group.items[0].label}
-                  aria-current={active ? "page" : undefined}
-                  href={group.items[0].key}
-                >
-                  {content}
-                </Link>
-              </Tooltip>
-            ) : (
-              <Dropdown
-                key={group.label}
-                trigger={["click"]}
-                placement="rightTop"
-                menu={{
-                  items: group.items,
-                  selectedKeys: [selected],
-                  onClick: ({ key }) => navigate(key),
-                }}
+      <aside
+        className={`workspace-sidebar ${serving ? "workspace-rail" : "workspace-full-nav"}`}
+        aria-label="工作端主导航"
+      >
+        {serving ? (
+          <>
+            <div className="rail-brand">
+              <Brand />
+            </div>
+            <nav className="rail-links">
+              {groups.map((group) => {
+                const active = group.items.some((entry) => entry.key === selected);
+                const content = (
+                  <>
+                    {group.icon}
+                    <span>{group.label}</span>
+                  </>
+                );
+                return group.items.length === 1 ? (
+                  <Tooltip key={group.label} title={group.items[0].label} placement="right">
+                    <Link
+                      className={`rail-link ${active ? "active" : ""}`}
+                      aria-label={group.items[0].label}
+                      aria-current={active ? "page" : undefined}
+                      href={group.items[0].key}
+                    >
+                      {content}
+                    </Link>
+                  </Tooltip>
+                ) : (
+                  <Dropdown
+                    key={group.label}
+                    trigger={["click"]}
+                    placement="rightTop"
+                    menu={{
+                      items: group.items,
+                      selectedKeys: [selected],
+                      onClick: ({ key }) => navigate(key),
+                    }}
+                  >
+                    <button
+                      className={`rail-link ${active ? "active" : ""}`}
+                      aria-label={`${group.label}导航`}
+                    >
+                      {content}
+                    </button>
+                  </Dropdown>
+                );
+              })}
+            </nav>
+            <Tooltip title="账号与工作空间" placement="right">
+              <Button
+                className="rail-account"
+                type="text"
+                aria-label="账号与工作空间"
+                onClick={() => navigate("/console/settings")}
               >
-                <button
-                  className={`rail-link ${active ? "active" : ""}`}
-                  aria-label={`${group.label}导航`}
-                >
-                  {content}
-                </button>
-              </Dropdown>
-            );
-          })}
-        </nav>
-        <Tooltip title="账号与工作空间" placement="right">
-          <Button
-            className="rail-account"
-            type="text"
-            aria-label="账号与工作空间"
-            onClick={() => navigate("/console/settings")}
-          >
-            <Avatar size={30}>
-              {(current.user.display_name || current.user.email).slice(0, 1)}
-            </Avatar>
-          </Button>
-        </Tooltip>
+                <Avatar size={30}>
+                  {(current.user.display_name || current.user.email).slice(0, 1)}
+                </Avatar>
+              </Button>
+            </Tooltip>
+          </>
+        ) : (
+          nav
+        )}
       </aside>
       <div className="workspace-main">
         <header className="workspace-topbar">
@@ -189,22 +245,20 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
               icon={<MenuOutlined />}
               onClick={() => setMobileOpen(true)}
             />
-            <span className="shell-wordmark">GoodChat</span>
-            <Select
-              className="shell-tenant"
-              aria-label="当前工作空间"
-              variant="borderless"
-              style={{ width: 185 }}
-              value={tenantId || undefined}
-              placeholder="选择工作空间"
-              options={current.memberships.map((item) => ({
-                label: item.tenant_name,
-                value: item.tenant_id,
-              }))}
-              onChange={setTenantId}
-              disabled={!current.memberships.length}
-            />
-            <span className="shell-page-label">{pageLabel}</span>
+            {serving ? (
+              <span className="shell-wordmark">GoodChat</span>
+            ) : (
+              <span className="shell-breadcrumb">
+                工作空间 <span aria-hidden="true">/</span>
+              </span>
+            )}
+            {!serving && (
+              <span className="shell-page-label">
+                {selected === "/console" ? "概览" : pageLabel}
+              </span>
+            )}
+            {serving && tenantSelector}
+            {serving && <span className="shell-page-label">{pageLabel}</span>}
             {member && !serving && (
               <Tag className="shell-role">
                 {member.role === "owner" ? "所有者" : member.role === "admin" ? "管理员" : "客服"}
@@ -240,6 +294,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <Drawer
+        rootClassName="workspace-nav-drawer"
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
         placement="left"

@@ -1,11 +1,14 @@
 /* 文件作用说明：统一官网、管理端、认证和聊天界面的响应式自然绿样式。 */
 :root {
-  --green: #3c7958;
-  --ink: #26332c;
-  --muted: #657269;
-  --paper: #f4f5f3;
-  --line: #d8ded8;
+  --green: #167558;
+  --ink: #22282d;
+  --muted: #657078;
+  --paper: #f5f6f8;
+  --line: #e4e8eb;
   --white: #fff;
+  --accent-soft: #eaf4ef;
+  --surface-inset: #f7f8fa;
+  --shadow-panel: 0 1px 3px rgba(25, 35, 42, 0.04), 0 0 0 1px rgba(25, 35, 42, 0.04);
 }
 * {
   box-sizing: border-box;
@@ -14,9 +17,10 @@ body {
   margin: 0;
   color: var(--ink);
   background: var(--paper);
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 15px;
   line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
 }
 a {
   color: inherit;
@@ -29,7 +33,7 @@ textarea {
 }
 a:focus-visible,
 button:focus-visible {
-  outline: 3px solid #7fb69a;
+  outline: 3px solid #80b7a4;
   outline-offset: 3px;
 }
 h1,
@@ -37,6 +41,11 @@ h2,
 h3,
 p {
   margin-top: 0;
+}
+h1,
+h2,
+h3 {
+  text-wrap: balance;
 }
 .muted {
   color: var(--muted);

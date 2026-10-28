@@ -304,7 +304,7 @@ export function TemplatesPage() {
               </p>
               <Space wrap>
                 {!isPublic && (
-                  <Button type="primary" size="small" href={`/console/templates/${item.id}`}>
+                  <Button size="small" href={`/console/templates/${item.id}`}>
                     编辑模板
                   </Button>
                 )}

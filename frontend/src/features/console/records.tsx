@@ -206,7 +206,7 @@ export function RecordsPage() {
                 row.contact_id?.slice(0, 8) ||
                 "访客",
             },
-            { title: "会话编号", dataIndex: "id", ellipsis: true },
+            { title: "会话编号", dataIndex: "id", ellipsis: true, className: "console-record-id" },
             {
               title: "状态",
               dataIndex: "status",
