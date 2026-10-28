@@ -386,7 +386,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                               className="studio-component-object"
                               size="small"
                               style={{
-                                borderColor: activeBlock === block.id ? "#23684e" : undefined,
+                                borderColor: activeBlock === block.id ? "var(--brand)" : undefined,
                               }}
                             >
                               <Space style={{ justifyContent: "space-between", width: "100%" }}>
@@ -651,7 +651,12 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
             title="隔离装修预览"
             sandbox="allow-scripts allow-same-origin"
             referrerPolicy="no-referrer"
-            style={{ width: "100%", height: "70vh", border: "1px solid #dfe6dc", borderRadius: 12 }}
+            style={{
+              width: "100%",
+              height: "70vh",
+              border: "1px solid var(--line)",
+              borderRadius: 12,
+            }}
           />
         )}
       </Modal>

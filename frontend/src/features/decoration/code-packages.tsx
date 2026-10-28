@@ -311,7 +311,7 @@ export function CodePackages({
           size="small"
           title={
             <>
-              资源包 {selected.name} {activeId === selected.id && <Tag color="green">当前草稿</Tag>}
+              资源包 {selected.name} {activeId === selected.id && <Tag color="blue">当前草稿</Tag>}
             </>
           }
           style={{ marginTop: 16 }}

@@ -1,6 +1,7 @@
 /** 文件作用说明：实现真实邮箱注册、验证码与密码登录、密码重置和受邀激活流程。 */
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Alert, App, Button, Checkbox, Form, Input, Segmented, Space } from "antd";
@@ -144,13 +145,21 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <div className={`auth-wrap auth-refresh auth-mode-${mode}`}>
       <aside className="auth-intro">
+        <Image
+          className="auth-scene"
+          src="/images/cobalt-communication-rings.png"
+          alt=""
+          width={1513}
+          height={1039}
+          sizes="45vw"
+        />
         <Brand />
         <div className="auth-intro-content">
-          <div className="public-overline">让好服务，自然发生</div>
+          <div className="public-overline">GOODCHAT · CONNECT</div>
           <h1>
-            好的对话，
+            连接每一位客户。
             <br />
-            从这里开始。
+            即刻回应每次期待。
           </h1>
           <p className="muted">连接每一位客户，也连接你和团队。</p>
           <div className="auth-conversation-preview" aria-label="客户沟通界面示意">

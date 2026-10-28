@@ -6,6 +6,7 @@ export {
   CheckOutlined,
   LinkOutlined,
   MessageOutlined,
+  MessageFilled,
   TeamOutlined,
   SkinOutlined,
   SafetyOutlined,

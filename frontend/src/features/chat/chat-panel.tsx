@@ -1,6 +1,6 @@
 /** 文件作用说明：提供访客与客服共用的消息界面、幂等重试、附件、语音、引用与可见已读。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   Alert,
   App,
@@ -27,6 +27,17 @@ export const conversationStatus: Record<string, string> = {
   active: "正在接待",
   closed: "咨询已结束",
 };
+/** messageDateLabel 将真实消息时间转换为本地日期标题，异常时间不生成虚构分隔日期。 */
+function messageDateLabel(value?: string): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return date.toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
 /** ChatPanel 根据已认证参与者显示消息，发送与已读均以服务端响应为准。 */
 export function ChatPanel({
   id,
@@ -341,129 +352,138 @@ export function ChatPanel({
         ) : !chat.messages.length ? (
           <EmptyData text="还没有消息，可以从一句问候开始。" />
         ) : (
-          chat.messages.map((item) => {
+          chat.messages.map((item, index) => {
             const own = item.sender_id === identity.actorId;
+            const dateLabel = identity.kind === "agent" ? messageDateLabel(item.created_at) : "";
+            const showDate =
+              !!dateLabel && dateLabel !== messageDateLabel(chat.messages[index - 1]?.created_at);
             return (
-              <div
-                key={item.id}
-                className={`message-row ${own ? "own" : ""} ${item.audience === "internal" ? "internal" : ""}`}
-              >
-                <Avatar size={32} className="message-avatar">
-                  {(
-                    item.sender_name ||
-                    (item.sender_kind === "visitor"
-                      ? "访"
-                      : item.sender_kind === "system"
-                        ? "系"
-                        : "我")
-                  ).slice(0, 1)}
-                </Avatar>
-                <div className="message-meta">
-                  {item.audience === "internal" ? "内部备注 · " : ""}
-                  {item.sender_name ||
-                    ({ visitor: "访客", agent: "客服", system: "系统" } as Record<string, string>)[
-                      item.sender_kind
-                    ] ||
-                    "消息"}{" "}
-                  ·{" "}
-                  {item.sender_kind === "system" && item.source && (
-                    <>
-                      {item.source === "welcome"
-                        ? "欢迎引导"
-                        : item.source === "keyword"
-                          ? "规则回复"
-                          : "系统消息"}{" "}
-                      ·{" "}
-                    </>
-                  )}
-                  {item.created_at
-                    ? new Date(item.created_at).toLocaleTimeString("zh-CN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : ""}
-                </div>
-                <div className="message-bubble">
-                  {item.withdrawn_at ? (
-                    <span className="muted">消息已撤回</span>
-                  ) : (
-                    <>
-                      {item.reply && (
-                        <div
-                          style={{
-                            fontSize: 12,
-                            borderLeft: "2px solid #a8b79d",
-                            paddingLeft: 10,
-                            marginBottom: 8,
-                            color: "#6c7767",
+              <Fragment key={item.id}>
+                {showDate && <div className="message-day-divider">{dateLabel}</div>}
+                <div
+                  className={`message-row ${own ? "own" : ""} ${item.audience === "internal" ? "internal" : ""}`}
+                >
+                  <Avatar size={32} className="message-avatar">
+                    {(
+                      item.sender_name ||
+                      (item.sender_kind === "visitor"
+                        ? "访"
+                        : item.sender_kind === "system"
+                          ? "系"
+                          : "我")
+                    ).slice(0, 1)}
+                  </Avatar>
+                  <div className="message-meta">
+                    {item.audience === "internal" ? "内部备注 · " : ""}
+                    {item.sender_name ||
+                      (
+                        { visitor: "访客", agent: "客服", system: "系统" } as Record<string, string>
+                      )[item.sender_kind] ||
+                      "消息"}{" "}
+                    ·{" "}
+                    {item.sender_kind === "system" && item.source && (
+                      <>
+                        {item.source === "welcome"
+                          ? "欢迎引导"
+                          : item.source === "keyword"
+                            ? "规则回复"
+                            : "系统消息"}{" "}
+                        ·{" "}
+                      </>
+                    )}
+                    {item.created_at
+                      ? new Date(item.created_at).toLocaleTimeString("zh-CN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : ""}
+                  </div>
+                  <div className="message-bubble">
+                    {item.withdrawn_at ? (
+                      <span className="muted">消息已撤回</span>
+                    ) : (
+                      <>
+                        {item.reply && (
+                          <div
+                            style={{
+                              fontSize: 12,
+                              borderLeft: "2px solid var(--line)",
+                              paddingLeft: 10,
+                              marginBottom: 8,
+                              color: "var(--muted)",
+                            }}
+                          >
+                            引用：{item.reply.withdrawn ? "消息已撤回" : item.reply.content}
+                          </div>
+                        )}
+                        {item.content}
+                        {item.attachment && (
+                          <AttachmentView attachment={item.attachment} identity={identity} />
+                        )}
+                        {item.sender_kind === "system" && Array.isArray(item.options) && (
+                          <Space wrap style={{ marginTop: 10, display: "flex" }}>
+                            {item.options.map((option) => (
+                              <Button
+                                key={option.id}
+                                size="small"
+                                disabled={
+                                  !canSend ||
+                                  identity.kind !== "visitor" ||
+                                  sending ||
+                                  chat.messages.some(
+                                    (message) =>
+                                      message.client_message_id === option.client_message_id,
+                                  )
+                                }
+                                onClick={() =>
+                                  void sendOutgoing({
+                                    client_message_id: option.client_message_id,
+                                    content: option.value,
+                                    message_type: "text",
+                                    audience: "public",
+                                  })
+                                }
+                              >
+                                {option.label}
+                              </Button>
+                            ))}
+                          </Space>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {!item.withdrawn_at && (
+                    <Space
+                      className="message-actions"
+                      size={10}
+                      style={{ fontSize: 11, marginTop: 4 }}
+                    >
+                      {canSend && (
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={() => {
+                            setReply(item);
+                            if (item.audience === "internal") setAudience("internal");
                           }}
                         >
-                          引用：{item.reply.withdrawn ? "消息已撤回" : item.reply.content}
-                        </div>
+                          引用
+                        </Button>
                       )}
-                      {item.content}
-                      {item.attachment && (
-                        <AttachmentView attachment={item.attachment} identity={identity} />
+                      {own && canSend && (
+                        <Popconfirm title="撤回这条消息？" onConfirm={() => withdraw(item)}>
+                          <Button type="link" size="small">
+                            撤回
+                          </Button>
+                        </Popconfirm>
                       )}
-                      {item.sender_kind === "system" && Array.isArray(item.options) && (
-                        <Space wrap style={{ marginTop: 10, display: "flex" }}>
-                          {item.options.map((option) => (
-                            <Button
-                              key={option.id}
-                              size="small"
-                              disabled={
-                                !canSend ||
-                                identity.kind !== "visitor" ||
-                                sending ||
-                                chat.messages.some(
-                                  (message) =>
-                                    message.client_message_id === option.client_message_id,
-                                )
-                              }
-                              onClick={() =>
-                                void sendOutgoing({
-                                  client_message_id: option.client_message_id,
-                                  content: option.value,
-                                  message_type: "text",
-                                  audience: "public",
-                                })
-                              }
-                            >
-                              {option.label}
-                            </Button>
-                          ))}
-                        </Space>
+                      {own && BigInt(chat.readSeq) >= BigInt(item.seq || item.event_seq || 0) && (
+                        <span className="muted">对方已读</span>
                       )}
-                    </>
+                    </Space>
                   )}
                 </div>
-                {!item.withdrawn_at && (
-                  <Space size={10} style={{ fontSize: 11, marginTop: 4 }}>
-                    {canSend && (
-                      <Button
-                        type="link"
-                        size="small"
-                        onClick={() => {
-                          setReply(item);
-                          if (item.audience === "internal") setAudience("internal");
-                        }}
-                      >
-                        引用
-                      </Button>
-                    )}
-                    {own && canSend && (
-                      <Popconfirm title="撤回这条消息？" onConfirm={() => withdraw(item)}>
-                        <Button type="link" size="small">
-                          撤回
-                        </Button>
-                      </Popconfirm>
-                    )}
-                    {own && BigInt(chat.readSeq) >= BigInt(item.seq || item.event_seq || 0) && (
-                      <span className="muted">对方已读</span>
-                    )}
-                  </Space>
-                )}
-              </div>
+              </Fragment>
             );
           })
         )}
@@ -483,7 +503,9 @@ export function ChatPanel({
         ))}
       </div>
       {chat.typingUntil > Date.now() && (
-        <div style={{ fontSize: 12, color: "#68776e", padding: "0 20px 8px" }}>对方正在输入…</div>
+        <div style={{ fontSize: 12, color: "var(--muted)", padding: "0 20px 8px" }}>
+          对方正在输入…
+        </div>
       )}
       <div className="chat-composer">
         {current?.status === "closed" ? (

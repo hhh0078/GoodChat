@@ -72,7 +72,7 @@ export function BrandLogo({
               width: 64,
               height: 64,
               objectFit: "contain",
-              border: "1px solid #e3e9df",
+              border: "1px solid var(--line)",
               borderRadius: 8,
             }}
           />

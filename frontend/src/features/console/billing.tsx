@@ -131,7 +131,7 @@ export function BillingPage() {
                     title: "操作",
                     render: (_, plan) =>
                       plan.id === data.plan?.id ? (
-                        <Tag color="green">当前版本</Tag>
+                        <Tag color="blue">当前版本</Tag>
                       ) : (
                         <Popconfirm
                           title={`申请开通「${plan.name}」？`}

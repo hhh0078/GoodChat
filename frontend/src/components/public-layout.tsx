@@ -26,10 +26,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       <main>{children}</main>
       <footer className="public-footer">
         <div className="public-width footer-row">
-          <div>
+          <div className="public-footer-brand">
             <Brand />
             <p className="public-footer-description">每一次对话，都值得好好回应。</p>
-            <span className="public-footer-note">网页在线客服 · 免费开始</span>
           </div>
           <nav className="footer-links" aria-label="页脚导航">
             <Link href="/features">产品功能</Link>

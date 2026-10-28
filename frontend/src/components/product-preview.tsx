@@ -1,4 +1,5 @@
 /** 文件作用说明：用可缩放的服务端原生界面示意展示接待、接入、分配和装修能力，所有人物与消息均为示例。 */
+import Image from "next/image";
 import {
   ApartmentOutlined,
   ArrowRightOutlined,
@@ -11,13 +12,37 @@ import {
 
 type PreviewKind = "workspace" | "links" | "routing" | "design";
 
+/**
+ * DemoAvatar 仅在明确标注的营销示意图中展示虚构头像，不用于真实客户或客服资料。
+ * name 为示例名称，variant 用于选择示例图片或首字占位。
+ */
+function DemoAvatar({ name, variant = 0 }: { name: string; variant?: number }) {
+  const source =
+    variant === 0
+      ? "/images/cobalt-avatar-woman.png"
+      : variant === 1
+        ? "/images/cobalt-avatar-man.png"
+        : "";
+  return (
+    <span className={`product-avatar tone-${variant}`}>
+      {source ? (
+        <Image src={source} alt="" width={36} height={36} sizes="36px" />
+      ) : (
+        name.slice(0, 1)
+      )}
+    </span>
+  );
+}
+
 /** ProductPreview 按产品能力输出清晰的静态示意，并明确区分示例与真实业务数据。 */
 export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
   if (kind !== "workspace") {
     return (
       <figure className={`product-illustration product-illustration-${kind}`}>
         <div className="product-mini-chrome">
-          <span className="product-mini-brand">g</span>
+          <span className="product-mini-brand">
+            <MessageOutlined />
+          </span>
           <strong>
             {kind === "links" ? "接入链接" : kind === "routing" ? "分组与分配" : "品牌页面装修"}
           </strong>
@@ -73,7 +98,7 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
             <div className="product-route-agents">
               {["林可", "陈安", "周一"].map((name, index) => (
                 <div key={name}>
-                  <span className={`product-avatar tone-${index}`}>{name.slice(0, 1)}</span>
+                  <DemoAvatar name={name} variant={index} />
                   <strong>{name}</strong>
                   <small>{index === 0 ? "本次接待" : "团队成员"}</small>
                   {index === 0 && <CheckOutlined />}
@@ -84,22 +109,51 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
         ) : (
           <div className="product-design-demo">
             <div className="product-design-tools">
-              <SkinOutlined />
-              <span>品牌设置</span>
-              <span>组件布局</span>
-              <span className="selected">AI 创作</span>
-              <div className="product-design-prompt">简洁自然的品牌客服页面</div>
-              <span className="product-mini-submit">
-                生成我的设计 <ArrowRightOutlined />
+              <strong>品牌页面设计</strong>
+              <span className="selected">
+                <SkinOutlined /> 样式
+              </span>
+              <span>
+                <MessageOutlined /> 欢迎语
+              </span>
+              <span>
+                <TeamOutlined /> 联系信息
+              </span>
+              <span>
+                <LinkOutlined /> 安装代码
               </span>
             </div>
-            <div className="product-design-phone">
-              <div className="product-phone-camera" />
-              <span className="product-avatar">g</span>
-              <strong>北岸 · 客户服务</strong>
-              <small>很高兴为你提供帮助</small>
-              <p>你好，有什么可以帮到你？</p>
-              <div className="product-phone-input">输入你的问题…</div>
+            <div className="product-design-stage">
+              <Image
+                src="/images/cobalt-service-architecture.png"
+                alt=""
+                fill
+                sizes="(max-width:768px) 100vw, 60vw"
+              />
+              <span className="product-design-stage-label">页面预览</span>
+              <div className="product-design-phone">
+                <span className="product-mini-brand">
+                  <MessageOutlined />
+                </span>
+                <strong>欢迎咨询 GoodChat</strong>
+                <small>我们很高兴为你提供帮助</small>
+                <p>你好，有什么可以帮助你？</p>
+                <span className="product-mini-submit">开始对话</span>
+              </div>
+            </div>
+            <div className="product-design-properties">
+              <strong>主题设置</strong>
+              <span>主色调</span>
+              <div className="product-color-swatches" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+              </div>
+              <span>品牌名称</span>
+              <div className="product-property-value">GoodChat</div>
+              <span>欢迎语</span>
+              <div className="product-property-value">你好，有什么可以帮助你？</div>
             </div>
           </div>
         )}
@@ -110,12 +164,9 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
   return (
     <figure className="product-illustration product-workspace">
       <div className="product-window-bar">
-        <div className="product-window-dots">
-          <i />
-          <i />
-          <i />
-        </div>
-        <span>GoodChat / 客服工作台</span>
+        <strong>
+          <MessageOutlined /> 客服工作台
+        </strong>
         <span className="product-status">
           <i />
           团队协作，有序接待
@@ -123,7 +174,9 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
       </div>
       <div className="product-workspace-body">
         <aside className="product-preview-nav" aria-hidden="true">
-          <span className="product-mini-brand">g</span>
+          <span className="product-mini-brand">
+            <MessageOutlined />
+          </span>
           <span className="selected">
             <MessageOutlined />
           </span>
@@ -148,7 +201,7 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
             ["周一", "请问如何开始使用？", "10:18"],
           ].map(([name, text, time], index) => (
             <div className={`product-inbox-item ${index === 0 ? "selected" : ""}`} key={name}>
-              <span className={`product-avatar tone-${index}`}>{name.slice(0, 1)}</span>
+              <DemoAvatar name={name} variant={index} />
               <div>
                 <strong>
                   {name}
@@ -176,38 +229,22 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
             <span className="product-mini-action">结束会话</span>
           </div>
           <div className="product-conversation-messages">
-            <span className="product-date-divider">今天 10:27</span>
+            <span className="product-date-divider">今天 10:24</span>
             <div className="product-demo-message">
-              <span className="product-avatar">林</span>
+              <DemoAvatar name="林可" />
               <div>
                 <small>林可</small>
                 <p>你好，想了解一下你们的服务。</p>
               </div>
             </div>
             <div className="product-demo-message own">
-              <span className="product-avatar">我</span>
+              <DemoAvatar name="客服小顾" />
               <div>
                 <small>客服小顾</small>
-                <p>
-                  你好，很高兴为你服务。
-                  <br />
-                  你可以告诉我具体的需求，我们一起看看。
-                </p>
+                <p>您好，很高兴为您解答。</p>
                 <em>已读</em>
               </div>
             </div>
-            <div className="product-demo-message">
-              <span className="product-avatar">林</span>
-              <div>
-                <small>林可</small>
-                <p>我们想给品牌官网接入在线客服。</p>
-              </div>
-            </div>
-            <span className="product-typing">
-              <i />
-              <i />
-              <i /> 对方正在输入
-            </span>
           </div>
           <div className="product-preview-composer">
             <div>
@@ -228,7 +265,7 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
         <aside className="product-preview-contact">
           <strong>客户资料</strong>
           <div className="product-contact-identity">
-            <span className="product-avatar">林</span>
+            <DemoAvatar name="林可" />
             <strong>林可</strong>
             <small>新客户</small>
           </div>
@@ -242,17 +279,6 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
               <span>产品咨询</span>
             </dd>
           </dl>
-          <div className="product-contact-note">
-            <strong>服务备忘</strong>
-            <p>了解客户需求，让下一次沟通更有准备。</p>
-          </div>
-          <div className="product-contact-visit">
-            <strong>访问记录</strong>
-            <p>
-              <i />
-              打开品牌客服页面<small>今天 10:27</small>
-            </p>
-          </div>
         </aside>
       </div>
       <figcaption>产品界面示意 · 示例人物与聊天内容</figcaption>

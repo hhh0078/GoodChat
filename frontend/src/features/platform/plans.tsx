@@ -112,7 +112,7 @@ export function PlatformPlans() {
             title: "公开状态",
             render: (_, row) => (
               <Space>
-                <Tag color={row.is_active ? "green" : "default"}>
+                <Tag color={row.is_active ? "blue" : "default"}>
                   {row.is_active ? "启用" : "停用"}
                 </Tag>
                 <Tag>{row.is_public ? "官网公开" : "内部"}</Tag>

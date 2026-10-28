@@ -17,6 +17,7 @@ import {
   UserOutlined,
   RobotOutlined,
   SafetyOutlined,
+  QuestionCircleOutlined,
 } from "@ant-design/icons";
 import { Brand } from "./brand";
 import { SessionProvider, useSession } from "@/features/auth/session";
@@ -267,6 +268,12 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
           </Space>
           <div className="shell-actions">
             <div id="workspace-header-actions" />
+            {!serving && (
+              <Link href="/help" className="shell-help">
+                <QuestionCircleOutlined aria-hidden="true" />
+                使用帮助
+              </Link>
+            )}
             <Dropdown
               menu={{
                 items: [

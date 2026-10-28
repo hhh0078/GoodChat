@@ -20,7 +20,7 @@ import {
   Tabs,
   Tag,
 } from "antd";
-import { PlusOutlined, RobotOutlined } from "@ant-design/icons";
+import { ArrowRightOutlined, PlusOutlined, RobotOutlined, SkinOutlined } from "@ant-design/icons";
 import { starterCodeDesign } from "./starter-code";
 import { CodePackages } from "./code-packages";
 import { TemplatePreview } from "./template-preview";
@@ -298,7 +298,7 @@ export function TemplatesPage() {
                 <strong>{item.name}</strong>
                 <Tag>{item.render_mode === "code" ? "代码模板" : "可视化模板"}</Tag>
               </Space>
-              <p className="muted" style={{ fontSize: 12 }}>
+              <p className="muted">
                 {" "}
                 {isPublic ? "平台模板 · 复制后归本租户" : "本租户私有 · 仅授权成员可用"}
               </p>
@@ -332,13 +332,19 @@ export function TemplatesPage() {
       </div>
     );
   }
+  /** openAI 打开现有创作流程，横幅与标题操作使用相同的配置和校验。 */
+  function openAI() {
+    setSubmitError(null);
+    aiForm.setFieldsValue({ render_mode: "schema" });
+    setAiOpen(true);
+  }
   return (
     <section className="studio-page studio-templates" aria-label="装修与模板">
       <PageTitle
         title="装修与模板"
-        description="模板归本租户，页面独立发布。AI 结果需要预览和确认后才能上线。"
+        description="让客服页面，成为品牌的一部分。"
         action={
-          <Space>
+          <Space wrap>
             <Button
               icon={<PlusOutlined />}
               onClick={() => {
@@ -350,15 +356,7 @@ export function TemplatesPage() {
             >
               创建模板
             </Button>
-            <Button
-              type="primary"
-              icon={<RobotOutlined />}
-              onClick={() => {
-                setSubmitError(null);
-                aiForm.setFieldsValue({ render_mode: "schema" });
-                setAiOpen(true);
-              }}
-            >
+            <Button type="primary" icon={<RobotOutlined />} onClick={openAI}>
               AI 创建我的模板
             </Button>
           </Space>
@@ -368,7 +366,27 @@ export function TemplatesPage() {
       <Tabs
         className="studio-tabs"
         items={[
-          { key: "mine", label: "我的模板", children: cards(templates) },
+          {
+            key: "mine",
+            label: "我的模板",
+            children: (
+              <>
+                <div className="studio-ai-entry">
+                  <span className="studio-ai-entry-icon" aria-hidden="true">
+                    <SkinOutlined />
+                  </span>
+                  <div>
+                    <h2>描述想法，生成你的专属模板</h2>
+                    <p>AI 生成草稿，预览后发布；创建的模板仅归本租户。</p>
+                  </div>
+                  <Button onClick={openAI}>
+                    开始创作 <ArrowRightOutlined />
+                  </Button>
+                </div>
+                {cards(templates)}
+              </>
+            ),
+          },
           { key: "platform", label: "平台模板", children: cards(publicTemplates, true) },
           { key: "resources", label: "私有资源包", children: <CodePackages key={tenantId} /> },
           {
@@ -440,7 +458,7 @@ export function TemplatesPage() {
                       title: "发布状态",
                       dataIndex: "current_release_id",
                       render: (value) => (
-                        <Tag color={value ? "green" : "default"}>
+                        <Tag color={value ? "blue" : "default"}>
                           {value ? "已有发布" : "未发布"}
                         </Tag>
                       ),

@@ -82,7 +82,7 @@ export default async function PricingPage() {
           {plans.map((plan) => (
             <article className="public-plan" key={plan.id}>
               <div className="public-plan-summary">
-                <Tag color={plan.price_amount === 0 ? "green" : "default"}>
+                <Tag color={plan.price_amount === 0 ? "blue" : "default"}>
                   {plan.price_amount === 0 ? "免费开始" : "扩展团队"}
                 </Tag>
                 <h2>{plan.name}</h2>

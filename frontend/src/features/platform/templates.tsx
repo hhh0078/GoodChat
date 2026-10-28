@@ -106,7 +106,7 @@ export function PlatformTemplates() {
             title: "状态",
             dataIndex: "status",
             render: (value) => (
-              <Tag color={value === "published" ? "green" : "default"}>
+              <Tag color={value === "published" ? "blue" : "default"}>
                 {value === "published" ? "已上架" : "隐藏"}
               </Tag>
             ),

@@ -1,10 +1,10 @@
 /** 文件作用说明：按接待准备图稿展示真实租户指标、初始化进度和日常工作入口。 */
 "use client";
 import Link from "next/link";
-import { Alert, Button, Skeleton, Tag } from "antd";
+import { useEffect, useState } from "react";
+import { Alert, Button, Progress, Skeleton, Tag } from "antd";
 import {
   ArrowRightOutlined,
-  BarChartOutlined,
   CheckOutlined,
   CustomerServiceOutlined,
   FlagOutlined,
@@ -19,6 +19,81 @@ import { useSession } from "@/features/auth/session";
 import { useResource } from "@/lib/use-resource";
 import type { Member, Resource } from "@/lib/types";
 import { PageTitle } from "@/components/page-state";
+import { api } from "@/lib/api";
+
+type DashboardSubscriptionData = {
+  plan?: { name: string };
+  subscription?: { expires_at?: string | null };
+  usage?: { seats_used: number; seats_reserved: number; seat_limit: number };
+};
+
+/** DashboardSubscription 读取真实订阅与坐席占用，失败时不填充免费版或示例额度。 */
+function DashboardSubscription({ tenantId }: { tenantId: string }) {
+  const [data, setData] = useState<DashboardSubscriptionData | null>(null);
+  const [error, setError] = useState(false);
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    setData(null);
+    setError(false);
+    api<DashboardSubscriptionData>("/tenant/subscription", { tenantId, signal: controller.signal })
+      .then((result) => {
+        if (!controller.signal.aborted) setData(result);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError(true);
+      });
+    return () => controller.abort();
+  }, [tenantId, revision]);
+  const usage = data?.usage;
+  const occupied = usage ? usage.seats_used + usage.seats_reserved : 0;
+  const percent = usage?.seat_limit ? Math.min(100, (occupied / usage.seat_limit) * 100) : 0;
+  return (
+    <section className="dashboard-subscription">
+      <header>
+        <h2>当前套餐</h2>
+        <Link href="/console/billing">
+          管理套餐 <ArrowRightOutlined />
+        </Link>
+      </header>
+      {error ? (
+        <div className="dashboard-subscription-error">
+          <span className="muted">套餐暂时无法读取</span>
+          <Button type="link" size="small" onClick={() => setRevision((value) => value + 1)}>
+            重试
+          </Button>
+        </div>
+      ) : !data ? (
+        <Skeleton active title={{ width: "40%" }} paragraph={{ rows: 1 }} />
+      ) : (
+        <>
+          <div className="dashboard-plan-line">
+            <strong>{data.plan?.name || "未开通"}</strong>
+            <span>
+              {data.subscription?.expires_at
+                ? `有效至 ${new Date(data.subscription.expires_at).toLocaleDateString("zh-CN")}`
+                : data.subscription?.expires_at === null
+                  ? "长期有效"
+                  : "以订阅记录为准"}
+            </span>
+          </div>
+          <div className="dashboard-seat-usage">
+            <Progress
+              percent={percent}
+              showInfo={false}
+              strokeColor="var(--brand)"
+              trailColor="var(--brand-soft)"
+            />
+            <span>{usage ? `${occupied} / ${usage.seat_limit}` : "—"}</span>
+          </div>
+          {!!usage?.seats_reserved && (
+            <p className="muted">含 {usage.seats_reserved} 个邀请预留坐席</p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 
 /** Dashboard 以真实配置判定接待准备状态，读取失败时不将指标或进度伪装为零。 */
 export function Dashboard() {
@@ -33,11 +108,30 @@ export function Dashboard() {
   const pools = useResource<Resource>(manages ? "/tenant/routing-pools" : "");
   const pages = useResource<Resource>(manages ? "/tenant/pages" : "");
   const metrics = [
-    { title: "团队成员", result: members, icon: TeamOutlined, value: members.items.length },
-    { title: "接入链接", result: links, icon: LinkOutlined, value: links.items.length },
-    { title: "客户档案", result: contacts, icon: IdcardOutlined, value: contacts.items.length },
+    {
+      title: "团队成员",
+      text: "客服与协作成员",
+      result: members,
+      icon: TeamOutlined,
+      value: members.items.length,
+    },
+    {
+      title: "接入链接",
+      text: "网页、手机网页等",
+      result: links,
+      icon: LinkOutlined,
+      value: links.items.length,
+    },
+    {
+      title: "客户档案",
+      text: "已建立的客户资料",
+      result: contacts,
+      icon: IdcardOutlined,
+      value: contacts.items.length,
+    },
     {
       title: "进行中咨询",
+      text: "当前未结束的咨询",
       result: conversations,
       icon: CustomerServiceOutlined,
       value: conversations.items.filter((record) => record.status !== "closed").length,
@@ -55,7 +149,7 @@ export function Dashboard() {
       reload: members.reload,
     },
     {
-      title: "配置接待范围",
+      title: "配置分组与分配",
       text: "配置业务组和分配池，让咨询找到合适的人。",
       href: "/console/routing",
       icon: PartitionOutlined,
@@ -91,28 +185,28 @@ export function Dashboard() {
   const dailyWork = manages
     ? [
         {
+          href: "/workspace",
+          icon: CustomerServiceOutlined,
+          title: "接待客户",
+          text: "进入工作台，处理正在进行的咨询",
+        },
+        {
           href: "/console/members",
           icon: TeamOutlined,
-          title: "管理团队成员",
-          text: "添加成员、设置角色与权限",
+          title: "邀请成员",
+          text: "邀请管理员与客服加入团队",
         },
         {
-          href: "/console/links",
-          icon: LinkOutlined,
-          title: "获取接入链接",
-          text: "为不同业务配置咨询入口",
+          href: "/console/records",
+          icon: IdcardOutlined,
+          title: "查看聊天记录",
+          text: "查找历史沟通，了解客户详情",
         },
         {
-          href: "/console/routing",
-          icon: PartitionOutlined,
-          title: "分组与分配",
-          text: "安排接待范围与分配规则",
-        },
-        {
-          href: "/console/reports",
-          icon: BarChartOutlined,
-          title: "查看服务统计",
-          text: "了解咨询情况与团队工作数据",
+          href: "/console/templates",
+          icon: SkinOutlined,
+          title: "装修品牌页面",
+          text: "让客户在你的品牌页面里获得服务",
         },
       ]
     : [
@@ -145,7 +239,7 @@ export function Dashboard() {
     <section className="console-screen console-dashboard">
       <PageTitle
         title={`你好，${current.user.display_name || "欢迎回来"}`}
-        description={membership ? "把每一次咨询，接稳、接好。" : "你的账号暂未加入工作空间"}
+        description={membership ? "让每一次咨询，都有回应。" : "你的账号暂未加入工作空间"}
         action={
           membership && (
             <Button href="/workspace" type="primary">
@@ -187,6 +281,7 @@ export function Dashboard() {
                   读取失败，重试
                 </Button>
               )}
+              {!item.result.error && <p className="console-metric-note">{item.text}</p>}
             </div>
           </article>
         ))}
@@ -234,41 +329,42 @@ export function Dashboard() {
             </ol>
           </section>
         )}
-        <aside className="dashboard-shortcuts">
-          <div className="dashboard-panel-heading">
-            <h2>日常工作</h2>
-            <p>从这里快速进入你常用的功能。</p>
-          </div>
-          <div className="dashboard-quick-list">
-            {dailyWork.map((item) => (
-              <Link className="dashboard-quick-link" href={item.href} key={item.href}>
-                <span className="dashboard-quick-icon" aria-hidden="true">
-                  <item.icon />
-                </span>
-                <div>
-                  <strong>{item.title}</strong>
-                  <span>{item.text}</span>
-                </div>
-                <RightOutlined className="dashboard-quick-arrow" aria-hidden="true" />
-              </Link>
-            ))}
-          </div>
-        </aside>
-      </div>
-      <aside className="dashboard-tip">
-        <span className="dashboard-tip-icon" aria-hidden="true">
-          <FlagOutlined />
-        </span>
-        <div>
-          <strong>先跑通一次完整接待</strong>
-          <p>
-            在工作台切换为可接待，再用独立浏览器窗口打开入口，测试从咨询到回复的完整流程。声音和网页通知需主动启用。
-          </p>
+        <div className="dashboard-side">
+          <aside className="dashboard-shortcuts">
+            <div className="dashboard-panel-heading">
+              <h2>日常工作</h2>
+              <p>从这里快速进入你常用的功能。</p>
+            </div>
+            <div className="dashboard-quick-list">
+              {dailyWork.map((item) => (
+                <Link className="dashboard-quick-link" href={item.href} key={item.href}>
+                  <span className="dashboard-quick-icon" aria-hidden="true">
+                    <item.icon />
+                  </span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <span>{item.text}</span>
+                  </div>
+                  <RightOutlined className="dashboard-quick-arrow" aria-hidden="true" />
+                </Link>
+              ))}
+            </div>
+          </aside>
+          {manages && tenantId && <DashboardSubscription key={tenantId} tenantId={tenantId} />}
+          <aside className="dashboard-tip">
+            <span className="dashboard-tip-icon" aria-hidden="true">
+              <FlagOutlined />
+            </span>
+            <div>
+              <strong>先跑通一次完整接待</strong>
+              <p>切换为可接待，再打开咨询入口测试回复。声音与通知需主动启用。</p>
+            </div>
+            <Button href="/help">
+              操作指南 <ArrowRightOutlined />
+            </Button>
+          </aside>
         </div>
-        <Button href="/help">
-          查看操作指南 <ArrowRightOutlined />
-        </Button>
-      </aside>
+      </div>
     </section>
   );
 }

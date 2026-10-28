@@ -1,4 +1,4 @@
-/** 文件作用说明：注入统一 Ant Design 中文语言、自然绿主题与交互反馈容器。 */
+/** 文件作用说明：注入用户确认的银白钴蓝 Ant Design 主题、中文语言与交互反馈容器。 */
 "use client";
 import { App, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
@@ -11,35 +11,35 @@ export function Providers({ children }: { children: ReactNode }) {
       locale={zhCN}
       theme={{
         token: {
-          colorPrimary: "#167558",
-          colorInfo: "#167558",
-          colorText: "#22282d",
-          colorTextSecondary: "#657078",
-          colorTextTertiary: "#7b858c",
-          colorBgLayout: "#f5f6f8",
-          colorBorder: "#dce1e5",
-          colorBorderSecondary: "#e9ecef",
-          colorPrimaryBg: "#eaf4ef",
-          colorInfoBg: "#f2f7f4",
-          colorInfoBorder: "#d8e9df",
+          colorPrimary: "#1455ff",
+          colorInfo: "#1455ff",
+          colorText: "#111a2c",
+          colorTextSecondary: "#5e6b83",
+          colorTextTertiary: "#67748b",
+          colorBgLayout: "#f4f7fc",
+          colorBorder: "#d5dff0",
+          colorBorderSecondary: "#e5ebf5",
+          colorPrimaryBg: "#eaf0ff",
+          colorInfoBg: "#f0f5ff",
+          colorInfoBorder: "#dce6fc",
           borderRadius: 8,
           borderRadiusLG: 12,
           fontFamily: "'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif",
           controlHeight: 36,
         },
         components: {
-          Button: { primaryShadow: "0 1px 2px rgba(17, 69, 51, 0.12)", fontWeight: 500 },
-          Table: { headerBg: "#f8f9fa", headerColor: "#657078", rowHoverBg: "#f7faf8" },
+          Button: { primaryShadow: "0 3px 10px rgba(20, 85, 255, 0.14)", fontWeight: 500 },
+          Table: { headerBg: "#f3f6fc", headerColor: "#52617b", rowHoverBg: "#f3f7ff" },
           Card: { paddingLG: 24 },
           Menu: {
-            itemSelectedBg: "#eaf4ef",
-            itemSelectedColor: "#167558",
-            itemHoverBg: "#eef0f2",
+            itemSelectedBg: "#eaf0ff",
+            itemSelectedColor: "#1455ff",
+            itemHoverBg: "#f1f5fc",
             itemHeight: 40,
             itemBorderRadius: 8,
           },
-          Input: { activeShadow: "0 0 0 3px rgba(22, 117, 88, 0.10)" },
-          Select: { activeOutlineColor: "rgba(22, 117, 88, 0.10)" },
+          Input: { activeShadow: "0 0 0 3px rgba(20, 85, 255, 0.10)" },
+          Select: { activeOutlineColor: "rgba(20, 85, 255, 0.10)" },
         },
       }}
     >

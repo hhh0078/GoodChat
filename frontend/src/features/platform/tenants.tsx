@@ -1,20 +1,28 @@
 /** 文件作用说明：维护平台租户基础状态与真实套餐分配，保留历史并要求人工开通依据。 */
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   App,
+  Avatar,
   Button,
   Checkbox,
   Drawer,
   Form,
   Input,
   Select,
+  Skeleton,
   Space,
   Switch,
   Table,
   Tag,
 } from "antd";
+import {
+  AppstoreOutlined,
+  FileTextOutlined,
+  InfoCircleOutlined,
+  TeamOutlined,
+} from "@ant-design/icons";
 import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import type { Resource } from "@/lib/types";
@@ -26,7 +34,7 @@ type Tenant = Resource & {
   usage?: { seats_used: number; seats_reserved: number; seat_limit: number };
 };
 /** PlatformTenants 只管理租户运营元数据，不跨租户展示聊天正文。 */
-export function PlatformTenants() {
+export function PlatformTenants({ onManagePlans }: { onManagePlans?: () => void }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [createError, setCreateError] = useState<unknown>(null);
   const [createForm] = Form.useForm();
@@ -38,6 +46,30 @@ export function PlatformTenants() {
     true,
   );
   const plans = useResource<Resource>("/platform/plans", true);
+  const requests = useResource<Resource>("/platform/upgrade-requests", true);
+  const [overview, setOverview] = useState<{ tenants: number } | null>(null);
+  const [overviewError, setOverviewError] = useState<unknown>(null);
+  const [summaryRevision, setSummaryRevision] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    setOverview(null);
+    setOverviewError(null);
+    api<{ tenants: number }>("/platform/overview", { signal: controller.signal })
+      .then((result) => {
+        if (!controller.signal.aborted) setOverview(result);
+      })
+      .catch((problem) => {
+        if (!controller.signal.aborted) setOverviewError(problem);
+      });
+    return () => controller.abort();
+  }, [tenants.items, summaryRevision]);
+  const freePlan = plans.items.find((plan) => plan.code === "free");
+  /** refreshSummary 重新读取平台真实规模、公开套餐与待处理申请，不以失败结果填零。 */
+  function refreshSummary() {
+    setSummaryRevision((value) => value + 1);
+    plans.reload();
+    requests.reload();
+  }
   const [editing, setEditing] = useState<Tenant | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -109,231 +141,305 @@ export function PlatformTenants() {
     }
   }
   return (
-    <section className="studio-platform-section">
-      <div className="studio-panel-heading">
-        <h2>租户运营</h2>
-        <p>管理租户状态、有效套餐与开通邀请。</p>
-      </div>
-      <div className="resource-tools">
-        <Space wrap>
-          <Input.Search
-            allowClear
-            placeholder="租户名称或标识"
-            aria-label="搜索租户"
-            onSearch={setQuery}
-            style={{ width: 260 }}
-          />
-          <Select
-            allowClear
-            placeholder="全部状态"
-            style={{ width: 150 }}
-            onChange={(value) => setFilter(value || "")}
-            options={[
-              { label: "正常", value: "active" },
-              { label: "已停用", value: "suspended" },
-              { label: "已到期", value: "expired" },
-            ]}
-          />
-        </Space>
-        <Button
-          type="primary"
-          onClick={() => {
-            creationKey.current = crypto.randomUUID();
-            createForm.resetFields();
-            createForm.setFieldsValue({ timezone: "Asia/Shanghai", can_serve: false });
-            setCreateError(null);
-            setCreateOpen(true);
-          }}
-        >
-          开通租户
-        </Button>
-      </div>
-      <ErrorNotice error={tenants.error} retry={tenants.reload} />
-      <Table
-        rowKey="id"
-        dataSource={tenants.items}
-        loading={tenants.loading}
-        scroll={{ x: 1000 }}
-        locale={{ emptyText: <EmptyData text="没有符合条件的租户" /> }}
-        columns={[
-          {
-            title: "租户",
-            render: (_, row) => (
-              <>
-                <strong>{row.name}</strong>
-                <p className="form-hint">{String(row.slug || row.id)}</p>
-              </>
-            ),
-          },
-          {
-            title: "状态",
-            dataIndex: "status",
-            render: (value) => (
-              <Tag color={value === "active" ? "green" : "default"}>
-                {(
-                  { active: "正常", suspended: "已停用", expired: "已到期" } as Record<
-                    string,
-                    string
-                  >
-                )[String(value)] || String(value)}
-              </Tag>
-            ),
-          },
-          { title: "当前有效版本", render: (_, row) => row.plan?.name || "—" },
-          {
-            title: "客服坐席",
-            render: (_, row) =>
-              row.usage
-                ? `${row.usage.seats_used} 已用 + ${row.usage.seats_reserved} 预留 / ${row.usage.seat_limit}`
-                : "—",
-          },
-          { title: "时区", dataIndex: "timezone" },
-          {
-            title: "操作",
-            render: (_, row) => (
-              <Space>
-                <Button type="link" size="small" onClick={() => open(row)}>
-                  管理状态
-                </Button>
-                <Button type="link" size="small" onClick={() => open(row, true)}>
-                  分配套餐
-                </Button>
-                <Button type="link" size="small" onClick={() => void resend(row)}>
-                  重发开通邀请
-                </Button>
-              </Space>
-            ),
-          },
-        ]}
-      />
-      <Drawer
-        rootClassName="studio-drawer"
-        title={assigning ? "人工分配套餐" : "管理租户状态"}
-        open={!!editing}
-        onClose={() => setEditing(null)}
-        width={480}
-        destroyOnHidden
-      >
-        <ErrorNotice error={error} />
-        <p>租户：{editing?.name}</p>
-        <Form form={form} layout="vertical" onFinish={save}>
-          {assigning ? (
-            <>
-              <Alert
-                type="warning"
-                showIcon
-                title="必须先核对实际开通依据"
-                description="分配套餐会变更租户权益，本页面不代为收款。"
-                style={{ marginBottom: 20 }}
-              />
-              <Form.Item label="目标版本" name="plan_id" rules={[{ required: true }]}>
-                <Select
-                  options={plans.items
-                    .filter((plan) => plan.is_active)
-                    .map((plan) => ({
-                      label: `${plan.name} · ¥${Number(plan.price_amount) / 100}`,
-                      value: plan.id,
-                    }))}
-                />
-              </Form.Item>
-              <Form.Item
-                label="真实收款或审批参考"
-                name="payment_reference"
-                rules={[{ required: true, whitespace: true }]}
-              >
-                <Input.TextArea rows={3} maxLength={500} />
-              </Form.Item>
-              <Form.Item
-                name="payment_confirmed"
-                valuePropName="checked"
-                rules={[
-                  {
-                    validator: (_, value) =>
-                      value ? Promise.resolve() : Promise.reject(new Error("请先核对实际开通依据")),
-                  },
-                ]}
-              >
-                <Checkbox>我已核对申请；付费版本已确认真实收款。</Checkbox>
-              </Form.Item>
-            </>
-          ) : (
-            <>
-              <Form.Item
-                name="name"
-                label="租户名称"
-                rules={[{ required: true, whitespace: true }]}
-              >
-                <Input maxLength={100} />
-              </Form.Item>
-              <Form.Item name="status" label="运营状态" rules={[{ required: true }]}>
-                <Select
-                  options={[
-                    { label: "正常", value: "active" },
-                    { label: "停用", value: "suspended" },
-                    { label: "到期", value: "expired" },
-                  ]}
-                />
-              </Form.Item>
-              <p className="form-hint">
-                停用不删除聊天与资料；会影响租户当前业务访问，请核对后保存。
-              </p>
-            </>
-          )}
-          <Button type="primary" htmlType="submit" loading={busy}>
-            确认保存
-          </Button>
-        </Form>
-      </Drawer>
-      <Drawer
-        rootClassName="studio-drawer"
-        title="开通租户并邀请所有者"
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        width={500}
-        destroyOnHidden
-      >
-        <ErrorNotice error={createError} />
-        <Alert
-          type="info"
-          showIcon
-          title="所有者通过邮件验证后激活"
-          description="平台不会发送明文密码。邮件失败时租户可能已经保存，请先核对列表并重发原邀请。"
-          style={{ marginBottom: 20 }}
+    <div className="studio-platform-tenants">
+      <div className="studio-platform-summary">
+        <div className="studio-tenant-summary">
+          {[
+            {
+              title: "租户总数",
+              icon: TeamOutlined,
+              value: overview?.tenants,
+              loading: !overview && !overviewError,
+              error: overviewError,
+            },
+            {
+              title: "公开套餐",
+              icon: AppstoreOutlined,
+              value: plans.items.filter((plan) => plan.is_active && plan.is_public).length,
+              loading: plans.loading,
+              error: plans.error,
+            },
+            {
+              title: "待处理申请",
+              icon: FileTextOutlined,
+              value: requests.items.filter((request) => request.status === "pending").length,
+              loading: requests.loading,
+              error: requests.error,
+            },
+          ].map((metric) => (
+            <div key={metric.title}>
+              <metric.icon aria-hidden="true" />
+              <div>
+                <span>{metric.title}</span>
+                <strong>
+                  {metric.loading ? (
+                    <Skeleton.Input active size="small" />
+                  ) : metric.error ? (
+                    "—"
+                  ) : (
+                    (metric.value ?? "—")
+                  )}
+                </strong>
+              </div>
+            </div>
+          ))}
+        </div>
+        <ErrorNotice
+          error={overviewError || plans.error || requests.error}
+          retry={refreshSummary}
         />
-        <Form form={createForm} layout="vertical" onFinish={create}>
-          <Form.Item name="name" label="租户名称" rules={[{ required: true, whitespace: true }]}>
-            <Input maxLength={100} />
-          </Form.Item>
-          <Form.Item
-            name="admin_email"
-            label="初始所有者邮箱"
-            rules={[{ required: true }, { type: "email" }]}
+      </div>
+      <section className="studio-platform-section">
+        <div className="studio-panel-heading">
+          <h2>租户运营</h2>
+          <p>管理租户状态、有效套餐与开通邀请。</p>
+        </div>
+        <div className="resource-tools">
+          <Space wrap>
+            <Input.Search
+              allowClear
+              placeholder="租户名称或标识"
+              aria-label="搜索租户"
+              onSearch={setQuery}
+              style={{ width: 260 }}
+            />
+            <Select
+              allowClear
+              placeholder="全部状态"
+              style={{ width: 150 }}
+              onChange={(value) => setFilter(value || "")}
+              options={[
+                { label: "正常", value: "active" },
+                { label: "已停用", value: "suspended" },
+                { label: "已到期", value: "expired" },
+              ]}
+            />
+          </Space>
+          <Button
+            type="primary"
+            onClick={() => {
+              creationKey.current = crypto.randomUUID();
+              createForm.resetFields();
+              createForm.setFieldsValue({ timezone: "Asia/Shanghai", can_serve: false });
+              setCreateError(null);
+              setCreateOpen(true);
+            }}
           >
-            <Input type="email" />
-          </Form.Item>
-          <Form.Item
-            name="admin_name"
-            label="初始所有者称呼"
-            rules={[{ required: true, whitespace: true }]}
-          >
-            <Input maxLength={50} />
-          </Form.Item>
-          <Form.Item name="timezone" label="时区">
-            <Input readOnly />
-          </Form.Item>
-          <Form.Item
-            name="can_serve"
-            label="所有者参与接待"
-            valuePropName="checked"
-            extra="默认仅管理、不占客服坐席；开启后占用免费版2席中的1席。"
-          >
-            <Switch />
-          </Form.Item>
-          <Button type="primary" htmlType="submit" loading={busy}>
-            创建租户并发送激活邀请
+            开通租户
           </Button>
-        </Form>
-      </Drawer>
-    </section>
+        </div>
+        <ErrorNotice error={tenants.error} retry={tenants.reload} />
+        <Table
+          rowKey="id"
+          dataSource={tenants.items}
+          loading={tenants.loading}
+          scroll={{ x: 1000 }}
+          locale={{ emptyText: <EmptyData text="没有符合条件的租户" /> }}
+          columns={[
+            {
+              title: "租户",
+              render: (_, row) => (
+                <div className="studio-tenant-identity">
+                  <Avatar shape="square" size={40}>
+                    {String(row.name || row.slug || "租").slice(0, 1)}
+                  </Avatar>
+                  <div>
+                    <strong>{row.name}</strong>
+                    <p className="form-hint" title={String(row.slug || row.id)}>
+                      {String(row.slug || row.id)}
+                    </p>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              title: "状态",
+              dataIndex: "status",
+              render: (value) => (
+                <Tag color={value === "active" ? "blue" : "default"}>
+                  {(
+                    { active: "正常", suspended: "已停用", expired: "已到期" } as Record<
+                      string,
+                      string
+                    >
+                  )[String(value)] || String(value)}
+                </Tag>
+              ),
+            },
+            { title: "当前有效版本", render: (_, row) => row.plan?.name || "—" },
+            {
+              title: "客服坐席",
+              render: (_, row) =>
+                row.usage
+                  ? `${row.usage.seats_used} 已用 + ${row.usage.seats_reserved} 预留 / ${row.usage.seat_limit}`
+                  : "—",
+            },
+            { title: "时区", dataIndex: "timezone" },
+            {
+              title: "操作",
+              render: (_, row) => (
+                <Space>
+                  <Button type="link" size="small" onClick={() => open(row)}>
+                    管理状态
+                  </Button>
+                  <Button type="link" size="small" onClick={() => open(row, true)}>
+                    分配套餐
+                  </Button>
+                  <Button type="link" size="small" onClick={() => void resend(row)}>
+                    重发开通邀请
+                  </Button>
+                </Space>
+              ),
+            },
+          ]}
+        />
+        {freePlan && !plans.error && (
+          <div className="studio-platform-rule">
+            <InfoCircleOutlined aria-hidden="true" />
+            <span>
+              {String(freePlan.name)}：¥
+              {(Number(freePlan.price_amount) / 100).toLocaleString("zh-CN")} ·{" "}
+              {Number(freePlan.seat_limit)} 个客服坐席 ·{" "}
+              {Number(freePlan.validity_days) === 0
+                ? "长期有效"
+                : `${Number(freePlan.validity_days)} 天`}
+            </span>
+            <Button type="link" onClick={onManagePlans} disabled={!onManagePlans}>
+              管理套餐规则
+            </Button>
+          </div>
+        )}
+        <Drawer
+          rootClassName="studio-drawer"
+          title={assigning ? "人工分配套餐" : "管理租户状态"}
+          open={!!editing}
+          onClose={() => setEditing(null)}
+          width={480}
+          destroyOnHidden
+        >
+          <ErrorNotice error={error} />
+          <p>租户：{editing?.name}</p>
+          <Form form={form} layout="vertical" onFinish={save}>
+            {assigning ? (
+              <>
+                <Alert
+                  type="warning"
+                  showIcon
+                  title="必须先核对实际开通依据"
+                  description="分配套餐会变更租户权益，本页面不代为收款。"
+                  style={{ marginBottom: 20 }}
+                />
+                <Form.Item label="目标版本" name="plan_id" rules={[{ required: true }]}>
+                  <Select
+                    options={plans.items
+                      .filter((plan) => plan.is_active)
+                      .map((plan) => ({
+                        label: `${plan.name} · ¥${Number(plan.price_amount) / 100}`,
+                        value: plan.id,
+                      }))}
+                  />
+                </Form.Item>
+                <Form.Item
+                  label="真实收款或审批参考"
+                  name="payment_reference"
+                  rules={[{ required: true, whitespace: true }]}
+                >
+                  <Input.TextArea rows={3} maxLength={500} />
+                </Form.Item>
+                <Form.Item
+                  name="payment_confirmed"
+                  valuePropName="checked"
+                  rules={[
+                    {
+                      validator: (_, value) =>
+                        value
+                          ? Promise.resolve()
+                          : Promise.reject(new Error("请先核对实际开通依据")),
+                    },
+                  ]}
+                >
+                  <Checkbox>我已核对申请；付费版本已确认真实收款。</Checkbox>
+                </Form.Item>
+              </>
+            ) : (
+              <>
+                <Form.Item
+                  name="name"
+                  label="租户名称"
+                  rules={[{ required: true, whitespace: true }]}
+                >
+                  <Input maxLength={100} />
+                </Form.Item>
+                <Form.Item name="status" label="运营状态" rules={[{ required: true }]}>
+                  <Select
+                    options={[
+                      { label: "正常", value: "active" },
+                      { label: "停用", value: "suspended" },
+                      { label: "到期", value: "expired" },
+                    ]}
+                  />
+                </Form.Item>
+                <p className="form-hint">
+                  停用不删除聊天与资料；会影响租户当前业务访问，请核对后保存。
+                </p>
+              </>
+            )}
+            <Button type="primary" htmlType="submit" loading={busy}>
+              确认保存
+            </Button>
+          </Form>
+        </Drawer>
+        <Drawer
+          rootClassName="studio-drawer"
+          title="开通租户并邀请所有者"
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          width={500}
+          destroyOnHidden
+        >
+          <ErrorNotice error={createError} />
+          <Alert
+            type="info"
+            showIcon
+            title="所有者通过邮件验证后激活"
+            description="平台不会发送明文密码。邮件失败时租户可能已经保存，请先核对列表并重发原邀请。"
+            style={{ marginBottom: 20 }}
+          />
+          <Form form={createForm} layout="vertical" onFinish={create}>
+            <Form.Item name="name" label="租户名称" rules={[{ required: true, whitespace: true }]}>
+              <Input maxLength={100} />
+            </Form.Item>
+            <Form.Item
+              name="admin_email"
+              label="初始所有者邮箱"
+              rules={[{ required: true }, { type: "email" }]}
+            >
+              <Input type="email" />
+            </Form.Item>
+            <Form.Item
+              name="admin_name"
+              label="初始所有者称呼"
+              rules={[{ required: true, whitespace: true }]}
+            >
+              <Input maxLength={50} />
+            </Form.Item>
+            <Form.Item name="timezone" label="时区">
+              <Input readOnly />
+            </Form.Item>
+            <Form.Item
+              name="can_serve"
+              label="所有者参与接待"
+              valuePropName="checked"
+              extra="默认仅管理、不占客服坐席；开启后占用免费版2席中的1席。"
+            >
+              <Switch />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={busy}>
+              创建租户并发送激活邀请
+            </Button>
+          </Form>
+        </Drawer>
+      </section>
+    </div>
   );
 }

@@ -187,7 +187,11 @@ export function AgentWorkspace() {
   const controls = (
     <Space className="agent-controls" size={14}>
       <Tooltip title={`当前接待 ${runtime?.current_load ?? "—"} / ${runtime?.capacity ?? "—"}`}>
-        <Badge status={live ? "success" : "warning"} text={live ? "实时在线" : "恢复连接中"} />
+        <Badge
+          color={live ? "var(--brand)" : undefined}
+          status={live ? "success" : "warning"}
+          text={live ? "实时在线" : "恢复连接中"}
+        />
       </Tooltip>
       <Select
         aria-label="接待状态"
@@ -258,6 +262,7 @@ export function AgentWorkspace() {
             />
             <Tabs
               className="inbox-tabs"
+              tabBarGutter={13}
               activeKey={status}
               onChange={(value) => {
                 setStatus(value);
