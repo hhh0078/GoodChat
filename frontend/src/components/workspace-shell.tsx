@@ -39,7 +39,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
     ...(!manages
       ? [
           { key: "/console/records", icon: <CustomerServiceOutlined />, label: "我的聊天记录" },
-          { key: "/console/automation", icon: <RobotOutlined />, label: "话术与提醒" },
+          { key: "/console/automation", icon: <RobotOutlined />, label: "话术与留言" },
         ]
       : []),
     ...(manages

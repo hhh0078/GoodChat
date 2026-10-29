@@ -24,19 +24,19 @@ import type { Resource } from "@/lib/types";
 const deliveryNames: Record<string, string> = {
   queued: "排队中",
   running: "投递中",
-  accepted: "SMTP已受理",
+  accepted: "邮件服务已受理",
   failed: "失败",
   unknown: "结果不确定",
 };
 const failureNames: Record<string, string> = {
-  configuration: "SMTP配置不完整",
+  configuration: "发信服务配置不完整",
   settings_changed: "提醒设置已改变，未开始投递",
   temporary: "临时失败",
-  permanent: "SMTP明确拒绝",
+  permanent: "邮件服务明确拒绝",
   transport: "传输失败",
   confirmation_lost: "最终受理确认未收到",
   worker_interrupted: "执行中断，无法确定受理结果",
-  tls_required: "SMTP需要安全连接",
+  tls_required: "发信服务需要安全连接",
   invalid_notification: "通知输入无效",
   invalid_sender_result: "投递结果无法识别",
 };
@@ -115,7 +115,7 @@ export function LeadNotifications() {
           <>
             留言邮件提醒{" "}
             <Tag color={configured ? "green" : "default"}>
-              SMTP{configured ? "已配置" : "未配置"}
+              发信服务{configured ? "已配置" : "未配置"}
             </Tag>
           </>
         }
@@ -123,8 +123,8 @@ export function LeadNotifications() {
         <Alert
           type="info"
           showIcon
-          title="默认关闭。邮件仅包含待处理提醒、留言编号和官网登录入口。"
-          description="不附客户手机、聊天正文或附件。SMTP已受理不代表邮箱已收件；结果不确定不自动重发，请人工核对邮箱。"
+          title="访客提交离线留言后，给管理员发一封邮件提醒。默认关闭。"
+          description="邮件提供留言编号和登录入口，具体内容与附件请登录后查看。此处只提醒新提交的离线留言；聊天消息的提示音由客服在右上角调整音量。"
           style={{ marginBottom: 16 }}
         />
         <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
@@ -132,7 +132,12 @@ export function LeadNotifications() {
           <Form.Item name="version" hidden style={{ display: "none" }}>
             <InputNumber />
           </Form.Item>
-          <Form.Item name="enabled" label="为新留言建立提醒任务" valuePropName="checked">
+          <Form.Item
+            name="enabled"
+            label="新留言邮件提醒"
+            valuePropName="checked"
+            extra="开启并保存后，新收到的离线留言会排队发送邮件；不会为历史留言补发。需要平台已配置发信服务。"
+          >
             <Switch />
           </Form.Item>
           <Form.Item
@@ -142,6 +147,7 @@ export function LeadNotifications() {
               { type: "email", message: "请填写有效邮箱" },
               { required: !!enabled, message: "开启提醒需填写收件邮箱" },
             ]}
+            extra="填写负责跟进留言的管理员邮箱。更换邮箱后，尚未发送的旧提醒会停止，可在下方记录中查看原因。"
           >
             <Input maxLength={254} autoComplete="email" />
           </Form.Item>
@@ -160,6 +166,9 @@ export function LeadNotifications() {
           <strong>真实通知记录</strong>
           <Button onClick={jobs.reload}>刷新记录</Button>
         </Space>
+        <p className="form-hint">
+          “排队中”表示等待发送；“邮件服务已受理”表示已交给发信服务，不等于已到收件箱。“失败”可等待一分钟后重试；“结果不确定”请先核对邮箱，系统不会自动重发。
+        </p>
         <ErrorNotice error={jobs.error} retry={jobs.reload} />
         <Table
           rowKey="id"
@@ -217,7 +226,9 @@ export function LeadNotifications() {
         onClose={() => setSelected(null)}
         width={650}
       >
-        <p className="muted">记录的是发送适配器的受理分类，不是收件箱回执。</p>
+        <p className="muted">
+          这里记录每次发送的处理结果；邮件是否进入收件箱，仍需到收件邮箱核对。
+        </p>
         <Table
           rowKey={(item) => String(item.attempt)}
           dataSource={(selected?.history as Record<string, unknown>[]) || []}

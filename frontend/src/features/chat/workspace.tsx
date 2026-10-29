@@ -192,7 +192,8 @@ export function AgentWorkspace() {
         <Alert
           type="info"
           showIcon
-          title="请由租户管理员在团队成员中开启“可接待”，并将你加入客服业务组。"
+          title="此账号尚未启用接待权限"
+          description="请由租户管理员在团队成员中开启“可接待”，并将你加入客服业务组。"
         />
       </>
     );

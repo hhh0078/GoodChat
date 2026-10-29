@@ -2,7 +2,7 @@
 "use client";
 import { Alert, Button, Empty } from "antd";
 import { errorMessage } from "@/lib/api";
-/** PageTitle 显示页面说明和唯一主要动作。 */
+/** PageTitle 仅为辅助阅读保留页面名称与说明，正文直接展示内容和必要操作。 */
 export function PageTitle({
   title,
   description,
@@ -13,13 +13,13 @@ export function PageTitle({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="page-title-row">
-      <div>
+    <>
+      <div className="sr-only">
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
-      {action}
-    </div>
+      {action && <div className="page-actions">{action}</div>}
+    </>
   );
 }
 /** ErrorNotice 展示真实请求错误，并按需提供重试。 */
