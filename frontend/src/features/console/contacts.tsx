@@ -370,10 +370,7 @@ export function ContactsPage() {
   ];
   return (
     <section className="console-screen console-contacts">
-      <PageTitle
-        title="客户资料"
-        description="按名称、电话、渠道等条件组合搜索客户。"
-      />
+      <PageTitle title="客户资料" description="按名称、电话、渠道等条件组合搜索客户。" />
       <div className="table-card">
         {panels[0].children}
         <Drawer
