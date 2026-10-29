@@ -37,6 +37,36 @@ func attentionViewed(ctx context.Context, tx pgx.Tx, a actor, conversation strin
 	return err
 }
 
+// attentionRestoreViewed 仅凭当前接待段与本人已读事件的精确序号恢复旧查看元数据，不使用026隐私锚点或事务时间猜测。
+func attentionRestoreViewed(ctx context.Context, tx pgx.Tx, a actor, conversation, assignment string, cursor int64) (bool, error) {
+	if assignment == "" || cursor <= 0 {
+		return false, nil
+	}
+	var proven bool
+	err := tx.QueryRow(ctx, `SELECT EXISTS(
+ SELECT 1 FROM conversations c
+ JOIN conversation_assignments ass ON ass.id=c.current_assignment_id AND ass.tenant_id=c.tenant_id
+ JOIN read_cursors rc ON rc.conversation_id=c.id AND rc.tenant_id=c.tenant_id AND rc.participant_kind='agent' AND rc.participant_id=ass.membership_id
+ JOIN messages viewed_message ON viewed_message.conversation_id=c.id AND viewed_message.tenant_id=c.tenant_id AND viewed_message.event_seq=rc.last_read_seq
+ JOIN LATERAL(
+ SELECT max(e.seq) seq FROM conversation_events e WHERE e.conversation_id=c.id AND e.tenant_id=c.tenant_id AND e.event_type='assignment.changed'
+ AND e.payload->>'agent_id'=ass.membership_id::text
+ AND (e.payload->>'assignment_id'=ass.id::text OR EXISTS(
+ SELECT 1 FROM agent_capacity_holds h WHERE h.tenant_id=c.tenant_id AND h.conversation_id=c.id AND h.assignment_id=ass.id AND h.transfer_request_id::text=e.payload->>'transfer_request_id'))
+ ) started ON started.seq IS NOT NULL
+ WHERE c.id=$1 AND c.current_agent_id=$2::uuid AND ass.membership_id=$2::uuid AND ass.id=$3::uuid AND ass.released_at IS NULL
+ AND (ass.expires_at IS NULL OR ass.expires_at>statement_timestamp()) AND rc.last_read_seq=$4 AND viewed_message.event_seq>started.seq
+ AND EXISTS(SELECT 1 FROM conversation_events read_event WHERE read_event.conversation_id=c.id AND read_event.tenant_id=c.tenant_id AND read_event.event_type='read.updated'
+ AND read_event.seq>viewed_message.event_seq AND read_event.payload->>'participant_kind'='agent'
+ AND read_event.payload->>'participant_id'=ass.membership_id::text AND read_event.payload->>'last_read_seq'=rc.last_read_seq::text)
+ )`, conversation, a.MemberID, assignment, cursor).Scan(&proven)
+	if err != nil || !proven {
+		return false, err
+	}
+	// 与显式查看共用幂等写入；只补viewed_assignment_id，不推进已读游标或产生新的read.updated。
+	return true, attentionViewed(ctx, tx, a, conversation)
+}
+
 // attentionCandidate 只保存当前事务已锁定的本人接待咨询，不向客户端泄露其他成员的信息。
 type attentionCandidate struct {
 	id, assignment string
@@ -112,6 +142,13 @@ func (s *Service) claimAttention(w http.ResponseWriter, r *http.Request) {
 					return err
 				}
 				if err == nil && viewed == candidate.assignment {
+					continue
+				}
+				restored, err := attentionRestoreViewed(ctx, tx, a, candidate.id, candidate.assignment, cursor)
+				if err != nil {
+					return err
+				}
+				if restored {
 					continue
 				}
 				key = "assignment:" + candidate.assignment + ":" + candidate.id
