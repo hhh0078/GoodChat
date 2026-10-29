@@ -202,7 +202,10 @@ func (s *Service) createAssignment(ctx context.Context, tx pgx.Tx, tenant string
 		return err
 	}
 	_, err = s.emit(ctx, tx, tenant, v.ID, "assignment.changed", "public", map[string]any{"status": status, "agent_id": member, "assignment_id": id})
-	return err
+	if err != nil {
+		return err
+	}
+	return s.enqueuePersonalWelcome(ctx, tx, tenant, v.ID)
 }
 
 // releaseHolds 只释放实际仍占用的记录，并按稳定顺序减少对应名额。

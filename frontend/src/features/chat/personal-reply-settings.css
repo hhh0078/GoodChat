@@ -1,0 +1,138 @@
+/* 文件作用说明：沿用银白钴蓝工作台色彩，以紧凑卡片区分个人规则与公共只读规则。 */
+.personal-reply-settings .ant-drawer-body {
+  padding: 16px 20px;
+}
+.personal-reply-intro,
+.personal-reply-hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+.personal-reply-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.personal-reply-heading > p {
+  flex: 1 1 240px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.personal-rule-list {
+  display: grid;
+  gap: 12px;
+}
+.personal-rule-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-inset);
+  min-width: 0;
+}
+.personal-rule-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.personal-rule-heading > div:first-child {
+  min-width: 0;
+  flex: 1 1 180px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.personal-rule-heading strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.personal-rule-meta {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.personal-rule-content,
+.personal-rule-pattern {
+  margin: 8px 0 0;
+  color: var(--ink);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.personal-rule-pattern {
+  font-size: 13px;
+  color: var(--muted);
+}
+.personal-rule-options {
+  margin-top: 8px;
+}
+.personal-rule-options p {
+  margin: 4px 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.personal-rule-options span {
+  min-width: 0;
+}
+.personal-welcome-preview + .personal-welcome-preview {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 8px;
+}
+.personal-reply-media {
+  margin-top: 12px;
+  max-width: 100%;
+  overflow: hidden;
+}
+.personal-reply-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+.personal-rule-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.personal-rule-fields .ant-input-number {
+  width: 100%;
+}
+.personal-welcome-content {
+  margin-bottom: 12px;
+}
+.personal-option-fields {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+@media (max-width: 600px) {
+  .personal-reply-settings .ant-drawer-body {
+    padding: 12px;
+  }
+  .personal-rule-card {
+    padding: 12px;
+  }
+  .personal-reply-heading > .ant-btn {
+    width: 100%;
+  }
+  .personal-rule-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .personal-rule-heading > .ant-space {
+    margin-left: auto;
+  }
+}

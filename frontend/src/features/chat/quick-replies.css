@@ -7,11 +7,23 @@
   gap: 0;
   padding: 2px 4px 4px;
 }
-.compact-quick-replies .quick-reply-add {
-  align-self: flex-end;
+.compact-quick-replies .quick-reply-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.compact-quick-replies .quick-reply-add,
+.compact-quick-replies .quick-reply-settings {
   width: 28px;
   height: 24px;
   padding: 0;
+}
+@media (pointer: coarse) {
+  .compact-quick-replies .quick-reply-add,
+  .compact-quick-replies .quick-reply-settings {
+    width: 44px;
+    height: 44px;
+  }
 }
 .compact-quick-replies .quick-reply-list {
   display: flex;

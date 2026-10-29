@@ -10,7 +10,7 @@ import (
 	"supportdesk/backend/internal/platform"
 )
 
-var conversationProjection = "to_jsonb(c)||jsonb_build_object('next_event_seq',c.next_event_seq::text,'version',c.version::text,'last_message_seq',c.last_message_seq::text,'contact_online',u.online_until>statement_timestamp(),'contact',jsonb_build_object('id',u.id,'display_name',u.display_name,'phone',u.phone,'avatar_url',u.avatar_url),'agent_name',COALESCE(a.display_name,''),'agent_avatar_url'," + platform.AvatarURLSQL("m") + ")"
+var conversationProjection = "to_jsonb(c)||jsonb_build_object('next_event_seq',c.next_event_seq::text,'version',c.version::text,'last_message_seq',c.last_message_seq::text,'contact_online',u.online_until>statement_timestamp(),'contact',jsonb_build_object('id',u.id,'display_name',u.display_name,'phone',u.phone,'avatar_url',u.avatar_url),'agent_name',COALESCE(a.display_name,''),'agent_avatar_url'," + platform.AvatarURLSQL("m") + ",'first_agent'," + firstConversationAgentSQL + ")"
 
 const conversationJoins = " FROM conversations c JOIN contacts u ON u.id=c.contact_id AND u.tenant_id=c.tenant_id LEFT JOIN tenant_memberships m ON m.id=c.current_agent_id AND m.tenant_id=c.tenant_id LEFT JOIN users a ON a.id=m.user_id "
 

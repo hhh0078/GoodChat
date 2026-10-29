@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 import { Avatar, Button, Popconfirm, Space } from "antd";
 import type { ChatMessage } from "@/lib/types";
+import { messageDisplay, type MessageDisplayContext } from "@/lib/message-display";
 import type { ChatIdentity, Outgoing } from "./use-chat";
 import { AttachmentView } from "./attachment";
 /** messageDateLabel 将真实消息时间转换为本地日期标题，异常时间不生成虚构分隔日期。 */
@@ -23,6 +24,7 @@ export function MessageHistory({
   canSend,
   sending,
   readSeq,
+  displayContext,
   onReply,
   onWithdraw,
   onSend,
@@ -32,6 +34,7 @@ export function MessageHistory({
   canSend: boolean;
   sending: boolean;
   readSeq: string;
+  displayContext?: MessageDisplayContext;
   onReply: (message: ChatMessage) => void;
   onWithdraw: (message: ChatMessage) => Promise<void>;
   onSend: (body: Outgoing) => Promise<unknown>;
@@ -40,7 +43,8 @@ export function MessageHistory({
   return (
     <>
       {messages.map((item, index) => {
-        const own = item.sender_id === identity.actorId;
+        const display = messageDisplay(item, identity, displayContext);
+        const own = display.own;
         const dateLabel = identity.kind === "agent" ? messageDateLabel(item.created_at) : "";
         const showDate =
           !!dateLabel && dateLabel !== messageDateLabel(messages[index - 1]?.created_at);
@@ -48,46 +52,16 @@ export function MessageHistory({
           <Fragment key={item.id}>
             {showDate && <div className="message-day-divider">{dateLabel}</div>}
             <div
-              className={`message-row ${own ? "own" : ""} ${item.audience === "internal" ? "internal" : ""}`}
+              className={`message-row ${display.alignRight ? "own" : ""} ${item.audience === "internal" ? "internal" : ""}`}
               data-client-message-id={item.client_message_id}
               data-message-id={item.id}
             >
-              <Avatar
-                size={32}
-                className="message-avatar"
-                src={
-                  typeof item.sender_avatar_url === "string"
-                    ? item.sender_avatar_url || undefined
-                    : undefined
-                }
-              >
-                {(
-                  item.sender_name ||
-                  (item.sender_kind === "visitor"
-                    ? "访"
-                    : item.sender_kind === "system"
-                      ? "系"
-                      : "我")
-                ).slice(0, 1)}
+              <Avatar size={32} className="message-avatar" src={display.avatarURL || undefined}>
+                {display.senderName.slice(0, 1)}
               </Avatar>
               <div className="message-meta">
                 {item.audience === "internal" ? "内部备注 · " : ""}
-                {item.sender_name ||
-                  ({ visitor: "访客", agent: "客服", system: "系统" } as Record<string, string>)[
-                    item.sender_kind
-                  ] ||
-                  "消息"}{" "}
-                ·{" "}
-                {item.sender_kind === "system" && item.source && (
-                  <>
-                    {item.source === "welcome"
-                      ? "欢迎引导"
-                      : item.source === "keyword"
-                        ? "规则回复"
-                        : "系统消息"}{" "}
-                    ·{" "}
-                  </>
-                )}
+                {display.senderName} · {display.sourceLabel && <>{display.sourceLabel} · </>}
                 {item.created_at
                   ? new Date(item.created_at).toLocaleTimeString("zh-CN", {
                       hour: "2-digit",

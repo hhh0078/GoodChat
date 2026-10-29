@@ -101,7 +101,11 @@ export function DecoratedVisitor({
   }
   /** publicMessage 依据当前访客身份标记本人消息，原始发送者编号不会进入租户代码。 */
   function publicMessage(item: ChatMessage) {
-    const result = publicBridgeMessage(item, identity.actorId);
+    const result = publicBridgeMessage(
+      item,
+      identity.actorId,
+      latest.current.conversation || undefined,
+    );
     return {
       ...result,
       sender_avatar_url: result.sender_avatar_url
@@ -190,7 +194,13 @@ export function DecoratedVisitor({
     /** dispatch 严格校验方法、结构、长度及本会话边界，未知方法不转发给 API。 */
     async function dispatch(method: string, payload: Record<string, unknown>, requestID: string) {
       const current = latest.current;
-      validateBridgeRequest(method, payload, current.messages, identity.actorId);
+      validateBridgeRequest(
+        method,
+        payload,
+        current.messages,
+        identity.actorId,
+        current.conversation || undefined,
+      );
       if (method === "getState") return state();
       if (method === "getAvatar")
         return {
@@ -198,6 +208,7 @@ export function DecoratedVisitor({
             String(payload.message_id),
             () => latest.current.messages,
             scopeController.signal,
+            () => latest.current.conversation || undefined,
           ),
         };
       if (method === "sendText") {
