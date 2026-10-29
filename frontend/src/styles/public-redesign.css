@@ -2102,7 +2102,7 @@
   padding: 8px;
   background: #fff;
 }
-/* 装修 iframe 只能占宿主剩余高度，输入框与可信附件入口不能互相覆盖。 */
+/* 装修页面负责品牌、留言入口和全部聊天界面，宿主只保留技术支持及必要的恢复提示。 */
 .visitor-shell.visitor-shell-decorated {
   position: fixed;
   inset: var(--visitor-viewport-top, 0px) 0 auto;

@@ -53,6 +53,13 @@ func assistantBaseFiles(ctx context.Context, tx pgx.Tx, design json.RawMessage, 
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := verifyNewTemplatePackage(ctx, tx, pkg); err != nil {
+		return nil, nil, err
+	}
+	pkg, err = assistantRebuildCorePackage(pkg, scripts)
+	if err != nil {
+		return nil, nil, err
+	}
 	return assistantSplitBasePackage(pkg)
 }
 

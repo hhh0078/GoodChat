@@ -126,3 +126,9 @@ html{height:100%;min-height:0}*{box-sizing:border-box}body{height:100%;min-heigh
   .gc-hero h1{font-size:18px;line-height:1.25;margin:0}
   .gc-service-notice{font-size:9px;line-height:1.3;margin:4px 12px 6px}
 }
+
+/* 品牌顶部及留言入口属于模板，固定留言动作由官方SDK处理；技术支持仅由宿主显示。 */
+.gc-template-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:0 0 auto;min-height:40px;margin-bottom:10px;color:var(--gc-primary);font-size:12px;font-weight:600}.gc-leave-message{min-height:36px;flex-shrink:0;border:1px solid currentColor;border-radius:8px;background:transparent;color:inherit;padding:7px 12px;font-size:12px;line-height:1.4}.gc-leave-message:hover{background:#ffffff88}
+@media(max-width:600px){.gc-template-header{min-height:32px;margin-bottom:8px;font-size:11px}.gc-leave-message{padding:5px 10px;font-size:11px}}
+@media(max-height:560px){.gc-template-header{min-height:28px;margin-bottom:5px}.gc-leave-message{min-height:28px;padding:3px 8px}}
+.gc-template-header>span:first-child{margin-right:auto}

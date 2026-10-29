@@ -56,7 +56,7 @@ var templateVersionPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63
 func defaultTemplateScripts() TemplateScripts {
 	config, _ := json.Marshal(map[string]any{"origin": "", "release": "", "preview": false})
 	sdk := strings.Replace(sdkScript("", "", false), "const cfg="+string(config)+";", "const cfg=window.__GoodChatBoot;", 1)
-	return TemplateScripts{Version: "1.0.1", SDK: templatePreviewScript + "\n(function(){if(window.__GoodChatBoot?.preview)return;" + sdk + "})();", ChatUI: templateViewportScript + "\n" + schemaChatScript + "\n" + templateActionScript}
+	return TemplateScripts{Version: "1.0.2", SDK: templatePreviewScript + "\n(function(){if(window.__GoodChatBoot?.preview)return;" + sdk + "})();", ChatUI: templateViewportScript + "\n" + schemaChatScript + "\n" + templateActionScript}
 }
 
 // validateTemplateScripts 校验管理员脚本的静态合约与体积，不在服务器执行浏览器代码。
@@ -72,12 +72,12 @@ func validateTemplateScripts(scripts TemplateScripts) error {
 			return err
 		}
 	}
-	for _, marker := range []string{"GoodChat", "__GoodChatBoot", "goodchat:init", "sendText", "getState", "loadOlder", "upload", "getAvatar", "subscribe"} {
+	for _, marker := range []string{"GoodChat", "__GoodChatBoot", "goodchat:init", "sendText", "getState", "loadOlder", "upload", "getAvatar", "subscribe", "openLeaveMessage", "openEvaluation"} {
 		if !strings.Contains(scripts.SDK, marker) {
 			return invalidDesign("固定SDK缺少既有桥接方法：" + marker)
 		}
 	}
-	for _, marker := range []string{"GoodChat", "gc-messages", "gc-text", "gc-send", "sendText", "subscribe", "upload"} {
+	for _, marker := range []string{"GoodChat", "gc-messages", "gc-text", "gc-send", "sendText", "subscribe", "upload", "openLeaveMessage", "openEvaluation", "data-gc-action"} {
 		if !strings.Contains(scripts.ChatUI, marker) {
 			return invalidDesign("固定聊天脚本缺少必需界面合约：" + marker)
 		}
@@ -119,9 +119,22 @@ func templateContractMatches(contract templateContract, scripts TemplateScripts)
 	return contract.SDKVersion == scripts.Version && contract.Files[templateSDKPath] == digest([]byte(scripts.SDK)) && contract.Files[templateUIPath] == digest([]byte(scripts.ChatUI))
 }
 
+// builtinTemplateContract 认可当前内置字节和已发布1.0.1原始摘要，升级代码不会使历史包失效或重写历史脚本。
+func builtinTemplateContract(contract templateContract) bool {
+	if contract.SchemaVersion != 1 {
+		return false
+	}
+	if templateContractMatches(contract, defaultTemplateScripts()) {
+		return true
+	}
+	return contract.SDKVersion == "1.0.1" &&
+		contract.Files[templateSDKPath] == "8532ecb1fe008727b471c9f6448c142ae0559de9fc57bc25ad99e1825f41b7cc" &&
+		contract.Files[templateUIPath] == "546ccdf023366b9ecdfe9aaccbcfd0db73ce5577cf50e0fa0a223d9e5ab7235c"
+}
+
 // verifyRegisteredTemplateContract 只认可内置版本或平台不可变历史，重算自报摘要不能冒充固定SDK。
 func verifyRegisteredTemplateContract(ctx context.Context, tx pgx.Tx, contract templateContract) error {
-	if templateContractMatches(contract, defaultTemplateScripts()) {
+	if builtinTemplateContract(contract) {
 		return nil
 	}
 	rows, err := tx.Query(ctx, "SELECT scripts FROM assistant_contract_versions ORDER BY version DESC")
@@ -198,8 +211,9 @@ func verifyTemplatePackageScripts(ctx context.Context, tx pgx.Tx, id string) err
 // templateSystemContract 给模型提供固定文件、必需节点和受限动作的可执行合约说明。
 func templateSystemContract() string {
 	return `当前只生成访客聊天静态模板。只返回一个JSON对象，不使用Markdown代码围栏。普通回答格式为{"schema_version":1,"type":"text","message":"回答"}；生成文件格式为{"schema_version":1,"type":"files","message":"说明","entrypoint":"index.html","files":[{"path":"index.html","content":"完整HTML"},{"path":"static/style.css","content":"CSS"},{"path":"static/custom.js","content":"可选UI脚本"}],"image_tasks":[]}。只使用HTML/CSS/JavaScript及本地静态素材，无npm、React、Vue、TS或构建步骤。
-index.html必须按顺序在body末尾加载<script src="static/goodchat/sdk.js"></script><script src="static/goodchat/chat-ui.js"></script>。这两个固定文件及goodchat-contract.json由平台注入，禁止生成、覆盖、复制或修改其字节；可额外加载static/custom.js，仅做弹框、收起、切换等界面交互。不写任何内联脚本、事件属性、fetch、XMLHttpRequest、WebSocket、外链、任意API、身份令牌或业务处理。HTML禁止form、iframe、frame、object、embed、base、svg和math标签；输入区用div，图标用文字或CSS，不使用内联SVG。消息收发、附件、已读、历史、重连、选项必须复用固定SDK和聊天脚本；可通过window.GoodChat的已提供方法调用受控操作，不能重定义GoodChat或替换固定控件事件。动态消息用固定聊天脚本渲染，禁止写死真实聊天记录。
-所有button必须显式设置type="button"。除固定gc-send/gc-add/gc-reply-cancel和固定附件菜单data-kind=image/file/video外，每个按钮必须且只能声明一种明确动作：业务入口与6/12/24个月等咨询选项一律使用data-gc-send="实际发送的咨询文字"，由固定聊天脚本处理；class、data-period或显示文案本身不能绑定动作。纯本地弹框使用data-dialog-open="本页对话框ID"及对话框内部的data-dialog-close，并加载static/custom.js实现打开关闭；其他本地UI按钮使用非空data-gc-ui="小写本地动作名"并在static/custom.js实现该UI动作。不能用data-gc-ui绕过固定业务发送，禁止空动作值、多个动作声明或没有动作的展示按钮。
+index.html必须按顺序在body末尾加载<script src="static/goodchat/sdk.js"></script><script src="static/goodchat/chat-ui.js"></script>。这两个固定文件及goodchat-contract.json由平台注入，禁止生成、覆盖、复制或修改其字节；可额外加载static/custom.js，仅做弹框、收起、切换等界面交互。不写任何内联脚本、事件属性、fetch、XMLHttpRequest、WebSocket、外链、任意API、身份令牌或业务处理。HTML禁止form、iframe、frame、object、embed、base、svg和math标签；输入区用div，图标用文字或CSS，不使用内联SVG。消息收发、附件、留言、已读、历史、重连、选项必须复用固定SDK和聊天脚本；可通过window.GoodChat的已提供方法调用受控操作，不能重定义GoodChat或替换固定控件事件。动态消息用固定聊天脚本渲染，禁止写死真实聊天记录。
+整个模板视口都交给你设计，包括顶部品牌栏、留言入口、底部输入区和附件样式；宿主不再提供额外品牌头栏或通用附件栏，不要为它们预留空间。最底部的GoodChat技术支持由可信宿主保留，禁止在模板里重复生成、隐藏、遮挡、冒充或覆盖技术支持。每个模板必须提供一个清晰可见且可操作的留言按钮，例如<button type="button" data-gc-action="leave-message">留下留言</button>。该声明由固定chat-ui.js调用window.GoodChat.openLeaveMessage()，只打开官方留言表单，不能自己调用接口或伪造提交成功；static/custom.js如需程序触发也只能调用window.GoodChat.openLeaveMessage()，不接受身份、租户、链接或留言字段参数。会话评价通过<button type="button" data-gc-action="evaluation" hidden>服务评价</button>调用window.GoodChat.openEvaluation()；固定聊天脚本会根据conversation.status是否closed显示该入口，模板不能自动提交、绕过截止时间或评价资格检查。也可在static/custom.js通过同名零参数核心方法打开评价。模板预览会显示纯本地模拟弹框，不提交任何真实留言或评价。
+所有button必须显式设置type="button"。除固定gc-send/gc-add/gc-reply-cancel和固定附件菜单data-kind=image/file/video外，每个按钮必须且只能声明一种明确动作：留言使用data-gc-action="leave-message"，评价使用data-gc-action="evaluation"；业务入口与6/12/24个月等咨询选项一律使用data-gc-send="实际发送的咨询文字"，由固定聊天脚本处理；class、data-period或显示文案本身不能绑定动作。纯本地弹框使用data-dialog-open="本页对话框ID"及对话框内部的data-dialog-close，并加载static/custom.js实现打开关闭；其他本地UI按钮使用非空data-gc-ui="小写本地动作名"并在static/custom.js实现该UI动作。不能用data-gc-ui绕过固定业务发送，禁止空动作值、多个动作声明或没有动作的展示按钮。
 必须保留以下节点且id唯一：gc-status(连接状态)、gc-messages(消息区)、gc-text(textarea)、gc-send(button)、gc-file(input type=file)、gc-add(button)、gc-attachment-menu(包含data-kind=image/file/video的button)、gc-typing、gc-error、gc-reply-bar(含gc-reply-text和gc-reply-cancel button)。gc-messages初始为空；gc-attachment-menu、gc-reply-bar、gc-file带hidden属性。gc-reply-bar和gc-attachment-menu的初始隐藏仅用hidden属性，由固定SDK切换；禁止叠加hidden/is-hidden类或内联display:none、visibility:hidden。gc-messages、gc-text、gc-send、gc-compose也不能使用这些永久隐藏方式或hidden属性，否则会导致消息、输入或附件动作不可用。可以任意设计布局、主题、行业头图、服务入口和样式，但不能把控件设为disabled、readonly或删掉必需控件。样式须覆盖消息/本人气泡/已读/头像/附件/选项和移动端，禁止蓝紫渐变。
 固定chat-ui.js在gc-messages中动态生成以下结构，必须为这些class提供样式；ID只是挂载点，不等于消息样式。简化运行时DOM示例（只供设计CSS，不要把示例消息写进初始HTML）：<div class="gc-message-row gc-own"><div class="gc-message-meta"><img class="gc-avatar"><span>作者</span><time>时间</time></div><div class="gc-message"><blockquote class="gc-reply">引用内容</blockquote><div class="gc-message-body">消息文本</div><div class="gc-attachment"><button class="gc-file-save">下载附件</button><div class="gc-attachment-preview"><img></div></div><div class="gc-message-options"><button class="gc-welcome-option">咨询选项</button></div></div><div class="gc-read-status">已读</div><div class="gc-message-actions" hidden>引用/撤回操作</div></div>。
 完整动态class契约：gc-message-row是消息行；gc-own仅用于本人消息行，必须靠右并和对方气泡可区分；gc-system是系统消息行，居中弱化；gc-message-meta/其中的time是作者与时间；gc-avatar是头像；gc-message是气泡；gc-message-body保留换行并处理长文本；gc-reply是引用块；gc-read-status是已发送/已读；gc-message-actions是固定引用撤回菜单。附件使用gc-attachment、gc-file-save、gc-file-notice、gc-attachment-preview、gc-attachment-error（内含img/audio/video）；选项使用gc-message-options和gc-welcome-option；历史区使用gc-history-control和gc-history-error。不得用CSS把这些运行时节点、本人消息或选项隐藏；所有[hidden]元素应保持display:none。

@@ -1,6 +1,6 @@
 /** 文件作用说明：提交访客离线留言与已结束会话评价，复用独立访客授权且保持请求幂等。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import {
   Alert,
   App,
@@ -19,6 +19,7 @@ import {
 import { MessageOutlined, StarOutlined, PaperClipOutlined } from "@ant-design/icons";
 import { api } from "@/lib/api";
 import { ErrorNotice } from "@/components/page-state";
+import { assertVisitorActionAvailable } from "@/lib/visitor-action-guard";
 type EvaluationState = {
   enabled: boolean;
   can_submit: boolean;
@@ -30,17 +31,25 @@ type EvaluationState = {
   evaluation?: { score: number; comment: string; tags: string[]; version: number } | null;
 };
 type LeadAttachment = { id: string; file_name: string; size_bytes: number; content_type: string };
+export type VisitorActionsHandle = {
+  openLeaveMessage: () => void;
+  openEvaluation: () => void;
+};
 /** VisitorActions 让访客主动留言和评价，成功反馈只来自真实后端。 */
 export function VisitorActions({
   entryKey,
   conversationId,
   token,
   status,
+  hideButtons = false,
+  ref,
 }: {
   entryKey: string;
   conversationId: string;
   token: string;
   status: string;
+  hideButtons?: boolean;
+  ref?: Ref<VisitorActionsHandle>;
 }) {
   const [mode, setMode] = useState<"lead" | "evaluation" | null>(null);
   const screens = Grid.useBreakpoint();
@@ -58,6 +67,26 @@ export function VisitorActions({
   const selectedScore = Form.useWatch("score", form);
   const { message } = App.useApp();
   const canEvaluate = !!evaluation && (evaluation.can_submit || evaluation.can_edit);
+  /** openLeaveMessage 仅打开当前访客的可信留言表单，不允许模板传入身份或代替用户提交。 */
+  function openLeaveMessage() {
+    assertVisitorActionAvailable(mode, "lead", status, busy || uploading);
+    if (mode === "lead") return;
+    setError(null);
+    if (!requestID.current) {
+      form.resetFields();
+      setAttachments([]);
+    }
+    setMode("lead");
+  }
+  /** openEvaluation 仅允许已结束的当前会话打开评价表单，实际提交仍由服务端校验。 */
+  function openEvaluation() {
+    assertVisitorActionAvailable(mode, "evaluation", status, busy || uploading);
+    if (mode === "evaluation") return;
+    setError(null);
+    form.resetFields();
+    setMode("evaluation");
+  }
+  useImperativeHandle(ref, () => ({ openLeaveMessage, openEvaluation }));
   useEffect(() => {
     requestID.current = "";
     uploadController.current?.abort();
@@ -176,35 +205,20 @@ export function VisitorActions({
   }
   return (
     <>
-      <Space className="visitor-actions-bar">
-        {status !== "closed" && (
-          <Button
-            icon={<MessageOutlined />}
-            onClick={() => {
-              setError(null);
-              if (!requestID.current) {
-                form.resetFields();
-                setAttachments([]);
-              }
-              setMode("lead");
-            }}
-          >
-            留下留言
-          </Button>
-        )}
-        {status === "closed" && (
-          <Button
-            icon={<StarOutlined />}
-            onClick={() => {
-              setError(null);
-              form.resetFields();
-              setMode("evaluation");
-            }}
-          >
-            {evaluation?.evaluation ? "查看或修改评价" : "评价本次服务"}
-          </Button>
-        )}
-      </Space>
+      {!hideButtons && (
+        <Space className="visitor-actions-bar">
+          {status !== "closed" && (
+            <Button icon={<MessageOutlined />} onClick={openLeaveMessage}>
+              留下留言
+            </Button>
+          )}
+          {status === "closed" && (
+            <Button icon={<StarOutlined />} onClick={openEvaluation}>
+              {evaluation?.evaluation ? "查看或修改评价" : "评价本次服务"}
+            </Button>
+          )}
+        </Space>
+      )}
       <Drawer
         title={mode === "lead" ? "留下你的问题" : "服务评价"}
         rootClassName="visitor-action-drawer"

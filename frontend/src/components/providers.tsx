@@ -2,10 +2,14 @@
 "use client";
 import { App, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { stopBrowserSymbolCompatibility } from "@/lib/browser-symbol-compat";
 
 /** Providers 为所有页面提供一致组件风格，保持服务端 children 可正常渲染。 */
 export function Providers({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    stopBrowserSymbolCompatibility();
+  }, []);
   return (
     <ConfigProvider
       locale={zhCN}

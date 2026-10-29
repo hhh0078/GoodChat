@@ -14,6 +14,8 @@ const bridgeFields: Record<string, readonly string[]> = {
   saveAttachment: ["attachment_id"],
   read: ["last_read_seq"],
   loadOlder: [],
+  openLeaveMessage: [],
+  openEvaluation: [],
 };
 /** validateBridgeRequest 限制RPC方法和参数，引用和撤回只能指向当前授权可见消息。 */
 export function validateBridgeRequest(

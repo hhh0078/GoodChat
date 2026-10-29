@@ -18,7 +18,7 @@ import { api, ApiError } from "@/lib/api";
 import type { Conversation, Resource } from "@/lib/types";
 import { ErrorNotice } from "@/components/page-state";
 import { DecoratedVisitor } from "./decorated-visitor";
-import { VisitorActions } from "./visitor-actions";
+import { VisitorActions, type VisitorActionsHandle } from "./visitor-actions";
 import { ChatPanel, conversationStatus } from "./chat-panel";
 type Entry = Resource & {
   entry_key: string;
@@ -50,6 +50,7 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
   const [status, setStatus] = useState("");
   const [storageWarning, setStorageWarning] = useState("");
   const shell = useRef<HTMLDivElement | null>(null);
+  const visitorActions = useRef<VisitorActionsHandle>(null);
   useEffect(() => {
     const viewport = window.visualViewport;
     /** syncViewport 以顶层可视视口定位装修宿主，聚焦平移只移动顶部，不重复扣除可见高度。 */
@@ -340,29 +341,33 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
       <div
         className={`visitor-card ${entry.render_url && entry.release_id ? "visitor-decorated" : "visitor-default"}`}
       >
-        <header className="visitor-header">
-          <div className="visitor-brand">
-            <Avatar size={42}>{(entry.tenant_name || entry.name || "在线客服").slice(0, 1)}</Avatar>
-            <div>
-              <h1>{entry.tenant_name || entry.name || "在线客服"}</h1>
-              <p>
-                {session
-                  ? `在线咨询 · ${conversationStatus[status] || "正在连接"}`
-                  : specifiedOffline
-                    ? "无客服在线，暂时无法访问"
-                    : "欢迎咨询，请留下称呼后开始沟通"}
-              </p>
+        {!(session && entry.render_url && entry.release_id) && (
+          <header className="visitor-header">
+            <div className="visitor-brand">
+              <Avatar size={42}>
+                {(entry.tenant_name || entry.name || "在线客服").slice(0, 1)}
+              </Avatar>
+              <div>
+                <h1>{entry.tenant_name || entry.name || "在线客服"}</h1>
+                <p>
+                  {session
+                    ? `在线咨询 · ${conversationStatus[status] || "正在连接"}`
+                    : specifiedOffline
+                      ? "无客服在线，暂时无法访问"
+                      : "欢迎咨询，请留下称呼后开始沟通"}
+                </p>
+              </div>
             </div>
-          </div>
-          {session && (
-            <VisitorActions
-              entryKey={entryKey}
-              conversationId={session.conversation.id}
-              token={session.token}
-              status={status}
-            />
-          )}
-        </header>
+            {session && (
+              <VisitorActions
+                entryKey={entryKey}
+                conversationId={session.conversation.id}
+                token={session.token}
+                status={status}
+              />
+            )}
+          </header>
+        )}
         <div style={{ padding: "0 20px" }}>
           {storageWarning && (
             <Alert type="warning" showIcon title={storageWarning} style={{ marginBlock: 10 }} />
@@ -393,6 +398,11 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                 decoration={{ render_url: entry.render_url, release_id: entry.release_id }}
                 onStatus={setStatus}
                 notificationSound={entry.notification_sound_id}
+                onOpenAction={(action) => {
+                  const actions = visitorActions.current;
+                  if (!actions) throw new Error("表单正在准备，请稍后重试");
+                  actions[action]();
+                }}
               />
             ) : (
               <ChatPanel
@@ -401,6 +411,17 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                 key={session.conversation.id}
                 identity={{ token: session.token, actorId: session.contact.id, kind: "visitor" }}
                 onStatus={setStatus}
+              />
+            )}
+            {entry.render_url && entry.release_id && (
+              <VisitorActions
+                key={session.conversation.id}
+                ref={visitorActions}
+                hideButtons
+                entryKey={entryKey}
+                conversationId={session.conversation.id}
+                token={session.token}
+                status={status}
               />
             )}
             {status === "closed" && (

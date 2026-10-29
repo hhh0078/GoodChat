@@ -15,7 +15,6 @@ import { errorMessage } from "@/lib/api";
 import { exportFilename, startFileDownload } from "@/lib/csv-download";
 import { uploadAndSendAttachment, type AttachmentAttempt } from "@/lib/attachment-upload";
 import { useChat, type ChatIdentity } from "./use-chat";
-import { AttachmentSender } from "./attachment-sender";
 import { UnconfirmedMessages } from "./unconfirmed-messages";
 import { useVisitorReminders } from "./use-visitor-reminders";
 import type { ChatMessage } from "@/lib/types";
@@ -28,12 +27,14 @@ export function DecoratedVisitor({
   decoration,
   onStatus,
   notificationSound,
+  onOpenAction,
 }: {
   id: string;
   identity: ChatIdentity;
   decoration: Decoration;
   onStatus: (value: string) => void;
   notificationSound?: string;
+  onOpenAction: (action: "openLeaveMessage" | "openEvaluation") => void;
 }) {
   const chat = useChat(id, identity);
   useVisitorReminders(chat.messages, {
@@ -45,14 +46,18 @@ export function DecoratedVisitor({
   const { message } = App.useApp();
   const latest = useRef(chat);
   latest.current = chat;
+  const openAction = useRef(onOpenAction);
+  openAction.current = onOpenAction;
   const frame = useRef<HTMLIFrameElement | null>(null);
   const channel = useRef<MessagePort | null>(null);
   const mutations = useRef(new Map<string, AttachmentAttempt>());
   const visible = useRef(false);
-  const firstLoad = useRef(false);
+  const attemptedRecovery = useRef(false);
+  const everConnected = useRef(false);
   const [ready, setReady] = useState(false);
   const [bridgeError, setBridgeError] = useState("");
   const [revision, setRevision] = useState(0);
+  const [mountedScope, setMountedScope] = useState("");
   const [pendingDownload, setPendingDownload] = useState<PendingDownload | null>(null);
   const downloadRequest = useRef<PendingDownload | null>(null);
   const downloadController = useRef<AbortController | null>(null);
@@ -62,6 +67,16 @@ export function DecoratedVisitor({
     typeof location === "undefined" ? null : safeRenderURL(decoration.render_url, location.origin);
   const source = renderURL?.toString() || "";
   const origin = renderURL?.origin || "";
+  const frameScope = `${source}.${revision}`;
+  useEffect(() => {
+    attemptedRecovery.current = false;
+    everConnected.current = false;
+  }, [source, id, identity.token, identity.actorId]);
+  useEffect(() => {
+    // 首屏恢复和布局提交完成后再创建浏览上下文，避免初始 iframe 导航被 DOM 重建取消。
+    const pending = requestAnimationFrame(() => setMountedScope(frameScope));
+    return () => cancelAnimationFrame(pending);
+  }, [frameScope]);
   /** closeDownload 废止下载确认及尚未完成的请求，旧身份不能继续下载。 */
   function closeDownload() {
     downloadController.current?.abort();
@@ -175,11 +190,10 @@ export function DecoratedVisitor({
     ready,
   ]);
   useEffect(() => {
-    if (!source || !origin) return;
+    if (!source || !origin || mountedScope !== frameScope) return;
     closeDownload();
     setReady(false);
     setBridgeError("");
-    firstLoad.current = false;
     const observer = new IntersectionObserver((entries) => {
       visible.current = entries.some((entry) => entry.isIntersecting);
     });
@@ -202,6 +216,15 @@ export function DecoratedVisitor({
         current.conversation || undefined,
       );
       if (method === "getState") return state();
+      if (method === "openLeaveMessage" || method === "openEvaluation") {
+        if (!current.conversation) throw new Error("咨询正在连接，请稍后重试");
+        if (method === "openLeaveMessage" && current.conversation.status === "closed")
+          throw new Error("当前咨询已结束，请发起新的咨询后留言");
+        if (method === "openEvaluation" && current.conversation.status !== "closed")
+          throw new Error("咨询结束后才可以评价本次服务");
+        openAction.current(method);
+        return { opened: true };
+      }
       if (method === "getAvatar")
         return {
           file: await requestBridgeAvatar(
@@ -306,13 +329,17 @@ export function DecoratedVisitor({
           decoration.release_id,
         ) ||
         acceptedNonces.has(input.nonce) ||
-        channel.current
+        acceptedNonces.size >= 32
       )
         return;
       acceptedNonces.add(input.nonce);
+      // 新文档以新随机值重新握手；不能在 load 事件中关闭可能已连好的新通道。
+      channel.current?.close();
+      closeDownload();
       const connection = new MessageChannel();
       channel.current = connection.port1;
       connection.port1.onmessage = async (event) => {
+        if (disposed || channel.current !== connection.port1) return;
         const request = event.data;
         if (
           !request ||
@@ -350,10 +377,11 @@ export function DecoratedVisitor({
             }
           }
           const result = await command.result;
-          if (!disposed) connection.port1.postMessage({ id: request.id, result });
+          if (!disposed && channel.current === connection.port1)
+            connection.port1.postMessage({ id: request.id, result });
         } catch (problem) {
           commands.delete(request.id);
-          if (!disposed)
+          if (!disposed && channel.current === connection.port1)
             connection.port1.postMessage({
               id: request.id,
               error: { code: "BRIDGE_REQUEST_FAILED", message: errorMessage(problem) },
@@ -375,9 +403,29 @@ export function DecoratedVisitor({
       );
       connection.port1.postMessage({ type: "state", data: state() });
       setReady(true);
+      everConnected.current = true;
       setBridgeError("");
     }
     window.addEventListener("message", handshake);
+    const recovery = setTimeout(() => {
+      if (
+        disposed ||
+        channel.current ||
+        everConnected.current ||
+        attemptedRecovery.current ||
+        document.visibilityState !== "visible"
+      )
+        return;
+      // 仅恢复首个未曾连接且仍为空白的文档一次；已建立会话的页面不自动重建，保留输入草稿。
+      try {
+        if (frame.current?.contentDocument?.URL === "about:blank") {
+          attemptedRecovery.current = true;
+          setRevision((value) => value + 1);
+        }
+      } catch {
+        /* 跨来源文档已经加载，不是空白导航。 */
+      }
+    }, 5000);
     const timeout = setTimeout(() => {
       if (!channel.current && !disposed)
         setBridgeError("装修页面尚未连接聊天能力，请重新加载或联系商户。");
@@ -385,6 +433,7 @@ export function DecoratedVisitor({
     return () => {
       disposed = true;
       clearTimeout(timeout);
+      clearTimeout(recovery);
       observer.disconnect();
       window.removeEventListener("message", handshake);
       channel.current?.close();
@@ -394,7 +443,17 @@ export function DecoratedVisitor({
     };
     // 会话和发布来源改变时必须废止整个旧通道，业务状态通过 latest 读取。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, origin, decoration.release_id, id, identity.token, identity.actorId, revision]);
+  }, [
+    source,
+    origin,
+    decoration.release_id,
+    id,
+    identity.token,
+    identity.actorId,
+    revision,
+    mountedScope,
+    frameScope,
+  ]);
   if (!source)
     return (
       <Alert
@@ -424,30 +483,18 @@ export function DecoratedVisitor({
         pendingError={chat.pendingError}
         onRetry={chat.send}
       />
-      <iframe
-        key={`${source}.${revision}`}
-        ref={frame}
-        src={source}
-        title="商户客服页面"
-        sandbox="allow-scripts allow-same-origin"
-        allow="camera 'none'; microphone 'none'"
-        referrerPolicy="no-referrer"
-        onLoad={() => {
-          if (firstLoad.current) {
-            closeDownload();
-            channel.current?.close();
-            channel.current = null;
-            setReady(false);
-          }
-          firstLoad.current = true;
-        }}
-        className="visitor-decoration-frame"
-      />
-      <AttachmentSender
-        key={`${id}.${identity.actorId}.${source}.${revision}`}
-        disabled={!chat.conversation || chat.conversation.status === "closed"}
-        onSend={uploadAttachment}
-      />
+      {mountedScope === frameScope && (
+        <iframe
+          key={`${source}.${revision}`}
+          ref={frame}
+          src={source}
+          title="商户客服页面"
+          sandbox="allow-scripts allow-same-origin"
+          allow="camera 'none'; microphone 'none'"
+          referrerPolicy="no-referrer"
+          className="visitor-decoration-frame"
+        />
+      )}
       <Modal
         title="下载聊天附件"
         open={!!pendingDownload}

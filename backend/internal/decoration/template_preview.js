@@ -30,9 +30,36 @@
     if (reply) { const quoted = state.messages.find(value => value.id === reply); if (quoted) item.reply = { content: quoted.content || "附件消息" }; }
     state.messages.push(item); state.peer_read_seq = item.seq; publish(); return item;
   }
+  /** 展示纯本地留言或评价说明；不会收集、上传或提交真实业务资料。 */
+  function previewVisitorAction(kind) {
+    if (typeof document === "undefined") return { opened: true, preview: true };
+    const evaluation = kind === "evaluation", id = evaluation ? "gc-preview-evaluation" : "gc-preview-leave-message";
+    let dialog = document.getElementById(id);
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.id = id;
+      dialog.className = "gc-dialog";
+      const title = document.createElement("h2"), text = document.createElement("p"), close = document.createElement("button");
+      title.textContent = evaluation ? "会话评价预览" : "留言功能预览";
+      text.textContent = evaluation ? "正式咨询结束后会打开官方会话评价；此处仅演示按钮，不会提交真实评价。" : "正式咨询页面会打开官方留言表单；此处仅演示按钮，不会提交真实留言。";
+      close.type = "button";
+      close.textContent = "关闭预览";
+      close.addEventListener("click", () => { if (typeof dialog.close === "function") dialog.close(); dialog.remove(); });
+      dialog.addEventListener("close", () => dialog.remove(), { once: true });
+      dialog.append(title, text, close);
+      document.body.append(dialog);
+    }
+    if (!dialog.open) {
+      if (typeof dialog.showModal === "function") dialog.showModal();
+      else dialog.setAttribute("open", "");
+    }
+    return { opened: true, preview: true };
+  }
   /** 仅执行固定模拟动作；未声明的方法始终拒绝。 */
   async function request(method, payload = {}) {
     if (method === "getState") return snapshot();
+    if (method === "openLeaveMessage") return previewVisitorAction("leave-message");
+    if (method === "openEvaluation") return previewVisitorAction("evaluation");
     if (method === "sendText") {
       if (typeof payload.text !== "string" || !payload.text.trim() || payload.text.length > 10000) throw new TypeError("消息不能为空且不能超过10000个字符");
       return append(payload.text.trim(), payload.client_message_id || crypto.randomUUID(), payload.reply_to_id);
@@ -52,6 +79,6 @@
     const id = "preview-upload-" + crypto.randomUUID(); attachments.set(id, new Blob([await file.arrayBuffer()], { type: file.type }));
     return append("", crypto.randomUUID(), null, { id, file_name: filename, content_type: file.type || "application/octet-stream" });
   }
-  const api = { preview: true, ready: () => Promise.resolve(), request, getState: () => request("getState"), loadOlder: () => request("loadOlder"), getAvatar: message_id => request("getAvatar", { message_id }), sendText: (text, client_message_id, reply_to_id) => request("sendText", { text, client_message_id, reply_to_id }), withdrawMessage: message_id => request("withdrawMessage", { message_id }), typing: active => request("typing", { active }), upload, download: attachment_id => request("download", { attachment_id }), saveAttachment: attachment_id => request("saveAttachment", { attachment_id }), read: last_read_seq => request("read", { last_read_seq }), subscribe: handler => { if (typeof handler !== "function") throw new TypeError("订阅函数不正确"); listeners.add(handler); handler(snapshot()); return () => listeners.delete(handler); } };
+  const api = { preview: true, ready: () => Promise.resolve(), request, getState: () => request("getState"), openLeaveMessage: () => request("openLeaveMessage"), openEvaluation: () => request("openEvaluation"), loadOlder: () => request("loadOlder"), getAvatar: message_id => request("getAvatar", { message_id }), sendText: (text, client_message_id, reply_to_id) => request("sendText", { text, client_message_id, reply_to_id }), withdrawMessage: message_id => request("withdrawMessage", { message_id }), typing: active => request("typing", { active }), upload, download: attachment_id => request("download", { attachment_id }), saveAttachment: attachment_id => request("saveAttachment", { attachment_id }), read: last_read_seq => request("read", { last_read_seq }), subscribe: handler => { if (typeof handler !== "function") throw new TypeError("订阅函数不正确"); listeners.add(handler); handler(snapshot()); return () => listeners.delete(handler); } };
   Object.defineProperty(window, "GoodChat", { value: Object.freeze(api), writable: false, configurable: false });
 })();

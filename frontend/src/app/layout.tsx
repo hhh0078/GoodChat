@@ -1,8 +1,10 @@
 /** 文件作用说明：定义网站服务端根布局、SEO 基础信息和 Ant Design 首屏样式。 */
 import type { Metadata } from "next";
+import Script from "next/script";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { Providers } from "@/components/providers";
 import { siteURL } from "@/lib/urls";
+import { browserSymbolCompatibilityScript } from "@/lib/browser-symbol-compat";
 import "./globals.css";
 import "@/styles/workbench-redesign.css";
 import "@/styles/console-redesign.css";
@@ -21,6 +23,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
+      <head>
+        <Script id="goodchat-browser-symbol-compat" strategy="beforeInteractive">
+          {browserSymbolCompatibilityScript}
+        </Script>
+      </head>
       <body>
         <AntdRegistry>
           <Providers>{children}</Providers>

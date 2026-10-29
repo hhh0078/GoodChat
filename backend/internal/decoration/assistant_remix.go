@@ -47,6 +47,10 @@ func (s *Service) assistantRemixTemplate(ctx context.Context, tx pgx.Tx, p platf
 	if err := verifyNewTemplatePackage(ctx, tx, pkg); err != nil {
 		return "", err
 	}
+	pkg, err = assistantRebuildCorePackage(pkg, scripts)
+	if err != nil {
+		return "", err
+	}
 	stored, err := s.storePackage(ctx, tx, p, name, pkg)
 	if err != nil {
 		return "", err
@@ -62,4 +66,27 @@ func (s *Service) assistantRemixTemplate(ctx context.Context, tx pgx.Tx, p platf
 	var copied string
 	err = tx.QueryRow(ctx, "INSERT INTO tenant_templates(tenant_id,owner_membership_id,name,render_mode,design,source_platform_template_id,source_platform_version) VALUES($1,$2,$3,'code',$4,NULLIF($5,'')::uuid,NULLIF($6,0)) RETURNING id::text", p.TenantID, p.MembershipID, name, newDesign, sourceID, sourceVersion).Scan(&copied)
 	return copied, err
+}
+
+// assistantRebuildCorePackage 只为创作副本重新冻结当前核心与SRI，保留普通源码和二进制素材，绝不修改原包。
+func assistantRebuildCorePackage(pkg *staticPackage, scripts TemplateScripts) (*staticPackage, error) {
+	if pkg == nil {
+		return nil, invalidDesign("二次创作基础包不存在")
+	}
+	lookup := map[string]packageFile{}
+	for _, file := range pkg.Files {
+		lookup[file.Path] = file
+	}
+	contract, err := validateTemplatePackage(pkg.Entrypoint, lookup, true)
+	if err != nil {
+		return nil, err
+	}
+	if templateContractMatches(contract, scripts) {
+		return pkg, nil
+	}
+	files, assets, err := assistantSplitBasePackage(pkg)
+	if err != nil {
+		return nil, err
+	}
+	return buildTemplatePackageAssets(pkg.Entrypoint, files, scripts, assets)
 }

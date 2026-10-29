@@ -105,7 +105,7 @@ func validateNewTemplateActions(raw []byte, files map[string]packageFile) error 
 			return invalidDesign("所有模板按钮必须显式设置type=button")
 		}
 		actions := 0
-		for _, name := range []string{"data-gc-send", "data-dialog-open", "data-dialog-close", "data-gc-ui"} {
+		for _, name := range []string{"data-gc-send", "data-gc-action", "data-dialog-open", "data-dialog-close", "data-gc-ui"} {
 			if _, present := attrs[name]; present {
 				actions++
 			}
@@ -124,7 +124,20 @@ func validateNewTemplateActions(raw []byte, files map[string]packageFile) error 
 			continue
 		}
 		if actions != 1 {
-			return invalidDesign("模板按钮必须且只能声明一个动作：业务咨询使用data-gc-send，本地界面使用data-dialog-open/close或data-gc-ui")
+			return invalidDesign("模板按钮必须且只能声明一个动作：业务咨询使用data-gc-send，留言使用data-gc-action=leave-message，本地界面使用data-dialog-open/close或data-gc-ui")
+		}
+		if action, present := attrs["data-gc-action"]; present {
+			if action != "leave-message" && action != "evaluation" {
+				return invalidDesign("data-gc-action仅允许固定留言leave-message或评价evaluation动作")
+			}
+			method := "openLeaveMessage"
+			if action == "evaluation" {
+				method = "openEvaluation"
+			}
+			if !strings.Contains(string(files[templateSDKPath].Content), method) || !strings.Contains(string(files[templateUIPath].Content), `data-gc-action`) {
+				return invalidDesign("该固定动作需要支持留言和评价的新版平台核心脚本，请先升级SDK")
+			}
+			continue
 		}
 		if text, present := attrs["data-gc-send"]; present {
 			if strings.TrimSpace(text) == "" || len(text) > 10000 || strings.ContainsRune(text, 0) {

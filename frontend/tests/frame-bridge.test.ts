@@ -14,6 +14,18 @@ import {
 import type { ChatMessage } from "../src/lib/types.ts";
 import { ApiError } from "../src/lib/api.ts";
 
+test("装修留言与评价仅打开当前身份的可信表单，拒绝传入凭证或代替用户提交", () => {
+  for (const method of ["openLeaveMessage", "openEvaluation"]) {
+    assert.doesNotThrow(() => validateBridgeRequest(method, {}, [], "visitor"));
+    for (const payload of [
+      { token: "other" },
+      { conversation_id: "foreign" },
+      { content: "submit" },
+    ])
+      assert.throws(() => validateBridgeRequest(method, payload, [], "visitor"), /未授权参数/);
+  }
+});
+
 test("装修头像读取绑定当前公开消息，拒绝任意路径和越权消息", () => {
   const base = {
     id: "current",

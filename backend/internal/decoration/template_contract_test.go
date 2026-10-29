@@ -34,6 +34,10 @@ func TestIndustryTemplatePackages(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			markup := string(templateFileMap(pkg)["index.html"].Content)
+			if !strings.Contains(markup, `data-gc-action="leave-message"`) || !strings.Contains(markup, `data-gc-action="evaluation"`) || strings.Contains(markup, "GoodChat 提供技术支持") {
+				t.Fatal("行业模板应提供固定留言/评价入口，技术支持由宿主统一保留")
+			}
 			files := templateFileMap(pkg)
 			contract, err := validateTemplatePackage(pkg.Entrypoint, files, true)
 			if err != nil || !templateContractMatches(contract, scripts) {
