@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
 import { starterCodeDesign } from "../src/features/decoration/starter-code.ts";
+import { publicBridgeMessage } from "../src/lib/frame-bridge.ts";
+import type { ChatMessage } from "../src/lib/types.ts";
 
 /** ElementStub 提供初稿所需的最小文档节点，记录文本而不解释租户 HTML。 */
 class ElementStub {
@@ -244,4 +246,36 @@ test("代码初稿客服选项使用服务端稳定消息编号且不覆盖访�
       ?.children.find((node) => node.className === "message-options")?.children[0].disabled,
     true,
   );
+});
+
+test("装修初稿将欢迎和关键词渲染为左侧客服消息，只显示姓名与时间且不能撤回", () => {
+  const { nodes, render } = mountStarter();
+  for (const source of ["welcome", "keyword"]) {
+    const original = {
+      id: source,
+      sender_kind: "system",
+      sender_name: "系统",
+      source,
+      audience: "public",
+      content: "自动答复",
+      message_type: "text",
+      seq: "2",
+      event_seq: "2",
+      created_at: "2026-10-29T08:00:00Z",
+      automation_agent: { name: "客服甲" },
+    } as ChatMessage;
+    render({
+      connected: true,
+      conversation: { status: "active" },
+      messages: [publicBridgeMessage(original, "visitor")],
+    });
+    const row = nodes.get("messages")?.children.find((node) => node.dataset.messageId === source);
+    assert.equal(row?.className, "");
+    assert.match(row?.children[0]?.textContent || "", /^客服甲 ·/);
+    assert.doesNotMatch(row?.children[0]?.textContent || "", /系统|欢迎|关键词/);
+    assert.equal(
+      row?.querySelectorAll(".message-action").some((node) => node.textContent === "撤回"),
+      false,
+    );
+  }
 });

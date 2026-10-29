@@ -47,6 +47,9 @@ func messageVisible(ctx context.Context, tx pgx.Tx, a actor, id string) (bool, e
 
 // redactMessageReplies 按当前消息状态重建可见引用，移除不可见内容并同步撤回标志，历史事件副本不能保留旧正文。
 func redactMessageReplies(ctx context.Context, tx pgx.Tx, a actor, items []map[string]any) error {
+	if err := enrichAutomaticAgents(ctx, tx, a, items); err != nil {
+		return err
+	}
 	ids := []string{}
 	for _, item := range items {
 		if reply, ok := item["reply"].(map[string]any); ok {

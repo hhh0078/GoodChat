@@ -51,6 +51,7 @@ export type ChatMessage = Resource & {
   attachment?: { id: string; file_name: string; content_type: string; size_bytes: number };
   reply?: { id: string; content: string; withdrawn: boolean };
   options?: { id: string; label: string; value: string; client_message_id: string }[];
+  automation_agent?: { id?: string; name?: string; avatar_url?: string } | null;
   source?: string;
   source_version?: string;
 };
@@ -64,6 +65,7 @@ export type Conversation = Resource & {
   source_snapshot?: Record<string, unknown>;
   context?: Record<string, unknown>;
   updated_at?: string;
+  first_agent?: { id?: string; name?: string; avatar_url?: string } | null;
   agent_name?: string;
   agent_avatar_url?: string;
   last_message_at?: string;

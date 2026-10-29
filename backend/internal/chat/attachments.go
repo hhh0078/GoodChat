@@ -135,6 +135,13 @@ func (s *Service) download(w http.ResponseWriter, r *http.Request) {
 			if visibleReply {
 				return nil
 			}
+			var welcomeVisible bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM welcome_rules w WHERE NOT w.archived AND (w.scope_type='member' AND w.scope_id=$2 OR w.scope_type<>'member' AND w.enabled AND coalesce((SELECT (cs.settings->>'welcome_enabled')::boolean FROM chat_settings cs),true)) AND EXISTS(SELECT 1 FROM jsonb_array_elements(w.contents) content WHERE content->>'type'='image' AND content->>'attachment_id'=$1::text))`, id, a.MemberID).Scan(&welcomeVisible); err != nil {
+				return err
+			}
+			if welcomeVisible {
+				return nil
+			}
 		}
 		shared, err := canReadLeadAttachment(ctx, tx, a, id)
 		if err != nil {

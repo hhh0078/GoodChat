@@ -2,10 +2,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { App, Button, Tooltip } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined, SettingOutlined } from "@ant-design/icons";
 import { api, errorMessage } from "@/lib/api";
 import { groupQuickReplies, type QuickReply } from "@/lib/quick-replies";
 import { QuickReplyEditor } from "./quick-reply-editor";
+import { PersonalReplySettings } from "./personal-reply-settings";
 import "./quick-replies.css";
 type QuickReplyProps = {
   tenantId: string;
@@ -19,11 +20,12 @@ export function QuickReplies(props: QuickReplyProps) {
   return <QuickReplyList key={props.tenantId} {...props} />;
 }
 
-/** QuickReplyList 只展示可发送标题和添加入口，维护动作集中在弹框中。 */
-function QuickReplyList({ tenantId, manages, disabled, onSend }: QuickReplyProps) {
+/** QuickReplyList 展示紧凑话术标题、个人新增和管理入口，维护动作集中在弹框中。 */
+function QuickReplyList({ tenantId, disabled, onSend }: QuickReplyProps) {
   const { message } = App.useApp();
   const [items, setItems] = useState<QuickReply[]>([]);
   const [editing, setEditing] = useState<QuickReply | null | undefined>();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [revision, setRevision] = useState(0);
   const [sending, setSending] = useState(false);
   const locked = useRef(false),
@@ -65,16 +67,28 @@ function QuickReplyList({ tenantId, manages, disabled, onSend }: QuickReplyProps
   const groups = groupQuickReplies(items);
   return (
     <aside className="composer-quick-replies compact-quick-replies" aria-label="快捷回复">
-      <Tooltip title="添加和管理快捷回复">
-        <Button
-          type="text"
-          size="small"
-          className="quick-reply-add"
-          icon={<PlusOutlined />}
-          aria-label="添加快捷回复"
-          onClick={() => setEditing(null)}
-        />
-      </Tooltip>
+      <div className="quick-reply-toolbar">
+        <Tooltip title="添加个人快捷回复">
+          <Button
+            type="text"
+            size="small"
+            className="quick-reply-add"
+            icon={<PlusOutlined />}
+            aria-label="添加快捷回复"
+            onClick={() => setEditing(null)}
+          />
+        </Tooltip>
+        <Tooltip title="管理我的回复">
+          <Button
+            type="text"
+            size="small"
+            className="quick-reply-settings"
+            icon={<SettingOutlined />}
+            aria-label="管理我的回复"
+            onClick={() => setSettingsOpen(true)}
+          />
+        </Tooltip>
+      </div>
       <div className="quick-reply-list">
         {groups.personal.map((item) => (
           <button
@@ -107,8 +121,8 @@ function QuickReplyList({ tenantId, manages, disabled, onSend }: QuickReplyProps
       {editing !== undefined && (
         <QuickReplyEditor
           tenantId={tenantId}
-          manages={manages}
-          items={items.filter((item) => item.enabled !== false)}
+          manages={false}
+          items={items.filter((item) => item.scope === "personal" && item.enabled !== false)}
           item={editing}
           onSelect={setEditing}
           onClose={() => setEditing(undefined)}
@@ -116,6 +130,14 @@ function QuickReplyList({ tenantId, manages, disabled, onSend }: QuickReplyProps
             setEditing(undefined);
             setRevision((value) => value + 1);
           }}
+        />
+      )}
+      {settingsOpen && (
+        <PersonalReplySettings
+          tenantId={tenantId}
+          items={items}
+          onChanged={() => setRevision((value) => value + 1)}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
     </aside>

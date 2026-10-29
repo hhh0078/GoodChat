@@ -14,6 +14,7 @@ import (
 
 // registerOperations 注册接待效率和反馈接口，写操作保留成员或管理员边界。
 func (s *Service) registerOperations(mux *http.ServeMux) {
+	s.registerPersonalAutomation(mux)
 	mux.HandleFunc("GET /api/v1/tenant/connection-alerts", s.auth.RequireTenant(s.connectionAlerts))
 	mux.HandleFunc("GET /api/v1/tenant/chat-settings", s.auth.RequireTenant(s.chatSettings))
 	mux.HandleFunc("PATCH /api/v1/tenant/chat-settings", s.auth.RequireAdmin(s.chatSettings))
@@ -211,7 +212,7 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 		err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
 			ctx := r.Context()
 			if r.Method == http.MethodGet {
-				rows, err := tx.Query(ctx, "SELECT to_jsonb(t) FROM keyword_rules t ORDER BY priority DESC,id")
+				rows, err := tx.Query(ctx, "SELECT to_jsonb(t) FROM keyword_rules t WHERE owner_membership_id IS NULL AND NOT archived ORDER BY priority DESC,id")
 				if err != nil {
 					return err
 				}
@@ -224,7 +225,7 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 				return platform.Fail(400, "invalid_id", "记录编号格式不正确")
 			}
 			if r.Method == http.MethodDelete {
-				tag, err := tx.Exec(ctx, "UPDATE "+table+" SET enabled=false,updated_at=now() WHERE id=$1", id)
+				tag, err := tx.Exec(ctx, "UPDATE "+table+" SET enabled=false,updated_at=now() WHERE id=$1 AND owner_membership_id IS NULL AND NOT archived", id)
 				if err != nil {
 					return err
 				}
@@ -260,7 +261,7 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 					parts = append(parts, fmt.Sprintf("%s=$%d", key, i+1))
 				}
 				args = append(args, id)
-				tag, err := tx.Exec(ctx, "UPDATE "+table+" SET "+strings.Join(parts, ",")+fmt.Sprintf(" WHERE id=$%d", len(args)), args...)
+				tag, err := tx.Exec(ctx, "UPDATE "+table+" SET version=version+1,"+strings.Join(parts, ",")+fmt.Sprintf(" WHERE id=$%d AND owner_membership_id IS NULL AND NOT archived", len(args)), args...)
 				if err != nil {
 					return err
 				}
@@ -268,7 +269,7 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 					return pgx.ErrNoRows
 				}
 			}
-			item, err := txJSON(ctx, tx, "SELECT to_jsonb(t) FROM "+table+" t WHERE id=$1", id)
+			item, err := txJSON(ctx, tx, "SELECT to_jsonb(t) FROM "+table+" t WHERE id=$1 AND owner_membership_id IS NULL AND NOT archived", id)
 			if err != nil {
 				return err
 			}

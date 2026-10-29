@@ -539,6 +539,7 @@ export function ChatPanel({
               canSend={canSend}
               sending={sending}
               readSeq={chat.readSeq}
+              displayContext={current || undefined}
               onReply={setReply}
               onWithdraw={withdraw}
               onSend={sendOutgoing}

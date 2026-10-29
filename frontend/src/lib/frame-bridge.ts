@@ -1,6 +1,7 @@
 /** 文件作用说明：校验装修运行来源与握手边界，避免跨窗口或协议伪造获得访客桥能力。 */
 import type { ChatMessage } from "./types";
 import { ApiError } from "./api.ts";
+import { messageDisplay, type MessageDisplayContext } from "./message-display.ts";
 type BridgeHello = { type: "goodchat:init"; version: 1; nonce: string; release_id: string };
 const bridgeFields: Record<string, readonly string[]> = {
   getState: [],
@@ -20,12 +21,13 @@ export function validateBridgeRequest(
   payload: Record<string, unknown>,
   messages: ChatMessage[],
   visitorId: string,
+  displayContext?: MessageDisplayContext,
 ): void {
   if (!Object.hasOwn(bridgeFields, method)) throw new Error("当前页面无权调用此方法");
   if (Object.keys(payload).some((key) => !bridgeFields[method].includes(key)))
     throw new Error("当前方法包含未授权参数");
   if (method === "getAvatar") {
-    visibleBridgeAvatar(messages, payload.message_id);
+    visibleBridgeAvatar(messages, payload.message_id, displayContext);
     return;
   }
   if (method === "download" || method === "saveAttachment") {
@@ -45,11 +47,17 @@ export function validateBridgeRequest(
     throw new Error("只能撤回本人消息");
 }
 /** visibleBridgeAvatar 将头像读取绑定到当前公开消息，只允许平台内置或本平台受控上传图片路径。 */
-export function visibleBridgeAvatar(messages: ChatMessage[], messageId: unknown): string {
+export function visibleBridgeAvatar(
+  messages: ChatMessage[],
+  messageId: unknown,
+  displayContext?: MessageDisplayContext,
+): string {
   const item = messages.find(
     (message) => message.id === messageId && message.audience === "public" && !message.withdrawn_at,
   );
-  const value = item?.sender_avatar_url;
+  const value = item
+    ? messageDisplay(item, { kind: "visitor", actorId: "" }, displayContext).avatarURL
+    : undefined;
   if (
     typeof messageId !== "string" ||
     typeof value !== "string" ||
@@ -68,9 +76,10 @@ export async function requestBridgeAvatar(
   messageId: string,
   getMessages: () => ChatMessage[],
   signal?: AbortSignal,
+  getDisplayContext?: () => MessageDisplayContext | undefined,
 ): Promise<Blob> {
   signal?.throwIfAborted();
-  const path = visibleBridgeAvatar(getMessages(), messageId);
+  const path = visibleBridgeAvatar(getMessages(), messageId, getDisplayContext?.());
   const timeout = AbortSignal.timeout(30000);
   const response = await fetch(path, {
     credentials: "omit",
@@ -86,7 +95,7 @@ export async function requestBridgeAvatar(
     !blob.size ||
     blob.size > 256 * 1024 ||
     blob.type.split(";")[0] !== "image/png" ||
-    visibleBridgeAvatar(getMessages(), messageId) !== path
+    visibleBridgeAvatar(getMessages(), messageId, getDisplayContext?.()) !== path
   )
     throw new Error("头像格式或当前消息权限已变化");
   return blob;
@@ -192,7 +201,12 @@ function publicAvatarURL(value: unknown): string | undefined {
   }
 }
 /** publicBridgeMessage 只导出访客可见消息及本人标记，不暴露后台身份或附件凭证。 */
-export function publicBridgeMessage(item: ChatMessage, visitorId: string) {
+export function publicBridgeMessage(
+  item: ChatMessage,
+  visitorId: string,
+  displayContext?: MessageDisplayContext,
+) {
+  const display = messageDisplay(item, { kind: "visitor", actorId: visitorId }, displayContext);
   return {
     id: item.id,
     seq: item.seq || item.event_seq,
@@ -201,15 +215,15 @@ export function publicBridgeMessage(item: ChatMessage, visitorId: string) {
       item.sender_kind === "visitor" && item.sender_id === visitorId
         ? item.client_message_id
         : undefined,
-    sender_kind: item.sender_kind,
-    sender_name: item.sender_name,
-    sender_avatar_url: publicAvatarURL(item.sender_avatar_url),
+    sender_kind: display.senderKind,
+    sender_name: display.senderName,
+    sender_avatar_url: publicAvatarURL(display.avatarURL),
     message_type: item.message_type,
     content: item.withdrawn_at ? "" : item.content,
     text: item.withdrawn_at ? "" : item.content,
     created_at: item.created_at,
     withdrawn_at: item.withdrawn_at,
-    source: typeof item.source === "string" ? item.source : undefined,
+    source: !display.automatic && typeof item.source === "string" ? item.source : undefined,
     options:
       !item.withdrawn_at &&
       (item.sender_kind === "system" || item.sender_kind === "agent") &&

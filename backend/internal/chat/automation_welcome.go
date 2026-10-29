@@ -45,7 +45,7 @@ type welcomeRule struct {
 
 // validateWelcomeRule 校验纯文本内容和本租户内部图片，禁止外链、视频及跨租户素材。
 func validateWelcomeRule(ctx context.Context, tx pgx.Tx, item welcomeRule) error {
-	if strings.TrimSpace(item.Name) == "" || len([]rune(item.Name)) > 100 || !inStrings(item.ScopeType, "tenant", "space", "link") || !inStrings(item.Scenario, "all", "business", "outside") || len(item.Contents) < 1 || len(item.Contents) > 12 {
+	if strings.TrimSpace(item.Name) == "" || len([]rune(item.Name)) > 100 || !inStrings(item.ScopeType, "tenant", "space", "link", "member") || !inStrings(item.Scenario, "all", "business", "outside") || len(item.Contents) < 1 || len(item.Contents) > 12 {
 		return platform.Fail(400, "invalid_welcome_rule", "请检查规则名称、层级、场景和1至12条欢迎内容")
 	}
 	if item.ScopeType == "tenant" && item.ScopeID != "" || item.ScopeType != "tenant" && !uuidPattern.MatchString(item.ScopeID) {
@@ -55,6 +55,8 @@ func validateWelcomeRule(ctx context.Context, tx pgx.Tx, item welcomeRule) error
 		table := "service_spaces"
 		if item.ScopeType == "link" {
 			table = "access_links"
+		} else if item.ScopeType == "member" {
+			table = "tenant_memberships"
 		}
 		var exists bool
 		if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM "+table+" WHERE id=$1)", item.ScopeID).Scan(&exists); err != nil {
@@ -120,7 +122,7 @@ func (s *Service) welcomeRules(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if r.Method == http.MethodGet {
-			rows, err := tx.Query(ctx, "SELECT to_jsonb(w) FROM welcome_rules w WHERE NOT archived ORDER BY scope_type,scope_id,scenario,name,id")
+			rows, err := tx.Query(ctx, "SELECT to_jsonb(w) FROM welcome_rules w WHERE NOT archived AND scope_type<>'member' ORDER BY scope_type,scope_id,scenario,name,id")
 			if err != nil {
 				return err
 			}
@@ -129,6 +131,9 @@ func (s *Service) welcomeRules(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if r.Method != http.MethodDelete {
+			if input.ScopeType == "member" {
+				return platform.Fail(403, "personal_rule_forbidden", "请在个人设置中维护自己的欢迎语")
+			}
 			if err := validateWelcomeRule(ctx, tx, input); err != nil {
 				return err
 			}
@@ -143,9 +148,9 @@ func (s *Service) welcomeRules(w http.ResponseWriter, r *http.Request) {
 				return platform.Fail(400, "invalid_welcome_version", "规则编号和当前版本不能为空")
 			}
 			if r.Method == http.MethodDelete {
-				item, err = txJSON(ctx, tx, "UPDATE welcome_rules SET archived=true,enabled=false,version=version+1,updated_at=now() WHERE id=$1 AND version=$2 AND NOT archived RETURNING to_jsonb(welcome_rules)", id, input.Version)
+				item, err = txJSON(ctx, tx, "UPDATE welcome_rules SET archived=true,enabled=false,version=version+1,updated_at=now() WHERE id=$1 AND version=$2 AND NOT archived AND scope_type<>'member' RETURNING to_jsonb(welcome_rules)", id, input.Version)
 			} else {
-				item, err = txJSON(ctx, tx, "UPDATE welcome_rules SET name=$3,scope_type=$4,scope_id=NULLIF($5,'')::uuid,scenario=$6,enabled=$7,stop_on_agent=$8,contents=$9,version=version+1,updated_at=now() WHERE id=$1 AND version=$2 AND NOT archived RETURNING to_jsonb(welcome_rules)", id, input.Version, input.Name, input.ScopeType, input.ScopeID, input.Scenario, input.Enabled, input.StopOnAgent, jsonValue(input.Contents))
+				item, err = txJSON(ctx, tx, "UPDATE welcome_rules SET name=$3,scope_type=$4,scope_id=NULLIF($5,'')::uuid,scenario=$6,enabled=$7,stop_on_agent=$8,contents=$9,version=version+1,updated_at=now() WHERE id=$1 AND version=$2 AND NOT archived AND scope_type<>'member' RETURNING to_jsonb(welcome_rules)", id, input.Version, input.Name, input.ScopeType, input.ScopeID, input.Scenario, input.Enabled, input.StopOnAgent, jsonValue(input.Contents))
 			}
 			if err == pgx.ErrNoRows {
 				return platform.Fail(409, "welcome_version_conflict", "规则已更新、归档或不属于当前租户，请重新读取")

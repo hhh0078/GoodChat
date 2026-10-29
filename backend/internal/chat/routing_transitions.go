@@ -55,7 +55,10 @@ func (s *Service) acceptOrReject(ctx context.Context, tx pgx.Tx, a actor, v rout
 		}
 	}
 	_, err := s.emit(ctx, tx, a.TenantID, v.ID, "assignment.changed", "public", map[string]any{"accepted": accept})
-	return err
+	if err != nil || !accept {
+		return err
+	}
+	return s.enqueuePersonalWelcome(ctx, tx, a.TenantID, v.ID)
 }
 
 // transferLocked 检查目标资格并保留原接待，确认模式先创建独立容量预留。

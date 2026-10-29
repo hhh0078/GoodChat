@@ -254,8 +254,9 @@ function render(next) {
         ? ""
         : date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
     label.textContent =
-      (item.is_own ? "我" : item.sender_kind === "system" ? "系统" : "客服") +
-      (item.sender_name ? " · " + item.sender_name : "") +
+      (item.is_own
+        ? "我" + (item.sender_name ? " · " + item.sender_name : "")
+        : item.sender_name || (item.sender_kind === "system" ? "系统" : "客服")) +
       (time ? " · " + time : "");
     if (item.sender_avatar_url && typeof chat.getAvatar === "function") {
       const avatar = document.createElement("img");
