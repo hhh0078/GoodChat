@@ -27,6 +27,7 @@ import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import type { Resource } from "@/lib/types";
 import { ErrorNotice, EmptyData } from "@/components/page-state";
+import filterStyles from "@/components/filter-toolbar.module.css";
 type Tenant = Resource & {
   status: string;
   timezone: string;
@@ -194,19 +195,22 @@ export function PlatformTenants({ onManagePlans }: { onManagePlans?: () => void 
           <h2>租户运营</h2>
           <p>管理租户状态、有效套餐与开通邀请。</p>
         </div>
-        <div className="resource-tools">
-          <Space wrap>
-            <Input.Search
-              allowClear
-              placeholder="租户名称或标识"
-              aria-label="搜索租户"
-              onSearch={setQuery}
-              style={{ width: 260 }}
-            />
+        <div className={filterStyles.toolbar}>
+          <Input.Search
+            className={filterStyles.search}
+            allowClear
+            placeholder="名称 / 标识"
+            aria-label="租户名称或标识"
+            onSearch={setQuery}
+            style={{ width: 200 }}
+          />
+          <div className={filterStyles.field} style={{ width: 130 }}>
+            <span>状态</span>
             <Select
+              aria-label="租户状态"
+              variant="borderless"
               allowClear
-              placeholder="全部状态"
-              style={{ width: 150 }}
+              placeholder="全部"
               onChange={(value) => setFilter(value || "")}
               options={[
                 { label: "正常", value: "active" },
@@ -214,7 +218,7 @@ export function PlatformTenants({ onManagePlans }: { onManagePlans?: () => void 
                 { label: "已到期", value: "expired" },
               ]}
             />
-          </Space>
+          </div>
           <Button
             type="primary"
             onClick={() => {

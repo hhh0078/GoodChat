@@ -1,7 +1,28 @@
 /** 文件作用说明：回归偏好GET/PATCH乱序和已读/转出后旧提醒领取失效，避免静音与已读之后迟到播放。 */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createReminderRequests, reminderEventInvalidates } from "../src/lib/reminder-state.ts";
+import {
+  createReminderRequests,
+  reminderEventInvalidates,
+  systemNotificationPreferences,
+} from "../src/lib/reminder-state.ts";
+
+test("旧免打扰账号主动开启系统通知后仍保持零音量，不恢复任何声音开关", () => {
+  for (const sound_enabled of [true, false]) {
+    const current = { muted: true, volume: 0.7, sound_enabled, system_enabled: false };
+    const saved = { ...current, ...systemNotificationPreferences(true, current.muted) };
+    assert.equal(saved.system_enabled, true);
+    assert.equal(saved.muted, false);
+    assert.equal(saved.volume, 0);
+    assert.equal(saved.sound_enabled, sound_enabled);
+  }
+});
+
+test("普通通知切换不修改音量，关闭通知也不解除旧免打扰", () => {
+  assert.deepEqual(systemNotificationPreferences(true, false), { system_enabled: true });
+  assert.deepEqual(systemNotificationPreferences(false, false), { system_enabled: false });
+  assert.deepEqual(systemNotificationPreferences(false, true), { system_enabled: false });
+});
 
 test("慢GET不能覆盖其开始后已经保存的新偏好，保存失败后只能重新读取", async () => {
   const requests = createReminderRequests();

@@ -1,6 +1,6 @@
 /** 文件作用说明：独立查询授权聊天记录，并按相同筛选分别下载会话元数据或默认不含内部备注的正文CSV。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   App,
   Avatar,
@@ -15,6 +15,7 @@ import {
   Tag,
 } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
 import { useResource } from "@/lib/use-resource";
 import { api, errorMessage } from "@/lib/api";
 import { requestCSV, startFileDownload } from "@/lib/csv-download";
@@ -23,6 +24,7 @@ import { ExportJobs } from "./export-jobs";
 import { useSession } from "@/features/auth/session";
 import type { ChatMessage, Conversation, Member } from "@/lib/types";
 import { PageTitle, ErrorNotice, EmptyData } from "@/components/page-state";
+import filterStyles from "@/components/filter-toolbar.module.css";
 const statusText: Record<string, string> = {
   queued: "排队中",
   assigned: "待接单",
@@ -40,6 +42,7 @@ export function RecordsPage() {
   const [dates, setDates] = useState<string[]>([]);
   const [agent, setAgent] = useState("");
   const [channel, setChannel] = useState("");
+  const [submittedFilters, setSubmittedFilters] = useState("");
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<unknown>(null);
@@ -48,16 +51,33 @@ export function RecordsPage() {
   const [exportError, setExportError] = useState<unknown>(null);
   const exportController = useRef<AbortController | null>(null);
   const { message } = App.useApp();
-  const params = new URLSearchParams({
-    query,
-    status,
-    agent_id: agent,
-    channel_code: channel,
-    ...(dates[0] ? { from: dates[0], to: dates[1] } : {}),
-  });
+  const params = new URLSearchParams(submittedFilters);
   const records = useResource<Conversation>(`/tenant/chat-records?${params}`);
   const members = useResource<Member>(manages ? "/tenant/members" : "");
+  /** searchRecords 一次提交当前筛选，让记录列表与导出使用相同条件。 */
+  function searchRecords(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmittedFilters(
+      new URLSearchParams({
+        query: query.trim(),
+        status,
+        agent_id: agent,
+        channel_code: channel.trim(),
+        ...(dates[0] ? { from: dates[0], to: dates[1] } : {}),
+      }).toString(),
+    );
+  }
+  /** resetFilters 同时清空输入和已提交条件，避免残留不可见筛选。 */
+  function resetFilters() {
+    setQuery("");
+    setStatus("");
+    setDates([]);
+    setAgent("");
+    setChannel("");
+    setSubmittedFilters("");
+  }
   useEffect(() => {
+    resetFilters();
     setSelected(null);
     setMessages([]);
     setExportError(null);
@@ -173,24 +193,38 @@ export function RecordsPage() {
         }
       />
       <div className="table-card">
-        <div className="resource-tools">
-          <Space wrap>
-            <Input.Search
-              placeholder="客户名称或电话"
-              aria-label="查询聊天记录"
+        <form className={filterStyles.toolbar} aria-label="聊天记录筛选" onSubmit={searchRecords}>
+          <div className={filterStyles.field} style={{ width: 150 }}>
+            <span>客户</span>
+            <Input
+              placeholder="名称 / 电话"
+              aria-label="客户名称或电话"
+              variant="borderless"
               allowClear
-              onSearch={setQuery}
-              style={{ width: 230 }}
+              maxLength={200}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
             />
+          </div>
+          <div className={filterStyles.field} style={{ width: 116 }}>
+            <span>状态</span>
             <Select
               aria-label="会话状态"
-              style={{ width: 145 }}
+              variant="borderless"
               allowClear
-              placeholder="全部状态"
+              placeholder="全部"
+              value={status || undefined}
               options={Object.entries(statusText).map(([value, label]) => ({ value, label }))}
               onChange={(value) => setStatus(value || "")}
             />
+          </div>
+          <div className={`${filterStyles.field} ${filterStyles.date}`} style={{ width: 264 }}>
+            <span>日期</span>
             <DatePicker.RangePicker
+              aria-label="会话日期"
+              variant="borderless"
+              placeholder={["开始", "结束"]}
+              value={dates[0] && dates[1] ? [dayjs(dates[0]), dayjs(dates[1])] : null}
               onChange={(value) =>
                 setDates(
                   value?.[0] && value?.[1]
@@ -199,28 +233,44 @@ export function RecordsPage() {
                 )
               }
             />
-            {manages && (
+          </div>
+          {manages && (
+            <div className={filterStyles.field} style={{ width: 130 }}>
+              <span>客服</span>
               <Select
                 aria-label="接待客服"
+                variant="borderless"
                 allowClear
-                style={{ width: 180 }}
-                placeholder="全部客服"
+                showSearch
+                optionFilterProp="label"
+                placeholder="全部"
+                value={agent || undefined}
                 options={members.items.map((item) => ({
                   label: item.display_name || item.email,
                   value: item.id,
                 }))}
                 onChange={(value) => setAgent(value || "")}
               />
-            )}
-            <Input.Search
+            </div>
+          )}
+          <div className={filterStyles.field} style={{ width: 126 }}>
+            <span>渠道</span>
+            <Input
               placeholder="来源编码"
-              aria-label="筛选来源编码"
+              aria-label="渠道来源编码"
+              variant="borderless"
               allowClear
-              onSearch={setChannel}
-              style={{ width: 180 }}
+              value={channel}
+              onChange={(event) => setChannel(event.target.value)}
             />
-          </Space>
-        </div>
+          </div>
+          <div className={filterStyles.actions}>
+            <Button type="primary" htmlType="submit">
+              搜索
+            </Button>
+            <Button onClick={resetFilters}>重置</Button>
+          </div>
+        </form>
         {manages && (
           <p className="form-hint">
             两个导出动作都沿用当前筛选。正文默认不含内部备注，最多 10000

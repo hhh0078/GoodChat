@@ -92,14 +92,13 @@ export function ContactsPage() {
           tableMinWidth={1020}
           canCreate={manages}
           canEdit={() => manages}
-          searchOptions={[
-            { value: "all", label: "全部信息" },
-            { value: "name", label: "客户名称" },
-            { value: "phone", label: "联系电话" },
+          searchFields={[
+            { value: "name", label: "名称" },
+            { value: "phone", label: "电话" },
             { value: "channel", label: "渠道" },
-            { value: "extra", label: "额外信息" },
-            { value: "tag", label: "客户标签" },
-            { value: "category", label: "客户分类" },
+            { value: "extra", label: "资料" },
+            { value: "tag", label: "标签" },
+            { value: "category", label: "分类" },
           ]}
           tools={
             manages && (
@@ -371,10 +370,7 @@ export function ContactsPage() {
   ];
   return (
     <section className="console-screen console-contacts">
-      <PageTitle
-        title="客户资料"
-        description="汇总客户联系方式、来源与业务资料，按需要选择搜索类型。"
-      />
+      <PageTitle title="客户资料" description="按名称、电话、渠道等条件组合搜索客户。" />
       <div className="table-card">
         {panels[0].children}
         <Drawer

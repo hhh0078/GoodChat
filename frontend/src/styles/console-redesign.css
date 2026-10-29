@@ -8,34 +8,10 @@
   color: var(--ink);
   min-width: 0;
 }
-.console-screen .page-title-row {
-  align-items: center;
-  gap: 24px;
-  margin-bottom: 28px;
-}
-.console-screen .page-title-row h1 {
-  margin: 0 0 8px;
-  font-size: 32px;
-  line-height: 1.35;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-.console-screen .page-title-row p {
-  max-width: 760px;
-  font-size: 14px;
-  line-height: 1.65;
-}
-.console-screen .page-title-row > .ant-btn {
+.console-screen .page-actions > .ant-btn {
   height: 42px;
   padding-inline: 20px;
   flex-shrink: 0;
-}
-.console-dashboard .page-title-row h1 {
-  font-size: 32px;
-  letter-spacing: -0.035em;
-}
-.console-dashboard .page-title-row p {
-  font-size: 16px;
 }
 .console-screen .table-card,
 .console-screen .ant-card,
@@ -713,17 +689,6 @@
 @media (max-width: 768px) {
   .console-settings-columns {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .console-screen .page-title-row {
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-  .console-screen .page-title-row h1 {
-    font-size: 24px;
-  }
-  .console-dashboard .page-title-row h1 {
-    font-size: 28px;
   }
   .console-metrics,
   .console-screen .stat-grid {
