@@ -97,3 +97,99 @@ func TestNewButtonRulesDoNotBlockExistingPackage(t *testing.T) {
 		t.Fatal("相同未绑定按钮不能通过新导入强校验")
 	}
 }
+
+// TestNewTemplateRejectsPermanentHiddenControls 固定SDK仅切换hidden属性，新模板不能叠加它无法解除的隐藏类或内联样式。
+func TestNewTemplateRejectsPermanentHiddenControls(t *testing.T) {
+	pkg, err := industryTemplatePackage("finance", defaultTemplateScripts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"gc-reply-bar", "gc-attachment-menu", "gc-messages", "gc-text", "gc-send", "gc-compose"} {
+		for name, attr := range map[string]string{
+			"hidden class":      ` class="layout hidden"`,
+			"is-hidden class":   ` class="is-hidden"`,
+			"display none":      ` style="display: none !important"`,
+			"visibility hidden": ` style="color:red; visibility: hidden"`,
+			"escaped style":     ` style="display:\6e one"`,
+			"commented style":   ` style="display:/*initial*/none"`,
+		} {
+			t.Run(id+"/"+name, func(t *testing.T) {
+				files := []TemplateFile{}
+				for _, file := range pkg.Files {
+					if isProtectedTemplatePath(file.Path) {
+						continue
+					}
+					text := string(file.Content)
+					if file.Path == "index.html" {
+						text = strings.Replace(text, `id="`+id+`"`, `id="`+id+`"`+attr, 1)
+					}
+					files = append(files, TemplateFile{Path: file.Path, Content: text})
+				}
+				if _, err := buildTemplatePackage("index.html", files, defaultTemplateScripts()); err == nil {
+					t.Fatal("不能接受SDK无法解除的永久隐藏样式")
+				}
+			})
+		}
+	}
+	lookup := templateFileMap(pkg)
+	entry := lookup["index.html"]
+	entry.Content = []byte(strings.Replace(string(entry.Content), `id="gc-attachment-menu"`, `id="gc-attachment-menu" class="hidden"`, 1))
+	entry.SHA256 = digest(entry.Content)
+	entry.Size = len(entry.Content)
+	lookup[entry.Path] = entry
+	all := []packageFile{}
+	for _, file := range lookup {
+		all = append(all, file)
+	}
+	stored, err := finishPackage("index.html", all)
+	if err != nil {
+		t.Fatalf("新增预检不能阻止历史已存包的读取：%v", err)
+	}
+	if _, err := encodeTemplateArchive("历史样式", stored); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyNewTemplatePackage(context.Background(), nil, stored); err == nil {
+		t.Fatal("同一历史样式不能通过新导入入口")
+	}
+}
+
+// TestNewTemplateKeepsSDKHiddenAttribute 保留正常自定义类和必需hidden属性，不静默删除样式或降低既有导入要求。
+func TestNewTemplateKeepsSDKHiddenAttribute(t *testing.T) {
+	pkg, err := industryTemplatePackage("finance", defaultTemplateScripts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := []TemplateFile{}
+	for _, file := range pkg.Files {
+		if isProtectedTemplatePath(file.Path) {
+			continue
+		}
+		text := string(file.Content)
+		if file.Path == "index.html" {
+			text = strings.Replace(text, `id="gc-reply-bar"`, `id="gc-reply-bar" class="custom-reply hidden-label"`, 1)
+		}
+		files = append(files, TemplateFile{Path: file.Path, Content: text})
+	}
+	next, err := buildTemplatePackage("index.html", files, defaultTemplateScripts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	lookup := templateFileMap(next)
+	if !strings.Contains(string(lookup["index.html"].Content), `class="custom-reply hidden-label"`) {
+		t.Fatal("正常自定义类不能被静默移除")
+	}
+	if err := verifyNewTemplatePackage(context.Background(), nil, next); err != nil {
+		t.Fatal(err)
+	}
+	zipFiles := map[string][]byte{}
+	for name, file := range lookup {
+		text := file.Content
+		if name == "index.html" {
+			text = []byte(strings.ReplaceAll(string(text), ` hidden=""`, ""))
+		}
+		zipFiles[name] = text
+	}
+	if _, err := readStaticZIP(zipFixture(t, zipFiles, 0), "index.html"); err == nil {
+		t.Fatal("初始hidden属性仍必须通过原有严格ZIP校验")
+	}
+}

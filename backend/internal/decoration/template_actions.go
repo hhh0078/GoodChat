@@ -11,6 +11,8 @@ import (
 
 var templateDialogIDPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,79}$`)
 var templateUIActionPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
+var templateInlineCSSComments = regexp.MustCompile(`(?s)/\*.*?\*/`)
+var templatePermanentHiddenStyle = regexp.MustCompile(`(?i)(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden)\s*(?:!\s*important\s*)?(?:;|$)`)
 
 // templateNodeAttributes 读取解析器规范化的HTML属性，仅供静态按钮动作检查。
 func templateNodeAttributes(node *xhtml.Node) map[string]string {
@@ -34,6 +36,36 @@ func templateButtonWithin(node *xhtml.Node, id string) bool {
 		}
 	}
 	return false
+}
+
+// validateNewTemplateVisibility 拒绝固定SDK无法切换的永久隐藏状态，初始隐藏仅由原生hidden属性控制。
+func validateNewTemplateVisibility(ids map[string]*xhtml.Node) error {
+	for _, id := range []string{"gc-reply-bar", "gc-attachment-menu", "gc-messages", "gc-text", "gc-send", "gc-compose"} {
+		node := ids[id]
+		if node == nil {
+			continue
+		}
+		attrs := templateNodeAttributes(node)
+		if id != "gc-reply-bar" && id != "gc-attachment-menu" {
+			if _, hidden := attrs["hidden"]; hidden {
+				return invalidDesign("固定消息和输入节点不能初始隐藏：" + id)
+			}
+		}
+		for _, name := range strings.Fields(attrs["class"]) {
+			if strings.EqualFold(name, "hidden") || strings.EqualFold(name, "is-hidden") {
+				return invalidDesign("固定聊天节点不能使用hidden/is-hidden类永久隐藏：" + id + "；初始隐藏请仅用hidden属性，由固定SDK切换")
+			}
+		}
+		style, err := cssWord(attrs["style"])
+		if err != nil {
+			return err
+		}
+		style = templateInlineCSSComments.ReplaceAllString(style, "")
+		if templatePermanentHiddenStyle.MatchString(style) {
+			return invalidDesign("固定聊天节点不能以内联display:none或visibility:hidden永久隐藏：" + id + "；初始隐藏请仅用hidden属性，由固定SDK切换")
+		}
+	}
+	return nil
 }
 
 // validateNewTemplateActions 要求新按钮使用平台动作或本地UI声明，不从data-period或外观推断业务行为。
@@ -64,6 +96,9 @@ func validateNewTemplateActions(raw []byte, files map[string]packageFile) error 
 		}
 	}
 	collect(doc)
+	if err := validateNewTemplateVisibility(ids); err != nil {
+		return err
+	}
 	for _, button := range buttons {
 		attrs := templateNodeAttributes(button)
 		if attrs["type"] != "button" {
