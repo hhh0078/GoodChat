@@ -40,6 +40,8 @@ export function useChat(id: string, identity: ChatIdentity) {
   const [synced, setSynced] = useState(false);
   const [typingUntil, setTypingUntil] = useState(0);
   const [hasOlder, setHasOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState<unknown>(null);
   const [readSeq, setReadSeq] = useState("0");
   const [revision, setRevision] = useState(0);
   const [unconfirmed, setUnconfirmed] = useState<Outgoing[]>([]);
@@ -47,6 +49,7 @@ export function useChat(id: string, identity: ChatIdentity) {
   const synchronize = useRef<() => Promise<void>>(() => Promise.resolve());
   const cursor = useRef("");
   const olderPosition = useRef("");
+  const olderRequest = useRef<{ controller: AbortController; promise: Promise<void> } | null>(null);
   const snapshotEpoch = useRef(0);
   const historyScope = useRef("");
   const knownWithdrawals = useRef(new Map<string, string>());
@@ -127,9 +130,14 @@ export function useChat(id: string, identity: ChatIdentity) {
     setSynced(false);
     setError(null);
     setReadSeq("0");
+    setHasOlder(false);
     /** snapshot 获取授权快照，游标失效时立即重建，再继续补齐期间发生的事件。 */
     async function snapshot() {
       const epoch = ++snapshotEpoch.current;
+      olderRequest.current?.controller.abort();
+      olderRequest.current = null;
+      setLoadingOlder(false);
+      setOlderError(null);
       const history = await request<{
         items: ChatMessage[];
         next_cursor: string;
@@ -253,6 +261,8 @@ export function useChat(id: string, identity: ChatIdentity) {
       snapshotEpoch.current++;
       pump.stop();
       controller.abort();
+      olderRequest.current?.controller.abort();
+      olderRequest.current = null;
       clearInterval(poll);
       clearInterval(lease);
       if (synchronize.current === pump.trigger) synchronize.current = () => Promise.resolve();
@@ -297,31 +307,67 @@ export function useChat(id: string, identity: ChatIdentity) {
       setMessages((previous) => withdrawMessages(previous, messageId, withdrawnAt));
     }
   }
-  /** loadOlder 使用消息历史游标追加旧记录，不覆盖实时新增消息。 */
+  /** loadOlder 合并连续触顶请求，按原身份和快照追加旧记录，失败保留游标供原位重试。 */
   async function loadOlder() {
+    if (olderRequest.current) return olderRequest.current.promise;
     const before = olderPosition.current;
-    if (!before) return;
+    if (!before || !hasOlder || loading || activeScope.current !== scope) return;
     const epoch = snapshotEpoch.current;
     const visibleScope = historyScope.current;
-    const data = await request<{
-      items: ChatMessage[];
-      next_cursor: string;
-      has_more: boolean;
-      history_scope: string;
-    }>(`/conversations/${id}/messages?before_seq=${encodeURIComponent(before)}&limit=50`);
-    if (
-      activeScope.current !== scope ||
-      epoch !== snapshotEpoch.current ||
-      before !== olderPosition.current
-    )
-      return;
-    if (data.history_scope !== visibleScope) {
-      await synchronize.current();
-      return;
-    }
-    olderPosition.current = data.next_cursor;
-    setMessages((previous) => mergeIncoming(previous, data.items || []));
-    setHasOlder(data.has_more);
+    const controller = new AbortController();
+    const task = { controller, promise: Promise.resolve() };
+    olderRequest.current = task;
+    setLoadingOlder(true);
+    setOlderError(null);
+    task.promise = (async () => {
+      try {
+        const data = await request<{
+          items: ChatMessage[];
+          next_cursor: string;
+          has_more: boolean;
+          history_scope: string;
+        }>(`/conversations/${id}/messages?before_seq=${encodeURIComponent(before)}&limit=50`, {
+          signal: controller.signal,
+        });
+        if (
+          controller.signal.aborted ||
+          activeScope.current !== scope ||
+          epoch !== snapshotEpoch.current ||
+          before !== olderPosition.current
+        )
+          return;
+        if (data.history_scope !== visibleScope) {
+          await synchronize.current();
+          return;
+        }
+        olderPosition.current = data.next_cursor;
+        setMessages((previous) => mergeIncoming(previous, data.items || []));
+        setHasOlder(data.has_more);
+      } catch (problem) {
+        if (
+          !controller.signal.aborted &&
+          activeScope.current === scope &&
+          epoch === snapshotEpoch.current
+        ) {
+          if (problem instanceof ApiError && [401, 403, 404].includes(problem.status)) {
+            snapshotEpoch.current++;
+            olderPosition.current = "";
+            setMessages([]);
+            setConversation(null);
+            setHasOlder(false);
+            setSynced(false);
+          }
+          setOlderError(problem);
+          throw problem;
+        }
+      } finally {
+        if (olderRequest.current === task) {
+          olderRequest.current = null;
+          setLoadingOlder(false);
+        }
+      }
+    })();
+    return task.promise;
   }
   /** typing 对输入状态限流，短期状态通过服务端租约自动过期。 */
   function typing(active: boolean) {
@@ -341,6 +387,8 @@ export function useChat(id: string, identity: ChatIdentity) {
     diagnostics: live.diagnostics,
     typingUntil,
     hasOlder,
+    loadingOlder,
+    olderError,
     readSeq,
     request,
     send,

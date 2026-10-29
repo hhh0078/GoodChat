@@ -1,0 +1,119 @@
+/* 文件作用说明：压缩两列会话筛选，保留清晰选中态，以无底色卡片和状态竖条降低列表视觉噪声。 */
+.agent-layout .conversation-head {
+  padding: 12px 12px 0;
+}
+.conversation-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+.conversation-filters > .ant-input-search,
+.conversation-filters .ant-input-group-wrapper,
+.conversation-filters .ant-input-wrapper {
+  min-width: 0;
+}
+.conversation-filters .ant-input-affix-wrapper,
+.conversation-filters .ant-input-search-button {
+  height: 42px;
+}
+.conversation-filters .ant-input-search-button {
+  width: 28px;
+  padding-inline: 4px;
+}
+.conversation-filters .ant-input-affix-wrapper {
+  padding-inline: 7px;
+}
+.conversation-filters .ant-input {
+  font-size: 12px;
+}
+.conversation-period-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px 5px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.conversation-period-trigger > span:last-child {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.conversation-period-trigger:hover,
+.conversation-period-trigger[aria-expanded="true"] {
+  border-color: var(--brand);
+}
+.conversation-period-trigger:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.conversation-period-popover {
+  width: min(310px, calc(100vw - 48px));
+}
+.conversation-period-popover .ant-picker-range {
+  width: 100%;
+}
+.conversation-period-help {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.agent-layout .conversation-row.is-online,
+.agent-layout .conversation-row.is-offline {
+  background: #fff;
+}
+.agent-layout .conversation-row.is-offline {
+  border-left-color: #aab4c2;
+}
+.agent-layout .conversation-row.is-online {
+  border-left-color: #31a465;
+}
+.agent-layout .conversation-row:not(.active):hover {
+  background: #fafbfc;
+}
+.agent-layout .conversation-row.active,
+.agent-layout .conversation-row.active:hover {
+  background: #eaf2ff;
+  border-color: #8eb4f5;
+  box-shadow: 0 0 0 1px #b9d0f7;
+}
+.conversation-list-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .conversation-period-calendar .ant-picker-panels {
+    flex-direction: column;
+  }
+  .conversation-period-calendar .ant-picker-panel-container {
+    max-height: calc(100dvh - 128px);
+    overflow-y: auto;
+  }
+}
+
+.agent-controls .agent-availability.ant-select {
+  width: 84px;
+  min-width: 84px;
+}

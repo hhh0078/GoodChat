@@ -1,6 +1,6 @@
 /** 文件作用说明：提供访客与客服共用的消息界面、幂等重试、附件、语音、引用与可见已读。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Alert, App, Button, Input, Popconfirm, Popover, Space, Spin } from "antd";
 import {
   CloseOutlined,
@@ -20,6 +20,7 @@ import type { QuickReply } from "@/lib/quick-replies";
 import { acknowledgePending, readPending, stagePending } from "@/lib/pending-messages";
 import { QuickReplies } from "./quick-replies";
 import { useVisitorReminders } from "./use-visitor-reminders";
+import "./chat-history.css";
 
 export const conversationStatus: Record<string, string> = {
   queued: "正在排队",
@@ -27,6 +28,27 @@ export const conversationStatus: Record<string, string> = {
   active: "正在接待",
   closed: "咨询已结束",
 };
+/** visibleMessagePosition 记录当前第一条可见消息的位置，后续图片展开也能恢复同一阅读锚点。 */
+function visibleMessagePosition(node: HTMLDivElement) {
+  const top = node.getBoundingClientRect().top;
+  const row = [...node.querySelectorAll<HTMLElement>("[data-message-id]")].find(
+    (item) => item.getBoundingClientRect().bottom > top,
+  );
+  return row?.dataset.messageId
+    ? { id: row.dataset.messageId, offset: row.getBoundingClientRect().top - top }
+    : null;
+}
+/** restoreMessagePosition 按稳定消息编号恢复位置，不受底部同时追加新消息的高度影响。 */
+function restoreMessagePosition(node: HTMLDivElement, anchor: { id: string; offset: number }) {
+  const row = [...node.querySelectorAll<HTMLElement>("[data-message-id]")].find(
+    (item) => item.dataset.messageId === anchor.id,
+  );
+  if (row) {
+    const delta =
+      row.getBoundingClientRect().top - node.getBoundingClientRect().top - anchor.offset;
+    if (Math.abs(delta) > 0.5) node.scrollTop += delta;
+  }
+}
 /** ChatPanel 根据已认证参与者显示消息，发送与已读均以服务端响应为准。 */
 export function ChatPanel({
   id,
@@ -79,6 +101,13 @@ export function ChatPanel({
     return () => document.removeEventListener("visibilitychange", updateVisibility);
   }, []);
   const scroller = useRef<HTMLDivElement | null>(null);
+  const messageContent = useRef<HTMLDivElement | null>(null);
+  const previousScrollTop = useRef(0);
+  const initiallyPositioned = useRef(false);
+  const olderAnchor = useRef<{ scope: string; id: string; first: string; offset: number } | null>(
+    null,
+  );
+  const readingAnchor = useRef<{ scope: string; id: string; offset: number } | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const composing = useRef(false);
   const mounted = useRef(true);
@@ -102,6 +131,11 @@ export function ChatPanel({
       (current?.status === "active" && current.current_agent_id === identity.actorId));
   useEffect(() => {
     mounted.current = true;
+    previousScrollTop.current = 0;
+    initiallyPositioned.current = false;
+    olderAnchor.current = null;
+    readingAnchor.current = null;
+    setAtBottom(true);
     setPending([]);
     try {
       setDraft(sessionStorage.getItem(draftKey) || "");
@@ -155,6 +189,39 @@ export function ChatPanel({
   useEffect(() => {
     if (current) onStatus?.(current.status);
   }, [current, onStatus]);
+  useLayoutEffect(() => {
+    const node = scroller.current;
+    if (!node || chat.loading || initiallyPositioned.current) return;
+    // 初次快照直接定位最新消息，避免平滑定位的中间滚动被误认为用户正在查阅历史。
+    node.scrollTop = node.scrollHeight;
+    previousScrollTop.current = node.scrollTop;
+    initiallyPositioned.current = true;
+    setAtBottom(true);
+  }, [chat.loading, chat.messages.length, draftKey]);
+  useLayoutEffect(() => {
+    const anchor = olderAnchor.current;
+    const node = scroller.current;
+    if (!anchor || !node || anchor.scope !== draftKey) return;
+    if (anchor.first === chat.messages[0]?.id && chat.loadingOlder) return;
+    if (anchor.first !== chat.messages[0]?.id) restoreMessagePosition(node, anchor);
+    olderAnchor.current = null;
+  }, [chat.messages, chat.loadingOlder, draftKey]);
+  useEffect(() => {
+    const node = scroller.current;
+    const content = messageContent.current;
+    if (!node || !content || typeof ResizeObserver === "undefined") return;
+    // 旧图片、视频或下载失败提示延迟改变高度时，保持同一条消息的位置。
+    const observer = new ResizeObserver(() => {
+      const anchor = readingAnchor.current;
+      if (atBottom && !olderAnchor.current) {
+        if (node.scrollHeight - node.scrollTop - node.clientHeight > 0.5)
+          node.scrollTop = node.scrollHeight;
+      } else if (anchor?.scope === draftKey && !olderAnchor.current)
+        restoreMessagePosition(node, anchor);
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [atBottom, draftKey]);
   useEffect(() => {
     if (atBottom && !chat.loading)
       scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
@@ -227,6 +294,27 @@ export function ChatPanel({
     readAttempt,
     readContext,
   ]);
+  /** loadOlderMessages 记录可见消息锚点，上翻分页与实时新消息并发时仍停留在原阅读位置。 */
+  async function loadOlderMessages() {
+    const node = scroller.current;
+    if (!node || chat.loading || chat.loadingOlder || !chat.hasOlder || olderAnchor.current) return;
+    const position = visibleMessagePosition(node);
+    if (position) {
+      readingAnchor.current = { scope: draftKey, ...position };
+      olderAnchor.current = {
+        scope: draftKey,
+        ...position,
+        first: chat.messages[0]?.id || "",
+      };
+    }
+    setAtBottom(false);
+    try {
+      await chat.loadOlder();
+    } catch {
+      // 保留顶部失败提示和原游标，用户可在相同位置重试。
+      olderAnchor.current = null;
+    }
+  }
   /** sendOutgoing 发送前同步保存原会话完整消息，确认后仅清理原编号，离开会话不丢失在途请求。 */
   async function sendOutgoing(body: Outgoing, onQueued?: () => void): Promise<boolean> {
     if (sendingLock.current) return false;
@@ -410,82 +498,97 @@ export function ChatPanel({
         ref={scroller}
         onScroll={() => {
           const node = scroller.current;
-          if (node) setAtBottom(node.scrollHeight - node.scrollTop - node.clientHeight <= 2);
+          if (!node) return;
+          const upward = node.scrollTop < previousScrollTop.current - 1;
+          previousScrollTop.current = node.scrollTop;
+          const bottom = node.scrollHeight - node.scrollTop - node.clientHeight <= 2;
+          const position = bottom ? null : visibleMessagePosition(node);
+          readingAnchor.current = position ? { scope: draftKey, ...position } : null;
+          if (position && olderAnchor.current)
+            olderAnchor.current = { ...olderAnchor.current, ...position };
+          setAtBottom(bottom);
+          if (upward && node.scrollTop <= 64 && !chat.olderError) void loadOlderMessages();
         }}
       >
-        {chat.hasOlder && (
-          <div style={{ textAlign: "center", marginBottom: 16 }}>
-            <Button
-              size="small"
-              onClick={() => {
-                setAtBottom(false);
-                void chat.loadOlder().catch((problem) => message.error(errorMessage(problem)));
-              }}
-            >
-              加载更早消息
-            </Button>
-          </div>
-        )}
-        {chat.loading ? (
-          <Spin />
-        ) : !visibleMessages.length ? (
-          <EmptyData text="还没有消息，可以从一句问候开始。" />
-        ) : (
-          <MessageHistory
-            messages={visibleMessages}
-            identity={identity}
-            canSend={canSend}
-            sending={sending}
-            readSeq={chat.readSeq}
-            onReply={setReply}
-            onWithdraw={withdraw}
-            onSend={sendOutgoing}
-          />
-        )}
-        {pending
-          .filter((item) => !confirmedIds.has(item.client_message_id))
-          .map((item) => (
-            <div
-              className="message-row own message-pending"
-              key={`pending-${item.client_message_id}`}
-              data-client-message-id={item.client_message_id}
-            >
-              <div className="message-bubble">{item.content || "附件消息"}</div>
-              <span className="message-delivery">
-                <Spin size="small" /> 发送中
-              </span>
-            </div>
-          ))}
-        {failed
-          .filter(
-            (item) =>
-              item.audience !== "internal" &&
-              !confirmedIds.has(item.client_message_id) &&
-              !pending.some((outgoing) => outgoing.client_message_id === item.client_message_id),
-          )
-          .map((item) => (
-            <div className="message-row own" key={item.client_message_id}>
-              <div className="message-bubble">{item.content || "附件消息"}</div>
+        <div ref={messageContent}>
+          {chat.hasOlder && (
+            <div className="chat-history-loader">
+              {!!chat.olderError && <span role="alert">更早消息加载失败，请重试。</span>}
               <Button
-                danger
-                type="link"
                 size="small"
-                loading={sending}
-                onClick={() => void sendOutgoing(item)}
+                type="text"
+                loading={chat.loadingOlder}
+                onClick={() => void loadOlderMessages()}
               >
-                发送未确认，点击重试
+                {chat.olderError
+                  ? "重试加载"
+                  : chat.loadingOlder
+                    ? "正在加载更早消息"
+                    : "上滑加载更早消息"}
               </Button>
-              <Popconfirm
-                title="移除本机重试记录？"
-                description="请先刷新核对。仅移除本机记录，服务端已保存的消息会保留。"
-                onConfirm={() => removeFailed(item.client_message_id)}
-              >
-                <Button size="small" type="text">
-                  移除记录
-                </Button>
-              </Popconfirm>
             </div>
-          ))}
+          )}
+          {chat.loading ? (
+            <Spin />
+          ) : !visibleMessages.length ? (
+            <EmptyData text="还没有消息，可以从一句问候开始。" />
+          ) : (
+            <MessageHistory
+              messages={visibleMessages}
+              identity={identity}
+              canSend={canSend}
+              sending={sending}
+              readSeq={chat.readSeq}
+              onReply={setReply}
+              onWithdraw={withdraw}
+              onSend={sendOutgoing}
+            />
+          )}
+          {pending
+            .filter((item) => !confirmedIds.has(item.client_message_id))
+            .map((item) => (
+              <div
+                className="message-row own message-pending"
+                key={`pending-${item.client_message_id}`}
+                data-client-message-id={item.client_message_id}
+              >
+                <div className="message-bubble">{item.content || "附件消息"}</div>
+                <span className="message-delivery">
+                  <Spin size="small" /> 发送中
+                </span>
+              </div>
+            ))}
+          {failed
+            .filter(
+              (item) =>
+                item.audience !== "internal" &&
+                !confirmedIds.has(item.client_message_id) &&
+                !pending.some((outgoing) => outgoing.client_message_id === item.client_message_id),
+            )
+            .map((item) => (
+              <div className="message-row own" key={item.client_message_id}>
+                <div className="message-bubble">{item.content || "附件消息"}</div>
+                <Button
+                  danger
+                  type="link"
+                  size="small"
+                  loading={sending}
+                  onClick={() => void sendOutgoing(item)}
+                >
+                  发送未确认，点击重试
+                </Button>
+                <Popconfirm
+                  title="移除本机重试记录？"
+                  description="请先刷新核对。仅移除本机记录，服务端已保存的消息会保留。"
+                  onConfirm={() => removeFailed(item.client_message_id)}
+                >
+                  <Button size="small" type="text">
+                    移除记录
+                  </Button>
+                </Popconfirm>
+              </div>
+            ))}
+        </div>
       </div>
       {chat.typingUntil > Date.now() && (
         <div style={{ fontSize: 12, color: "var(--muted)", padding: "0 20px 8px" }}>

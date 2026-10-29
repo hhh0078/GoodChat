@@ -50,6 +50,7 @@ header p {
 #messages {
   height: 55vh;
   overflow: auto;
+  overflow-anchor: none;
   padding: 18px;
 }
 article {
@@ -148,8 +149,14 @@ button:disabled {
 #attachment-menu[hidden],.message-actions[hidden] {display:none;}
 article:focus-visible {outline:2px solid #165dff;outline-offset:3px;}
 .message-attachment img,.message-attachment video {max-width:100%;max-height:280px;border-radius:10px;}
-.message-options {display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-.message-options button,.message-file-save {font-size:12px;padding:6px 10px;}
+article:has(.message-options) {width:360px;box-sizing:border-box;}
+.message-options {display:flex;flex-direction:column;gap:8px;width:100%;max-width:320px;margin-top:10px;}
+.message-options button {width:100%;max-width:320px;min-height:44px;padding:10px 12px;white-space:normal;overflow-wrap:anywhere;text-align:left;font-size:14px;line-height:1.5;}
+.message-file-save {font-size:12px;padding:6px 10px;}
+.history-control {display:grid;justify-items:center;gap:4px;padding:4px 0 12px;}
+.history-control[hidden] {display:none;}
+.history-control button {min-height:36px;padding:5px 12px;background:transparent;border:1px solid #dce5f1;color:#65758f;font-size:12px;}
+.history-error {font-size:12px;color:#b63d35;white-space:pre-wrap;overflow-wrap:anywhere;}
 
 `,
     javascript: `const chat = window.GoodChat,
@@ -179,15 +186,63 @@ function clearReply() {
 const avatarFiles = new Map();
 let avatarURLs = [];
 let selectedMessage = "";
+let historyBusy = false, historyError = "", positioned = false, lastScrollTop = 0, historyAnchor = null, readingAnchor = null, followingLatest = true;
+const pendingOptions = new Set();
+const historyControl = document.createElement("div"), historyButton = document.createElement("button"), historyNotice = document.createElement("span");
+historyControl.className = "history-control"; historyButton.type = "button"; historyNotice.className = "history-error"; historyNotice.setAttribute("role", "status");
+historyControl.append(historyButton, historyNotice);
+/** atBottom 只在末条消息实际处于底部时跟随或上报已读。 */
+function atBottom() { return messages.scrollHeight - messages.scrollTop - messages.clientHeight <= 2; }
+/** captureAnchor 保存首条可见消息编号及相对位置，避免历史加载时被并发新消息影响。 */
+function captureAnchor() {
+  const viewport = messages.getBoundingClientRect();
+  for (const row of messages.querySelectorAll("[data-message-id]")) {
+    const rect = row.getBoundingClientRect();
+    if (rect.bottom > viewport.top && rect.top < viewport.bottom) return {id:row.dataset.messageId,offset:rect.top-viewport.top};
+  }
+  return null;
+}
+/** restoreAnchor 使用稳定消息节点恢复视口，不依据总滚动高度。 */
+function restoreAnchor(anchor) {
+  if (!anchor) return;
+  const row = [...messages.querySelectorAll("[data-message-id]")].find(item => item.dataset.messageId === anchor.id);
+  if (row) messages.scrollTop += row.getBoundingClientRect().top - messages.getBoundingClientRect().top - anchor.offset;
+}
+/** stabilizeLayout 在慢图片、视频元数据或视口变化后继续保持阅读位置。 */
+function stabilizeLayout() {
+  if (!positioned) return;
+  if (followingLatest && !historyBusy && !state?.loading_older) messages.scrollTop = messages.scrollHeight;
+  else restoreAnchor(historyAnchor || readingAnchor);
+  if (!followingLatest) readingAnchor = captureAnchor();
+  lastScrollTop = messages.scrollTop;
+}
+/** updateHistoryControl 显示分页进度和可重试的安全错误文案。 */
+function updateHistoryControl() {
+  const loading = historyBusy || state?.loading_older, problem = historyError || state?.older_error || "";
+  historyControl.hidden = !state?.has_older && !loading && !problem;
+  historyButton.disabled = Boolean(loading);
+  historyButton.textContent = loading ? "正在加载更早消息…" : problem ? "重试加载更早消息" : "加载更早消息";
+  historyNotice.textContent = String(problem).slice(0,500);
+}
+/** loadOlder 串行加载一页历史，失败后等待明确重试，保持阅读锚点。 */
+async function loadOlder() {
+  if (historyBusy || state?.loading_older || !state?.has_older || typeof chat.loadOlder !== "function") return;
+  historyBusy = true; historyError = ""; historyAnchor = captureAnchor(); readingAnchor = historyAnchor; followingLatest = false; updateHistoryControl();
+  try { await chat.loadOlder(); render(await chat.getState()); }
+  catch (problem) { historyError = problem?.message || "更早消息暂时无法读取，请重试"; }
+  finally { historyBusy = false; updateHistoryControl(); stabilizeLayout(); historyAnchor = null; lastScrollTop = messages.scrollTop; }
+}
+historyButton.onclick = () => { void loadOlder(); };
 /** render 展示当前授权消息，避免执行访客提交的HTML。 */
 function render(next) {
+  if (!next || !Array.isArray(next.messages)) return;
+  const bottom = !positioned || followingLatest, anchor = historyAnchor || (positioned && !bottom ? captureAnchor() || readingAnchor : null);
   state = next;
   if (replyTo && !(state.messages || []).some((item) => item.id === replyTo && !item.withdrawn_at))
     clearReply();
-  const bottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80;
   for (const url of avatarURLs) URL.revokeObjectURL(url);
   avatarURLs = [];
-  messages.replaceChildren();
+  messages.replaceChildren(historyControl);
   for (const item of state.messages || []) {
     const row = document.createElement("article"),
       label = document.createElement("small");
@@ -244,13 +299,13 @@ function render(next) {
         const element=document.createElement(kind);element.src=objectURL;element.alt=item.attachment.file_name||"图片消息";element.controls=true;element.playsInline=true;media.append(element);
       }).catch(problem=>{if(media.isConnected)error.textContent=problem.message;});
     }
-    if (!item.withdrawn_at && ["system","agent"].includes(item.sender_kind) && Array.isArray(item.options)) {
+    if (!item.withdrawn_at && ["system","agent"].includes(item.sender_kind) && Array.isArray(item.options) && item.options.length) {
       const options=document.createElement("div");options.className="message-options";
       for(const option of item.options.slice(0,8)){
         if(typeof option.label!=="string"||typeof option.value!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(option.client_message_id||""))continue;
         const button=document.createElement("button");button.type="button";button.textContent=option.label;
-        button.disabled=state.conversation?.status==="closed"||state.messages.some(message=>message.client_message_id===option.client_message_id);
-        button.onclick=async()=>{button.disabled=true;try{await chat.sendText(option.value,option.client_message_id);}catch(problem){button.disabled=false;error.textContent=problem.message;}};options.append(button);
+        button.disabled=state.conversation?.status==="closed"||pendingOptions.has(option.client_message_id)||state.messages.some(message=>message.client_message_id===option.client_message_id);
+        button.onclick=async()=>{if(button.disabled||pendingOptions.has(option.client_message_id))return;pendingOptions.add(option.client_message_id);button.disabled=true;try{await chat.sendText(option.value,option.client_message_id);render(await chat.getState());}catch(problem){button.disabled=false;error.textContent=problem.message;}finally{pendingOptions.delete(option.client_message_id);}};options.append(button);
       }row.append(options);
     }
     const seq = String(item.seq || "0"),
@@ -319,7 +374,10 @@ function render(next) {
     row.onkeydown=event=>{if(event.target===row&&(event.key==="Enter"||event.key===" ")){event.preventDefault();selectMessage(event);}};
     messages.append(row);
   }
-  if (bottom) messages.scrollTop = messages.scrollHeight;
+  updateHistoryControl();
+  if (anchor) restoreAnchor(anchor);
+  else if (bottom && !historyBusy && !state.loading_older) messages.scrollTop = messages.scrollHeight;
+  positioned = true; if (!followingLatest) readingAnchor = captureAnchor(); lastScrollTop = messages.scrollTop;
   status.textContent =
     state.conversation?.status === "closed"
       ? "本次咨询已结束"
@@ -336,8 +394,9 @@ function render(next) {
 async function markRead() {
   if (
     !state ||
+    !positioned || historyBusy || state.loading_older ||
     document.visibilityState !== "visible" ||
-    messages.scrollHeight - messages.scrollTop - messages.clientHeight > 80
+    !atBottom()
   )
     return;
   let seq = 0n;
@@ -405,7 +464,19 @@ file.onchange = async () => {
     file.value = "";
   }
 };
-messages.addEventListener("scroll", markRead);
+messages.addEventListener("scroll", () => {
+  const upward = messages.scrollTop < lastScrollTop;
+  if (positioned && messages.scrollTop !== lastScrollTop) {
+    followingLatest = atBottom(); readingAnchor = followingLatest ? null : captureAnchor();
+    if (historyBusy) historyAnchor = readingAnchor;
+  }
+  lastScrollTop = messages.scrollTop;
+  if (positioned && upward && messages.scrollTop <= 64 && !historyError && !state?.older_error) void loadOlder();
+  void markRead();
+});
+messages.addEventListener("load", stabilizeLayout, true);
+messages.addEventListener("loadedmetadata", stabilizeLayout, true);
+window.addEventListener("resize", stabilizeLayout);
 document.addEventListener("visibilitychange", markRead);
 chat.subscribe(render);
 chat.ready().catch((problem) => {

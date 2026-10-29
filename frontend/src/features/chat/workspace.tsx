@@ -17,12 +17,12 @@ import {
   Popover,
   Select,
   Space,
+  Spin,
   Tag,
 } from "antd";
 import {
   ArrowLeftOutlined,
   CustomerServiceOutlined,
-  ReloadOutlined,
   SwapOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -32,21 +32,21 @@ import { useRealtime } from "@/lib/realtime/use-realtime";
 import { api } from "@/lib/api";
 import { useSession } from "@/features/auth/session";
 import { useResource } from "@/lib/use-resource";
-import type { Conversation, Resource } from "@/lib/types";
+import type { Resource } from "@/lib/types";
 import { ErrorNotice, EmptyData, PageTitle } from "@/components/page-state";
 import { useWorkspaceReminders } from "./workspace-reminders";
 import { ReminderVolume } from "./reminder-volume";
 import { ChatPanel } from "./chat-panel";
 import { CustomerContext } from "./customer-context";
+import { ConversationFilters } from "./conversation-filters";
+import { useConversationInbox } from "./use-conversation-inbox";
+import "./conversation-list.css";
 type AgentStatus = { available: boolean; busy: boolean; current_load: number; capacity: number };
 /** AgentWorkspace 以真实身份接待访客，当前分配权限始终交由后端核验。 */
 export function AgentWorkspace() {
   const { tenantId, current } = useSession();
   const membership = current.memberships.find((item) => item.tenant_id === tenantId);
   const { message } = App.useApp();
-  const [selected, setSelected] = useState("");
-  const [status, setStatus] = useState("");
-  const [query, setQuery] = useState("");
   const [runtime, setRuntime] = useState<AgentStatus | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
@@ -59,10 +59,12 @@ export function AgentWorkspace() {
     setHeaderTarget(document.getElementById("workspace-header-actions"));
   }, []);
   const reminders = useWorkspaceReminders();
-  const conversations = useResource<Conversation>(
-    membership?.can_serve ? `/conversations?${new URLSearchParams({ status, query })}` : "",
-  );
-  const active = conversations.items.find((item) => item.id === selected);
+  const conversations = useConversationInbox({
+    tenantId,
+    actorId: membership?.id || "",
+    enabled: !!membership?.can_serve,
+  });
+  const { active, selected, status, period, select: setSelected } = conversations;
   const colleagues = useResource<Resource>(
     selected ? `/agent/colleagues?conversation_id=${encodeURIComponent(selected)}` : "",
   );
@@ -81,10 +83,7 @@ export function AgentWorkspace() {
         conversations.reload();
       },
       onRecover: async () => {
-        const [, runtime] = await Promise.all([
-          api(`/conversations?${new URLSearchParams({ status, query })}`, { tenantId }),
-          api<AgentStatus>("/agent/status", { tenantId }),
-        ]);
+        const runtime = await api<AgentStatus>("/agent/status", { tenantId });
         setRuntime(runtime);
         conversations.reload();
       },
@@ -169,6 +168,7 @@ export function AgentWorkspace() {
       </Tooltip>
       <Select
         aria-label="接待状态"
+        popupMatchSelectWidth={100}
         className={`agent-availability ${!runtime?.available ? "is-offline" : runtime.busy ? "is-busy" : "is-ready"}`}
         variant="outlined"
         value={!runtime?.available ? "offline" : runtime.busy ? "busy" : "ready"}
@@ -177,9 +177,9 @@ export function AgentWorkspace() {
           void updateStatus({ available: value !== "offline", busy: value === "busy" })
         }
         options={[
-          { value: "ready", label: "上班 · 可接待" },
-          { value: "busy", label: "上班 · 示忙" },
-          { value: "offline", label: "下班" },
+          { value: "ready", label: "正常" },
+          { value: "busy", label: "示忙" },
+          { value: "offline", label: "离线" },
         ]}
       />
       <ReminderVolume reminders={reminders} />
@@ -205,36 +205,24 @@ export function AgentWorkspace() {
       <div
         className={`chat-layout agent-layout ${selected ? "has-active" : ""} ${active && screens.xl ? "with-customer" : ""}`}
       >
-        <div className="conversation-list">
+        <div
+          className="conversation-list"
+          ref={conversations.listNode}
+          aria-label="会话列表"
+          onScroll={conversations.checkEnd}
+        >
           <div className="conversation-head">
-            <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 12 }}>
-              <div className="inbox-title">
-                <strong>咨询</strong>
-                <span aria-label={`当前列表${conversations.items.length}条`}>
-                  {conversations.items.length}
-                </span>
-              </div>
-              <Button
-                size="small"
-                icon={<ReloadOutlined />}
-                aria-label="刷新咨询列表"
-                onClick={conversations.reload}
-              />
-            </Space>
-            <Input.Search
-              allowClear
-              aria-label="搜索客户"
-              placeholder="搜索客户姓名或手机号"
-              onSearch={setQuery}
+            <ConversationFilters
+              period={period}
+              timezone={conversations.timezone}
+              onPeriod={conversations.changePeriod}
+              onSearch={conversations.search}
             />
             <Tabs
               className="inbox-tabs"
               tabBarGutter={13}
               activeKey={status}
-              onChange={(value) => {
-                setStatus(value);
-                setSelected("");
-              }}
+              onChange={conversations.changeStatus}
               items={[
                 { key: "", label: "全部" },
                 { key: "active", label: "接待中" },
@@ -299,6 +287,21 @@ export function AgentWorkspace() {
               </button>
             ))
           )}
+          <div className="conversation-list-footer" ref={conversations.listEnd}>
+            {conversations.loading || conversations.loadingMore ? (
+              <Spin size="small" />
+            ) : conversations.error && conversations.items.length ? (
+              <Button type="link" size="small" onClick={conversations.reload}>
+                加载失败，点击重试
+              </Button>
+            ) : conversations.hasMore ? (
+              <Button type="text" size="small" onClick={conversations.loadMore}>
+                加载更多会话
+              </Button>
+            ) : conversations.items.length ? (
+              <span>已显示全部匹配会话</span>
+            ) : null}
+          </div>
         </div>
         <div className="chat-main">
           {!active ? (

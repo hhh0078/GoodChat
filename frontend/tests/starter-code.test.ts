@@ -20,13 +20,17 @@ class ElementStub {
   scrollTop = 0;
   clientHeight = 100;
   /** append 记录安全文本节点，便于断言聊天内容。 */
-  append(node: ElementStub) {
-    node.parentElement = this;
-    this.children.push(node);
+  append(...nodes: ElementStub[]) {
+    for (const node of nodes) {
+      node.parentElement = this;
+      this.children.push(node);
+    }
   }
   /** replaceChildren 清理上次渲染结果。 */
-  replaceChildren() {
+  replaceChildren(...nodes: ElementStub[]) {
+    for (const node of this.children) node.parentElement = null;
     this.children = [];
+    this.append(...nodes);
   }
   /** addEventListener 忽略本用例不触发的输入事件。 */
   addEventListener() {}
@@ -34,10 +38,17 @@ class ElementStub {
   focus() {}
   /** setAttribute 保留控件语义设置所需入口，不执行浏览器外部能力。 */
   setAttribute() {}
+  /** getBoundingClientRect 供历史锚点读取必要布局接口，本用例不据此声称像素验收。 */
+  getBoundingClientRect() {
+    return { top: 0, bottom: this.clientHeight, height: this.clientHeight };
+  }
   /** querySelectorAll 遍历真实渲染生成的动作节点，检查选择消息前后的可见性。 */
   querySelectorAll(selector: string): ElementStub[] {
     return this.children.flatMap((node) => [
-      ...(selector.startsWith(".") && node.className === selector.slice(1) ? [node] : []),
+      ...((selector === "[data-message-id]" && node.dataset.messageId) ||
+      (selector.startsWith(".") && node.className === selector.slice(1))
+        ? [node]
+        : []),
       ...node.querySelectorAll(selector),
     ]);
   }
@@ -50,14 +61,17 @@ function mountStarter() {
   const sent: { text: string; id: string; reply?: string }[] = [];
   const withdrawn: string[] = [];
   let subscriber: (state: Record<string, unknown>) => void = () => {};
+  let currentState: Record<string, unknown> = {};
   const code = starterCodeDesign();
   const context = vm.createContext({
     window: {
+      addEventListener: () => {},
       GoodChat: {
         subscribe: (handler: typeof subscriber) => {
           subscriber = handler;
         },
         ready: () => Promise.resolve(),
+        getState: async () => currentState,
         read: async (seq: string) => {
           reads.push(seq);
           return { accepted: true };
@@ -88,7 +102,10 @@ function mountStarter() {
     reads,
     sent,
     withdrawn,
-    render: (state: Record<string, unknown>) => subscriber(state),
+    render: (state: Record<string, unknown>) => {
+      currentState = state;
+      subscriber(state);
+    },
   };
 }
 
@@ -114,7 +131,9 @@ test("代码初稿显示输入、本人角色和引用，已读游标始终按�
   });
   await Promise.resolve();
   assert.equal(nodes.get("typing")?.textContent, "客服正在输入…");
-  const bubble = nodes.get("messages")?.children[0];
+  const bubble = nodes
+    .get("messages")
+    ?.children.find((node) => node.dataset.messageId === "message-a");
   assert.equal(bubble?.className, "own");
   assert.match(bubble?.children[0]?.textContent || "", /^我 · 访客 ·/);
   assert.equal(bubble?.children[1]?.textContent, "引用：引用内容");
@@ -146,10 +165,13 @@ test("代码初稿引用沿用目标ID，撤回必须先行内联确认", async 
       },
     ],
   });
-  const actions = nodes.get("messages")?.children[0]?.children.at(-1);
+  const bubble = nodes
+    .get("messages")
+    ?.children.find((node) => node.dataset.messageId === "message-own");
+  const actions = bubble?.children.at(-1);
   assert.equal(actions?.className, "message-actions");
   assert.equal(actions?.hidden, true);
-  await nodes.get("messages")?.children[0]?.onclick?.();
+  await bubble?.onclick?.();
   assert.equal(actions?.hidden, false);
   await actions?.children[0]?.onclick?.();
   assert.equal(nodes.get("reply")?.hidden, false);
@@ -188,7 +210,8 @@ test("代码初稿客服选项使用服务端稳定消息编号且不覆盖访�
   });
   const options = nodes
     .get("messages")!
-    .children[0].children.find((node) => node.className === "message-options");
+    .children.find((node) => node.dataset.messageId === "agent-options")
+    ?.children.find((node) => node.className === "message-options");
   assert.equal(options?.children[0].textContent, "了解价格");
   await options?.children[0].onclick?.();
   assert.deepEqual(sent, [{ text: "我想了解价格", id: optionId, reply: undefined }]);
@@ -215,8 +238,10 @@ test("代码初稿客服选项使用服务端稳定消息编号且不覆盖访�
     ],
   });
   assert.equal(
-    nodes.get("messages")!.children[0].children.find((node) => node.className === "message-options")
-      ?.children[0].disabled,
+    nodes
+      .get("messages")!
+      .children.find((node) => node.dataset.messageId === "agent-options")
+      ?.children.find((node) => node.className === "message-options")?.children[0].disabled,
     true,
   );
 });

@@ -66,6 +66,9 @@ func (s *Service) chatRecords(w http.ResponseWriter, r *http.Request) {
 // listConversations 以持久数据库结果构建筛选列表，不用模拟统计。
 func (s *Service) listConversations(w http.ResponseWriter, r *http.Request, a actor) {
 	var items []map[string]any
+	nextCursor := ""
+	hasMore := false
+	timezone := ""
 	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
 		if a.ContactID == "" {
 			if err := liveMember(r.Context(), tx, a); err != nil {
@@ -76,13 +79,23 @@ func (s *Service) listConversations(w http.ResponseWriter, r *http.Request, a ac
 				return err
 			}
 		}
-		args, _, err := conversationFilterArgs(r.Context(), tx, r, a)
+		args, zone, err := conversationFilterArgs(r.Context(), tx, r, a)
 		if err != nil {
 			return err
 		}
+		timezone = zone
+		limit, from, to, scope, err := conversationPageOptions(r, a, timezone)
+		if err != nil {
+			return err
+		}
+		before, beforeID, err := s.decodeConversationCursor(r.URL.Query().Get("cursor"), scope)
+		if err != nil {
+			return err
+		}
+		args = append(args, from, to, before, beforeID, limit+1)
 		// 未读按当前成员自己的已读游标计算，不能由管理员、其他客服或访客的读取代清。
 		unread := `||jsonb_build_object('unread_count',(SELECT count(*) FROM messages unread WHERE unread.tenant_id=c.tenant_id AND unread.conversation_id=c.id AND unread.audience='public' AND unread.sender_kind='visitor' AND unread.withdrawn_at IS NULL AND chat_message_visible(NULLIF($3,'')::uuid,NULLIF($1,'')::uuid,$2,unread.id) AND unread.event_seq>coalesce((SELECT rc.last_read_seq FROM read_cursors rc WHERE rc.tenant_id=c.tenant_id AND rc.conversation_id=c.id AND rc.participant_id=NULLIF($3,'')::uuid AND rc.participant_kind='agent'),0)))`
-		query := "SELECT " + conversationProjection + unread + conversationJoins + conversationWhere + " ORDER BY coalesce(c.last_message_at,c.created_at) DESC,c.id LIMIT 200"
+		query := "SELECT " + conversationProjection + unread + conversationJoins + conversationWhere + conversationActivityWhere + conversationPageWhere + " ORDER BY " + conversationActivity + " DESC,c.id LIMIT $15"
 		rows, err := tx.Query(r.Context(), query, args...)
 		if err != nil {
 			return err
@@ -91,13 +104,21 @@ func (s *Service) listConversations(w http.ResponseWriter, r *http.Request, a ac
 		if err != nil {
 			return err
 		}
+		hasMore = len(items) > limit
+		if hasMore {
+			items = items[:limit]
+			nextCursor, err = s.encodeConversationCursor(items[len(items)-1], scope)
+			if err != nil {
+				return err
+			}
+		}
 		return addPendingTransfers(r.Context(), tx, items, a)
 	})
 	if err != nil {
 		replyError(w, r, err)
 		return
 	}
-	platform.JSON(w, 200, map[string]any{"items": items})
+	platform.JSON(w, 200, map[string]any{"items": items, "has_more": hasMore, "next_cursor": nextCursor, "timezone": timezone})
 }
 
 // filterTime 将日期筛选按租户时区解释，完整时间则遵循其显式时区。

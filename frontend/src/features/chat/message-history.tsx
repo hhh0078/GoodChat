@@ -50,6 +50,7 @@ export function MessageHistory({
             <div
               className={`message-row ${own ? "own" : ""} ${item.audience === "internal" ? "internal" : ""}`}
               data-client-message-id={item.client_message_id}
+              data-message-id={item.id}
             >
               <Avatar
                 size={32}
@@ -144,16 +145,16 @@ export function MessageHistory({
                       </div>
                     )}
                     {(item.sender_kind === "system" || item.sender_kind === "agent") &&
-                      Array.isArray(item.options) && (
-                        <Space
-                          wrap
-                          style={{ marginTop: 10, display: "flex" }}
+                      Array.isArray(item.options) &&
+                      item.options.length > 0 && (
+                        <div
+                          className="message-options"
                           onClick={(event) => event.stopPropagation()}
                         >
                           {item.options.map((option) => (
                             <Button
                               key={option.id}
-                              size="small"
+                              className="message-option"
                               disabled={
                                 !canSend ||
                                 identity.kind !== "visitor" ||
@@ -175,7 +176,7 @@ export function MessageHistory({
                               {option.label}
                             </Button>
                           ))}
-                        </Space>
+                        </div>
                       )}
                   </>
                 )}

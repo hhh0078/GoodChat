@@ -14,6 +14,7 @@ import (
 
 // registerOperations 注册接待效率和反馈接口，写操作保留成员或管理员边界。
 func (s *Service) registerOperations(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/v1/tenant/connection-alerts", s.auth.RequireTenant(s.connectionAlerts))
 	mux.HandleFunc("GET /api/v1/tenant/chat-settings", s.auth.RequireTenant(s.chatSettings))
 	mux.HandleFunc("PATCH /api/v1/tenant/chat-settings", s.auth.RequireAdmin(s.chatSettings))
 	mux.HandleFunc("GET /api/v1/tenant/notification-preferences", s.auth.RequireTenant(s.preferences))

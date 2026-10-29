@@ -20,6 +20,7 @@ import { useResource } from "@/lib/use-resource";
 import type { Member, Resource } from "@/lib/types";
 import { PageTitle } from "@/components/page-state";
 import { api } from "@/lib/api";
+import { ConnectionAlerts } from "./connection-alerts";
 
 type DashboardSubscriptionData = {
   plan?: { name: string };
@@ -259,6 +260,7 @@ export function Dashboard() {
           }
         />
       )}
+      {membership && tenantId && <ConnectionAlerts key={tenantId} tenantId={tenantId} />}
       <div className="console-metrics">
         {metrics.map((item) => (
           <article className="console-metric" key={item.title}>

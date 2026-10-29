@@ -17,6 +17,58 @@
   let urls = [], retry = null, reply = null, lastTyping = 0, typingTimer = null, messageSignature = "";
   const avatarFiles = new Map();
   let selectedMessage = "";
+  let historyBusy = false, historyError = "", positioned = false, lastScrollTop = 0, historyAnchor = null, readingAnchor = null, followingLatest = true;
+  const historyControl = document.createElement("div"), historyButton = document.createElement("button"), historyNotice = document.createElement("span");
+  historyControl.className = "gc-history-control"; historyButton.type = "button"; historyNotice.className = "gc-history-error"; historyNotice.setAttribute("role", "status");
+  historyControl.append(historyButton, historyNotice);
+
+  /** 判断末条消息确实处于视口底部，不把查阅历史当作读完最新消息。 */
+  function atBottom() { return messages.scrollHeight - messages.scrollTop - messages.clientHeight <= 2; }
+
+  /** 记录首条可见消息的稳定编号和相对偏移，避免并发新消息影响历史加载后的阅读位置。 */
+  function captureAnchor() {
+    const viewport = messages.getBoundingClientRect();
+    for (const row of messages.querySelectorAll("[data-message-id]")) {
+      const rect = row.getBoundingClientRect();
+      if (rect.bottom > viewport.top && rect.top < viewport.bottom) return { id: row.dataset.messageId, offset: rect.top - viewport.top };
+    }
+    return null;
+  }
+
+  /** 恢复同一条消息在视口中的位置，不使用含并发新增消息的总高度差。 */
+  function restoreAnchor(anchor) {
+    if (!anchor) return;
+    const row = [...messages.querySelectorAll("[data-message-id]")].find(item => item.dataset.messageId === anchor.id);
+    if (row) messages.scrollTop += row.getBoundingClientRect().top - messages.getBoundingClientRect().top - anchor.offset;
+  }
+
+  /** 图片和媒体稍后撑开布局时沿用阅读锚点；正在看最新消息则继续跟随到底。 */
+  function stabilizeLayout() {
+    if (!positioned) return;
+    if (followingLatest && !historyBusy && !state?.loading_older) messages.scrollTop = messages.scrollHeight;
+    else restoreAnchor(historyAnchor || readingAnchor);
+    if (!followingLatest) readingAnchor = captureAnchor();
+    lastScrollTop = messages.scrollTop;
+  }
+
+  /** 显示真实加载与失败状态，失败后保留可操作的重试入口。 */
+  function updateHistoryControl() {
+    const loading = historyBusy || state?.loading_older, problem = historyError || state?.older_error || "";
+    historyControl.hidden = !state?.has_older && !loading && !problem;
+    historyButton.disabled = Boolean(loading);
+    historyButton.textContent = loading ? "正在加载更早消息…" : problem ? "重试加载更早消息" : "加载更早消息";
+    historyNotice.textContent = String(problem).slice(0, 500);
+  }
+
+  /** 只发起一页历史请求；失败不会因仍在顶部而自动重复，用户可明确重试。 */
+  async function loadOlder() {
+    if (historyBusy || state?.loading_older || !state?.has_older || typeof chat.loadOlder !== "function") return;
+    historyBusy = true; historyError = ""; historyAnchor = captureAnchor(); readingAnchor = historyAnchor; followingLatest = false; updateHistoryControl();
+    try { await chat.loadOlder(); render(await chat.getState()); }
+    catch (problem) { historyError = problem?.message || "更早消息暂时无法读取，请重试"; }
+    finally { historyBusy = false; updateHistoryControl(); stabilizeLayout(); historyAnchor = null; lastScrollTop = messages.scrollTop; }
+  }
+  historyButton.onclick = () => { void loadOlder(); };
 
   /** 从可信父层读取受控头像Blob，在本沙箱生成图片地址，不放宽CSP或读取任意网络网址。 */
   function messageAvatar(meta, item) {
@@ -76,7 +128,7 @@
 
   /** 只在消息真实可见且滚动到底部时上报精确已读位置。 */
   async function read() {
-    if (!state || document.visibilityState !== "visible" || messages.scrollHeight - messages.scrollTop - messages.clientHeight > 60) return;
+    if (!state || !positioned || historyBusy || state.loading_older || document.visibilityState !== "visible" || !atBottom()) return;
     let last = 0n;
     for (const item of state.messages || []) { const value = sequence(item.seq || item.event_seq || item.sequence); if (value > last) last = value; }
     if (last <= readSeq) return;
@@ -152,8 +204,8 @@
 
   /** 欢迎选项按普通访客文字发送，沿用服务端持久UUID使连点和刷新保持幂等。 */
   function welcomeOptions(node, item) {
-    if (!["system","agent"].includes(item.sender_kind) || !Array.isArray(item.options)) return;
-    const options = document.createElement("div");
+    if (!["system","agent"].includes(item.sender_kind) || !Array.isArray(item.options) || !item.options.length) return;
+    const options = document.createElement("div"); options.className = "gc-message-options";
     for (const option of item.options.slice(0, 8)) {
       if (typeof option.label !== "string" || typeof option.value !== "string" || !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(option.client_message_id || "")) continue;
       const button = document.createElement("button"); button.type = "button"; button.className = "gc-file-save gc-welcome-option"; button.textContent = option.label; button.dataset.clientMessageId = option.client_message_id;
@@ -211,16 +263,19 @@
   /** 合并父层实时状态；单纯输入状态或已读变化不重建附件和消息DOM。 */
   function render(next) {
     if (!next || !Array.isArray(next.messages)) return;
+    const bottom = !positioned || followingLatest, anchor = historyAnchor || (positioned && !bottom ? captureAnchor() || readingAnchor : null);
     state = next;
     status.textContent = next.conversation ? ({ queued: "正在排队，请稍候", assigned: "客服正在接入", active: "已连接客服", closed: "本次咨询已结束" }[next.conversation.status] || "已连接咨询服务") : "咨询服务已准备好";
     typing.textContent = next.is_typing && next.conversation?.status !== "closed" ? "客服正在输入…" : "";
     const signature = JSON.stringify(next.messages);
     if (signature !== messageSignature) {
-      const atBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80;
       for (const objectURL of urls) URL.revokeObjectURL(objectURL);
-      urls = []; messages.replaceChildren(...next.messages.map(messageElement)); messageSignature = signature;
-      if (atBottom) messages.scrollTop = messages.scrollHeight;
+      urls = []; messages.replaceChildren(historyControl, ...next.messages.map(messageElement)); messageSignature = signature;
     }
+    updateHistoryControl();
+    if (anchor) restoreAnchor(anchor);
+    else if (bottom && !historyBusy && !next.loading_older) messages.scrollTop = messages.scrollHeight;
+    positioned = true; if (!followingLatest) readingAnchor = captureAnchor(); lastScrollTop = messages.scrollTop;
     if (reply && !next.messages.some(item => item.id === reply.id && !item.withdrawn_at)) cancelReply();
     updateReceipts(); updateComposer(); void read();
   }
@@ -262,7 +317,19 @@
     catch (problem) { showError(problem); }
     finally { busy = false; file.value = ""; updateComposer(); }
   };
-  messages.addEventListener("scroll", () => { void read(); });
+  messages.addEventListener("scroll", () => {
+    const upward = messages.scrollTop < lastScrollTop;
+    if (positioned && messages.scrollTop !== lastScrollTop) {
+      followingLatest = atBottom(); readingAnchor = followingLatest ? null : captureAnchor();
+      if (historyBusy) historyAnchor = readingAnchor;
+    }
+    lastScrollTop = messages.scrollTop;
+    if (positioned && upward && messages.scrollTop <= 64 && !historyError && !state?.older_error) void loadOlder();
+    void read();
+  });
+  messages.addEventListener("load", stabilizeLayout, true);
+  messages.addEventListener("loadedmetadata", stabilizeLayout, true);
+  window.addEventListener("resize", stabilizeLayout);
   document.addEventListener("visibilitychange", () => { void read(); });
   window.addEventListener("pagehide", () => { clearTimeout(typingTimer); for (const objectURL of urls) URL.revokeObjectURL(objectURL); }, { once: true });
   chat.subscribe(render);

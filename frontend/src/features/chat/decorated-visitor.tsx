@@ -150,6 +150,8 @@ export function DecoratedVisitor({
       is_typing: value.typingUntil > Date.now(),
       peer_read_seq: value.readSeq,
       has_older: value.hasOlder,
+      loading_older: value.loadingOlder,
+      older_error: value.olderError ? "更早消息加载失败，请重试。" : null,
       error: value.error ? errorMessage(value.error) : null,
     };
   }
@@ -162,6 +164,9 @@ export function DecoratedVisitor({
     chat.typingUntil,
     chat.readSeq,
     chat.loading,
+    chat.hasOlder,
+    chat.loadingOlder,
+    chat.olderError,
     chat.error,
     ready,
   ]);
