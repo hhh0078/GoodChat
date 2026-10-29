@@ -5,7 +5,7 @@
 }
 .compact-quick-replies.composer-quick-replies {
   gap: 0;
-  padding: 6px 8px 8px;
+  padding: 2px 4px 4px;
 }
 .compact-quick-replies .quick-reply-add {
   align-self: flex-end;
@@ -14,20 +14,29 @@
   padding: 0;
 }
 .compact-quick-replies .quick-reply-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  gap: 2px 4px;
   max-height: 120px;
   min-height: 20px;
 }
 .quick-reply-title {
-  display: block;
-  width: 100%;
-  padding: 4px 3px;
+  flex: 0 1 auto;
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 22px;
+  margin: 0;
+  padding: 1px 3px;
   border: 0;
   background: transparent;
   color: var(--ink);
   text-align: left;
   font: inherit;
   font-size: 12px;
-  line-height: 1.55;
+  line-height: 1.4;
   white-space: normal;
   overflow-wrap: anywhere;
   cursor: pointer;
@@ -46,7 +55,9 @@
   opacity: 0.5;
 }
 .quick-reply-divider {
-  margin: 5px 0;
+  flex: 0 0 100%;
+  width: 100%;
+  margin: 2px 0;
   border: 0;
   border-top: 1px solid var(--line);
 }
@@ -69,8 +80,5 @@
 @media (max-width: 600px) {
   .agent-layout .chat-composer.has-quick-replies {
     --quick-reply-width: 38%;
-  }
-  .compact-quick-replies.composer-quick-replies {
-    padding-inline: 5px;
   }
 }
