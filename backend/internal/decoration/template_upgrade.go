@@ -124,6 +124,9 @@ func prepareLegacyTemplateHTML(raw []byte) (string, error) {
 		for child := node.FirstChild; child != nil; {
 			next := child.NextSibling
 			remove := child.Type == xhtml.ElementNode && child.Data == "script"
+			if !complete && isLegacyChatSkeleton(child) {
+				remove = true
+			}
 			if child.Type == xhtml.ElementNode && child.Data == "link" {
 				for _, attr := range child.Attr {
 					if attr.Key == "rel" && (attr.Val == "modulepreload" || attr.Val == "preload") {
@@ -151,6 +154,12 @@ func prepareLegacyTemplateHTML(raw []byte) (string, error) {
 					child.Attr = attrs
 					if child.Data == "button" {
 						normalizeLegacyButton(child, complete)
+					}
+					// 新固定面板稍后追加；其它失去旧脚本的表单只能展示，避免可填写却无法提交。
+					if !complete && (child.Data == "input" || child.Data == "textarea" || child.Data == "select") {
+						if _, disabled := templateNodeAttributes(child)["disabled"]; !disabled {
+							child.Attr = append(child.Attr, xhtml.Attribute{Key: "disabled"})
+						}
 					}
 					if complete {
 						for _, attr := range attrs {
@@ -205,6 +214,40 @@ func prepareLegacyTemplateHTML(raw []byte) (string, error) {
 		return "", err
 	}
 	return out.String(), nil
+}
+
+// isLegacyChatSkeleton 只识别已知旧聊天容器及固定节点，不把品牌、欢迎、FAQ等静态区块当作失效聊天删除。
+func isLegacyChatSkeleton(node *xhtml.Node) bool {
+	if node.Type != xhtml.ElementNode {
+		return false
+	}
+	attrs := templateNodeAttributes(node)
+	id := strings.TrimPrefix(attrs["id"], "legacy-")
+	if _, required := templateRequiredNodes[id]; required || id == "gc-compose" {
+		return true
+	}
+	known := id == "gc-chat"
+	for _, name := range strings.Fields(attrs["class"]) {
+		known = known || name == "gc-chat" || name == "gc-conversation"
+	}
+	if !known || node.Data != "section" && node.Data != "div" {
+		return false
+	}
+	return legacyChatHasFixedNode(node)
+}
+
+// legacyChatHasFixedNode 在任意布局嵌套中确认旧聊天固定节点，防止按相似类名删除普通静态区块。
+func legacyChatHasFixedNode(node *xhtml.Node) bool {
+	id := strings.TrimPrefix(templateNodeAttributes(node)["id"], "legacy-")
+	if _, required := templateRequiredNodes[id]; required || id == "gc-compose" {
+		return true
+	}
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if legacyChatHasFixedNode(child) {
+			return true
+		}
+	}
+	return false
 }
 
 // normalizeLegacyButton 仅保留固定SDK可执行的旧按钮，失去旧脚本的控件转为保留文案样式的静态节点。
