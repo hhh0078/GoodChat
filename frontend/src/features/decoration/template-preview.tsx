@@ -1,135 +1,103 @@
-/** 文件作用说明：按真实行业制作模板设计封面，结构化模板展示已有组件，所有代码保持隔离执行。 */
-import { Avatar } from "antd";
-import {
-  ArrowRightOutlined,
-  BankOutlined,
-  CustomerServiceOutlined,
-  HomeOutlined,
-  MedicineBoxOutlined,
-  MessageOutlined,
-  ReadOutlined,
-  ShoppingOutlined,
-} from "@ant-design/icons";
-import type { CSSProperties } from "react";
-import type { Template } from "./templates";
+/** 文件作用说明：在模板卡片中延迟加载真实隔离页面，按手机视口缩放并通过覆盖按钮打开完整预览。 */
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { Button, Spin } from "antd";
+import { api, errorMessage } from "@/lib/api";
+import { safeRenderURL } from "@/lib/frame-bridge";
 
-const blockNames: Record<string, string> = {
-  welcome: "欢迎说明",
-  text: "文字说明",
-  chat: "聊天区域",
-  links: "服务链接",
-  faq: "常见问题",
-  image: "图片内容",
-};
-const industryCovers = [
-  { key: "finance", name: "金融咨询", caption: "TRUST & CARE", Icon: BankOutlined },
-  {
-    key: "commerce",
-    name: "电商售后",
-    caption: "GOOD THINGS, GOOD SERVICE",
-    Icon: ShoppingOutlined,
-  },
-  { key: "education", name: "教育咨询", caption: "A NEW CHAPTER", Icon: ReadOutlined },
-  { key: "medical", name: "医疗服务", caption: "CARE WITH YOU", Icon: MedicineBoxOutlined },
-  { key: "property", name: "房产顾问", caption: "A PLACE TO CALL HOME", Icon: HomeOutlined },
-  {
-    key: "business",
-    name: "企业服务",
-    caption: "FROM IDEA TO IMPACT",
-    Icon: CustomerServiceOutlined,
-  },
-];
-const customCover = {
-  key: "custom",
-  name: "专属设计",
-  caption: "YOUR BRAND, YOUR SERVICE",
-  Icon: MessageOutlined,
-};
-
-/** TemplatePreview 展示模板已有品牌和组件内容，不执行代码或伪造实际聊天预览。 */
+/** TemplatePreview 只为进入可视范围的卡片申请短期预览，不允许缩略页面接收指针或键盘操作。 */
 export function TemplatePreview({
-  template,
+  path,
+  name,
+  tenantId,
+  enabled,
   onPreview,
 }: {
-  template: Template;
-  onPreview?: () => void;
+  path: string;
+  name: string;
+  tenantId: string;
+  enabled: boolean;
+  onPreview: () => void;
 }) {
-  const design = template.design;
-  const accent = /^#[\da-f]{6}$/i.test(design?.theme?.primary_color || "")
-    ? design.theme!.primary_color
-    : "#3c7958";
-  if (template.render_mode === "code") {
-    const cover = industryCovers.find((item) => item.key === template.industry_key) || customCover;
-    const Icon = cover.Icon;
-    const className = `studio-template-cover studio-industry-cover industry-${cover.key}${onPreview ? " is-interactive" : ""}`;
-    const content = (
-      <>
-        <span className="studio-cover-heading">
-          <span>{cover.name}</span>
-          <small>客服模板</small>
-        </span>
-        <span className="studio-cover-emblem" aria-hidden="true">
-          <Icon />
-        </span>
-        <span className="studio-cover-copy">
-          <small>{cover.caption}</small>
-          <strong>{template.name || "专属客服页面"}</strong>
-        </span>
-        <span className="studio-cover-footer">
-          <small>设计封面</small>
-          <span>
-            {onPreview ? (
-              <>
-                点击预览完整页面 <ArrowRightOutlined />
-              </>
-            ) : (
-              "品牌在线服务"
-            )}
-          </span>
-        </span>
-      </>
+  const host = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [source, setSource] = useState("");
+  const [error, setError] = useState<unknown>(null);
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    if (!host.current) return;
+    const intersection = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true);
+          intersection.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
     );
-    return onPreview ? (
-      <button
-        type="button"
-        className={className}
-        onClick={onPreview}
-        aria-label={`${template.name || "专属客服页面"}，预览完整页面`}
-      >
-        {content}
-      </button>
-    ) : (
-      <div className={className}>{content}</div>
-    );
-  }
+    const resize = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      setSize({ width: rect?.width || 0, height: rect?.height || 0 });
+    });
+    intersection.observe(host.current);
+    resize.observe(host.current);
+    return () => {
+      intersection.disconnect();
+      resize.disconnect();
+    };
+  }, []);
+  useEffect(() => {
+    setSource("");
+    setError(null);
+    if (!visible || !enabled) return;
+    const controller = new AbortController();
+    api<{ preview_url: string }>(path, { method: "POST", tenantId, signal: controller.signal })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        const url = safeRenderURL(result?.preview_url || "", window.location.origin);
+        if (!url) throw new Error("预览地址未通过来源检查");
+        setSource(url.href);
+      })
+      .catch((problem) => {
+        if (!controller.signal.aborted) setError(problem);
+      });
+    return () => controller.abort();
+  }, [path, tenantId, enabled, visible, revision]);
+  const scale = Math.min(size.width / 390, size.height / 780);
   return (
-    <div className="studio-template-cover" style={{ "--template-accent": accent } as CSSProperties}>
-      <div className="studio-template-document">
-        <header>
-          <Avatar
-            src={design?.brand?.logo_url || undefined}
-            size={30}
-            style={{ background: "var(--template-accent)" }}
-          >
-            {(design?.brand?.title || String(template.name || "在线咨询")).slice(0, 1)}
-          </Avatar>
-          <div>
-            <strong>{design?.brand?.title || String(template.name || "在线咨询")}</strong>
-            {design?.brand?.subtitle && <small>{design.brand.subtitle}</small>}
-          </div>
-        </header>
-        <div className="studio-template-blocks">
-          {(design?.blocks || []).slice(0, 3).map((block) => (
-            <div key={block.id} className={block.type === "chat" ? "studio-template-chat" : ""}>
-              {block.type === "chat" && <MessageOutlined />}
-              <strong>{block.title || blockNames[block.type] || block.type}</strong>
-              {block.content && <p>{block.content}</p>}
-            </div>
-          ))}
-          {!design?.blocks?.length && <p className="muted">尚未添加页面组件</p>}
+    <div className="studio-template-live" ref={host}>
+      {source ? (
+        <iframe
+          title={`${name}页面缩略预览`}
+          src={source}
+          sandbox="allow-scripts allow-same-origin"
+          referrerPolicy="no-referrer"
+          tabIndex={-1}
+          inert
+          aria-hidden="true"
+          style={{ width: 390, height: 780, transform: `translate(-50%, -50%) scale(${scale})` }}
+        />
+      ) : error ? (
+        <div className="studio-template-preview-state" role="status">
+          <span>{errorMessage(error)}</span>
+          <Button size="small" onClick={() => setRevision((value) => value + 1)}>
+            重试预览
+          </Button>
         </div>
-        <footer>模板结构预览</footer>
-      </div>
+      ) : (
+        <div className="studio-template-preview-state">
+          {enabled ? <Spin size="small" /> : <span>预览仅管理员可用</span>}
+        </div>
+      )}
+      {enabled && !error && (
+        <button
+          type="button"
+          className="studio-template-preview-open"
+          aria-label={`${name}，预览完整页面`}
+          onClick={onPreview}
+        />
+      )}
     </div>
   );
 }

@@ -1,31 +1,16 @@
 /** 文件作用说明：读取后端维护的六行业静态模板，将用户选择的作品复制为本租户私有模板。 */
 "use client";
-import { useState } from "react";
-import { Alert, App, Button, Spin } from "antd";
-import {
-  BankOutlined,
-  ShoppingOutlined,
-  ReadOutlined,
-  HomeOutlined,
-  MedicineBoxOutlined,
-  CustomerServiceOutlined,
-} from "@ant-design/icons";
+import { useEffect, useState } from "react";
+import { Alert, App, Button, Card, Spin } from "antd";
 import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { useAssistantLauncher } from "./launcher";
-import { TemplatePreviewButton } from "./template-preview-modal";
+import { TemplatePreviewModal } from "./template-preview-modal";
+import { TemplatePreview } from "@/features/decoration/template-preview";
 import type { Template } from "@/features/decoration/templates";
 
 type Industry = { id: string; key: string; name: string; description: string };
-const industryIcons = [
-  BankOutlined,
-  ShoppingOutlined,
-  ReadOutlined,
-  MedicineBoxOutlined,
-  HomeOutlined,
-  CustomerServiceOutlined,
-];
 
 /** IndustryTemplates 只展示真实目录和复制接口结果，不在客户端伪造已保存模板。 */
 export function IndustryTemplates({
@@ -40,8 +25,12 @@ export function IndustryTemplates({
   const catalog = useResource<Industry>("/tenant/template-industries");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState<unknown>(null);
+  const [previewIndustry, setPreviewIndustry] = useState<Industry | null>(null);
   const { message } = App.useApp();
   const { openAssistant } = useAssistantLauncher();
+  useEffect(() => {
+    setPreviewIndustry(null);
+  }, [tenantId]);
 
   /** copy 保存后端提供的完整行业文件包，复制或二创都使用当前租户自己的作品。 */
   async function copy(industry: Industry, remix: boolean) {
@@ -88,33 +77,36 @@ export function IndustryTemplates({
       ) : !catalog.items.length ? (
         <EmptyData text="行业模板目录暂未准备好，请稍后刷新。" />
       ) : (
-        <div className="assistant-industry-grid">
-          {catalog.items.map((industry, index) => {
-            const Icon = industryIcons[index % industryIcons.length];
-            return (
-              <article key={industry.key} className="assistant-industry-card">
-                <span className="industry-mark" aria-hidden="true">
-                  <Icon />
-                </span>
-                <h3>{industry.name}</h3>
-                <p>{industry.description}</p>
+        <div className="templates-grid">
+          {catalog.items.map((industry) => (
+            <Card key={industry.key} size="small" className="studio-template-object">
+              <TemplatePreview
+                path={`/tenant/template-industries/${encodeURIComponent(industry.key)}/preview`}
+                name={industry.name}
+                tenantId={tenantId}
+                enabled={canManage}
+                onPreview={() => setPreviewIndustry(industry)}
+              />
+              <div className="studio-template-details">
+                <strong className="studio-template-name" title={industry.name}>
+                  {industry.name}
+                </strong>
                 {canManage && (
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <TemplatePreviewButton
-                      path={`/tenant/template-industries/${encodeURIComponent(industry.key)}/preview`}
-                      name={industry.name}
-                      tenantId={tenantId}
-                    />
+                  <div className="studio-template-actions">
+                    <Button size="small" onClick={() => setPreviewIndustry(industry)}>
+                      预览
+                    </Button>
                     <Button
-                      disabled={!canManage || (!!busy && busy !== `${industry.key}:false`)}
+                      size="small"
+                      disabled={!!busy && busy !== `${industry.key}:false`}
                       loading={busy === `${industry.key}:false`}
                       onClick={() => void copy(industry, false)}
                     >
                       添加到我的模板
                     </Button>
                     <Button
-                      type="link"
-                      disabled={!canManage || (!!busy && busy !== `${industry.key}:true`)}
+                      size="small"
+                      disabled={!!busy && busy !== `${industry.key}:true`}
                       loading={busy === `${industry.key}:true`}
                       onClick={() => void copy(industry, true)}
                     >
@@ -122,11 +114,22 @@ export function IndustryTemplates({
                     </Button>
                   </div>
                 )}
-              </article>
-            );
-          })}
+              </div>
+            </Card>
+          ))}
         </div>
       )}
+      <TemplatePreviewModal
+        path={
+          previewIndustry
+            ? `/tenant/template-industries/${encodeURIComponent(previewIndustry.key)}/preview`
+            : ""
+        }
+        name={previewIndustry?.name || "行业模板"}
+        tenantId={tenantId}
+        open={!!previewIndustry}
+        onClose={() => setPreviewIndustry(null)}
+      />
     </>
   );
 }

@@ -19,13 +19,7 @@ import {
   Tabs,
   Tag,
 } from "antd";
-import {
-  ArrowRightOutlined,
-  EyeOutlined,
-  PlusOutlined,
-  RobotOutlined,
-  SkinOutlined,
-} from "@ant-design/icons";
+import { ArrowRightOutlined, PlusOutlined, RobotOutlined, SkinOutlined } from "@ant-design/icons";
 import { starterCodeDesign } from "./starter-code";
 import { CodePackages } from "./code-packages";
 import { TemplatePreview } from "./template-preview";
@@ -267,62 +261,56 @@ export function TemplatesPage() {
         {items.map((item) => (
           <Card key={item.id} size="small" className="studio-template-object">
             <TemplatePreview
-              template={item}
-              onPreview={manages ? () => setPreviewTemplate(item) : undefined}
+              key={`${tenantId}:${item.id}:${item.version}`}
+              path={`/tenant/templates/${item.id}/preview`}
+              name={item.name || "未命名模板"}
+              tenantId={tenantId}
+              enabled={manages}
+              onPreview={() => setPreviewTemplate(item)}
             />
-            <div className="template-info">
-              <Space>
-                <strong>{item.name}</strong>
-                <Tag>{item.render_mode === "code" ? "代码模板" : "可视化模板"}</Tag>
-              </Space>
+            <div className="studio-template-details">
+              <strong className="studio-template-name" title={item.name}>
+                {item.name}
+              </strong>
               {manages && (
-                <div style={{ marginTop: 8 }}>
+                <div className="studio-template-actions">
                   <TemplateActions
                     template={item}
                     isPublic={isPublic}
+                    extraActions={[
+                      {
+                        key: "edit",
+                        label: "编辑模板",
+                        onClick: () => router.push(`/console/templates/${item.id}`),
+                      },
+                      {
+                        key: "duplicate",
+                        label: "复制模板",
+                        onClick: () => void duplicate(item, false),
+                      },
+                      {
+                        key: "page",
+                        label: "创建页面",
+                        disabled: item.status !== undefined && item.status !== "ready",
+                        onClick: () => {
+                          pageForm.resetFields();
+                          pageForm.setFieldsValue({ name: `${item.name} 页面` });
+                          setSubmitError(null);
+                          setPageTemplate(item);
+                        },
+                      },
+                    ]}
                     onChanged={() => {
                       setRevision((value) => value + 1);
                       pages.reload();
                     }}
                   />
+                  {isPublic && (
+                    <Button size="small" onClick={() => void duplicate(item, true)}>
+                      添加到我的模板
+                    </Button>
+                  )}
                 </div>
-              )}
-              <p className="muted">
-                {" "}
-                {isPublic ? "平台模板 · 复制后归本租户" : "本租户私有 · 仅授权成员可用"}
-              </p>
-              {manages && (
-                <Space wrap>
-                  <Button
-                    size="small"
-                    icon={<EyeOutlined />}
-                    onClick={() => setPreviewTemplate(item)}
-                  >
-                    预览
-                  </Button>
-                  {!isPublic && (
-                    <Button size="small" href={`/console/templates/${item.id}`}>
-                      编辑模板
-                    </Button>
-                  )}
-                  <Button size="small" onClick={() => void duplicate(item, isPublic)}>
-                    {isPublic ? "添加到我的模板" : "复制"}
-                  </Button>
-                  {!isPublic && (
-                    <Button
-                      size="small"
-                      disabled={item.status !== undefined && item.status !== "ready"}
-                      onClick={() => {
-                        pageForm.resetFields();
-                        pageForm.setFieldsValue({ name: `${item.name} 页面` });
-                        setSubmitError(null);
-                        setPageTemplate(item);
-                      }}
-                    >
-                      创建页面
-                    </Button>
-                  )}
-                </Space>
               )}
             </div>
           </Card>
@@ -375,6 +363,7 @@ export function TemplatesPage() {
           {
             key: "mine",
             label: "我的模板",
+            destroyOnHidden: true,
             children: (
               <>
                 {manages && (
@@ -398,6 +387,7 @@ export function TemplatesPage() {
           {
             key: "industry",
             label: "行业模板",
+            destroyOnHidden: true,
             children: (
               <IndustryTemplates
                 tenantId={tenantId}
@@ -406,7 +396,12 @@ export function TemplatesPage() {
               />
             ),
           },
-          { key: "platform", label: "平台模板", children: cards(publicTemplates, true) },
+          {
+            key: "platform",
+            label: "平台模板",
+            destroyOnHidden: true,
+            children: cards(publicTemplates, true),
+          },
           { key: "resources", label: "私有资源包", children: <CodePackages key={tenantId} /> },
           ...(manages
             ? [{ key: "conversations", label: "AI 对话记录", children: <AssistantHistory /> }]

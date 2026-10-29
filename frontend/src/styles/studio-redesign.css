@@ -79,8 +79,8 @@
   background: #f3f7ff;
 }
 .studio-templates .templates-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
   align-items: stretch;
 }
 .studio-template-object {
@@ -142,283 +142,81 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 12px 12px 20px;
+  padding: 10px 10px 12px;
 }
-.studio-template-cover {
-  display: grid;
-  align-items: stretch;
-  min-height: 200px;
-  aspect-ratio: 16 / 9;
-  padding: 12px;
+/* 模板画廊直接渲染真实隔离页面，操作与品牌内容分开，底部只留名称和同一行按钮。 */
+.studio-template-live {
+  position: relative;
+  width: 100%;
+  height: 300px;
   overflow: hidden;
   border-radius: 8px;
-  background: #edf3ff;
+  background: #f4f6f8;
 }
-.studio-template-document {
+.studio-template-live iframe {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  border: 0;
+  transform-origin: center;
+  pointer-events: none;
+}
+.studio-template-preview-open {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.studio-template-preview-open:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: -3px;
+}
+.studio-template-preview-state {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 4px 16px rgb(38 74 142 / 7%);
-}
-.studio-template-document header {
-  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
-  border-bottom: 1px solid #e4ecf8;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
 }
-.studio-template-document header > div {
+.studio-template-details {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   min-width: 0;
+  padding-top: 12px;
 }
-.studio-template-document header strong,
-.studio-template-document header small {
+.studio-template-name {
   display: block;
+  margin-bottom: 12px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
 }
-.studio-template-document header strong {
-  font-size: 12px;
-}
-.studio-template-document header small {
-  color: var(--muted);
-  font-size: 10px;
-}
-.studio-template-blocks {
-  flex: 1;
-  overflow: hidden;
-  padding: 12px;
-  font-size: 11px;
-}
-.studio-template-blocks > div + div {
-  margin-top: 8px;
-}
-.studio-template-blocks strong {
-  font-size: 11px;
-  font-weight: 550;
-}
-.studio-template-blocks p {
-  display: -webkit-box;
-  margin: 4px 0 0;
-  overflow: hidden;
-  color: var(--muted);
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow-wrap: anywhere;
-}
-.studio-template-chat {
-  display: flex;
+.studio-template-actions {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
   gap: 6px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  color: var(--muted);
+  margin-top: auto;
 }
-.studio-template-document footer {
-  padding: 8px 12px;
-  border-top: 1px solid #e4ecf8;
-  color: var(--muted);
-  font-size: 10px;
-}
-.studio-code-cover {
-  justify-items: center;
-  align-content: center;
-  gap: 12px;
-  text-align: center;
-}
-.studio-code-cover > .anticon {
-  color: var(--brand);
-  font-size: 36px;
-}
-.studio-code-cover p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-/* 行业封面只表达设计主题；封面与预览按钮共用同一隔离窗口，不加载模板脚本或截图。 */
-.studio-industry-cover {
-  --cover-ink: #344550;
-  --cover-paper: #f1f4f5;
-  --cover-accent: #728995;
-  --cover-line: #d6e0e3;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  min-height: 220px;
-  gap: 0;
-  padding: 20px;
-  border: 0;
-  background: var(--cover-paper);
-  color: var(--cover-ink);
-  font: inherit;
-  text-align: left;
-}
-.studio-industry-cover.industry-finance {
-  --cover-ink: #153f5d;
-  --cover-paper: #edf3f8;
-  --cover-accent: #ad843d;
-  --cover-line: #d3e0ec;
-}
-.studio-industry-cover.industry-commerce {
-  --cover-ink: #833c23;
-  --cover-paper: #fff4e7;
-  --cover-accent: #bd5c30;
-  --cover-line: #f0dcc8;
-}
-.studio-industry-cover.industry-education {
-  --cover-ink: #35523b;
-  --cover-paper: #f2f4e9;
-  --cover-accent: #6d8765;
-  --cover-line: #dbe2cf;
-}
-.studio-industry-cover.industry-medical {
-  --cover-ink: #215f5c;
-  --cover-paper: #edf7f5;
-  --cover-accent: #578d88;
-  --cover-line: #d3e8e4;
-}
-.studio-industry-cover.industry-property {
-  --cover-ink: #6c503a;
-  --cover-paper: #f5f0e9;
-  --cover-accent: #a17c59;
-  --cover-line: #e5dacf;
-}
-.studio-industry-cover.industry-business {
-  --cover-ink: #303c44;
-  --cover-paper: #eff2f3;
-  --cover-accent: #748791;
-  --cover-line: #d6dfe3;
-}
-.studio-cover-heading,
-.studio-cover-footer {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-}
-.studio-cover-heading > span {
-  padding: 3px 8px;
-  border: 1px solid var(--cover-line);
-  border-radius: 4px;
-  font-weight: 600;
-}
-.studio-cover-heading > small,
-.studio-cover-footer > small {
-  font-size: 10px;
-  opacity: 0.65;
-}
-.studio-cover-emblem {
-  position: absolute;
-  right: 20px;
-  top: 66px;
-  display: grid;
-  place-items: center;
-  width: 76px;
-  height: 76px;
-  border: 1px solid var(--cover-line);
-  border-radius: 16px;
-  background: rgb(255 255 255 / 55%);
-  color: var(--cover-accent);
-  font-size: 32px;
-}
-.industry-finance .studio-cover-emblem {
-  border-radius: 50%;
-}
-.industry-commerce .studio-cover-emblem {
-  transform: rotate(-8deg);
-}
-.industry-education .studio-cover-emblem {
-  border-radius: 4px 12px 12px 4px;
-  box-shadow: -5px 5px 0 var(--cover-line);
-}
-.industry-property .studio-cover-emblem {
-  border-radius: 2px;
-}
-.industry-business .studio-cover-emblem {
-  border-radius: 4px;
-}
-.studio-cover-copy {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  justify-content: center;
-  max-width: calc(100% - 88px);
-  padding: 20px 0;
-}
-.studio-cover-copy > small {
-  margin-bottom: 8px;
-  color: var(--cover-accent);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  line-height: 1.5;
-}
-.studio-cover-copy > strong {
-  display: -webkit-box;
-  overflow: hidden;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.studio-cover-footer {
-  padding-top: 12px;
-  border-top: 1px solid var(--cover-line);
-}
-.studio-industry-cover.is-interactive {
-  cursor: pointer;
-}
-.studio-industry-cover.is-interactive:hover {
-  box-shadow: inset 0 0 0 1px var(--cover-accent);
-}
-.studio-industry-cover.is-interactive:focus-visible {
-  outline: 2px solid var(--cover-accent);
-  outline-offset: 3px;
-}
-.studio-industry-cover.is-interactive:active {
-  filter: brightness(0.98);
-}
-.studio-templates .template-info {
-  flex: 1;
-  padding: 20px 8px 0;
-}
-.studio-templates .template-info > .ant-space:first-child {
-  align-items: flex-start;
-  flex-wrap: wrap;
-  row-gap: 8px;
-}
-.studio-templates .template-info strong {
-  font-size: 18px;
-  font-weight: 600;
-}
-.studio-templates .template-info > p {
-  font-size: 13px;
-}
-.studio-templates .template-info > .ant-space:last-child {
-  display: flex;
-  width: 100%;
-  margin-top: 4px;
-  padding-top: 16px;
-  border-top: 1px solid #eaf0f8;
-}
-.studio-templates .template-info > .ant-space:last-child > .ant-space-item {
-  flex: 1;
-}
-.studio-templates .template-info > .ant-space:last-child .ant-btn {
+.studio-template-actions > .ant-btn {
   width: 100%;
   height: 34px;
-  padding-inline: 10px;
-  font-size: 13px;
+  padding-inline: 8px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .studio-editor .editor-grid {
   grid-template-columns: minmax(360px, 1fr) minmax(360px, 1.08fr);
@@ -938,9 +736,6 @@
   .studio-overview-actions,
   .studio-package-files {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .studio-template-cover {
-    min-height: 200px;
   }
   .studio-ai-entry {
     display: grid;

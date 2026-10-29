@@ -1,7 +1,21 @@
 /** 文件作用说明：提供模板二创、完整 ZIP 下载、引用检查和有边界的删除操作。 */
 "use client";
 import { useState } from "react";
-import { App, Alert, Button, Form, Input, Modal, Popconfirm, Select, Space, Spin, Tag } from "antd";
+import {
+  App,
+  Alert,
+  Button,
+  Dropdown,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Spin,
+  Tag,
+} from "antd";
+import type { MenuProps } from "antd";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { exportFilename, startFileDownload } from "@/lib/csv-download";
 import { useSession } from "@/features/auth/session";
@@ -47,10 +61,12 @@ export function TemplateActions({
   template,
   isPublic,
   onChanged,
+  extraActions = [],
 }: {
   template: Template;
   isPublic: boolean;
   onChanged: () => void;
+  extraActions?: MenuProps["items"];
 }) {
   const { tenantId, current } = useSession();
   const { openAssistant } = useAssistantLauncher();
@@ -175,34 +191,40 @@ export function TemplateActions({
 
   return (
     <>
-      <Space wrap>
-        <Button
-          size="small"
-          loading={busy === "remix"}
-          disabled={!!busy && busy !== "remix"}
-          onClick={() => void remix()}
+      <Button
+        size="small"
+        loading={busy === "remix"}
+        disabled={!!busy && busy !== "remix"}
+        onClick={() => void remix()}
+      >
+        AI 二创
+      </Button>
+      <Button
+        size="small"
+        loading={busy === "download"}
+        disabled={!!busy && busy !== "download"}
+        onClick={() => void download()}
+      >
+        {isPublic ? "复制并下载" : "下载"}
+      </Button>
+      {!isPublic && (
+        <Dropdown
+          trigger={["click"]}
+          menu={{
+            items: [
+              ...extraActions,
+              { key: "usage", label: "引用与删除", onClick: () => void inspect() },
+              ...(current.user.is_platform_admin
+                ? [{ key: "platform", label: "保存为平台模板", onClick: openPlatformCopy }]
+                : []),
+            ],
+          }}
         >
-          AI 二创
-        </Button>
-        <Button
-          size="small"
-          loading={busy === "download"}
-          disabled={!!busy && busy !== "download"}
-          onClick={() => void download()}
-        >
-          {isPublic ? "复制并下载" : "下载"}
-        </Button>
-        {!isPublic && (
-          <Button size="small" disabled={!!busy} onClick={() => void inspect()}>
-            引用与删除
+          <Button size="small" disabled={!!busy}>
+            更多
           </Button>
-        )}
-        {!isPublic && current.user.is_platform_admin && (
-          <Button size="small" disabled={!!busy} onClick={openPlatformCopy}>
-            保存为平台模板
-          </Button>
-        )}
-      </Space>
+        </Dropdown>
+      )}
       <Modal
         title="保存为平台模板"
         open={platformOpen}
