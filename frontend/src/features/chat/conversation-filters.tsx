@@ -1,4 +1,4 @@
-/** 文件作用说明：以两列紧凑筛选展示客户搜索和完整日期区间，点击后再展开日期选择器。 */
+/** 文件作用说明：以两列紧凑展示客户搜索和时间筛选入口，点击后查看与调整日期区间。 */
 "use client";
 import { useState } from "react";
 import { Button, DatePicker, Input, Popover } from "antd";
@@ -6,7 +6,7 @@ import { CalendarOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import type { ConversationPeriod } from "@/lib/conversation-list";
 
-/** ConversationFilters 将时间输入收进弹层，主列表始终能直接看见当前日期范围。 */
+/** ConversationFilters 用简短入口展开真实日期筛选，日期值保留在弹层中。 */
 export function ConversationFilters({
   period,
   timezone,
@@ -71,14 +71,12 @@ export function ConversationFilters({
         <button
           className="conversation-period-trigger"
           type="button"
-          aria-label={`会话时间范围 ${period.from} 00:00 至 ${period.to} 23:59:59`}
+          aria-label="时间筛选"
+          aria-description={`当前范围：${period.from} 00:00 至 ${period.to} 23:59:59`}
           aria-expanded={open}
         >
           <CalendarOutlined aria-hidden="true" />
-          <span>
-            <span>{period.from.replaceAll("-", "/")}</span>
-            <span>至 {period.to.replaceAll("-", "/")}</span>
-          </span>
+          <span>时间筛选</span>
         </button>
       </Popover>
     </div>

@@ -42,13 +42,8 @@
   color: var(--ink);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
-}
-.conversation-period-trigger > span:last-child {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
 }
 .conversation-period-trigger:hover,
 .conversation-period-trigger[aria-expanded="true"] {
