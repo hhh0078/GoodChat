@@ -206,10 +206,15 @@ export function QuickReplyEditor({
           name="title"
           label="标题"
           rules={[{ required: true, whitespace: true, message: "请输入标题" }]}
+          extra="仅用于在快捷回复列表里识别，例如“价格说明”。双击标题时，会向当前客户发送下方实际内容，不会发送这个标题。"
         >
           <Input maxLength={100} />
         </Form.Item>
-        <Form.Item name="kind" label="消息内容">
+        <Form.Item
+          name="kind"
+          label="消息内容"
+          extra="文字用于常用答复；图片用于海报或截图；语音使用已上传的音频；文件或视频用于资料；选项让访客点选后发送对应的问题。"
+        >
           <Select
             disabled={uploading}
             options={[
@@ -231,6 +236,13 @@ export function QuickReplyEditor({
           rules={
             kind === "text" ? [{ required: true, whitespace: true, message: "请输入回复内容" }] : []
           }
+          extra={
+            kind === "text"
+              ? "双击发送时，客户会收到这里的完整文字。"
+              : kind === "options"
+                ? "显示在选项按钮上方，例如“请选择需要了解的内容”；可留空。"
+                : "随媒体一起发送给客户的说明，可留空。"
+          }
         >
           <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} maxLength={10000} />
         </Form.Item>
@@ -243,7 +255,10 @@ export function QuickReplyEditor({
             >
               <Input />
             </Form.Item>
-            <Form.Item label={kind === "image" ? "图片" : kind === "audio" ? "语音文件" : "附件"}>
+            <Form.Item
+              label={kind === "image" ? "图片" : kind === "audio" ? "语音文件" : "附件"}
+              extra="选择与消息类型对应的本地文件，上传完成后再保存。保存只建立话术，双击列表标题才会发送给当前客户。"
+            >
               <input
                 hidden
                 ref={input}
@@ -304,6 +319,7 @@ export function QuickReplyEditor({
                         name={[field.name, "label"]}
                         label="选项标题"
                         rules={[{ required: true, whitespace: true, message: "请输入标题" }]}
+                        extra="访客看到的按钮文字，例如“查看价格”。"
                       >
                         <Input maxLength={80} />
                       </Form.Item>
@@ -311,6 +327,7 @@ export function QuickReplyEditor({
                         name={[field.name, "value"]}
                         label="点击后发送"
                         rules={[{ required: true, whitespace: true, message: "请输入发送内容" }]}
+                        extra="访客点击按钮后发给客服的话，例如“我想咨询价格”。"
                       >
                         <Input maxLength={1000} />
                       </Form.Item>
@@ -335,7 +352,11 @@ export function QuickReplyEditor({
             )}
           </Form.List>
         )}
-        <Form.Item name="scope" label="话术范围">
+        <Form.Item
+          name="scope"
+          label="话术范围"
+          extra="“我的话术”仅自己可见和编辑；“公共话术”供团队所有客服使用，由租户管理员维护。"
+        >
           <Select
             options={[
               { value: "personal", label: "我的话术" },

@@ -49,6 +49,7 @@ export function ReminderVolume({ reminders }: { reminders: ReturnType<typeof use
             <span>{volume === 0 ? "静音" : "提示音音量"}</span>
             <strong>{Math.round(volume * 100)}%</strong>
           </div>
+          <p className="muted">仅设置你自己的账号。音量调至 0 即静音，图标会变红。</p>
           <Slider
             ariaLabelForHandle="消息提示音音量"
             min={0}
@@ -69,8 +70,10 @@ export function ReminderVolume({ reminders }: { reminders: ReturnType<typeof use
             浏览器系统通知
           </Checkbox>
           <p className="muted">
-            {reminders.audioReady ? "提示音已就绪" : "点击或输入后，浏览器会允许提示音"}。音量为 0
-            时不播放声音。
+            浏览器通知会在页面处于后台时弹出，首次开启需允许通知权限；音量为 0 时仍可显示通知。
+          </p>
+          <p className="muted">
+            {reminders.audioReady ? "提示音已就绪" : "点击或输入后，浏览器才允许播放提示音"}。
           </p>
           {!!reminders.error && <p className="preference-error">{errorMessage(reminders.error)}</p>}
         </div>
