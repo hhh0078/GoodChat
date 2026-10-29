@@ -14,6 +14,7 @@ type renderSnapshot struct {
 	Design     json.RawMessage `json:"design"`
 	Entrypoint string          `json:"package_entrypoint"`
 	Manifest   []packageFile   `json:"package_manifest"`
+	Ephemeral  bool            `json:"ephemeral_package"`
 }
 
 // packagePrefix 将预览令牌固定到资源目录，嵌套相对import和url不依赖第三方Cookie或查询参数传递。

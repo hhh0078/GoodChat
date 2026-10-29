@@ -1,6 +1,15 @@
-/** 文件作用说明：从真实模板结构呈现只读缩略内容，代码模板仅展示类型信息并保持脚本隔离。 */
-import { Avatar, Tag } from "antd";
-import { CodeOutlined, FileZipOutlined, MessageOutlined } from "@ant-design/icons";
+/** 文件作用说明：按真实行业制作模板设计封面，结构化模板展示已有组件，所有代码保持隔离执行。 */
+import { Avatar } from "antd";
+import {
+  ArrowRightOutlined,
+  BankOutlined,
+  CustomerServiceOutlined,
+  HomeOutlined,
+  MedicineBoxOutlined,
+  MessageOutlined,
+  ReadOutlined,
+  ShoppingOutlined,
+} from "@ant-design/icons";
 import type { CSSProperties } from "react";
 import type { Template } from "./templates";
 
@@ -12,21 +21,85 @@ const blockNames: Record<string, string> = {
   faq: "常见问题",
   image: "图片内容",
 };
+const industryCovers = [
+  { key: "finance", name: "金融咨询", caption: "TRUST & CARE", Icon: BankOutlined },
+  {
+    key: "commerce",
+    name: "电商售后",
+    caption: "GOOD THINGS, GOOD SERVICE",
+    Icon: ShoppingOutlined,
+  },
+  { key: "education", name: "教育咨询", caption: "A NEW CHAPTER", Icon: ReadOutlined },
+  { key: "medical", name: "医疗服务", caption: "CARE WITH YOU", Icon: MedicineBoxOutlined },
+  { key: "property", name: "房产顾问", caption: "A PLACE TO CALL HOME", Icon: HomeOutlined },
+  {
+    key: "business",
+    name: "企业服务",
+    caption: "FROM IDEA TO IMPACT",
+    Icon: CustomerServiceOutlined,
+  },
+];
+const customCover = {
+  key: "custom",
+  name: "专属设计",
+  caption: "YOUR BRAND, YOUR SERVICE",
+  Icon: MessageOutlined,
+};
 
 /** TemplatePreview 展示模板已有品牌和组件内容，不执行代码或伪造实际聊天预览。 */
-export function TemplatePreview({ template }: { template: Template }) {
+export function TemplatePreview({
+  template,
+  onPreview,
+}: {
+  template: Template;
+  onPreview?: () => void;
+}) {
   const design = template.design;
   const accent = /^#[\da-f]{6}$/i.test(design?.theme?.primary_color || "")
     ? design.theme!.primary_color
     : "#3c7958";
   if (template.render_mode === "code") {
-    return (
-      <div className="studio-template-cover studio-code-cover">
-        {design?.package_id ? <FileZipOutlined /> : <CodeOutlined />}
-        <strong>{design?.package_id ? "静态网站资源包" : "HTML · CSS · JavaScript"}</strong>
-        <p>完整代码通过独立来源预览</p>
-        <Tag>{design?.package_id ? "多文件代码模板" : "内联代码模板"}</Tag>
-      </div>
+    const cover = industryCovers.find((item) => item.key === template.industry_key) || customCover;
+    const Icon = cover.Icon;
+    const className = `studio-template-cover studio-industry-cover industry-${cover.key}${onPreview ? " is-interactive" : ""}`;
+    const content = (
+      <>
+        <span className="studio-cover-heading">
+          <span>{cover.name}</span>
+          <small>客服模板</small>
+        </span>
+        <span className="studio-cover-emblem" aria-hidden="true">
+          <Icon />
+        </span>
+        <span className="studio-cover-copy">
+          <small>{cover.caption}</small>
+          <strong>{template.name || "专属客服页面"}</strong>
+        </span>
+        <span className="studio-cover-footer">
+          <small>设计封面</small>
+          <span>
+            {onPreview ? (
+              <>
+                点击预览完整页面 <ArrowRightOutlined />
+              </>
+            ) : (
+              "品牌在线服务"
+            )}
+          </span>
+        </span>
+      </>
+    );
+    return onPreview ? (
+      <button
+        type="button"
+        className={className}
+        onClick={onPreview}
+        aria-label={`${template.name || "专属客服页面"}，预览完整页面`}
+      >
+        {content}
+      </button>
+    ) : (
+      <div className={className}>{content}</div>
     );
   }
   return (

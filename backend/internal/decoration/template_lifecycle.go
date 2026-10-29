@@ -11,6 +11,7 @@ import (
 
 // registerTemplateLifecycle 注册仅管理员可以执行的模板复制、导入、导出与删除接口。
 func (s *Service) registerTemplateLifecycle(mux *http.ServeMux) {
+	s.registerTemplatePreviews(mux)
 	mux.HandleFunc("GET /api/v1/tenant/template-industries", s.auth.RequireAdmin(s.templateIndustries))
 	mux.HandleFunc("POST /api/v1/tenant/template-industries/{key}/copy", s.auth.RequireAdmin(s.copyIndustryTemplate))
 	mux.HandleFunc("GET /api/v1/tenant/templates/{id}/usage", s.auth.RequireAdmin(s.templateUsage))

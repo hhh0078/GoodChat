@@ -1,7 +1,7 @@
 /** 文件作用说明：由平台管理员新增、编辑和上下架公共装修模板，租户私有作品不会自动公开。 */
 "use client";
 import { useState } from "react";
-import { App, Button, Drawer, Form, Input, Select, Space, Table, Tag } from "antd";
+import { Alert, App, Button, Drawer, Form, Input, Select, Space, Table, Tag } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
@@ -9,6 +9,8 @@ import type { Resource } from "@/lib/types";
 import { ErrorNotice, EmptyData } from "@/components/page-state";
 import { starterDesign, type Template } from "@/features/decoration/templates";
 import { starterCodeDesign } from "@/features/decoration/starter-code";
+import { TemplatePreviewButton } from "@/features/assistant/template-preview-modal";
+import { platformTemplateDesign } from "./template-design";
 /** PlatformTemplates 维护公共设计的独立版本，明确上架后才能被租户选择。 */
 export function PlatformTemplates() {
   const data = useResource<Template>("/platform/templates", true);
@@ -17,6 +19,7 @@ export function PlatformTemplates() {
   const [busy, setBusy] = useState(false);
   const [form] = Form.useForm();
   const mode = Form.useWatch("render_mode", form);
+  const packaged = !!editing?.design.platform_package_id;
   const { message } = App.useApp();
   /** open 填充平台模板或准备新的基础初稿，尚未保存时不会公开。 */
   function open(item: Template | null) {
@@ -40,25 +43,12 @@ export function PlatformTemplates() {
     setBusy(true);
     setError(null);
     try {
-      let design: unknown;
-      if (values.render_mode === "code")
-        design = {
-          html: values.html || "",
-          css: values.css || "",
-          javascript: values.javascript || "",
-        };
-      else {
-        try {
-          design = JSON.parse(String(values.design_json));
-        } catch {
-          throw new Error("组件设计必须是合法 JSON。");
-        }
-      }
+      const design = platformTemplateDesign(values.render_mode, values, editing?.design);
       await api(`/platform/templates${editing ? `/${editing.id}` : ""}`, {
         method: editing ? "PATCH" : "POST",
         bodyJSON: {
           name: values.name,
-          render_mode: values.render_mode,
+          render_mode: packaged ? "code" : values.render_mode,
           status: values.status,
           design,
           ...(editing ? { version: editing.version } : {}),
@@ -114,9 +104,15 @@ export function PlatformTemplates() {
           {
             title: "操作",
             render: (_, row) => (
-              <Button type="link" onClick={() => open(row)}>
-                编辑与上架
-              </Button>
+              <Space>
+                <TemplatePreviewButton
+                  path={`/platform/templates/${encodeURIComponent(row.id)}/preview`}
+                  name={row.name || "未命名模板"}
+                />
+                <Button type="link" onClick={() => open(row)}>
+                  编辑与上架
+                </Button>
+              </Space>
             ),
           },
         ]}
@@ -155,7 +151,15 @@ export function PlatformTemplates() {
               />
             </Form.Item>
           </Space>
-          {mode === "code" ? (
+          {packaged ? (
+            <Alert
+              type="info"
+              showIcon
+              title="此模板使用独立的平台静态资源包"
+              description="这里可以修改名称和上架状态。需要调整设计时，先复制到我的模板完成二创，再明确保存为新的平台模板。"
+              style={{ marginBottom: 24 }}
+            />
+          ) : mode === "code" ? (
             <>
               <Form.Item name="html" label="HTML">
                 <Input.TextArea className="code-editor" rows={8} />

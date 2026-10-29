@@ -123,11 +123,31 @@ func (s *Service) copyTemplate(ctx context.Context, tx pgx.Tx, p platform.Princi
 	if err != pgx.ErrNoRows {
 		return nil, err
 	}
-	if err := tx.QueryRow(ctx, "SELECT render_mode FROM platform_templates WHERE id=$1 AND status='published'", id).Scan(&mode); err != nil {
+	var publicDesign json.RawMessage
+	var name string
+	var publicVersion int64
+	if err := tx.QueryRow(ctx, "SELECT render_mode,design,name,version FROM platform_templates WHERE id=$1 AND status='published' FOR SHARE", id).Scan(&mode, &publicDesign, &name, &publicVersion); err != nil {
 		return nil, err
 	}
 	if err := s.checkFeature(ctx, tx, p.TenantID, decorationFeature(mode)); err != nil {
 		return nil, err
+	}
+	var code CodeDesign
+	if mode == "code" && json.Unmarshal(publicDesign, &code) == nil && code.PlatformPackageID != "" {
+		pkg, err := loadPlatformTemplatePackage(ctx, tx, code.PlatformPackageID)
+		if err != nil {
+			return nil, err
+		}
+		stored, err := s.storePackage(ctx, tx, p, name+" 副本", pkg)
+		if err != nil {
+			return nil, err
+		}
+		privateID, err := storedPackageID(stored)
+		if err != nil {
+			return nil, err
+		}
+		design, _ := json.Marshal(CodeDesign{PackageID: privateID})
+		return record(ctx, tx, "INSERT INTO tenant_templates(tenant_id,owner_membership_id,name,render_mode,design,source_platform_template_id,source_platform_version) VALUES($1,$2,$3,'code',$4,$5,$6) RETURNING to_jsonb(tenant_templates)", p.TenantID, p.MembershipID, name+" 副本", design, id, publicVersion)
 	}
 	return record(ctx, tx, `INSERT INTO tenant_templates(tenant_id,owner_membership_id,name,render_mode,design,source_platform_template_id,source_platform_version) SELECT $2,$3,name||' 副本',render_mode,design,id,version FROM platform_templates WHERE id=$1 AND status='published' RETURNING to_jsonb(tenant_templates)`, id, p.TenantID, p.MembershipID)
 }
@@ -179,6 +199,11 @@ func (s *Service) platformTemplates(w http.ResponseWriter, r *http.Request) {
 	}
 	var result json.RawMessage
 	err = pgx.BeginFunc(r.Context(), s.pool, func(tx pgx.Tx) error {
+		if privateCode.PlatformPackageID != "" {
+			if _, err := loadPlatformTemplatePackage(r.Context(), tx, privateCode.PlatformPackageID); err != nil {
+				return err
+			}
+		}
 		if id == "" {
 			err := tx.QueryRow(r.Context(), `INSERT INTO platform_templates(name,render_mode,design,status) VALUES($1,$2,$3,$4) RETURNING id::text`, input.Name, input.RenderMode, design, input.Status).Scan(&id)
 			if err != nil {

@@ -14,6 +14,7 @@ import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { useAssistantLauncher } from "./launcher";
+import { TemplatePreviewButton } from "./template-preview-modal";
 import type { Template } from "@/features/decoration/templates";
 
 type Industry = { id: string; key: string; name: string; description: string };
@@ -97,23 +98,30 @@ export function IndustryTemplates({
                 </span>
                 <h3>{industry.name}</h3>
                 <p>{industry.description}</p>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <Button
-                    disabled={!canManage || (!!busy && busy !== `${industry.key}:false`)}
-                    loading={busy === `${industry.key}:false`}
-                    onClick={() => void copy(industry, false)}
-                  >
-                    添加到我的模板
-                  </Button>
-                  <Button
-                    type="link"
-                    disabled={!canManage || (!!busy && busy !== `${industry.key}:true`)}
-                    loading={busy === `${industry.key}:true`}
-                    onClick={() => void copy(industry, true)}
-                  >
-                    AI 二创
-                  </Button>
-                </div>
+                {canManage && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <TemplatePreviewButton
+                      path={`/tenant/template-industries/${encodeURIComponent(industry.key)}/preview`}
+                      name={industry.name}
+                      tenantId={tenantId}
+                    />
+                    <Button
+                      disabled={!canManage || (!!busy && busy !== `${industry.key}:false`)}
+                      loading={busy === `${industry.key}:false`}
+                      onClick={() => void copy(industry, false)}
+                    >
+                      添加到我的模板
+                    </Button>
+                    <Button
+                      type="link"
+                      disabled={!canManage || (!!busy && busy !== `${industry.key}:true`)}
+                      loading={busy === `${industry.key}:true`}
+                      onClick={() => void copy(industry, true)}
+                    >
+                      AI 二创
+                    </Button>
+                  </div>
+                )}
               </article>
             );
           })}

@@ -1,7 +1,7 @@
 /** 文件作用说明：提供模板二创、完整 ZIP 下载、引用检查和有边界的删除操作。 */
 "use client";
 import { useState } from "react";
-import { App, Alert, Button, Modal, Popconfirm, Space, Spin, Tag } from "antd";
+import { App, Alert, Button, Form, Input, Modal, Popconfirm, Select, Space, Spin, Tag } from "antd";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { exportFilename, startFileDownload } from "@/lib/csv-download";
 import { useSession } from "@/features/auth/session";
@@ -58,6 +58,9 @@ export function TemplateActions({
   const [usageOpen, setUsageOpen] = useState(false);
   const [usage, setUsage] = useState<TemplateUsage | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [platformOpen, setPlatformOpen] = useState(false);
+  const [platformError, setPlatformError] = useState<unknown>(null);
+  const [platformForm] = Form.useForm();
   const { message } = App.useApp();
   const member = current.memberships.find((item) => item.tenant_id === tenantId);
   const manages = member?.role === "owner" || member?.role === "admin";
@@ -82,6 +85,41 @@ export function TemplateActions({
       templateName: template.name,
       prompt: "请在当前模板基础上调整设计，保留完整聊天能力。",
     });
+  }
+
+  /** openPlatformCopy 先确认名称和可见范围，默认隐藏，不会因点击入口自动公开作品。 */
+  function openPlatformCopy() {
+    setPlatformError(null);
+    platformForm.resetFields();
+    platformForm.setFieldsValue({ name: template.name || "平台客服模板", status: "hidden" });
+    setPlatformOpen(true);
+  }
+
+  /** savePlatformCopy 按管理员明确选择复制成平台独立资源包，不引用租户私有文件。 */
+  async function savePlatformCopy(values: { name: string; status: "published" | "hidden" }) {
+    setBusy("platform");
+    setPlatformError(null);
+    try {
+      await api("/platform/templates/from-private", {
+        tenantId,
+        method: "POST",
+        bodyJSON: {
+          source_template_id: template.id,
+          name: values.name.trim(),
+          status: values.status,
+        },
+        idempotent: true,
+      });
+      setPlatformOpen(false);
+      onChanged();
+      message.success(
+        values.status === "published" ? "已保存并上架平台模板" : "已保存平台模板，当前为隐藏",
+      );
+    } catch (problem) {
+      setPlatformError(problem);
+    } finally {
+      setBusy("");
+    }
   }
 
   /** download 公共模板先明确复制到本租户，再导出同一份完整静态文件。 */
@@ -159,7 +197,54 @@ export function TemplateActions({
             引用与删除
           </Button>
         )}
+        {!isPublic && current.user.is_platform_admin && (
+          <Button size="small" disabled={!!busy} onClick={openPlatformCopy}>
+            保存为平台模板
+          </Button>
+        )}
       </Space>
+      <Modal
+        title="保存为平台模板"
+        open={platformOpen}
+        onCancel={() => {
+          if (busy !== "platform") setPlatformOpen(false);
+        }}
+        footer={null}
+      >
+        <Alert
+          type="info"
+          showIcon
+          title="将创建独立的平台模板"
+          description="选择上架后，所有租户都能预览和复制此作品；私有原稿继续保留。"
+          style={{ marginBottom: 20 }}
+        />
+        {!!platformError && <Alert type="error" showIcon title={errorMessage(platformError)} />}
+        <Form
+          form={platformForm}
+          layout="vertical"
+          onFinish={savePlatformCopy}
+          disabled={busy === "platform"}
+        >
+          <Form.Item
+            name="name"
+            label="平台模板名称"
+            rules={[{ required: true, whitespace: true }]}
+          >
+            <Input maxLength={100} />
+          </Form.Item>
+          <Form.Item name="status" label="可见范围" rules={[{ required: true }]}>
+            <Select
+              options={[
+                { value: "hidden", label: "隐藏，暂不上架" },
+                { value: "published", label: "上架，所有租户可用" },
+              ]}
+            />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" loading={busy === "platform"}>
+            确认保存
+          </Button>
+        </Form>
+      </Modal>
       <Modal
         title={`模板引用 · ${template.name || "未命名"}`}
         open={usageOpen}

@@ -19,7 +19,13 @@ import {
   Tabs,
   Tag,
 } from "antd";
-import { ArrowRightOutlined, PlusOutlined, RobotOutlined, SkinOutlined } from "@ant-design/icons";
+import {
+  ArrowRightOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  RobotOutlined,
+  SkinOutlined,
+} from "@ant-design/icons";
 import { starterCodeDesign } from "./starter-code";
 import { CodePackages } from "./code-packages";
 import { TemplatePreview } from "./template-preview";
@@ -30,6 +36,7 @@ import type { Resource } from "@/lib/types";
 import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
 import { useAssistantLauncher } from "@/features/assistant/launcher";
 import { TemplateActions } from "@/features/assistant/template-actions";
+import { TemplatePreviewModal } from "@/features/assistant/template-preview-modal";
 import { IndustryTemplates } from "@/features/assistant/industry-templates";
 import { TemplateImport } from "@/features/assistant/template-import";
 import { AssistantHistory } from "@/features/assistant/history";
@@ -44,8 +51,10 @@ export type Design = {
   css?: string;
   javascript?: string;
   package_id?: string;
+  platform_package_id?: string;
 };
 export type Template = Resource & {
+  industry_key?: string;
   render_mode: "schema" | "code";
   design: Design;
   version: number;
@@ -86,6 +95,7 @@ export function TemplatesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [pageTemplate, setPageTemplate] = useState<Template | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<unknown>(null);
   const [job, setJob] = useState<Resource | null>(null);
@@ -93,6 +103,9 @@ export function TemplatesPage() {
   const [pageForm] = Form.useForm();
   const pages = useResource<Resource>("/tenant/pages");
   const aiJobs = useResource<Resource>("/tenant/ai-design-jobs");
+  useEffect(() => {
+    setPreviewTemplate(null);
+  }, [tenantId]);
   useEffect(() => {
     /** refreshTemplates 在全局助手完成生成后重新读取真实模板与页面。 */
     function refreshTemplates() {
@@ -253,7 +266,10 @@ export function TemplatesPage() {
       <div className="templates-grid">
         {items.map((item) => (
           <Card key={item.id} size="small" className="studio-template-object">
-            <TemplatePreview template={item} />
+            <TemplatePreview
+              template={item}
+              onPreview={manages ? () => setPreviewTemplate(item) : undefined}
+            />
             <div className="template-info">
               <Space>
                 <strong>{item.name}</strong>
@@ -275,30 +291,39 @@ export function TemplatesPage() {
                 {" "}
                 {isPublic ? "平台模板 · 复制后归本租户" : "本租户私有 · 仅授权成员可用"}
               </p>
-              <Space wrap>
-                {!isPublic && (
-                  <Button size="small" href={`/console/templates/${item.id}`}>
-                    编辑模板
-                  </Button>
-                )}
-                <Button size="small" onClick={() => void duplicate(item, isPublic)}>
-                  {isPublic ? "添加到我的模板" : "复制"}
-                </Button>
-                {!isPublic && (
+              {manages && (
+                <Space wrap>
                   <Button
                     size="small"
-                    disabled={item.status !== undefined && item.status !== "ready"}
-                    onClick={() => {
-                      pageForm.resetFields();
-                      pageForm.setFieldsValue({ name: `${item.name} 页面` });
-                      setSubmitError(null);
-                      setPageTemplate(item);
-                    }}
+                    icon={<EyeOutlined />}
+                    onClick={() => setPreviewTemplate(item)}
                   >
-                    创建页面
+                    预览
                   </Button>
-                )}
-              </Space>
+                  {!isPublic && (
+                    <Button size="small" href={`/console/templates/${item.id}`}>
+                      编辑模板
+                    </Button>
+                  )}
+                  <Button size="small" onClick={() => void duplicate(item, isPublic)}>
+                    {isPublic ? "添加到我的模板" : "复制"}
+                  </Button>
+                  {!isPublic && (
+                    <Button
+                      size="small"
+                      disabled={item.status !== undefined && item.status !== "ready"}
+                      onClick={() => {
+                        pageForm.resetFields();
+                        pageForm.setFieldsValue({ name: `${item.name} 页面` });
+                        setSubmitError(null);
+                        setPageTemplate(item);
+                      }}
+                    >
+                      创建页面
+                    </Button>
+                  )}
+                </Space>
+              )}
             </div>
           </Card>
         ))}
@@ -322,17 +347,19 @@ export function TemplatesPage() {
                 onImported={() => setRevision((value) => value + 1)}
               />
             )}
-            <Button
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setSubmitError(null);
-                form.resetFields();
-                form.setFieldsValue({ render_mode: "schema" });
-                setCreateOpen(true);
-              }}
-            >
-              创建模板
-            </Button>
+            {manages && (
+              <Button
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  setSubmitError(null);
+                  form.resetFields();
+                  form.setFieldsValue({ render_mode: "schema" });
+                  setCreateOpen(true);
+                }}
+              >
+                创建模板
+              </Button>
+            )}
             {manages && (
               <Button type="primary" icon={<RobotOutlined />} onClick={openAI}>
                 AI 创建我的模板
@@ -473,6 +500,15 @@ export function TemplatesPage() {
           },
         ]}
       />
+      {manages && previewTemplate && (
+        <TemplatePreviewModal
+          path={`/tenant/templates/${encodeURIComponent(previewTemplate.id)}/preview`}
+          name={previewTemplate.name || "未命名模板"}
+          tenantId={tenantId}
+          open
+          onClose={() => setPreviewTemplate(null)}
+        />
+      )}
       <Drawer
         rootClassName="studio-drawer"
         title="创建私有模板"

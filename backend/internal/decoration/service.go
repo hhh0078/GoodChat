@@ -61,6 +61,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerAssistant(mux)
 	s.registerPackages(mux)
 	s.registerTemplateLifecycle(mux)
+	s.registerPlatformTemplatePackages(mux)
 	mux.HandleFunc("GET /api/v1/tenant/templates", s.auth.RequireTenant(s.listTemplates))
 	mux.HandleFunc("POST /api/v1/tenant/templates", s.auth.RequireAdmin(s.saveTemplate))
 	mux.HandleFunc("PATCH /api/v1/tenant/templates/{id}", s.auth.RequireAdmin(s.saveTemplate))

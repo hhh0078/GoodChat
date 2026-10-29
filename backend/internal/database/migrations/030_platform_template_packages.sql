@@ -1,0 +1,37 @@
+-- 文件作用说明：增加平台独立不可变静态模板资源，公开版本不再引用租户私有包，租户复制时仍物化为自己的资源。
+CREATE TABLE platform_template_packages(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),entrypoint text NOT NULL,manifest jsonb NOT NULL,file_count integer NOT NULL CHECK(file_count BETWEEN 1 AND 200),total_bytes bigint NOT NULL CHECK(total_bytes BETWEEN 1 AND 20971520),sha256 text NOT NULL,creation_xid xid8 NOT NULL DEFAULT pg_current_xact_id(),created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE platform_template_package_files(package_id uuid NOT NULL REFERENCES platform_template_packages(id),path text NOT NULL,content_type text NOT NULL,sha256 text NOT NULL,content bytea NOT NULL,PRIMARY KEY(package_id,path));
+COMMENT ON TABLE platform_template_packages IS '平台独立不可变静态模板包，不属于任何租户，写入仅由平台管理接口执行';
+COMMENT ON COLUMN platform_template_packages.id IS '平台静态包随机编号';
+COMMENT ON COLUMN platform_template_packages.entrypoint IS '包内固定HTML入口路径';
+COMMENT ON COLUMN platform_template_packages.manifest IS '冻结的路径、媒体类型、字节数及文件摘要清单';
+COMMENT ON COLUMN platform_template_packages.file_count IS '包内静态文件数量';
+COMMENT ON COLUMN platform_template_packages.total_bytes IS '完整资源包总字节数';
+COMMENT ON COLUMN platform_template_packages.sha256 IS '规范入口和排序文件清单的完整内容摘要';
+COMMENT ON COLUMN platform_template_packages.creation_xid IS '创建事务编号，仅允许在同一事务按清单写入文件';
+COMMENT ON COLUMN platform_template_packages.created_at IS '资源包创建时间';
+COMMENT ON TABLE platform_template_package_files IS '平台模板包实际静态文件字节，不存放租户消息、附件凭证或AI密钥';
+COMMENT ON COLUMN platform_template_package_files.package_id IS '所属平台不可变包编号';
+COMMENT ON COLUMN platform_template_package_files.path IS '经过规范化与目录穿越校验的相对资源路径';
+COMMENT ON COLUMN platform_template_package_files.content_type IS '按实际文件解码与结构确定的媒体类型';
+COMMENT ON COLUMN platform_template_package_files.sha256 IS '文件实际内容SHA256摘要';
+COMMENT ON COLUMN platform_template_package_files.content IS '经过完整安全校验的静态文件实际字节';
+CREATE TRIGGER immutable_platform_template_package BEFORE UPDATE OR DELETE ON platform_template_packages FOR EACH ROW EXECUTE FUNCTION decoration_immutable();
+CREATE TRIGGER immutable_platform_template_file BEFORE UPDATE OR DELETE ON platform_template_package_files FOR EACH ROW EXECUTE FUNCTION decoration_immutable();
+CREATE FUNCTION platform_template_file_insert() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM platform_template_packages p WHERE p.id=NEW.package_id AND p.creation_xid=pg_current_xact_id() AND EXISTS(SELECT 1 FROM jsonb_array_elements(p.manifest) f WHERE f->>'path'=NEW.path AND f->>'content_type'=NEW.content_type AND f->>'sha256'=NEW.sha256 AND NEW.sha256=encode(sha256(NEW.content),'hex') AND (f->>'size')::bigint=octet_length(NEW.content))) THEN RAISE EXCEPTION '平台静态文件只能在创建事务内按固定清单写入' USING ERRCODE='23514'; END IF; RETURN NEW;
+END $$;
+COMMENT ON FUNCTION platform_template_file_insert() IS '禁止平台静态包创建完成后追加文件，并校验实际字节与冻结清单一致';
+CREATE TRIGGER immutable_platform_template_file_insert BEFORE INSERT ON platform_template_package_files FOR EACH ROW EXECUTE FUNCTION platform_template_file_insert();
+ALTER TABLE platform_templates ADD COLUMN industry_key text;
+COMMENT ON COLUMN platform_templates.industry_key IS '官方行业初始化键，同一行业只创建一份默认平台模板';
+CREATE UNIQUE INDEX platform_templates_industry_key ON platform_templates(industry_key) WHERE industry_key IS NOT NULL;
+ALTER TABLE platform_templates ADD COLUMN platform_package_id uuid GENERATED ALWAYS AS (NULLIF(design->>'platform_package_id','')::uuid) STORED REFERENCES platform_template_packages(id);
+ALTER TABLE platform_template_versions ADD COLUMN platform_package_id uuid GENERATED ALWAYS AS (NULLIF(design->>'platform_package_id','')::uuid) STORED REFERENCES platform_template_packages(id);
+COMMENT ON COLUMN platform_templates.platform_package_id IS '平台当前模板引用的独立不可变静态包，不接受租户私有包';
+COMMENT ON COLUMN platform_template_versions.platform_package_id IS '该公开版本固定引用的独立平台静态包';
+ALTER TABLE tenant_templates ADD CONSTRAINT tenant_template_no_platform_package CHECK(COALESCE(design->>'platform_package_id','')='');
+ALTER TABLE decoration_pages ADD CONSTRAINT tenant_page_no_platform_package CHECK(COALESCE(draft->>'platform_package_id','')='');
+ALTER TABLE decoration_releases ADD CONSTRAINT tenant_release_no_platform_package CHECK(COALESCE(design->>'platform_package_id','')='');
+ALTER TABLE decoration_previews ADD CONSTRAINT tenant_preview_no_platform_package CHECK(COALESCE(design->>'platform_package_id','')='');
+DO $$ BEGIN IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='goodchat_saas_app') THEN GRANT SELECT,INSERT ON platform_template_packages,platform_template_package_files TO goodchat_saas_app; REVOKE UPDATE,DELETE ON platform_template_packages,platform_template_package_files FROM goodchat_saas_app; END IF; END $$;

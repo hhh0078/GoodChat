@@ -1,7 +1,6 @@
 /** 文件作用说明：编辑结构化或代码装修，处理版本保存、组件排序及真实隔离预览发布回滚。 */
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Alert,
   App,
@@ -11,7 +10,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Modal,
   Popconfirm,
   Select,
   Space,
@@ -27,7 +25,6 @@ import {
   PlusOutlined,
   SaveOutlined,
 } from "@ant-design/icons";
-import { safeRenderURL } from "@/lib/frame-bridge";
 import { api, errorMessage } from "@/lib/api";
 import { useSession } from "@/features/auth/session";
 import { useResource } from "@/lib/use-resource";
@@ -37,6 +34,7 @@ import { starterDesign } from "./templates";
 import { BrandLogo } from "./brand-logo";
 import { CodePackages } from "./code-packages";
 import { ErrorNotice, PageTitle } from "@/components/page-state";
+import { TemplatePreviewModal } from "@/features/assistant/template-preview-modal";
 type Editable = {
   id: string;
   name: string;
@@ -56,7 +54,6 @@ const blockNames: Record<string, string> = {
 /** DecorationEditor 维护可回溯的装修草稿，只有明确发布才影响访客链接。 */
 export function DecorationEditor({ id, kind }: { id: string; kind: "templates" | "pages" }) {
   const { tenantId } = useSession();
-  const router = useRouter();
   const { message } = App.useApp();
   const [item, setItem] = useState<Editable | null>(null);
   const [design, setDesign] = useState<Design>(starterDesign());
@@ -66,7 +63,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
   const [saving, setSaving] = useState(false);
   const [activeBlock, setActiveBlock] = useState("");
   const [dragged, setDragged] = useState("");
-  const [previewURL, setPreviewURL] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [linkIds, setLinkIds] = useState<string[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -147,34 +144,13 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
       setSaving(false);
     }
   }
-  /** preview 取得后端隔离预览地址，拒绝同源代码注入。 */
-  async function preview() {
+  /** preview 预览已保存快照，模板与页面均不创建额外的业务副本。 */
+  function preview() {
     if (dirty) {
       message.warning("请先保存草稿，再预览服务端校验后的版本。");
       return;
     }
-    try {
-      if (kind === "templates") {
-        const page = await api<Resource>("/tenant/pages", {
-          method: "POST",
-          tenantId,
-          bodyJSON: { name: `${name} 页面`, template_id: id },
-          idempotent: true,
-        });
-        router.push(`/console/pages/${page.id}`);
-        return;
-      }
-      const result = await api<{ preview_url: string }>(`/tenant/pages/${id}/preview`, {
-        method: "POST",
-        tenantId,
-        bodyJSON: {},
-      });
-      const url = safeRenderURL(result.preview_url, window.location.origin);
-      if (!url) throw new Error("预览服务需要配置安全的独立来源，请检查隔离渲染地址。");
-      setPreviewURL(url.toString());
-    } catch (problem) {
-      message.error(errorMessage(problem));
-    }
+    setPreviewOpen(true);
   }
   /** publish 原子发布指定版本并绑定选定入口，不伪造发布结果。 */
   async function publish() {
@@ -254,8 +230,8 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
             >
               保存草稿
             </Button>
-            <Button icon={<EyeOutlined />} onClick={() => void preview()}>
-              {kind === "templates" ? "从模板创建页面" : "隔离预览"}
+            <Button icon={<EyeOutlined />} onClick={preview}>
+              隔离预览
             </Button>
             {kind === "pages" && (
               <>
@@ -636,30 +612,13 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
           />
         </div>
       </div>
-      <Modal
-        rootClassName="studio-dialog"
-        title="隔离页面预览"
-        open={!!previewURL}
-        onCancel={() => setPreviewURL("")}
-        footer={null}
-        width={960}
-        destroyOnHidden
-      >
-        {previewURL && (
-          <iframe
-            src={previewURL}
-            title="隔离装修预览"
-            sandbox="allow-scripts allow-same-origin"
-            referrerPolicy="no-referrer"
-            style={{
-              width: "100%",
-              height: "70vh",
-              border: "1px solid var(--line)",
-              borderRadius: 12,
-            }}
-          />
-        )}
-      </Modal>
+      <TemplatePreviewModal
+        path={`/tenant/${kind}/${encodeURIComponent(id)}/preview`}
+        name={name}
+        tenantId={tenantId}
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+      />
       <Drawer
         rootClassName="studio-drawer"
         title="发布页面到接入链接"

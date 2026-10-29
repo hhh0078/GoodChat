@@ -51,20 +51,25 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
   const [storageWarning, setStorageWarning] = useState("");
   const shell = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    /** syncViewport 按软键盘和浏览器工具栏之后的可见高度约束访客卡片。 */
+    const viewport = window.visualViewport;
+    /** syncViewport 以顶层可视视口定位装修宿主，聚焦平移只移动顶部，不重复扣除可见高度。 */
     function syncViewport() {
-      const viewport = window.visualViewport;
-      shell.current?.style.setProperty(
+      const host = shell.current;
+      if (!host) return;
+      host.style.setProperty(
         "--visitor-viewport-height",
-        `${Math.round(viewport?.height || window.innerHeight)}px`,
+        `${viewport?.height || window.innerHeight}px`,
       );
+      host.style.setProperty("--visitor-viewport-top", `${viewport?.offsetTop || 0}px`);
     }
     syncViewport();
     window.addEventListener("resize", syncViewport);
-    window.visualViewport?.addEventListener("resize", syncViewport);
+    viewport?.addEventListener("resize", syncViewport);
+    viewport?.addEventListener("scroll", syncViewport);
     return () => {
       window.removeEventListener("resize", syncViewport);
-      window.visualViewport?.removeEventListener("resize", syncViewport);
+      viewport?.removeEventListener("resize", syncViewport);
+      viewport?.removeEventListener("scroll", syncViewport);
     };
   }, [loading]);
   const navigationScope = `${entryKey}?${queryText}`;
@@ -328,7 +333,10 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
     );
   const specifiedOffline = error instanceof ApiError && error.code === "specified_agent_offline";
   return (
-    <div className="visitor-shell" ref={shell}>
+    <div
+      className={`visitor-shell${entry.render_url && entry.release_id ? " visitor-shell-decorated" : ""}`}
+      ref={shell}
+    >
       <div
         className={`visitor-card ${entry.render_url && entry.release_id ? "visitor-decorated" : "visitor-default"}`}
       >

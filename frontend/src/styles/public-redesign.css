@@ -2103,6 +2103,18 @@
   background: #fff;
 }
 /* 装修 iframe 只能占宿主剩余高度，输入框与可信附件入口不能互相覆盖。 */
+.visitor-shell.visitor-shell-decorated {
+  position: fixed;
+  inset: var(--visitor-viewport-top, 0px) 0 auto;
+  height: var(--visitor-viewport-height, 100dvh);
+  min-height: 0;
+  overflow: hidden;
+}
+.visitor-shell-decorated > .visitor-card {
+  height: 100%;
+  max-height: 920px;
+  min-height: 0;
+}
 .visitor-decorated > .visitor-header,
 .visitor-decorated > .visitor-footer {
   flex-shrink: 0;
@@ -2131,9 +2143,6 @@
 @media (max-width: 680px) {
   .visitor-shell {
     min-height: var(--visitor-viewport-height, 100dvh);
-  }
-  .visitor-card.visitor-decorated {
-    height: var(--visitor-viewport-height, 100dvh);
   }
   .visitor-decorated .visitor-header {
     flex-wrap: nowrap;
@@ -2743,6 +2752,9 @@
     max-width: none;
     border: 0;
     border-radius: 0;
+  }
+  .visitor-shell-decorated > .visitor-card {
+    max-height: none;
   }
   .visitor-header {
     padding: 14px 16px;

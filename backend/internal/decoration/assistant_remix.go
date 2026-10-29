@@ -31,7 +31,9 @@ func (s *Service) assistantRemixTemplate(ctx context.Context, tx pgx.Tx, p platf
 	var code CodeDesign
 	_ = json.Unmarshal(design, &code)
 	var pkg *staticPackage
-	if mode == "code" && code.PackageID != "" {
+	if mode == "code" && code.PlatformPackageID != "" {
+		pkg, err = loadPlatformTemplatePackage(ctx, tx, code.PlatformPackageID)
+	} else if mode == "code" && code.PackageID != "" {
 		pkg, err = loadArchivePackage(ctx, tx, code)
 		if err == nil {
 			pkg, err = upgradeLegacyTemplatePackage(pkg, scripts)

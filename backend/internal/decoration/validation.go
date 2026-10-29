@@ -47,10 +47,11 @@ type Schema struct {
 
 // CodeDesign 保存浏览器静态代码，服务器从不执行其中代码。
 type CodeDesign struct {
-	HTML       string `json:"html"`
-	CSS        string `json:"css"`
-	Javascript string `json:"javascript"`
-	PackageID  string `json:"package_id,omitempty"`
+	HTML              string `json:"html"`
+	CSS               string `json:"css"`
+	Javascript        string `json:"javascript"`
+	PackageID         string `json:"package_id,omitempty"`
+	PlatformPackageID string `json:"platform_package_id,omitempty"`
 }
 
 var colorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -139,8 +140,14 @@ func validateDesign(mode string, body json.RawMessage) (json.RawMessage, error) 
 		if err := strictJSON(body, &design); err != nil {
 			return nil, err
 		}
-		if (strings.TrimSpace(design.HTML) == "" && design.PackageID == "") || len(design.HTML) > 300000 || len(design.CSS) > 100000 || len(design.Javascript) > 150000 {
+		if (strings.TrimSpace(design.HTML) == "" && design.PackageID == "" && design.PlatformPackageID == "") || len(design.HTML) > 300000 || len(design.CSS) > 100000 || len(design.Javascript) > 150000 {
 			return nil, invalidDesign("静态代码内容为空或超过大小限制")
+		}
+		if design.PlatformPackageID != "" {
+			if idValue(design.PlatformPackageID) != nil || design.PackageID != "" || design.HTML != "" || design.CSS != "" || design.Javascript != "" {
+				return nil, invalidDesign("平台静态包引用必须为有效编号，不能混合私有包或内联覆盖")
+			}
+			return json.Marshal(design)
 		}
 		if design.PackageID != "" {
 			if idValue(design.PackageID) != nil {

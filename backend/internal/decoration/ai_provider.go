@@ -100,8 +100,8 @@ func (s *Service) callProvider(ctx context.Context, mode, prompt, model string, 
 	if err == nil && mode == "code" {
 		var code CodeDesign
 		_ = json.Unmarshal(design, &code)
-		if code.PackageID != "" {
-			err = invalidDesign("AI不能引用未知私有资源包，请生成独立内联代码后再由管理员导入素材")
+		if code.PackageID != "" || code.PlatformPackageID != "" {
+			err = invalidDesign("AI不能引用已有私有或平台资源包，请生成独立代码后再由管理员导入素材")
 		}
 	}
 	if err != nil {

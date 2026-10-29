@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Empty, Segmented, Space, Tag } from "antd";
 import { DesktopOutlined, MobileOutlined, ReloadOutlined } from "@ant-design/icons";
 import { safeRenderURL } from "@/lib/frame-bridge";
+import { previewScale } from "./preview-scale";
 
 /** AssistantPreview 对服务端预览地址再次检查来源，并按容器宽度缩放完整视口。 */
 export function AssistantPreview({
@@ -17,19 +18,22 @@ export function AssistantPreview({
 }) {
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
   const [revision, setRevision] = useState(0);
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState({ width: 0, height: 0 });
   const host = useRef<HTMLDivElement | null>(null);
   const source =
     typeof window === "undefined" || !url ? null : safeRenderURL(url, window.location.origin);
   useEffect(() => {
     if (!host.current) return;
-    const observer = new ResizeObserver((entries) => setWidth(entries[0]?.contentRect.width || 0));
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      setSize({ width: rect?.width || 0, height: rect?.height || 0 });
+    });
     observer.observe(host.current);
     return () => observer.disconnect();
   }, []);
   const viewportWidth = device === "mobile" ? 390 : 1080;
   const viewportHeight = device === "mobile" ? 780 : 760;
-  const scale = Math.min(1, Math.max(0.15, (width - 32) / viewportWidth));
+  const scale = previewScale(size.width, size.height, viewportWidth, viewportHeight);
   return (
     <section className="assistant-preview" aria-label="用户端模板预览">
       <div className="assistant-preview-toolbar">

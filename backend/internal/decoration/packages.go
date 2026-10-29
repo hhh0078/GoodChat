@@ -311,6 +311,9 @@ func checkPackageDesign(ctx context.Context, tx pgx.Tx, mode string, design json
 		return nil
 	}
 	var code CodeDesign
+	if json.Unmarshal(design, &code) == nil && code.PlatformPackageID != "" {
+		return invalidDesign("请先复制平台模板为本租户资源，不能直接保存平台包引用")
+	}
 	if json.Unmarshal(design, &code) != nil || code.PackageID == "" {
 		return nil
 	}

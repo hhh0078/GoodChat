@@ -5,13 +5,35 @@
   border-color: #d7e3fb;
   font-weight: 600;
 }
-.assistant-modal {
+.assistant-modal,
+.template-preview-modal {
   padding-bottom: 24px;
   --assistant-ink: var(--ink, #1d2b40);
   --assistant-muted: var(--muted, #627189);
   --assistant-line: var(--line, #e0e7f1);
   --assistant-paper: #f4f7fc;
   --assistant-accent: var(--brand, #2463df);
+}
+.template-preview-modal .ant-modal-body {
+  display: flex;
+  flex-direction: column;
+  height: min(820px, calc(100dvh - 160px));
+  min-height: 0;
+  overflow: auto;
+}
+.template-preview-modal .assistant-preview {
+  flex: 1;
+  border: 1px solid var(--assistant-line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.template-preview-loading {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 12px;
+  flex: 1;
+  color: var(--assistant-muted);
 }
 .assistant-modal .ant-modal-container {
   padding: 0;
@@ -341,7 +363,7 @@
   justify-content: center;
   min-height: 0;
   overflow: auto;
-  padding: 16px 0 24px;
+  padding: 16px 16px 24px;
 }
 .assistant-preview-stage > .ant-empty {
   max-width: 360px;

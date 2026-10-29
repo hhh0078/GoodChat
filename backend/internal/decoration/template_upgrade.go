@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	xhtml "golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // exportTemplatePackage 将非资源包模板转为固定动作静态包，保留原有内容与可验证样式。
@@ -148,6 +149,9 @@ func prepareLegacyTemplateHTML(raw []byte) (string, error) {
 						attrs = append(attrs, attr)
 					}
 					child.Attr = attrs
+					if child.Data == "button" {
+						normalizeLegacyButton(child, complete)
+					}
 					if complete {
 						for _, attr := range attrs {
 							if attr.Key == "id" && attr.Val == "gc-messages" {
@@ -201,4 +205,42 @@ func prepareLegacyTemplateHTML(raw []byte) (string, error) {
 		return "", err
 	}
 	return out.String(), nil
+}
+
+// normalizeLegacyButton 仅保留固定SDK可执行的旧按钮，失去旧脚本的控件转为保留文案样式的静态节点。
+func normalizeLegacyButton(node *xhtml.Node, complete bool) {
+	attrs := templateNodeAttributes(node)
+	actions := 0
+	for _, name := range []string{"data-gc-send", "data-dialog-open", "data-dialog-close", "data-gc-ui"} {
+		if _, exists := attrs[name]; exists {
+			actions++
+		}
+	}
+	id := attrs["id"]
+	core := complete && (id == "gc-send" || id == "gc-add" || id == "gc-reply-cancel") && actions == 0 && attrs["data-kind"] == ""
+	kind, hasKind := attrs["data-kind"]
+	attachment := complete && actions == 0 && hasKind && (kind == "image" || kind == "file" || kind == "video") && templateButtonWithin(node, "gc-attachment-menu")
+	text, hasSend := attrs["data-gc-send"]
+	send := actions == 1 && hasSend && !hasKind && strings.TrimSpace(text) != "" && len(text) <= 10000 && !strings.ContainsRune(text, 0)
+	if core || attachment || send {
+		for i := range node.Attr {
+			if node.Attr[i].Key == "type" {
+				node.Attr[i].Val = "button"
+				return
+			}
+		}
+		node.Attr = append(node.Attr, xhtml.Attribute{Key: "type", Val: "button"})
+		return
+	}
+	// 升级不会迁移旧custom.js，因此旧UI声明也没有可验证的实现；不能据按钮文案猜测发送动作。
+	node.Data, node.DataAtom = "span", atom.Span
+	clean := node.Attr[:0]
+	for _, attr := range node.Attr {
+		switch attr.Key {
+		case "type", "disabled", "name", "value", "form", "formaction", "formmethod", "formenctype", "formtarget", "formnovalidate", "tabindex", "role", "aria-expanded", "aria-controls", "aria-haspopup", "aria-pressed", "data-kind", "data-gc-send", "data-dialog-open", "data-dialog-close", "data-gc-ui":
+			continue
+		}
+		clean = append(clean, attr)
+	}
+	node.Attr = clean
 }

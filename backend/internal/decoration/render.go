@@ -49,6 +49,11 @@ func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// 模板专用预览的静态字节已在创建时完整校验，不伪造永久package_id来绕过设计外键。
+	if snapshot.Ephemeral && snapshot.Entrypoint != "" && token != "" {
+		http.Redirect(w, r, packagePrefix(id, token)+escapePackagePath(snapshot.Entrypoint), http.StatusFound)
+		return
+	}
 	design, err := validateDesign(snapshot.RenderMode, snapshot.Design)
 	if err != nil {
 		http.Error(w, "页面校验失败，请使用基础咨询入口", http.StatusUnprocessableEntity)
