@@ -39,7 +39,6 @@ export function useChat(id: string, identity: ChatIdentity) {
   const [loading, setLoading] = useState(true);
   const [synced, setSynced] = useState(false);
   const [typingUntil, setTypingUntil] = useState(0);
-  const [olderCursor, setOlderCursor] = useState("");
   const [hasOlder, setHasOlder] = useState(false);
   const [readSeq, setReadSeq] = useState("0");
   const [revision, setRevision] = useState(0);
@@ -47,9 +46,14 @@ export function useChat(id: string, identity: ChatIdentity) {
   const [pendingError, setPendingError] = useState<unknown>(null);
   const synchronize = useRef<() => Promise<void>>(() => Promise.resolve());
   const cursor = useRef("");
+  const olderPosition = useRef("");
+  const snapshotEpoch = useRef(0);
+  const historyScope = useRef("");
+  const knownWithdrawals = useRef(new Map<string, string>());
   const typingSent = useRef(0);
   const scope = `${identity.kind}:${identity.tenantId || ""}:${identity.actorId}:${id}`;
   const activeScope = useRef(scope);
+  const withdrawalScope = useRef(scope);
   activeScope.current = scope;
   const token = identity.token,
     tenantId = identity.tenantId;
@@ -80,6 +84,12 @@ export function useChat(id: string, identity: ChatIdentity) {
       }),
     [tenantId, token],
   );
+  /** mergeIncoming 保留本会话已确认的撤回编号，原消息尚未加载时也不能被迟到的分页恢复。 */
+  const mergeIncoming = useCallback((previous: ChatMessage[], incoming: ChatMessage[]) => {
+    for (const item of incoming)
+      if (item.withdrawn_at) knownWithdrawals.current.set(item.id, item.withdrawn_at);
+    return mergeMessages(previous, incoming, knownWithdrawals.current);
+  }, []);
   const live = useRealtime(identity, {
     enabled: !!id,
     onEvent: (event) => {
@@ -103,6 +113,13 @@ export function useChat(id: string, identity: ChatIdentity) {
     let detailDirty = false;
     const seen = new Set<string>();
     const controller = new AbortController();
+    snapshotEpoch.current++;
+    if (withdrawalScope.current !== scope) {
+      knownWithdrawals.current.clear();
+      withdrawalScope.current = scope;
+    }
+    historyScope.current = "";
+    olderPosition.current = "";
     cursor.current = "";
     setMessages([]);
     setConversation(null);
@@ -112,22 +129,25 @@ export function useChat(id: string, identity: ChatIdentity) {
     setReadSeq("0");
     /** snapshot 获取授权快照，游标失效时立即重建，再继续补齐期间发生的事件。 */
     async function snapshot() {
+      const epoch = ++snapshotEpoch.current;
       const history = await request<{
         items: ChatMessage[];
         next_cursor: string;
         has_more: boolean;
         sync_cursor: string;
+        history_scope: string;
       }>(`/conversations/${id}/messages?limit=50`, { signal: controller.signal });
       // 先取得消息水位再读取资料，避免旧资料对应的变更已经落在恢复游标之前。
       const detail = await request<Conversation>(`/conversations/${id}`, {
         signal: controller.signal,
       });
-      if (cancelled) return;
+      if (cancelled || epoch !== snapshotEpoch.current) return;
       if (!history.sync_cursor) throw new Error("消息快照缺少恢复游标，请刷新后重试。");
       cursor.current = history.sync_cursor;
+      historyScope.current = history.history_scope;
+      olderPosition.current = history.next_cursor;
       setConversation(detail);
-      setMessages(history.items || []);
-      setOlderCursor(history.next_cursor);
+      setMessages(mergeIncoming([], history.items || []));
       setHasOlder(history.has_more);
       initialized = true;
       detailDirty = false;
@@ -152,6 +172,8 @@ export function useChat(id: string, identity: ChatIdentity) {
               resets++ === 0
             ) {
               cursor.current = "";
+              snapshotEpoch.current++;
+              olderPosition.current = "";
               seen.clear();
               // 可见范围变更时先清除旧资料，重建失败也不能继续展示已无权的历史。
               setMessages([]);
@@ -168,12 +190,14 @@ export function useChat(id: string, identity: ChatIdentity) {
             seen.add(event.id);
             if (seen.size > 1000) seen.delete(seen.values().next().value!);
             if (event.event_type === "message.created")
-              setMessages((previous) => mergeMessages(previous, [event.payload as ChatMessage]));
-            else if (event.event_type === "message.withdrawn")
+              setMessages((previous) => mergeIncoming(previous, [event.payload as ChatMessage]));
+            else if (event.event_type === "message.withdrawn") {
+              const withdrawnAt = new Date().toISOString();
+              knownWithdrawals.current.set(String(event.payload.id), withdrawnAt);
               setMessages((previous) =>
-                withdrawMessages(previous, String(event.payload.id), new Date().toISOString()),
+                withdrawMessages(previous, String(event.payload.id), withdrawnAt),
               );
-            else if (
+            } else if (
               event.event_type === "read.updated" &&
               event.payload.participant_id !== identity.actorId &&
               event.payload.participant_kind === (identity.kind === "agent" ? "visitor" : "agent")
@@ -201,6 +225,8 @@ export function useChat(id: string, identity: ChatIdentity) {
       } catch (problem) {
         if (!cancelled) {
           if (problem instanceof ApiError && [401, 403, 404].includes(problem.status)) {
+            snapshotEpoch.current++;
+            olderPosition.current = "";
             setMessages([]);
             setConversation(null);
             initialized = false;
@@ -224,15 +250,17 @@ export function useChat(id: string, identity: ChatIdentity) {
     );
     return () => {
       cancelled = true;
+      snapshotEpoch.current++;
       pump.stop();
       controller.abort();
       clearInterval(poll);
       clearInterval(lease);
       if (synchronize.current === pump.trigger) synchronize.current = () => Promise.resolve();
     };
-  }, [id, request, identity.actorId, revision]);
+  }, [id, request, identity.actorId, scope, mergeIncoming, revision]);
   /** send 在统一可信层暂存完整消息，覆盖原生及装修访客；只有服务端确认后才清理原身份会话的暂存。 */
   async function send(body: Outgoing) {
+    const epoch = snapshotEpoch.current;
     try {
       stagePending(sessionStorage, pendingKey, body);
       if (activeScope.current === scope) {
@@ -253,7 +281,8 @@ export function useChat(id: string, identity: ChatIdentity) {
     } catch (problem) {
       if (activeScope.current === scope) setPendingError(problem);
     }
-    if (activeScope.current === scope) setMessages((previous) => mergeMessages(previous, [item]));
+    if (activeScope.current === scope && epoch === snapshotEpoch.current)
+      setMessages((previous) => mergeIncoming(previous, [item]));
     return item;
   }
   /** withdraw 仅在服务端确认作者和时间窗后更新消息及引用，失败时保留原内容。 */
@@ -262,17 +291,36 @@ export function useChat(id: string, identity: ChatIdentity) {
       method: "POST",
       bodyJSON: {},
     });
-    if (activeScope.current === scope)
-      setMessages((previous) => withdrawMessages(previous, messageId, new Date().toISOString()));
+    if (activeScope.current === scope) {
+      const withdrawnAt = new Date().toISOString();
+      knownWithdrawals.current.set(messageId, withdrawnAt);
+      setMessages((previous) => withdrawMessages(previous, messageId, withdrawnAt));
+    }
   }
   /** loadOlder 使用消息历史游标追加旧记录，不覆盖实时新增消息。 */
   async function loadOlder() {
-    const data = await request<{ items: ChatMessage[]; next_cursor: string; has_more: boolean }>(
-      `/conversations/${id}/messages?before_seq=${encodeURIComponent(olderCursor)}&limit=50`,
-    );
-    if (activeScope.current !== scope) return;
-    setMessages((previous) => mergeMessages(previous, data.items || []));
-    setOlderCursor(data.next_cursor);
+    const before = olderPosition.current;
+    if (!before) return;
+    const epoch = snapshotEpoch.current;
+    const visibleScope = historyScope.current;
+    const data = await request<{
+      items: ChatMessage[];
+      next_cursor: string;
+      has_more: boolean;
+      history_scope: string;
+    }>(`/conversations/${id}/messages?before_seq=${encodeURIComponent(before)}&limit=50`);
+    if (
+      activeScope.current !== scope ||
+      epoch !== snapshotEpoch.current ||
+      before !== olderPosition.current
+    )
+      return;
+    if (data.history_scope !== visibleScope) {
+      await synchronize.current();
+      return;
+    }
+    olderPosition.current = data.next_cursor;
+    setMessages((previous) => mergeIncoming(previous, data.items || []));
     setHasOlder(data.has_more);
   }
   /** typing 对输入状态限流，短期状态通过服务端租约自动过期。 */

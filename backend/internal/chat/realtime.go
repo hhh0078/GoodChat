@@ -128,10 +128,6 @@ func (s *Service) websocket(w http.ResponseWriter, r *http.Request) {
 		cancel()
 	}
 	client := &liveClient{actor: a, send: make(chan []byte, 128), cancel: func() { finish(websocket.StatusTryAgainLater, "slow_consumer") }, lastTyping: map[string]time.Time{}}
-	s.mu.Lock()
-	s.clients[client] = struct{}{}
-	s.mu.Unlock()
-	slog.Info("realtime_connection", "connection_id", connectionID, "request_id", r.Header.Get("X-Request-ID"), "tenant_id", a.TenantID, "actor_kind", actorKind(a), "phase", "opened")
 	defer func() {
 		cancel()
 		s.mu.Lock()
@@ -145,14 +141,23 @@ func (s *Service) websocket(w http.ResponseWriter, r *http.Request) {
 		slog.Info("realtime_connection", "connection_id", connectionID, "phase", "closed", "close_code", int(result.code), "reason", result.reason)
 		_ = conn.Close(result.code, result.reason)
 	}()
-	if err := s.heartbeat(ctx, a); err != nil {
-		finish(realtimeErrorCode(err), "initial_authorization_failed")
+	// 升级HTTP后的请求上下文不能可靠感知断开的套接字，初始续租也必须有总时限。
+	initialCtx, stopInitial := context.WithTimeout(ctx, 10*time.Second)
+	initialErr := s.heartbeat(initialCtx, a)
+	stopInitial()
+	if initialErr != nil {
+		finish(realtimeErrorCode(initialErr), "initial_authorization_failed")
 		return
 	}
+	// 续租完成并先排入ready才公开接收广播；否则初始DB等待期间128个事件可塞满队列，让ready阻塞在writer启动之前。
+	client.send <- jsonValue(map[string]any{"type": "ready", "data": map[string]any{"protocol_version": 1, "heartbeat_seconds": 15, "connection_id": connectionID, "request_id": r.Header.Get("X-Request-ID")}})
+	s.mu.Lock()
+	s.clients[client] = struct{}{}
+	s.mu.Unlock()
+	slog.Info("realtime_connection", "connection_id", connectionID, "request_id", r.Header.Get("X-Request-ID"), "tenant_id", a.TenantID, "actor_kind", actorKind(a), "phase", "opened")
 	go keepRealtimeAlive(ctx, conn, 15*time.Second, 10*time.Second, func(renewCtx context.Context) error { return s.heartbeat(renewCtx, a) }, func(err error) {
 		finish(realtimeErrorCode(err), "probe_failed")
 	})
-	client.send <- jsonValue(map[string]any{"type": "ready", "data": map[string]any{"protocol_version": 1, "heartbeat_seconds": 15, "connection_id": connectionID, "request_id": r.Header.Get("X-Request-ID")}})
 	go func() {
 		for {
 			select {
@@ -197,8 +202,10 @@ func (s *Service) websocket(w http.ResponseWriter, r *http.Request) {
 			if time.Since(client.lastTyping[frame.ConversationID]) < time.Second && frame.Typing {
 				continue
 			}
-			client.lastTyping[frame.ConversationID] = time.Now()
-			_ = s.pushTyping(ctx, a, frame.ConversationID, frame.Typing)
+			// 只有权限验证成功的咨询才占用节流记录，避免任意随机编号让连接内map无限增长。
+			if err := s.pushTyping(ctx, a, frame.ConversationID, frame.Typing); err == nil {
+				client.lastTyping[frame.ConversationID] = time.Now()
+			}
 		case "subscribe":
 			_ = platform.TenantTx(ctx, s.pool, a.TenantID, func(tx pgx.Tx) error { return canReadConversation(ctx, tx, a, frame.ConversationID) })
 		}
@@ -275,13 +282,29 @@ func (s *Service) pushTyping(ctx context.Context, a actor, id string, on bool) e
 func (s *Service) broadcast(ctx context.Context, tenant, conversation, audience string, value map[string]any) {
 	s.mu.Lock()
 	clients := []*liveClient{}
+	visitorCount := 0
 	for c := range s.clients {
 		if c.actor.TenantID == tenant && (audience != "internal" || c.actor.ContactID == "") {
 			clients = append(clients, c)
+			if c.actor.ContactID != "" {
+				visitorCount++
+			}
 		}
 	}
 	s.mu.Unlock()
+	// 只排除确定不属于本客户的访客，目标与全部客服仍经过下方完整当前授权和脱敏；查询失败则保持原路线。
+	contactID := ""
+	filterVisitors := false
+	if visitorCount > 1 {
+		err := platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error {
+			return tx.QueryRow(ctx, "SELECT contact_id::text FROM conversations WHERE id=$1 AND tenant_id=$2", conversation, tenant).Scan(&contactID)
+		})
+		filterVisitors = err == nil
+	}
 	for _, c := range clients {
+		if filterVisitors && c.actor.ContactID != "" && c.actor.ContactID != contactID {
+			continue
+		}
 		outgoing := value
 		err := platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error {
 			if err := canReadConversation(ctx, tx, c.actor, conversation); err != nil {

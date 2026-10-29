@@ -9,15 +9,22 @@ export function createSyncPump(run: () => Promise<void>) {
     if (stopped) return Promise.resolve();
     pending = true;
     if (running) return running;
-    running = (async () => {
-      while (pending && !stopped) {
-        pending = false;
-        await run();
+    let finished = false;
+    const task = (async () => {
+      try {
+        while (pending && !stopped) {
+          pending = false;
+          await run();
+        }
+      } finally {
+        // 清理与最后一次pending检查在同一微任务内完成，不能留下已退出但仍可复用的旧Promise。
+        finished = true;
+        running = null;
       }
-    })().finally(() => {
-      running = null;
-    });
-    return running;
+    })();
+    // run可能同步抛错；此时finally已经清理，不能重新挂回一个已拒绝的任务。
+    if (!finished) running = task;
+    return task;
   }
   return {
     trigger,
