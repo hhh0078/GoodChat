@@ -3,6 +3,7 @@ package chat
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"supportdesk/backend/internal/platform"
@@ -49,6 +50,17 @@ func contactListQuery(r *http.Request, a actor) (string, []any, error) {
 		}
 		query += " AND (" + predicate + ")"
 		args = append(args, value)
+	}
+	// 独立字段以 AND 组合；只替换筛选值占位符，保留授权上下文固定的 $1、$2。
+	for _, key := range []string{"name", "phone", "channel", "extra", "tag", "category"} {
+		value := strings.TrimSpace(r.URL.Query().Get(key))
+		if len([]rune(value)) > 200 {
+			return "", nil, platform.Fail(400, "contact_search_too_long", "客户搜索内容不能超过200字")
+		}
+		if value != "" {
+			query += " AND (" + strings.ReplaceAll(predicates[key], "$3", "$"+strconv.Itoa(len(args)+1)) + ")"
+			args = append(args, value)
+		}
 	}
 	return query, args, nil
 }

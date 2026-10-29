@@ -2,12 +2,15 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { createReminderRequests, reminderEventInvalidates } from "@/lib/reminder-state";
+import {
+  createReminderRequests,
+  reminderEventInvalidates,
+  systemNotificationPreferences,
+} from "@/lib/reminder-state";
 import type { RealtimeEvent } from "@/lib/realtime/client";
 import { useNotificationAudio } from "./use-notification-audio";
 export type ReminderPreferences = {
   sound_enabled: boolean;
-  speech_enabled: boolean;
   system_enabled: boolean;
   content_preview: boolean;
   muted: boolean;
@@ -43,11 +46,10 @@ export function useReminders(tenantId: string, enabled = true, memberId = "") {
     const controller = new AbortController();
     const requests = createReminderRequests();
     const pendingConversations = new Set<string>();
-    /** cancel 立即停止声音、语音和旧领取响应，保留服务端持久未读供后续核验。 */
+    /** cancel 立即停止声音和旧领取响应，保留服务端持久未读供后续核验。 */
     function cancel() {
       requests.invalidateAttention();
       audio.stop();
-      if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     }
     const scope = { tenantId, memberId, controller, requests, cancel };
     activeScope.current = scope;
@@ -97,19 +99,6 @@ export function useReminders(tenantId: string, enabled = true, memberId = "") {
       const volume = Math.max(0, Math.min(1, settings.volume));
       if (volume > 0 && settings.sound_enabled)
         void audio.play(result.notification_sound_id, volume);
-      if (
-        volume > 0 &&
-        settings.speech_enabled &&
-        typeof speechSynthesis !== "undefined" &&
-        !speechSynthesis.speaking
-      ) {
-        const speech = new SpeechSynthesisUtterance(
-          settings.content_preview ? body : "你有未处理的访客咨询",
-        );
-        speech.lang = "zh-CN";
-        speech.volume = volume;
-        speechSynthesis.speak(speech);
-      }
     }
     /** claim 使用服务端最早未读期限，断网后重新领取，不依赖浏览器本地计时起点。 */
     async function claim() {
@@ -132,19 +121,10 @@ export function useReminders(tenantId: string, enabled = true, memberId = "") {
           preferencesCheckedAt = Date.now();
           setPreferences(value);
           if (value.muted || value.volume <= 0 || !value.sound_enabled) audio.stop();
-          if (
-            (value.muted || value.volume <= 0 || !value.speech_enabled) &&
-            typeof speechSynthesis !== "undefined"
-          )
-            speechSynthesis.cancel();
         }
         const settings = prefs.current;
         const canSound =
-          !!settings &&
-          settings.volume > 0 &&
-          audio.isReady() &&
-          (settings.sound_enabled ||
-            (settings.speech_enabled && typeof speechSynthesis !== "undefined"));
+          !!settings && settings.volume > 0 && audio.isReady() && settings.sound_enabled;
         const canNotify =
           !!settings?.system_enabled &&
           document.visibilityState !== "visible" &&
@@ -250,7 +230,6 @@ export function useReminders(tenantId: string, enabled = true, memberId = "") {
       window.removeEventListener("focus", resume);
       document.removeEventListener("visibilitychange", resume);
       window.removeEventListener("goodchat:notification-preferences", preferencesChanged);
-      if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     };
   }, [tenantId, memberId, enabled, audio.play, audio.stop, audio.isReady]);
   useEffect(() => {
@@ -297,7 +276,7 @@ export function useReminders(tenantId: string, enabled = true, memberId = "") {
       if (permission !== "granted")
         throw new Error("系统通知尚未授权，请在浏览器站点设置中允许通知");
     }
-    await updatePreferences({ system_enabled: enabled });
+    await updatePreferences(systemNotificationPreferences(enabled, prefs.current?.muted));
   }
   /** receive 将新消息与分配变更作为立即核验提示，不能凭WS消息替任何客服构造待处理状态。 */
   const receive = useCallback((event: RealtimeEvent) => eventReceiver.current(event), []);

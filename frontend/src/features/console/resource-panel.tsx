@@ -1,6 +1,6 @@
 /** 文件作用说明：提供真实接口驱动的通用资源列表、表单编辑与归档交互。 */
 "use client";
-import { useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import {
   App,
   Button,
@@ -20,6 +20,7 @@ import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import type { Resource } from "@/lib/types";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
+import filterStyles from "@/components/filter-toolbar.module.css";
 
 export type FieldDefinition = {
   name: string;
@@ -41,7 +42,7 @@ type Props = {
   help?: string;
   onChanged?: () => void;
   canEdit?: (item: Resource) => boolean;
-  searchOptions?: { value: string; label: string }[];
+  searchFields?: { value: string; label: string }[];
   tools?: ReactNode;
   canCreate?: boolean;
   tableMinWidth?: number;
@@ -56,19 +57,17 @@ export function ResourcePanel({
   help,
   onChanged,
   canEdit,
-  searchOptions,
+  searchFields,
   tools,
   canCreate = true,
   tableMinWidth = 640,
 }: Props) {
   const [query, setQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
-  const [searchField, setSearchField] = useState("all");
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [submittedFilters, setSubmittedFilters] = useState<Record<string, string>>({});
+  const filterId = useId();
   const resource = useResource<Resource>(
-    path +
-      (searchOptions
-        ? `?${new URLSearchParams({ query: submittedQuery, search_field: searchField })}`
-        : ""),
+    path + (searchFields ? `?${new URLSearchParams(submittedFilters)}` : ""),
     platform,
   );
   const [editing, setEditing] = useState<Resource | null | undefined>();
@@ -78,12 +77,12 @@ export function ResourcePanel({
   const { message } = App.useApp();
   const visible = useMemo(
     () =>
-      searchOptions
+      searchFields
         ? resource.items
         : resource.items.filter((item) =>
             JSON.stringify(item).toLowerCase().includes(query.toLowerCase()),
           ),
-    [resource.items, query, searchOptions],
+    [resource.items, query, searchFields],
   );
   /** openEditor 初始化字段默认值，保留已有字段内容。 */
   function openEditor(item: Resource | null) {
@@ -172,35 +171,70 @@ export function ResourcePanel({
   ];
   return (
     <section className="console-resource-panel">
-      <div className="resource-tools">
-        {searchOptions && (
-          <Select
-            aria-label="客户搜索类型"
-            value={searchField}
-            options={searchOptions}
-            style={{ minWidth: 128 }}
-            onChange={(value) => {
-              setSearchField(value);
-              setSubmittedQuery(query);
-            }}
+      <form
+        className={filterStyles.toolbar}
+        aria-label={`${title}筛选`}
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSubmittedFilters({ ...filters });
+        }}
+      >
+        {searchFields ? (
+          <>
+            {searchFields.map((field) => (
+              <label
+                className={filterStyles.field}
+                htmlFor={`${filterId}-${field.value}`}
+                key={field.value}
+              >
+                <span>{field.label}</span>
+                <Input
+                  id={`${filterId}-${field.value}`}
+                  aria-label={`筛选${field.label}`}
+                  variant="borderless"
+                  allowClear
+                  maxLength={200}
+                  value={filters[field.value] || ""}
+                  onChange={(event) =>
+                    setFilters((previous) => ({
+                      ...previous,
+                      [field.value]: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            ))}
+            <Button type="primary" htmlType="submit">
+              搜索
+            </Button>
+            <Button
+              onClick={() => {
+                setFilters({});
+                setSubmittedFilters({});
+              }}
+            >
+              重置
+            </Button>
+          </>
+        ) : (
+          <Input
+            className={filterStyles.search}
+            aria-label={`搜索${title}`}
+            placeholder={`搜索${title}`}
+            allowClear
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
           />
         )}
-        <Input.Search
-          aria-label={`搜索${title}`}
-          placeholder={`搜索${title}`}
-          style={{ maxWidth: 320 }}
-          allowClear
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onSearch={(value) => setSubmittedQuery(value)}
-        />
-        {canCreate && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor(null)}>
-            新增{title}
-          </Button>
-        )}
-        {tools}
-      </div>
+        <div className={filterStyles.actions}>
+          {canCreate && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor(null)}>
+              新增{title}
+            </Button>
+          )}
+          {tools}
+        </div>
+      </form>
       {help && (
         <p className="muted" style={{ fontSize: 13 }}>
           {help}

@@ -1,6 +1,13 @@
 /** 文件作用说明：隔离提醒偏好保存和领取响应的修订号，防止迟到请求重新开启已经取消的提示。 */
 import type { RealtimeEvent } from "./realtime/client";
 
+/** systemNotificationPreferences 在主动开启系统通知时将旧免打扰转换为零音量，保留静音而不阻挡通知。 */
+export function systemNotificationPreferences(enabled: boolean, muted = false) {
+  return enabled && muted
+    ? { system_enabled: true, muted: false, volume: 0 }
+    : { system_enabled: enabled };
+}
+
 /** createReminderRequests 为一个成员连接维护偏好保存与待播领取的独立修订号。 */
 export function createReminderRequests() {
   let preferenceRevision = 0,

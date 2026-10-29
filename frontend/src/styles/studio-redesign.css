@@ -7,20 +7,6 @@
   min-width: 0;
   color: var(--ink);
 }
-.studio-page .page-title-row {
-  align-items: center;
-  margin-bottom: 28px;
-}
-.studio-page .page-title-row h1 {
-  color: var(--ink);
-  font-size: 32px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-.studio-page .page-title-row p {
-  font-size: 14px;
-  line-height: 1.65;
-}
 .studio-page .ant-card,
 .studio-drawer .ant-card {
   border-color: var(--line);
@@ -45,6 +31,9 @@
   color: var(--muted);
   font-size: 14px;
   line-height: 1.65;
+}
+.studio-operations .studio-panel-heading p {
+  font-size: 12px;
 }
 .studio-tabs > .ant-tabs-nav {
   margin-bottom: 24px;
@@ -795,14 +784,6 @@
   .studio-platform-rule > .ant-btn {
     margin-left: 30px;
     padding-left: 0;
-  }
-  .studio-page .page-title-row {
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-  .studio-page .page-title-row h1 {
-    font-size: 24px;
   }
   .studio-templates .templates-grid,
   .studio-platform-metrics,

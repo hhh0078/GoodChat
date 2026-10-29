@@ -1,4 +1,4 @@
-/** 文件作用说明：配置真实欢迎语、关键词、快捷话术、提醒偏好并查询留言与评价。 */
+/** 文件作用说明：配置租户欢迎语、关键词与快捷话术，并查询留言与评价；个人音量统一在工作台调整。 */
 "use client";
 import { useEffect, useState } from "react";
 import {
@@ -10,7 +10,6 @@ import {
   Input,
   InputNumber,
   Select,
-  Slider,
   Space,
   Switch,
   Table,
@@ -33,15 +32,15 @@ type LeadRecord = Resource & {
   notes?: string;
   attachments?: { id: string; file_name: string; content_type: string; size_bytes: number }[];
 };
-/** OperationsSettings 根据配置类型维护服务端持久设置。 */
-export function OperationsSettings({ notifications = false }: { notifications?: boolean }) {
+/** OperationsSettings 维护租户基础欢迎设置，保存时仅提交当前表单字段。 */
+export function OperationsSettings() {
   const { tenantId } = useSession();
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const path = notifications ? "/tenant/notification-preferences" : "/tenant/chat-settings";
+  const path = "/tenant/chat-settings";
   useEffect(() => {
     const controller = new AbortController();
     setLoaded(false);
@@ -65,10 +64,6 @@ export function OperationsSettings({ notifications = false }: { notifications?: 
       const data = await api(path, { method: "PATCH", tenantId, bodyJSON: values });
       form.setFieldsValue(data);
       setError(null);
-      if (notifications)
-        window.dispatchEvent(
-          new CustomEvent("goodchat:notification-preferences", { detail: { tenantId } }),
-        );
       message.success("设置已保存");
     } catch (problem) {
       setError(problem);
@@ -79,65 +74,50 @@ export function OperationsSettings({ notifications = false }: { notifications?: 
   return (
     <section className="studio-settings-form">
       <div className="studio-panel-heading">
-        <h2>{notifications ? "消息提醒" : "服务与欢迎语"}</h2>
-        <p>{notifications ? "为当前账号设置接待提醒。" : "控制基础欢迎内容与输入提示。"}</p>
+        <h2>服务与欢迎语</h2>
+        <p>
+          以下设置对整个租户生效。只需要一句问候时，填写基础欢迎语即可；图片、多条消息或不同入口的问候请在“高级欢迎规则”配置。
+        </p>
       </div>
       <ErrorNotice error={error} />
       <Form form={form} layout="vertical" onFinish={save} className="studio-preferences-form">
-        {notifications ? (
-          <>
-            <Form.Item name="muted" label="免打扰" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              name="system_enabled"
-              label="系统通知"
-              valuePropName="checked"
-              extra="同时需要在客服工作台主动开启浏览器通知权限。"
-            >
-              <Switch />
-            </Form.Item>
-            <Form.Item name="sound_enabled" label="消息提示音" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              name="speech_enabled"
-              label="语音播报"
-              valuePropName="checked"
-              extra="需要浏览器允许播放，建议仅在私人接待环境启用。"
-            >
-              <Switch />
-            </Form.Item>
-            <Form.Item name="content_preview" label="允许通知展示消息内容" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item name="volume" label="音量">
-              <Slider min={0} max={1} step={0.1} />
-            </Form.Item>
-          </>
-        ) : (
-          <>
-            <Form.Item name="welcome_enabled" label="启用欢迎语" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item name="welcome_text" label="欢迎语内容">
-              <Input.TextArea rows={4} maxLength={2000} />
-            </Form.Item>
-            <Form.Item name="welcome_delay_seconds" label="欢迎语延迟（秒）">
-              <InputNumber min={0} max={60} />
-            </Form.Item>
-            <Form.Item name="keywords_enabled" label="启用关键词自动回复" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item name="typing_enabled" label="显示对方正在输入" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-          </>
-        )}
+        <Form.Item
+          name="welcome_enabled"
+          label="欢迎消息总开关"
+          valuePropName="checked"
+          extra="新会话创建后自动发送问候。关闭后，基础欢迎语和高级欢迎规则都不再发送；普通刷新不会重复欢迎。"
+        >
+          <Switch />
+        </Form.Item>
+        <Form.Item
+          name="welcome_text"
+          label="基础文字欢迎语"
+          extra="例如：您好，请问有什么可以帮您？没有匹配的高级欢迎规则时才发送这段文字；命中高级规则后只发送该规则的一组内容。留空则不发送基础欢迎语。"
+        >
+          <Input.TextArea rows={4} maxLength={2000} />
+        </Form.Item>
+        <Form.Item
+          name="welcome_delay_seconds"
+          label="基础欢迎语等待时间（秒）"
+          extra="从新会话创建时开始计时，0表示立即发送，最多60秒。这里只控制基础文字；高级规则中每条消息的等待时间单独设置。"
+        >
+          <InputNumber min={0} max={60} precision={0} />
+        </Form.Item>
+        <Form.Item
+          name="keywords_enabled"
+          label="关键词自动回复总开关"
+          valuePropName="checked"
+          extra="开启后，访客发来的文字命中“关键词回复”中的已启用规则时，系统自动回复。例如访客问价格，自动发送价目说明；关闭后所有关键词规则暂停。"
+        >
+          <Switch />
+        </Form.Item>
         <Button type="primary" htmlType="submit" loading={busy} disabled={!loaded}>
           保存设置
         </Button>
       </Form>
+      <p className="form-hint">
+        个人音量在客服工作台右上角调整；团队统一的未读提醒间隔和提示音在“租户设置 → 接待提醒”配置。
+      </p>
     </section>
   );
 }
@@ -400,7 +380,11 @@ export function AutomationPage() {
         className="studio-operations-tabs"
         tabPosition={screens.lg ? "left" : "top"}
         items={[
-          { key: "settings", label: "服务与欢迎语", children: <OperationsSettings /> },
+          {
+            key: "settings",
+            label: "服务与欢迎语",
+            children: <OperationsSettings key={tenantId} />,
+          },
           {
             key: "welcome-rules",
             label: "高级欢迎规则",
@@ -420,33 +404,64 @@ export function AutomationPage() {
                 <ResourcePanel
                   title="关键词规则"
                   path="/tenant/keyword-rules"
+                  help="访客发送文字后自动匹配，每条消息最多回复一条规则。先在“服务与欢迎语”开启关键词总开关，再新增并启用规则。快捷话术则由客服手动双击发送，两者用途不同。"
                   columns={[
                     { title: "规则名称", dataIndex: "name" },
                     { title: "关键词", dataIndex: "pattern" },
                     { title: "回复", dataIndex: "reply", ellipsis: true },
                   ]}
                   fields={[
-                    { name: "name", label: "规则名称", required: true },
+                    {
+                      name: "name",
+                      label: "规则名称",
+                      required: true,
+                      hint: "仅供团队识别，例如“价格咨询”，不会发给访客。",
+                    },
                     {
                       name: "match_mode",
                       label: "匹配方式",
                       type: "select",
                       initial: "contains",
+                      hint: "“包含”会匹配整句话中的关键词，例如“价格”能命中“请问价格多少”；“完整匹配”要求整条消息相同。英文字母不区分大小写。",
                       options: [
                         { label: "包含关键词", value: "contains" },
                         { label: "完整匹配", value: "exact" },
                       ],
                     },
-                    { name: "pattern", label: "关键词", required: true },
-                    { name: "reply", label: "回复内容", required: true, type: "textarea" },
-                    { name: "priority", label: "优先级", type: "number", initial: 1 },
+                    {
+                      name: "pattern",
+                      label: "关键词",
+                      required: true,
+                      hint: "填写一段要匹配的文字，例如“营业时间”。多个关键词请分别建规则；这里不支持用逗号分隔或正则表达式。",
+                    },
+                    {
+                      name: "reply",
+                      label: "自动回复文字",
+                      required: true,
+                      type: "textarea",
+                      hint: "命中后直接发送给访客的内容，例如“我们的营业时间为每天9:00至18:00”。",
+                    },
+                    {
+                      name: "priority",
+                      label: "优先级",
+                      type: "number",
+                      initial: 1,
+                      hint: "数字越大越先匹配，例如10优先于1。多条规则同时命中时只取最优先的一条，建议不同规则使用不同数字。",
+                    },
                     {
                       name: "cooldown_seconds",
                       label: "重复触发间隔（秒）",
                       type: "number",
                       initial: 60,
+                      hint: "同一会话内这条规则再次回复前要等待多久，默认60秒；0表示不限制。等待期间再次命中会跳过本次自动回复，避免连续刷屏。",
                     },
-                    { name: "enabled", label: "启用", type: "switch", initial: true },
+                    {
+                      name: "enabled",
+                      label: "启用这条规则",
+                      type: "switch",
+                      initial: true,
+                      hint: "关闭只暂停当前规则，内容仍保留。还需要开启“服务与欢迎语”中的关键词总开关才会生效。",
+                    },
                   ]}
                 />
               </div>
@@ -459,12 +474,7 @@ export function AutomationPage() {
             children: <LeadNotifications key={tenantId} />,
           },
           { key: "evaluations", label: "服务评价", children: <EvaluationList /> },
-          {
-            key: "notifications",
-            label: "消息提醒",
-            children: <OperationsSettings notifications />,
-          },
-        ].filter((item) => manages || ["replies", "leads", "notifications"].includes(item.key))}
+        ].filter((item) => manages || ["replies", "leads"].includes(item.key))}
       />
     </section>
   );

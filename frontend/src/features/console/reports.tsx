@@ -82,8 +82,10 @@ export function ReportsPage() {
               今天
             </Button>
             <DatePicker.RangePicker
+              aria-label="统计日期"
               value={range}
-              placeholder={["自定义开始日期", "自定义结束日期"]}
+              placeholder={["开始", "结束"]}
+              style={{ width: 240 }}
               onChange={setRange}
             />
           </Space>

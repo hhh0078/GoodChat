@@ -17,8 +17,13 @@ export function QuickReplyManager({ manages }: { manages: boolean }) {
     <section className="table-card studio-table-surface">
       <div className="studio-panel-heading">
         <h2>快捷话术</h2>
-        <p>维护个人或公共的文字、图片、语音和选项；使用次数只统计当前成员成功发送。</p>
+        <p>
+          预先保存常用文字、图片、语音、文件或选项，在客服输入框左侧双击标题即可发送给当前客户。
+        </p>
       </div>
+      <p className="form-hint">
+        个人话术仅自己可见和编辑，团队公共话术供所有客服使用、由管理员维护。工作台先显示个人，再显示公共，各自按自己成功发送的次数排序；下方“已发送”也只统计当前账号。
+      </p>
       <ErrorNotice error={data.error} retry={data.reload} />
       <Button
         type="primary"

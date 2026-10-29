@@ -67,7 +67,7 @@ export function TenantReminders() {
     <section className="tenant-reminder-settings">
       <h2>接待提醒</h2>
       <p className="muted">
-        新咨询或访客消息未查看时，按以下间隔持续提醒对应客服；实际打开并读完、转接或结束后停止。
+        这里统一设置整个团队的提醒节奏和提示音。每位客服的音量只需在客服工作台右上角调整，设为0即可静音。
       </p>
       <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
       <Form form={form} layout="vertical" onFinish={save} style={{ maxWidth: 560 }}>
@@ -77,11 +77,14 @@ export function TenantReminders() {
           rules={[
             { required: true, type: "integer", min: 1, max: 3600, message: "请输入1至3600秒整数" },
           ]}
-          extra="默认10秒。没有明确接待客服的排队咨询不会重复打扰所有成员。"
+          extra="默认10秒，可填1至3600秒。例如填10：分配给客服的新咨询或未读消息超过10秒未查看，就每隔10秒提醒一次，直到客服打开并读完、转接或结束。没有明确接待客服的排队咨询不提醒；没有待查看的咨询或消息也不会响。"
         >
           <InputNumber min={1} max={3600} precision={0} disabled={!loaded} />
         </Form.Item>
-        <Form.Item label="提示音 · 每段约1秒">
+        <Form.Item
+          label="团队提示音 · 每段约1秒"
+          extra="选择铃声后可以先试听，点击“保存接待提醒”才对整个团队生效。这里只选音色，不控制任何客服的个人音量。"
+        >
           <Space wrap>
             <Form.Item name="notification_sound_id" noStyle rules={[{ required: true }]}>
               <Select

@@ -40,9 +40,9 @@ type WelcomeRule = Resource & {
   contents: WelcomeContent[];
 };
 const scopeNames: Record<string, string> = {
-  tenant: "租户",
+  tenant: "整个团队",
   space: "服务空间",
-  link: "链接",
+  link: "接入链接",
   legacy: "基础欢迎语",
 };
 const scenarioNames: Record<string, string> = {
@@ -185,8 +185,8 @@ export function WelcomeRules() {
       <Alert
         type="info"
         showIcon
-        title="链接优先于服务空间，服务空间优先于租户；同层具体营业场景优先。"
-        description="只发送最终匹配的一组内容；禁用或归档后回退上层。总开关在“服务与欢迎语”，没有高级规则时保留基础文字欢迎。"
+        title="需要图片、选项或不同入口的欢迎内容时，再添加高级规则。"
+        description="每次新咨询只使用一组欢迎内容，按“接入链接 → 所属服务空间 → 整个团队 → 基础欢迎语”依次查找。同一范围内，“营业中/非营业”优先于“全部”。关闭或归档一条规则后，会继续查找其他适用规则；欢迎总开关在“服务与欢迎语”。"
         style={{ marginBottom: 16 }}
       />
       <Button type="primary" onClick={() => editRule()} style={{ marginBottom: 16 }}>
@@ -245,6 +245,9 @@ export function WelcomeRules() {
         title="查看最终生效欢迎"
         style={{ marginTop: 16 }}
       >
+        <p className="form-hint">
+          选择一个接入链接和时间，查看访客当时会看到哪组欢迎内容。时间留空表示现在；查询只预览，不会创建咨询或发消息。
+        </p>
         <Space wrap>
           <Select
             allowClear
@@ -295,23 +298,40 @@ export function WelcomeRules() {
       >
         <ErrorNotice error={error} />
         <Form form={form} layout="vertical" onFinish={saveRule}>
-          <Form.Item name="name" label="规则名称" rules={[{ required: true, whitespace: true }]}>
+          <Form.Item
+            name="name"
+            label="规则名称"
+            rules={[{ required: true, whitespace: true }]}
+            extra="仅供团队管理时辨认，例如“官网白天欢迎”，不会展示给访客。"
+          >
             <Input maxLength={100} />
           </Form.Item>
           <Space align="start" wrap>
-            <Form.Item name="scope_type" label="覆盖层级" rules={[{ required: true }]}>
+            <Form.Item
+              name="scope_type"
+              label="适用范围"
+              rules={[{ required: true }]}
+              extra="整个团队作为通用内容；服务空间或接入链接可单独设置。"
+              style={{ maxWidth: 240 }}
+            >
               <Select
                 style={{ width: 150 }}
                 onChange={() => form.setFieldValue("scope_id", undefined)}
                 options={[
-                  { label: "租户", value: "tenant" },
+                  { label: "整个团队", value: "tenant" },
                   { label: "服务空间", value: "space" },
                   { label: "接入链接", value: "link" },
                 ]}
               />
             </Form.Item>
             {scopeType !== "tenant" && (
-              <Form.Item name="scope_id" label="关联范围" rules={[{ required: true }]}>
+              <Form.Item
+                name="scope_id"
+                label="选择空间或链接"
+                rules={[{ required: true }]}
+                extra="仅从所选入口进入的新咨询使用这条规则。"
+                style={{ maxWidth: 260 }}
+              >
                 <Select
                   style={{ width: 260 }}
                   options={
@@ -322,7 +342,13 @@ export function WelcomeRules() {
                 />
               </Form.Item>
             )}
-            <Form.Item name="scenario" label="欢迎场景" rules={[{ required: true }]}>
+            <Form.Item
+              name="scenario"
+              label="生效时间"
+              rules={[{ required: true }]}
+              extra="“全部”不限时段；另两项按“营业与评价策略”的营业时间判断。"
+              style={{ maxWidth: 240 }}
+            >
               <Select
                 style={{ width: 150 }}
                 options={[
@@ -333,16 +359,29 @@ export function WelcomeRules() {
               />
             </Form.Item>
           </Space>
-          <Space>
-            <Form.Item name="enabled" label="启用" valuePropName="checked">
+          <Space align="start" wrap>
+            <Form.Item
+              name="enabled"
+              label="启用这条规则"
+              valuePropName="checked"
+              extra="关闭后保留内容，暂不参与匹配。"
+              style={{ maxWidth: 240 }}
+            >
               <Switch />
             </Form.Item>
-            <Form.Item name="stop_on_agent" label="人工接入后停止未发内容" valuePropName="checked">
+            <Form.Item
+              name="stop_on_agent"
+              label="人工接入后停止未发内容"
+              valuePropName="checked"
+              extra="客服接入后取消这组尚未发送的欢迎消息；关闭则继续按延迟发送。"
+              style={{ maxWidth: 340 }}
+            >
               <Switch />
             </Form.Item>
           </Space>
           <p className="form-hint">
-            每条延迟都从本次会话创建时刻计算，不累计上一条延迟。图片最大10MB；视频欢迎暂不开放。
+            每组最多 12 条。每条延迟都从本次咨询创建时刻计算：两条分别填 5 和 10，就在第 5 秒和第 10
+            秒发送，不是间隔 10 秒。相同延迟按列表顺序发送。
           </p>
           <Form.List name="contents">
             {(fields, { add, remove, move }) => (
@@ -372,11 +411,13 @@ export function WelcomeRules() {
                       </Space>
                     }
                   >
-                    <Space>
+                    <Space align="start" wrap>
                       <Form.Item
                         name={[field.name, "type"]}
                         label="类型"
                         rules={[{ required: true }]}
+                        extra="可发送文字、图片或供访客点选的问题。"
+                        style={{ maxWidth: 240 }}
                       >
                         <Select
                           style={{ width: 150 }}
@@ -395,6 +436,8 @@ export function WelcomeRules() {
                         name={[field.name, "delay_seconds"]}
                         label="创建后延迟秒数"
                         rules={[{ required: true }]}
+                        extra="0 表示尽快发送；最多 3600 秒（1 小时）。"
+                        style={{ maxWidth: 240 }}
                       >
                         <InputNumber min={0} max={3600} precision={0} />
                       </Form.Item>
@@ -402,6 +445,7 @@ export function WelcomeRules() {
                     <Form.Item
                       name={[field.name, "content"]}
                       label={contents?.[index]?.type === "image" ? "图片说明（选填）" : "欢迎文字"}
+                      extra="访客在聊天里看到的内容，最多 2000 字。"
                     >
                       <Input.TextArea maxLength={2000} rows={2} />
                     </Form.Item>
@@ -411,6 +455,7 @@ export function WelcomeRules() {
                           name={[field.name, "attachment_id"]}
                           label="欢迎图片"
                           rules={[{ required: true, message: "请上传欢迎图片" }]}
+                          extra="上传本地图片，最大 10MB；选择后还需保存整条规则才会生效。"
                           getValueProps={(value) => ({
                             value: value ? "已选择图片，保存后生效" : "",
                           })}
@@ -435,6 +480,10 @@ export function WelcomeRules() {
                       <Form.List name={[field.name, "options"]}>
                         {(options, actions) => (
                           <>
+                            <p className="form-hint">
+                              配置 1 至 8
+                              个选项。“显示文案”是按钮上的短标题，例如“查看价格”；“实际发送内容”是访客点击后发给客服的话，例如“我想咨询价格”。
+                            </p>
                             {options.map((option) => (
                               <Space key={option.key} align="baseline" wrap>
                                 <Form.Item name={[option.name, "id"]} hidden>
