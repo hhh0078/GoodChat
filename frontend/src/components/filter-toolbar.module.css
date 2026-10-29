@@ -1,0 +1,86 @@
+/* 文件作用说明：统一列表筛选栏的短标签、紧凑宽度和窄屏换行，保留完整的输入与操作。 */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.field {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: 104px;
+  height: 36px;
+  padding-inline: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.field:focus-within {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.field > span:first-child {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.field > :global(.ant-input),
+.field > :global(.ant-input-affix-wrapper),
+.field > :global(.ant-select),
+.field > :global(.ant-picker) {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  padding-inline: 0;
+}
+
+.search {
+  flex: 0 1 240px;
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.date {
+  flex-basis: 264px;
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.toolbar :global(.ant-btn) {
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .field {
+    flex: 1 1 104px;
+  }
+
+  .date {
+    flex-basis: 264px;
+  }
+
+  .search {
+    flex: 1 1 180px;
+    max-width: 100%;
+  }
+
+  .actions {
+    margin-left: 0;
+  }
+}
