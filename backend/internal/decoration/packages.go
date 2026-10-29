@@ -120,12 +120,23 @@ func (s *Service) importPackage(w http.ResponseWriter, r *http.Request) {
 		if err := s.checkFeature(r.Context(), tx, platform.Current(r).TenantID, "advanced_decoration"); err != nil {
 			return nil, err
 		}
+		if err := verifyNewTemplatePackage(r.Context(), tx, pkg); err != nil {
+			return nil, err
+		}
 		return s.storePackage(r.Context(), tx, platform.Current(r), fields["name"], pkg)
 	})
 }
 
 // storePackage 原子保存完整清单与字节，返回供草稿引用的私有编号。
 func (s *Service) storePackage(ctx context.Context, tx pgx.Tx, p platform.Principal, name string, pkg *staticPackage) (any, error) {
+	for _, file := range pkg.Files {
+		if file.Path == "goodchat-contract.json" {
+			if err := verifyNewTemplatePackage(ctx, tx, pkg); err != nil {
+				return nil, err
+			}
+			break
+		}
+	}
 	manifest, _ := json.Marshal(pkg.Files)
 	var id string
 	if err := tx.QueryRow(ctx, `INSERT INTO decoration_code_packages(tenant_id,owner_membership_id,name,entrypoint,manifest,file_count,total_bytes,sha256) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id::text`, p.TenantID, p.MembershipID, name, pkg.Entrypoint, manifest, len(pkg.Files), pkg.Total, pkg.SHA256).Scan(&id); err != nil {
@@ -273,6 +284,9 @@ func (s *Service) revisePackage(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil, err
 		}
+		if err := verifyNewTemplatePackage(r.Context(), tx, pkg); err != nil {
+			return nil, err
+		}
 		return s.storePackage(r.Context(), tx, platform.Current(r), name, pkg)
 	})
 }
@@ -312,6 +326,14 @@ func checkPackageDesign(ctx context.Context, tx pgx.Tx, mode string, design json
 	files := map[string]packageFile{}
 	for _, file := range manifest {
 		files[file.Path] = file
+	}
+	if _, strict := files["goodchat-contract.json"]; strict {
+		if code.HTML != "" || code.CSS != "" || code.Javascript != "" {
+			return invalidDesign("固定脚本模板请通过源码修订生成新资源包，不能覆盖已校验的入口或脚本")
+		}
+		if err := verifyTemplatePackageScripts(ctx, tx, code.PackageID); err != nil {
+			return err
+		}
 	}
 	if code.HTML != "" {
 		if _, err := packageHTML([]byte(code.HTML), entry, "", "", "", files); err != nil {

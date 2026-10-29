@@ -113,7 +113,15 @@ func (s *Service) renderPackageAsset(w http.ResponseWriter, r *http.Request) {
 			code.CSS = ""
 			code.Javascript = ""
 		}
-		raw, err = packageHTML(raw, name, prefix, nonce, sdkScript(parent, id, preview), files, code)
+		sdk := sdkScript(parent, id, preview)
+		if templateHasContract(files) {
+			if code.HTML != "" || code.CSS != "" || code.Javascript != "" {
+				http.Error(w, "固定SDK模板请修订静态文件，不能覆盖入口代码", 422)
+				return
+			}
+			sdk = templateBootScript(parent, id, preview)
+		}
+		raw, err = packageHTML(raw, name, prefix, nonce, sdk, files, code)
 	} else if strings.HasPrefix(mime, "text/css") {
 		var css string
 		css, err = packageCSS(string(raw), name, prefix, files)

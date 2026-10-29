@@ -134,6 +134,11 @@ func (s *Service) resources(name string) http.HandlerFunc {
 					}
 				}
 			}
+			if name == "access-links" {
+				if err := prepareLinkTemplateBinding(ctx, tx, id, values); err != nil {
+					return err
+				}
+			}
 			if err := prepareResource(ctx, tx, name, values, r.Method == http.MethodPost); err != nil {
 				return err
 			}

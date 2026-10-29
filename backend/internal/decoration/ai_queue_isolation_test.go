@@ -12,7 +12,7 @@ import (
 func TestPostgresAIQueuePhysicalIsolation(t *testing.T) {
 	f := newIntegrationFixture(t, platform.Config{AIEndpoint: "http://127.0.0.1:1", AIKey: "test-only", AIModel: "not-called-test"})
 	ctx := context.Background()
-	job := f.mustRequest("POST", "/tenant/ai-design-jobs", f.member, map[string]any{"name": "物理隔离任务", "prompt": "创建自然绿色客服页面", "render_mode": "schema"})
+	job := f.mustRequest("POST", "/tenant/test-legacy-ai-design-jobs", f.member, map[string]any{"name": "物理隔离任务", "prompt": "创建自然绿色客服页面", "render_mode": "schema"})
 	var public, isolated int
 	if err := f.admin.QueryRow(ctx, "SELECT count(*) FROM public.ai_design_queue WHERE tenant_id=$1", f.tenant).Scan(&public); err != nil || public != 0 {
 		t.Fatal("真实公共worker不能看到任何测试调度任务")
@@ -46,9 +46,9 @@ func TestPostgresAIQueuePhysicalIsolation(t *testing.T) {
 // TestPostgresAIPackageEditIsExplicit 拒绝静默丢弃资源依赖的AI改稿，保留源码修订与另建内联草稿路径。
 func TestPostgresAIPackageEditIsExplicit(t *testing.T) {
 	f := newIntegrationFixture(t, platform.Config{AIEndpoint: "http://127.0.0.1:1", AIKey: "test-only", AIModel: "not-called-test"})
-	data := f.mustUploadPackage(packageFixtureFiles(t))
+	data := f.mustPersistLegacyPackage(packageFixtureFiles(t))
 	template := f.mustRequest("POST", "/tenant/templates", f.member, map[string]any{"name": "私有包模板", "render_mode": "code", "design": data["design"]})
-	status, result := f.request("POST", "/tenant/ai-design-jobs", f.member, map[string]any{"name": "资源包改稿", "prompt": "修改当前资源包颜色", "render_mode": "code", "template_id": template["id"], "base_version": 1})
+	status, result := f.request("POST", "/tenant/test-legacy-ai-design-jobs", f.member, map[string]any{"name": "资源包改稿", "prompt": "修改当前资源包颜色", "render_mode": "code", "template_id": template["id"], "base_version": 1})
 	if status != 409 || result["code"] != "ai_package_edit_requires_source" {
 		t.Fatal("资源包AI改稿不应静默替换成丢依赖的内联设计")
 	}

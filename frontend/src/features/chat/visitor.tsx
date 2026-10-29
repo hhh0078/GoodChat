@@ -49,6 +49,24 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
   const [starting, setStarting] = useState(false);
   const [status, setStatus] = useState("");
   const [storageWarning, setStorageWarning] = useState("");
+  const shell = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    /** syncViewport 按软键盘和浏览器工具栏之后的可见高度约束访客卡片。 */
+    function syncViewport() {
+      const viewport = window.visualViewport;
+      shell.current?.style.setProperty(
+        "--visitor-viewport-height",
+        `${Math.round(viewport?.height || window.innerHeight)}px`,
+      );
+    }
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    window.visualViewport?.addEventListener("resize", syncViewport);
+    return () => {
+      window.removeEventListener("resize", syncViewport);
+      window.visualViewport?.removeEventListener("resize", syncViewport);
+    };
+  }, [loading]);
   const navigationScope = `${entryKey}?${queryText}`;
   const activeEntry = useRef(navigationScope);
   activeEntry.current = navigationScope;
@@ -310,7 +328,7 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
     );
   const specifiedOffline = error instanceof ApiError && error.code === "specified_agent_offline";
   return (
-    <div className="visitor-shell">
+    <div className="visitor-shell" ref={shell}>
       <div
         className={`visitor-card ${entry.render_url && entry.release_id ? "visitor-decorated" : "visitor-default"}`}
       >

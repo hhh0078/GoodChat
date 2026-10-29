@@ -99,7 +99,7 @@ func TestUnconfiguredAIUnavailable(t *testing.T) {
 	service, _ := New(nil, nil, platform.Config{PublicURL: "http://127.0.0.1:13000", CodeOrigin: "http://localhost:18081"})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest("POST", "/api/v1/tenant/ai-design-jobs", strings.NewReader(`{"name":"test","prompt":"test prompt","render_mode":"schema"}`))
-	service.createAIJob(response, request)
+	service.createLegacyAIJob(response, request)
 	if response.Code != 503 || !strings.Contains(response.Body.String(), "ai_unavailable") {
 		t.Fatal("缺少真实配置必须明确不可用")
 	}

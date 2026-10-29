@@ -405,7 +405,7 @@ export function DecoratedVisitor({
       />
     );
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+    <div className="visitor-decoration-host">
       {bridgeError && (
         <Alert
           type="warning"
@@ -441,7 +441,7 @@ export function DecoratedVisitor({
           }
           firstLoad.current = true;
         }}
-        style={{ width: "100%", height: "100%", flex: 1, minHeight: 300, border: 0 }}
+        className="visitor-decoration-frame"
       />
       <AttachmentSender
         key={`${id}.${identity.actorId}.${source}.${revision}`}

@@ -152,7 +152,7 @@ func TestPostgresAIResultCannotOverwrite(t *testing.T) {
 			}))
 			defer provider.Close()
 			f := newIntegrationFixture(t, platform.Config{AIEndpoint: provider.URL, AIKey: "local-test-only", AIModel: "local-fake-provider"})
-			job := f.mustRequest("POST", "/tenant/ai-design-jobs", f.member, map[string]any{"name": "私有AI测试", "prompt": "创建一个绿色的客服咨询页面", "render_mode": "schema"})
+			job := f.mustRequest("POST", "/tenant/test-legacy-ai-design-jobs", f.member, map[string]any{"name": "私有AI测试", "prompt": "创建一个绿色的客服咨询页面", "render_mode": "schema"})
 			id, templateID := job["id"].(string), job["template_id"].(string)
 			tenant, claimed, err := f.service.claimAIJob(context.Background())
 			if err != nil || claimed != id || tenant != f.tenant {

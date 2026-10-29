@@ -4,6 +4,7 @@ package decoration
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -246,6 +247,9 @@ func TestDownloadableExampleIsImportable(t *testing.T) {
 	}
 	if len(pkg.Files) < 5 {
 		t.Fatal("示例必须包含真实多文件资源")
+	}
+	if err := verifyNewTemplatePackage(context.Background(), nil, pkg); err != nil {
+		t.Fatalf("平台下载示例必须符合与新模板相同的严格SDK合约：%v", err)
 	}
 	if target := os.Getenv("GOODCHAT_PACKAGE_FIXTURE"); target != "" {
 		if err := os.WriteFile(target, w.Body.Bytes(), 0600); err != nil {

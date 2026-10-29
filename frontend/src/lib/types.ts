@@ -35,6 +35,9 @@ export type AccessLink = Resource & {
   reception_mode?: "inherit" | "auto" | "manual";
   channel_code?: string;
   channel_tags?: string[];
+  page_id?: string | null;
+  binding_mode?: "FOLLOW_PAGE" | "PIN_RELEASE";
+  pinned_release_id?: string | null;
 };
 export type ChatMessage = Resource & {
   content: string;

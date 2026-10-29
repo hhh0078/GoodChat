@@ -2,11 +2,8 @@
 package decoration
 
 import (
-	"archive/zip"
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
-	"fmt"
 	"image"
 	"image/png"
 	"net/http"
@@ -96,43 +93,21 @@ func (s *Service) importDecorationAsset(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// examplePackage 下载真实多文件代码包样例，含相对ES模块、CSS与PNG，可导入后连接当前授权聊天。
+// examplePackage 下载与新模板相同的固定SDK静态包，示例可直接通过严格导入接口验证。
 func (s *Service) examplePackage(w http.ResponseWriter, r *http.Request) {
-	var schema Schema
-	_ = json.Unmarshal(defaultDesign("schema", "多文件在线咨询"), &schema)
-	code := schemaCode(schema, false)
-	pixel := image.NewNRGBA(image.Rect(0, 0, 32, 32))
-	for y := 0; y < 32; y++ {
-		for x := 0; x < 32; x++ {
-			i := pixel.PixOffset(x, y)
-			copy(pixel.Pix[i:i+4], []byte{31, 111, 91, 255})
-		}
+	pkg, err := industryTemplatePackage("business", defaultTemplateScripts())
+	if err != nil {
+		respond(w, r, nil, err)
+		return
 	}
-	var logo bytes.Buffer
-	_ = png.Encode(&logo, pixel)
-	files := map[string][]byte{
-		"index.html":       []byte(fmt.Sprintf(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>多文件在线咨询</title><link rel="stylesheet" href="./assets/style.css"></head><body><img src="./assets/logo.png" width="32" height="32" alt="示例品牌">%s<script type="module" src="./assets/main.mjs"></script></body></html>`, code.HTML)),
-		"assets/style.css": []byte(code.CSS), "assets/chat.js": []byte(code.Javascript), "assets/main.mjs": []byte("import './chat.js';\nimport { title } from './title.mjs';\ndocument.title = title;\n"), "assets/title.mjs": []byte("export const title = 'GoodChat 多文件在线咨询';\n"), "assets/logo.png": logo.Bytes(),
-	}
-	var buffer bytes.Buffer
-	writer := zip.NewWriter(&buffer)
-	for name, content := range files {
-		file, err := writer.Create(name)
-		if err != nil {
-			respond(w, r, nil, err)
-			return
-		}
-		if _, err := file.Write(content); err != nil {
-			respond(w, r, nil, err)
-			return
-		}
-	}
-	if err := writer.Close(); err != nil {
+	archive, err := encodeTemplateArchive("GoodChat 多文件静态模板示例", pkg)
+	if err != nil {
 		respond(w, r, nil, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", `attachment; filename="goodchat-static-example.zip"`)
 	w.Header().Set("Cache-Control", "private, no-store")
-	_, _ = w.Write(buffer.Bytes())
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = w.Write(archive)
 }

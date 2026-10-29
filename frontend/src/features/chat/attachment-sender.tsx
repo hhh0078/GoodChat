@@ -50,7 +50,7 @@ export function AttachmentSender({
     }
   }
   return (
-    <div style={{ padding: "8px 14px", borderTop: "1px solid #e7ece4", background: "#fafbf8" }}>
+    <div className="visitor-attachment-fallback">
       <Space size={10} wrap>
         <input
           hidden

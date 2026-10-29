@@ -23,6 +23,7 @@ import { Brand } from "./brand";
 import { SessionProvider, useSession } from "@/features/auth/session";
 import { api, errorMessage } from "@/lib/api";
 import { WorkspaceRemindersProvider } from "@/features/chat/workspace-reminders";
+import { AssistantLauncher, AssistantProvider } from "@/features/assistant/launcher";
 
 /** WorkspaceChrome 根据身份呈现工作端导航与租户切换。 */
 function WorkspaceChrome({ children }: { children: React.ReactNode }) {
@@ -291,6 +292,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
             </Space>
             <div className="shell-actions">
               <div id="workspace-header-actions" />
+              <AssistantLauncher />
               {!serving && (
                 <Link href="/help" className="shell-help">
                   <QuestionCircleOutlined aria-hidden="true" />
@@ -341,7 +343,9 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <WorkspaceChrome>{children}</WorkspaceChrome>
+      <AssistantProvider>
+        <WorkspaceChrome>{children}</WorkspaceChrome>
+      </AssistantProvider>
     </SessionProvider>
   );
 }

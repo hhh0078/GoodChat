@@ -49,7 +49,7 @@ func TestPostgresAIRevocationStopsApply(t *testing.T) {
 			}))
 			defer provider.Close()
 			f := newIntegrationFixture(t, platform.Config{AIEndpoint: provider.URL, AIKey: "test-only-key", AIModel: "local-fake-provider"})
-			job := f.mustRequest("POST", "/tenant/ai-design-jobs", f.member, map[string]any{"name": "撤权保护", "prompt": "创建绿色客服咨询页面", "render_mode": "schema"})
+			job := f.mustRequest("POST", "/tenant/test-legacy-ai-design-jobs", f.member, map[string]any{"name": "撤权保护", "prompt": "创建绿色客服咨询页面", "render_mode": "schema"})
 			id := job["id"].(string)
 			tenant, claimed, err := f.service.claimAIJob(context.Background())
 			if err != nil || claimed != id {

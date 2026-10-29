@@ -45,8 +45,13 @@ func dailyAIUsage(ctx context.Context, tx pgx.Tx, tenant string) (int, string, e
 	return used, timezone, err
 }
 
-// createAIJob 在同一租户事务内创建私有草稿、持久任务和无载荷调度目录。
+// createAIJob 关闭旧版全局模型创作入口，所有新生成统一使用私有配置的静态模板助手。
 func (s *Service) createAIJob(w http.ResponseWriter, r *http.Request) {
+	respond(w, r, nil, platform.Fail(409, "assistant_required", "旧版AI创作已迁移，请使用右上角AI助手和自己的AI配置"))
+}
+
+// createLegacyAIJob 保留历史协议实现供隔离回归测试使用，生产路由不会注册此方法。
+func (s *Service) createLegacyAIJob(w http.ResponseWriter, r *http.Request) {
 	if !s.aiReady() {
 		respond(w, r, nil, platform.Fail(503, "ai_unavailable", "平台尚未配置可用的AI模型，请联系平台管理员"))
 		return

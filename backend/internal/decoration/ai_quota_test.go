@@ -23,7 +23,7 @@ func TestPostgresDailyAIQuotaConcurrency(t *testing.T) {
 		group.Add(1)
 		go func() {
 			defer group.Done()
-			status, data := f.request("POST", "/tenant/ai-design-jobs", f.member, map[string]any{"name": "最后一次额度", "prompt": "创建一个自然绿色客服页面", "render_mode": "schema"})
+			status, data := f.request("POST", "/tenant/test-legacy-ai-design-jobs", f.member, map[string]any{"name": "最后一次额度", "prompt": "创建一个自然绿色客服页面", "render_mode": "schema"})
 			results <- response{status, data}
 		}()
 	}
@@ -48,7 +48,7 @@ func TestPostgresDailyAIQuotaConcurrency(t *testing.T) {
 		t.Fatal("配置应返回真实当日已用和剩余提交次数")
 	}
 	f.mustRequest("POST", "/tenant/ai-design-jobs/"+jobID+"/cancel", f.member, nil)
-	status, result := f.request("POST", "/tenant/ai-design-jobs", f.member, map[string]any{"name": "取消后再提交", "prompt": "创建一个客服页面", "render_mode": "schema"})
+	status, result := f.request("POST", "/tenant/test-legacy-ai-design-jobs", f.member, map[string]any{"name": "取消后再提交", "prompt": "创建一个客服页面", "render_mode": "schema"})
 	if status != 429 || result["code"] != "ai_daily_limit" {
 		t.Fatal("取消不应返还每日提交次数")
 	}
@@ -61,7 +61,7 @@ func TestPostgresDailyAIQuotaConcurrency(t *testing.T) {
 // TestPostgresDailyAIQuotaTimezone 使用租户时区的前一日尾部和本日边界验证计数，未来任务不应提前占用今日。
 func TestPostgresDailyAIQuotaTimezone(t *testing.T) {
 	f := newIntegrationFixture(t, platform.Config{AIEndpoint: "http://127.0.0.1:1", AIKey: "test-only", AIModel: "not-called-test"})
-	job := f.mustRequest("POST", "/tenant/ai-design-jobs", f.member, map[string]any{"name": "自然日边界", "prompt": "设计简洁客服页面", "render_mode": "schema"})
+	job := f.mustRequest("POST", "/tenant/test-legacy-ai-design-jobs", f.member, map[string]any{"name": "自然日边界", "prompt": "设计简洁客服页面", "render_mode": "schema"})
 	id := job["id"].(string)
 	f.mustRequest("POST", "/tenant/ai-design-jobs/"+id+"/cancel", f.member, nil)
 	for _, timezone := range []string{"Pacific/Kiritimati", "America/Los_Angeles"} {
@@ -88,7 +88,7 @@ func TestPostgresDailyAIQuotaTimezone(t *testing.T) {
 func TestPostgresZeroDailyQuotaDisablesAI(t *testing.T) {
 	f := newIntegrationFixture(t, platform.Config{AIEndpoint: "http://127.0.0.1:1", AIKey: "test-only", AIModel: "not-called-test"})
 	f.service.cfg.AIDailyLimit = 0
-	status, result := f.request("POST", "/tenant/ai-design-jobs", f.member, map[string]any{"name": "已禁用", "prompt": "创建客服页面", "render_mode": "schema"})
+	status, result := f.request("POST", "/tenant/test-legacy-ai-design-jobs", f.member, map[string]any{"name": "已禁用", "prompt": "创建客服页面", "render_mode": "schema"})
 	if status != 503 || result["code"] != "ai_daily_disabled" {
 		t.Fatal("零额度必须明确禁用，不能视作无限")
 	}

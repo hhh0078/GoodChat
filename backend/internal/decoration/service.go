@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -22,12 +23,14 @@ import (
 
 // Service 保存装修数据库、鉴权及服务端模型配置。
 type Service struct {
-	pool           *pgxpool.Pool
-	auth           platform.Authorizer
-	cfg            platform.Config
-	client         *http.Client
-	featureChecker func(context.Context, pgx.Tx, string, string) error
-	packageSlots   chan struct{}
+	pool             *pgxpool.Pool
+	auth             platform.Authorizer
+	cfg              platform.Config
+	client           *http.Client
+	featureChecker   func(context.Context, pgx.Tx, string, string) error
+	packageSlots     chan struct{}
+	assistantClient  *http.Client
+	assistantCancels sync.Map
 }
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
@@ -55,7 +58,9 @@ func (s *Service) checkFeature(ctx context.Context, tx pgx.Tx, tenant, feature s
 
 // Register 注册租户与平台管理接口，所有写操作要求管理员身份。
 func (s *Service) Register(mux *http.ServeMux) {
+	s.registerAssistant(mux)
 	s.registerPackages(mux)
+	s.registerTemplateLifecycle(mux)
 	mux.HandleFunc("GET /api/v1/tenant/templates", s.auth.RequireTenant(s.listTemplates))
 	mux.HandleFunc("POST /api/v1/tenant/templates", s.auth.RequireAdmin(s.saveTemplate))
 	mux.HandleFunc("PATCH /api/v1/tenant/templates/{id}", s.auth.RequireAdmin(s.saveTemplate))

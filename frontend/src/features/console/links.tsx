@@ -24,6 +24,8 @@ import { entryURL } from "@/lib/urls";
 import { useResource } from "@/lib/use-resource";
 import type { AccessLink, Member, Resource } from "@/lib/types";
 import { PageTitle, ErrorNotice, EmptyData } from "@/components/page-state";
+import { linkTemplateBinding } from "@/lib/link-template-binding";
+import { LinkTemplateFields, type PublishedTemplatePage } from "./link-template-fields";
 
 const parameterExamples: Record<string, string> = {
   姓名: "张三",
@@ -48,6 +50,7 @@ type LinkStatistics = {
 /** LinksPage 为独立业务入口维护路由范围并生成分享与嵌入内容。 */
 export function LinksPage() {
   const links = useResource<AccessLink>("/tenant/access-links");
+  const templatePages = useResource<PublishedTemplatePage>("/tenant/pages");
   const [statistics, setStatistics] = useState<{ tenantId: string; data: LinkStatistics } | null>(
     null,
   );
@@ -121,6 +124,7 @@ export function LinksPage() {
             ...item,
             reception_mode: item.reception_mode || "inherit",
             channel_tags: item.channel_tags || (item.channel_code ? [item.channel_code] : []),
+            binding_mode: item.binding_mode || "FOLLOW_PAGE",
           }
         : {
             status: "active",
@@ -129,6 +133,9 @@ export function LinksPage() {
             channel_tags: [],
             required_skill_ids: [],
             optional_skill_ids: [],
+            page_id: null,
+            binding_mode: "FOLLOW_PAGE",
+            pinned_release_id: null,
           },
     );
     setEditing(item);
@@ -141,7 +148,7 @@ export function LinksPage() {
       await api(`/tenant/access-links${editing ? `/${editing.id}` : ""}`, {
         method: editing ? "PATCH" : "POST",
         tenantId: links.tenantId,
-        bodyJSON: { ...values, agent_mode: "strict" },
+        bodyJSON: { ...values, ...linkTemplateBinding(values), agent_mode: "strict" },
         idempotent: true,
       });
       message.success("接入链接已保存");
@@ -252,6 +259,22 @@ export function LinksPage() {
       ),
     },
     {
+      title: "用户端模板",
+      key: "template",
+      render: (_, row) => (
+        <span>
+          {row.page_id
+            ? templatePages.items.find((page) => page.id === row.page_id)?.name || "已绑定模板"
+            : "默认页面"}
+          {row.page_id && (
+            <div className="muted" style={{ fontSize: 12 }}>
+              {row.binding_mode === "PIN_RELEASE" ? "固定版本" : "跟随发布"}
+            </div>
+          )}
+        </span>
+      ),
+    },
+    {
       title: "状态",
       dataIndex: "status",
       render: (value) => (
@@ -333,6 +356,8 @@ export function LinksPage() {
           <Form.Item name="name" label="入口名称" rules={[{ required: true, whitespace: true }]}>
             <Input placeholder="例如：官网售前、订单售后" maxLength={100} />
           </Form.Item>
+          <ErrorNotice error={templatePages.error} retry={templatePages.reload} />
+          <LinkTemplateFields form={form} tenantId={links.tenantId} pages={templatePages.items} />
           <Form.Item name="service_group_id" label="客服业务组">
             <Select
               allowClear

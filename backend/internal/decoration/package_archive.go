@@ -164,6 +164,9 @@ func finishPackage(entrypoint string, files []packageFile) (*staticPackage, erro
 			return nil, fmt.Errorf("%s：%w", file.Path, err)
 		}
 	}
+	if _, err := validateTemplatePackage(entrypoint, lookup, false); err != nil {
+		return nil, err
+	}
 	bridge := false
 	for _, file := range files {
 		if (strings.HasPrefix(file.ContentType, "text/html") || strings.HasPrefix(file.ContentType, "text/javascript")) && bytes.Contains(file.Content, []byte("GoodChat")) {

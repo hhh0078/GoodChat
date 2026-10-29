@@ -8,7 +8,6 @@ import {
   Button,
   Card,
   Drawer,
-  Descriptions,
   Form,
   Input,
   Modal,
@@ -25,11 +24,15 @@ import { starterCodeDesign } from "./starter-code";
 import { CodePackages } from "./code-packages";
 import { TemplatePreview } from "./template-preview";
 import { api, errorMessage } from "@/lib/api";
-import { aiSubmissionState, type AIConfiguration } from "@/lib/ai-configuration";
 import { useSession } from "@/features/auth/session";
 import { useResource } from "@/lib/use-resource";
 import type { Resource } from "@/lib/types";
 import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
+import { useAssistantLauncher } from "@/features/assistant/launcher";
+import { TemplateActions } from "@/features/assistant/template-actions";
+import { IndustryTemplates } from "@/features/assistant/industry-templates";
+import { TemplateImport } from "@/features/assistant/template-import";
+import { AssistantHistory } from "@/features/assistant/history";
 
 export type Design = {
   schema_version?: number;
@@ -69,7 +72,10 @@ export function starterDesign(): Design {
 
 /** TemplatesPage 展示真实模板与页面，并管理可追踪的 AI 创建过程。 */
 export function TemplatesPage() {
-  const { tenantId } = useSession();
+  const { tenantId, current } = useSession();
+  const { openAssistant } = useAssistantLauncher();
+  const member = current.memberships.find((item) => item.tenant_id === tenantId);
+  const manages = member?.role === "owner" || member?.role === "admin";
   const router = useRouter();
   const { message } = App.useApp();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -83,16 +89,20 @@ export function TemplatesPage() {
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<unknown>(null);
   const [job, setJob] = useState<Resource | null>(null);
-  const [aiConfiguration, setAiConfiguration] = useState<AIConfiguration | null>(null);
-  const [aiConfigurationError, setAiConfigurationError] = useState<unknown>(null);
-  const [aiConfigurationLoading, setAiConfigurationLoading] = useState(true);
-  const [aiRevision, setAiRevision] = useState(0);
-  const aiSubmission = aiSubmissionState(aiConfiguration);
   const [form] = Form.useForm();
   const [pageForm] = Form.useForm();
-  const [aiForm] = Form.useForm();
   const pages = useResource<Resource>("/tenant/pages");
   const aiJobs = useResource<Resource>("/tenant/ai-design-jobs");
+  useEffect(() => {
+    /** refreshTemplates 在全局助手完成生成后重新读取真实模板与页面。 */
+    function refreshTemplates() {
+      setRevision((value) => value + 1);
+      pages.reload();
+      aiJobs.reload();
+    }
+    window.addEventListener("goodchat:templates-changed", refreshTemplates);
+    return () => window.removeEventListener("goodchat:templates-changed", refreshTemplates);
+  }, [pages.reload, aiJobs.reload]);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -113,28 +123,6 @@ export function TemplatesPage() {
       });
     return () => controller.abort();
   }, [tenantId, revision]);
-  useEffect(() => {
-    const controller = new AbortController();
-    setAiConfiguration(null);
-    setAiConfigurationError(null);
-    setAiConfigurationLoading(true);
-    api<AIConfiguration>("/tenant/ai-configuration", { tenantId, signal: controller.signal })
-      .then((data) => {
-        if (!controller.signal.aborted) setAiConfiguration(data);
-      })
-      .catch((problem) => {
-        if (!controller.signal.aborted) setAiConfigurationError(problem);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setAiConfigurationLoading(false);
-      });
-    return () => controller.abort();
-  }, [tenantId, aiOpen, aiRevision]);
-  /** refreshAIConfiguration 重新读取服务端次数，禁止在刷新期间依据旧次数再次提交。 */
-  function refreshAIConfiguration() {
-    setAiConfigurationLoading(true);
-    setAiRevision((value) => value + 1);
-  }
   useEffect(() => {
     if (!job?.id || ["succeeded", "failed", "cancelled"].includes(String(job.status))) return;
     let stopped = false;
@@ -212,31 +200,6 @@ export function TemplatesPage() {
       message.error(errorMessage(problem));
     }
   }
-  /** generate 提交真实模型任务，模型未配置时保留后端错误。 */
-  async function generate(values: Record<string, string>) {
-    if (aiConfigurationLoading || !aiSubmission.allowed) {
-      setSubmitError(new Error(aiSubmission.message));
-      return;
-    }
-    setBusy(true);
-    setSubmitError(null);
-    try {
-      const task = await api<Resource>("/tenant/ai-design-jobs", {
-        method: "POST",
-        tenantId,
-        bodyJSON: values,
-        idempotent: true,
-      });
-      setJob(task);
-      aiJobs.reload();
-      setRevision((value) => value + 1);
-    } catch (problem) {
-      setSubmitError(problem);
-    } finally {
-      refreshAIConfiguration();
-      setBusy(false);
-    }
-  }
   /** cancelJob 请求取消当前创作，不把客户端停止轮询当作任务取消。 */
   async function cancelJob() {
     if (!job) return;
@@ -251,8 +214,6 @@ export function TemplatesPage() {
       message.success("取消请求已处理");
     } catch (problem) {
       message.error(errorMessage(problem));
-    } finally {
-      refreshAIConfiguration();
     }
   }
   /** saveCandidate 将未应用的模型结果另存为新私有模板，不覆盖当前人工草稿。 */
@@ -298,6 +259,18 @@ export function TemplatesPage() {
                 <strong>{item.name}</strong>
                 <Tag>{item.render_mode === "code" ? "代码模板" : "可视化模板"}</Tag>
               </Space>
+              {manages && (
+                <div style={{ marginTop: 8 }}>
+                  <TemplateActions
+                    template={item}
+                    isPublic={isPublic}
+                    onChanged={() => {
+                      setRevision((value) => value + 1);
+                      pages.reload();
+                    }}
+                  />
+                </div>
+              )}
               <p className="muted">
                 {" "}
                 {isPublic ? "平台模板 · 复制后归本租户" : "本租户私有 · 仅授权成员可用"}
@@ -334,9 +307,7 @@ export function TemplatesPage() {
   }
   /** openAI 打开现有创作流程，横幅与标题操作使用相同的配置和校验。 */
   function openAI() {
-    setSubmitError(null);
-    aiForm.setFieldsValue({ render_mode: "schema" });
-    setAiOpen(true);
+    openAssistant();
   }
   return (
     <section className="studio-page studio-templates" aria-label="装修与模板">
@@ -345,6 +316,12 @@ export function TemplatesPage() {
         description="让客服页面，成为品牌的一部分。"
         action={
           <Space wrap>
+            {manages && (
+              <TemplateImport
+                tenantId={tenantId}
+                onImported={() => setRevision((value) => value + 1)}
+              />
+            )}
             <Button
               icon={<PlusOutlined />}
               onClick={() => {
@@ -356,9 +333,11 @@ export function TemplatesPage() {
             >
               创建模板
             </Button>
-            <Button type="primary" icon={<RobotOutlined />} onClick={openAI}>
-              AI 创建我的模板
-            </Button>
+            {manages && (
+              <Button type="primary" icon={<RobotOutlined />} onClick={openAI}>
+                AI 创建我的模板
+              </Button>
+            )}
           </Space>
         }
       />
@@ -371,24 +350,40 @@ export function TemplatesPage() {
             label: "我的模板",
             children: (
               <>
-                <div className="studio-ai-entry">
-                  <span className="studio-ai-entry-icon" aria-hidden="true">
-                    <SkinOutlined />
-                  </span>
-                  <div>
-                    <h2>描述想法，生成你的专属模板</h2>
-                    <p>AI 生成草稿，预览后发布；创建的模板仅归本租户。</p>
+                {manages && (
+                  <div className="studio-ai-entry">
+                    <span className="studio-ai-entry-icon" aria-hidden="true">
+                      <SkinOutlined />
+                    </span>
+                    <div>
+                      <h2>描述想法，生成你的专属模板</h2>
+                      <p>上传参考图片，边聊边预览；发送、接收和附件始终使用官方聊天核心。</p>
+                    </div>
+                    <Button onClick={openAI}>
+                      开始创作 <ArrowRightOutlined />
+                    </Button>
                   </div>
-                  <Button onClick={openAI}>
-                    开始创作 <ArrowRightOutlined />
-                  </Button>
-                </div>
+                )}
                 {cards(templates)}
               </>
             ),
           },
+          {
+            key: "industry",
+            label: "行业模板",
+            children: (
+              <IndustryTemplates
+                tenantId={tenantId}
+                canManage={manages}
+                onChanged={() => setRevision((value) => value + 1)}
+              />
+            ),
+          },
           { key: "platform", label: "平台模板", children: cards(publicTemplates, true) },
           { key: "resources", label: "私有资源包", children: <CodePackages key={tenantId} /> },
+          ...(manages
+            ? [{ key: "conversations", label: "AI 对话记录", children: <AssistantHistory /> }]
+            : []),
           {
             key: "jobs",
             label: "AI 创作记录",
@@ -523,95 +518,28 @@ export function TemplatesPage() {
       </Modal>
       <Drawer
         rootClassName="studio-drawer"
-        title="AI 创建我的模板"
+        title="原 AI 创作任务记录"
         open={aiOpen}
         onClose={() => setAiOpen(false)}
         width={540}
       >
         <Alert
-          type={!aiConfigurationLoading && !aiSubmission.allowed ? "warning" : "info"}
+          type="info"
           showIcon
-          title={
-            aiConfigurationLoading ? "正在读取 AI 装修配置与当日提交次数…" : aiSubmission.message
+          title="原任务记录仅供查看"
+          description="新的模板创作已迁移到全局 AI 助手，使用当前租户自己的模型配置，并提供持续对话和真实模板预览。"
+          action={
+            <Button
+              onClick={() => {
+                setAiOpen(false);
+                openAssistant();
+              }}
+            >
+              打开 AI 助手
+            </Button>
           }
-          style={{ marginBottom: 20 }}
         />
-        <ErrorNotice error={aiConfigurationError} retry={refreshAIConfiguration} />
-        <Descriptions
-          size="small"
-          bordered
-          column={3}
-          items={[
-            {
-              key: "daily",
-              label: "当日可用",
-              children: `${aiConfiguration?.daily_limit ?? "—"} 次`,
-            },
-            { key: "used", label: "已用", children: `${aiConfiguration?.used_today ?? "—"} 次` },
-            {
-              key: "remaining",
-              label: "剩余",
-              children: `${aiConfiguration?.remaining_today ?? "—"} 次`,
-            },
-          ]}
-        />
-        <p className="form-hint">
-          按租户时区 {aiConfiguration?.timezone || "—"}{" "}
-          的自然日统计任务提交次数，失败或取消不退次数。
-          <Button
-            type="link"
-            size="small"
-            loading={aiConfigurationLoading}
-            onClick={refreshAIConfiguration}
-          >
-            刷新次数
-          </Button>
-        </p>
         <ErrorNotice error={submitError} />
-        <Form form={aiForm} layout="vertical" onFinish={generate}>
-          <Form.Item name="name" label="模板名称" rules={[{ required: true, whitespace: true }]}>
-            <Input maxLength={100} />
-          </Form.Item>
-          <Form.Item name="render_mode" label="结果类型">
-            <Select
-              options={[
-                { label: "可继续编辑的组件页面", value: "schema" },
-                { label: "HTML CSS JavaScript 代码页面", value: "code" },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item
-            name="prompt"
-            label="你希望页面是什么样子"
-            rules={[
-              {
-                required: true,
-                whitespace: true,
-                min: 10,
-                message: "请至少填写 10 个字的设计描述",
-              },
-            ]}
-          >
-            <Input.TextArea
-              rows={6}
-              maxLength={4000}
-              showCount
-              placeholder="例如：为售后团队设计一个简洁温暖的页面，自然绿色，顶部介绍服务时间，下方展示常见问题和聊天。"
-            />
-          </Form.Item>
-          <Button
-            type="primary"
-            htmlType="submit"
-            loading={busy}
-            disabled={
-              aiConfigurationLoading ||
-              !aiSubmission.allowed ||
-              (!!job && !["failed", "succeeded", "cancelled"].includes(String(job.status)))
-            }
-          >
-            开始创作
-          </Button>
-        </Form>
         {job && (
           <Card size="small" style={{ marginTop: 24 }} title="创作任务">
             <p>

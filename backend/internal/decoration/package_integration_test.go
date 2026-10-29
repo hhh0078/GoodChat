@@ -24,7 +24,7 @@ func (f *integrationFixture) uploadPackage(raw []byte, member string) (int, map[
 	var body bytes.Buffer
 	form := multipart.NewWriter(&body)
 	_ = form.WriteField("name", "多文件测试包")
-	_ = form.WriteField("entrypoint", "site/index.html")
+	_ = form.WriteField("entrypoint", "index.html")
 	file, _ := form.CreateFormFile("file", "website.zip")
 	_, _ = file.Write(raw)
 	_ = form.Close()
@@ -42,14 +42,27 @@ func (f *integrationFixture) uploadPackage(raw []byte, member string) (int, map[
 	return response.StatusCode, result
 }
 
-// mustUploadPackage 导入真实多文件资源并提取私有包引用。
-func (f *integrationFixture) mustUploadPackage(files map[string][]byte) map[string]any {
+// mustPersistLegacyPackage 仅在测试内模拟数据库已存在的旧包，生产上传接口不允许此兼容旁路。
+func (f *integrationFixture) mustPersistLegacyPackage(files map[string][]byte) map[string]any {
 	f.t.Helper()
-	status, result := f.uploadPackage(zipFixture(f.t, files, 0), f.member)
-	if status != 200 {
-		f.t.Fatalf("资源包上传失败：%d %v", status, result)
+	pkg, err := readStaticZIP(zipFixture(f.t, files, 0), "site/index.html")
+	if err != nil {
+		f.t.Fatal(err)
 	}
-	return result["data"].(map[string]any)
+	var result any
+	if err := platform.TenantTx(context.Background(), f.pool, f.tenant, func(tx pgx.Tx) error {
+		var err error
+		result, err = f.service.storePackage(context.Background(), tx, f.principals[f.member], "既有旧静态包", pkg)
+		return err
+	}); err != nil {
+		f.t.Fatal(err)
+	}
+	raw, _ := json.Marshal(result)
+	var value map[string]any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		f.t.Fatal(err)
+	}
+	return value
 }
 
 // staticRelative 按浏览器标准URL解析规则跟随实际静态包相对依赖。
@@ -73,7 +86,7 @@ func (f *integrationFixture) packageEntryURL(rawURL string) string {
 func TestPostgresPackageReleaseIsolation(t *testing.T) {
 	f := newIntegrationFixture(t, platform.Config{})
 	ctx := context.Background()
-	data := f.mustUploadPackage(packageFixtureFiles(t))
+	data := f.mustPersistLegacyPackage(packageFixtureFiles(t))
 	pkg := data["package"].(map[string]any)
 	id := pkg["id"].(string)
 	design := data["design"].(map[string]any)
@@ -139,7 +152,27 @@ func TestPostgresPackageReleaseIsolation(t *testing.T) {
 	if body := f.renderRequest(staticRelative(firstURL, "./js/helpers/words.mjs")).Body.String(); !strings.Contains(body, "中文资源包") {
 		t.Fatal("发布应保留原始包资源")
 	}
-	revision := f.mustRequest("POST", "/tenant/code-packages/"+id+"/revisions", f.member, map[string]any{"name": "修改副本", "files": []any{map[string]any{"path": "site/js/helpers/words.mjs", "content": "export const text='新的不可变版本';"}, map[string]any{"path": "site/new.txt", "content": "new-only"}}})
+	if status, _ := f.request("POST", "/tenant/code-packages/"+id+"/revisions", f.member, map[string]any{"name": "不能继续创建旧式脚本", "files": []any{map[string]any{"path": "site/new.txt", "content": "new-only"}}}); status != 400 {
+		t.Fatal("旧包兼容仅限已有内容，新修订必须升级固定SDK")
+	}
+	legacy, err := readStaticZIP(zipFixture(t, packageFixtureFiles(t), 0), "site/index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	upgraded, err := upgradeLegacyTemplatePackage(legacy, defaultTemplateScripts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	upgradedFiles := map[string][]byte{}
+	for _, file := range upgraded.Files {
+		upgradedFiles[file.Path] = file.Content
+	}
+	status, imported := f.uploadPackage(zipFixture(t, upgradedFiles, 0), f.member)
+	if status != 200 {
+		t.Fatalf("升级后的完整静态ZIP应可导入：%d %v", status, imported)
+	}
+	strictID := imported["data"].(map[string]any)["package"].(map[string]any)["id"].(string)
+	revision := f.mustRequest("POST", "/tenant/code-packages/"+strictID+"/revisions", f.member, map[string]any{"name": "修改副本", "files": []any{map[string]any{"path": "static/new.txt", "content": "new-only"}}})
 	newDesign := revision["design"].(map[string]any)
 	if newDesign["package_id"] == id {
 		t.Fatal("修订必须产生新编号")
@@ -154,10 +187,10 @@ func TestPostgresPackageReleaseIsolation(t *testing.T) {
 	second := f.mustRequest("POST", "/tenant/pages/"+pageID+"/publish", f.member, map[string]any{"version": 2, "expected_release_id": firstID, "link_ids": []string{}})
 	secondID := second["release_id"].(string)
 	secondURL := f.packageEntryURL(f.service.renderURL(secondID, ""))
-	if body := f.renderRequest(staticRelative(secondURL, "./new.txt")).Body.String(); body != "new-only" {
+	if body := f.renderRequest(staticRelative(secondURL, "./static/new.txt")).Body.String(); body != "new-only" {
 		t.Fatal("新发布应读取新包资源")
 	}
-	attack, _ := url.Parse(staticRelative(secondURL, "./new.txt"))
+	attack, _ := url.Parse(staticRelative(secondURL, "./static/new.txt"))
 	oldOrigin, _ := url.Parse(firstURL)
 	attack.Host = oldOrigin.Host
 	if got := f.renderRequest(attack.String()); got.Code != 421 {
@@ -193,7 +226,7 @@ func TestPostgresPackageReleaseIsolation(t *testing.T) {
 func TestPostgresPackageDatabaseFreeze(t *testing.T) {
 	f := newIntegrationFixture(t, platform.Config{})
 	ctx := context.Background()
-	data := f.mustUploadPackage(packageFixtureFiles(t))
+	data := f.mustPersistLegacyPackage(packageFixtureFiles(t))
 	id := data["package"].(map[string]any)["id"].(string)
 	for _, query := range []string{
 		"INSERT INTO decoration_package_files(tenant_id,package_id,path,content_type,sha256,content) VALUES($1,$2,'site/later.js','text/javascript; charset=utf-8','x','x')",
@@ -225,5 +258,75 @@ func TestPostgresPackageDatabaseFreeze(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("manifest声明不能代替文件实际哈希")
+	}
+}
+
+// TestPostgresNewPackageRoutesRequireFixedSDK 验证旧上传入口也不能用删除合约、伪造摘要或修改核心脚本创建新模板。
+func TestPostgresNewPackageRoutesRequireFixedSDK(t *testing.T) {
+	f := newIntegrationFixture(t, platform.Config{})
+	pkg, err := industryTemplatePackage("finance", defaultTemplateScripts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := map[string][]byte{}
+	for _, file := range pkg.Files {
+		base[file.Path] = append([]byte(nil), file.Content...)
+	}
+	withoutContract := map[string][]byte{}
+	for name, content := range base {
+		if name != templateContractPath {
+			withoutContract[name] = content
+		}
+	}
+	if status, _ := f.uploadPackage(zipFixture(t, withoutContract, 0), f.member); status != 400 {
+		t.Fatal("生产旧code-packages入口不能通过删除contract走legacy兼容")
+	}
+	forged := map[string][]byte{}
+	for name, content := range base {
+		forged[name] = append([]byte(nil), content...)
+	}
+	forged[templateSDKPath] = append(forged[templateSDKPath], []byte("\n// 伪造平台脚本")...)
+	var contract templateContract
+	if err := json.Unmarshal(forged[templateContractPath], &contract); err != nil {
+		t.Fatal(err)
+	}
+	contract.Files[templateSDKPath] = digest(forged[templateSDKPath])
+	forged[templateContractPath], _ = json.Marshal(contract)
+	forged["index.html"], err = freezeTemplateHTML(forged["index.html"], contract)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status, _ := f.uploadPackage(zipFixture(t, forged, 0), f.member); status != 400 {
+		t.Fatal("修改SDK并重算contract及HTML摘要仍不能冒充平台历史脚本")
+	}
+	status, result := f.uploadPackage(zipFixture(t, base, 0), f.member)
+	if status != 200 {
+		t.Fatalf("平台原版脚本应可导入：%d %v", status, result)
+	}
+	id := result["data"].(map[string]any)["package"].(map[string]any)["id"].(string)
+	if status, _ := f.request("POST", "/tenant/code-packages/"+id+"/revisions", f.member, map[string]any{"name": "伪造核心修订", "files": []any{map[string]any{"path": templateSDKPath, "content": string(forged[templateSDKPath])}, map[string]any{"path": templateContractPath, "content": string(forged[templateContractPath])}, map[string]any{"path": "index.html", "content": string(forged["index.html"])}}}); status != 400 {
+		t.Fatal("源码修订不能靠同步修改contract绕过原版SDK来源校验")
+	}
+	if status, _ := f.request("POST", "/tenant/code-packages/"+id+"/revisions", f.member, map[string]any{"name": "正常外观修订", "files": []any{map[string]any{"path": "static/style.css", "content": string(base["static/style.css"]) + "\n.gc-hero{border-radius:12px}"}}}); status != 200 {
+		t.Fatal("正常外观修订应可创建新包")
+	}
+}
+
+// TestPostgresOfficialExampleRoundTrip 通过真实HTTP下载官方示例，再通过严格生产入口导入完整资源。
+func TestPostgresOfficialExampleRoundTrip(t *testing.T) {
+	f := newIntegrationFixture(t, platform.Config{})
+	request, _ := http.NewRequest("GET", f.server.URL+"/api/v1/tenant/code-packages/example", nil)
+	request.Header.Set("X-Test-Member", f.member)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(response.Body, packageZIPLimit+1))
+	if err != nil || response.StatusCode != 200 || response.Header.Get("Content-Type") != "application/zip" {
+		t.Fatal("官方示例必须返回可用的真实ZIP文件")
+	}
+	if status, result := f.uploadPackage(raw, f.member); status != 200 {
+		t.Fatalf("平台自己提供的静态示例必须能严格导入：%d %v", status, result)
 	}
 }

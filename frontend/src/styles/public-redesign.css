@@ -2102,6 +2102,67 @@
   padding: 8px;
   background: #fff;
 }
+/* 装修 iframe 只能占宿主剩余高度，输入框与可信附件入口不能互相覆盖。 */
+.visitor-decorated > .visitor-header,
+.visitor-decorated > .visitor-footer {
+  flex-shrink: 0;
+}
+.visitor-decoration-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+}
+.visitor-decoration-frame {
+  display: block;
+  width: 100%;
+  height: 0;
+  flex: 1 1 0;
+  min-height: 0;
+  border: 0;
+}
+.visitor-attachment-fallback {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-top: 1px solid #e7ece4;
+  background: #fafbf8;
+}
+@media (max-width: 680px) {
+  .visitor-shell {
+    min-height: var(--visitor-viewport-height, 100dvh);
+  }
+  .visitor-card.visitor-decorated {
+    height: var(--visitor-viewport-height, 100dvh);
+  }
+  .visitor-decorated .visitor-header {
+    flex-wrap: nowrap;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .visitor-decorated .visitor-brand > div {
+    min-width: 0;
+  }
+  .visitor-decorated .visitor-brand h1 {
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .visitor-decorated .visitor-brand .ant-avatar {
+    width: 34px !important;
+    height: 34px !important;
+    line-height: 34px !important;
+    font-size: 16px;
+  }
+  .visitor-decorated .visitor-footer {
+    padding: 3px 8px max(3px, env(safe-area-inset-bottom));
+    font-size: 10px;
+  }
+  .visitor-attachment-fallback {
+    padding: 4px 10px;
+  }
+}
 .visitor-action-intro {
   color: #687a9d;
   font-size: 14px;
