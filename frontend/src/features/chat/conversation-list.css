@@ -14,12 +14,9 @@
   min-width: 0;
 }
 .conversation-filters .ant-input-affix-wrapper,
-.conversation-filters .ant-input-search-button {
-  height: 42px;
-}
-.conversation-filters .ant-input-search-button {
-  width: 28px;
-  padding-inline: 4px;
+.conversation-filters .ant-input-search-btn,
+.conversation-period-trigger {
+  height: 36px;
 }
 .conversation-filters .ant-input-affix-wrapper {
   padding-inline: 7px;
@@ -34,7 +31,6 @@
   gap: 5px;
   width: 100%;
   min-width: 0;
-  height: 42px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 3px 5px;
