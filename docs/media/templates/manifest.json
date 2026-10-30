@@ -1,0 +1,336 @@
+{
+  "_comment": "文件作用说明：记录公开文档使用的真实模板截图来源、原始与压缩后尺寸体积、SHA-256摘要和压缩比例。",
+  "schema_version": 1,
+  "generated_at": "2026-10-30T09:45:57.993Z",
+  "screenshot_notice": "Actual browser rendering of Chinese UI with demonstration consultation messages; not generated design mockups.",
+  "encoding": {
+    "format": "webp",
+    "quality": 84,
+    "effort": 6,
+    "original_size_preserved": true
+  },
+  "totals": {
+    "source_bytes": 1018629,
+    "output_bytes": 725108,
+    "saved_percent": 28.82
+  },
+  "screenshots": [
+    {
+      "industry": "finance",
+      "viewport": "desktop",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/finance-desktop.jpg",
+        "width": 1102,
+        "height": 903,
+        "bytes": 83798,
+        "sha256": "a9b3373b031e13e39c17728bdac4fcbb249aceeea984d7b1d91bcc17f8428f57"
+      },
+      "output": {
+        "path": "docs/media/templates/finance-desktop.webp",
+        "width": 1102,
+        "height": 903,
+        "bytes": 55864,
+        "sha256": "2053a31b263e0859cf3f520eeab8974287f9f2f83edc9b31161361c2714df981"
+      },
+      "output_to_source_ratio": 0.6667,
+      "saved_percent": 33.33
+    },
+    {
+      "industry": "finance",
+      "viewport": "mobile",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/finance-mobile.jpg",
+        "width": 401,
+        "height": 903,
+        "bytes": 40538,
+        "sha256": "597398dc00dafa2ec0a74bed549e08b51cbbffc93c934326ae1ce1c8fda964de"
+      },
+      "output": {
+        "path": "docs/media/templates/finance-mobile.webp",
+        "width": 401,
+        "height": 903,
+        "bytes": 29606,
+        "sha256": "4afabe301a0433f4e87b77dc3aa6f45f2af5bd96a1879949fbeee4b786a1bae4"
+      },
+      "output_to_source_ratio": 0.7303,
+      "saved_percent": 26.97
+    },
+    {
+      "industry": "commerce",
+      "viewport": "desktop",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/commerce-desktop.jpg",
+        "width": 1122,
+        "height": 886,
+        "bytes": 91473,
+        "sha256": "e7e87d1eb37cc3c046ba2dcd21d6efd92c7c4d69bbab57761396555f77b083a1"
+      },
+      "output": {
+        "path": "docs/media/templates/commerce-desktop.webp",
+        "width": 1122,
+        "height": 886,
+        "bytes": 62992,
+        "sha256": "73ce158dcfb5ca5798d16e66b44e908835d2c25d26a1b096d2d0ea27f460f0f3"
+      },
+      "output_to_source_ratio": 0.6886,
+      "saved_percent": 31.14
+    },
+    {
+      "industry": "commerce",
+      "viewport": "mobile",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/commerce-mobile.jpg",
+        "width": 375,
+        "height": 885,
+        "bytes": 37571,
+        "sha256": "da0b0f017cbaee6c7d0739adfbda39220f04dc5b02a4fbe1f752d81b7b3c7a99"
+      },
+      "output": {
+        "path": "docs/media/templates/commerce-mobile.webp",
+        "width": 375,
+        "height": 885,
+        "bytes": 26736,
+        "sha256": "c01edc95d22f9ccdd8e224a1c8b374946f7fb4a368a930a7cdb15aafdf4c730a"
+      },
+      "output_to_source_ratio": 0.7116,
+      "saved_percent": 28.84
+    },
+    {
+      "industry": "education",
+      "viewport": "desktop",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/education-desktop.jpg",
+        "width": 1078,
+        "height": 908,
+        "bytes": 99282,
+        "sha256": "5c5bcf16e0aa7ff12a751f93868b51da4d3bca191ca2737b7a4165bbc05d4e79"
+      },
+      "output": {
+        "path": "docs/media/templates/education-desktop.webp",
+        "width": 1078,
+        "height": 908,
+        "bytes": 71126,
+        "sha256": "a383e6f16e9e827e5f5a8c97243a12c6866801d4ad33a95d34ccd7939764656f"
+      },
+      "output_to_source_ratio": 0.7164,
+      "saved_percent": 28.36
+    },
+    {
+      "industry": "education",
+      "viewport": "mobile",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/education-mobile.jpg",
+        "width": 399,
+        "height": 907,
+        "bytes": 44007,
+        "sha256": "bd28dd297d789d552a6e330adb58f27ad0a088996e5599dd6264de9377483eb5"
+      },
+      "output": {
+        "path": "docs/media/templates/education-mobile.webp",
+        "width": 399,
+        "height": 907,
+        "bytes": 31498,
+        "sha256": "47f197279c74d806bc17d9fefa479aa507c7da6f2a998863a1b30af8b2cea84f"
+      },
+      "output_to_source_ratio": 0.7157,
+      "saved_percent": 28.43
+    },
+    {
+      "industry": "medical",
+      "viewport": "desktop",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/medical-desktop.jpg",
+        "width": 1400,
+        "height": 794,
+        "bytes": 103896,
+        "sha256": "9c3250ffb144fb00d392b0b674f408b59685201ed611a266989d8dea26b66aa2"
+      },
+      "output": {
+        "path": "docs/media/templates/medical-desktop.webp",
+        "width": 1400,
+        "height": 794,
+        "bytes": 69972,
+        "sha256": "4d452c5ffdf1338e00245e441bc91972536978007f656887413f72ae22f18b2d"
+      },
+      "output_to_source_ratio": 0.6735,
+      "saved_percent": 32.65
+    },
+    {
+      "industry": "medical",
+      "viewport": "mobile",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/medical-mobile.jpg",
+        "width": 368,
+        "height": 792,
+        "bytes": 46819,
+        "sha256": "dc399704b544715fbcdd57ac5453c1d200cebd73af6cd52b81c06ef2cb54979b"
+      },
+      "output": {
+        "path": "docs/media/templates/medical-mobile.webp",
+        "width": 368,
+        "height": 792,
+        "bytes": 34148,
+        "sha256": "60ad6cd49cde2c2c66294182338043a452c3cbcab7dfb15e4af1dc16a800a60d"
+      },
+      "output_to_source_ratio": 0.7294,
+      "saved_percent": 27.06
+    },
+    {
+      "industry": "property",
+      "viewport": "desktop",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/property-desktop.jpg",
+        "width": 1099,
+        "height": 798,
+        "bytes": 114372,
+        "sha256": "7944a48a6f17834f99ec84b5365550f986dbdf96a18b0cb0a7d8c299957464d5"
+      },
+      "output": {
+        "path": "docs/media/templates/property-desktop.webp",
+        "width": 1099,
+        "height": 798,
+        "bytes": 86046,
+        "sha256": "b00e8c8a8f614b757b86612771983d4d733e1d0e3da6e1e61cc76b1101864b40"
+      },
+      "output_to_source_ratio": 0.7523,
+      "saved_percent": 24.77
+    },
+    {
+      "industry": "property",
+      "viewport": "mobile",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/property-mobile.jpg",
+        "width": 349,
+        "height": 797,
+        "bytes": 50850,
+        "sha256": "a827b22e985568b5f30910f125f8e02584c4d650c913551ea11177db18eda9c2"
+      },
+      "output": {
+        "path": "docs/media/templates/property-mobile.webp",
+        "width": 349,
+        "height": 797,
+        "bytes": 40282,
+        "sha256": "8a74968b5ab76bd2b4249aef58ca8a6335ac4d424dc279373d119aa9592cf72a"
+      },
+      "output_to_source_ratio": 0.7922,
+      "saved_percent": 20.78
+    },
+    {
+      "industry": "business",
+      "viewport": "desktop",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/business-desktop.jpg",
+        "width": 1368,
+        "height": 797,
+        "bytes": 108740,
+        "sha256": "ffcd37aa4878cf47835eeb6b81c6e9a582d41d4deea80aa73de090cd15d0630a"
+      },
+      "output": {
+        "path": "docs/media/templates/business-desktop.webp",
+        "width": 1368,
+        "height": 797,
+        "bytes": 72428,
+        "sha256": "c64083a57bea750c5b80b5ba04347e6ed09fb78d4170d0108b08f219a2f28c84"
+      },
+      "output_to_source_ratio": 0.6661,
+      "saved_percent": 33.39
+    },
+    {
+      "industry": "business",
+      "viewport": "mobile",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/business-mobile.jpg",
+        "width": 402,
+        "height": 800,
+        "bytes": 39578,
+        "sha256": "dc6258558d3c1a3221e09a634912caa155f2a53077345af1f1ea6a989a91b244"
+      },
+      "output": {
+        "path": "docs/media/templates/business-mobile.webp",
+        "width": 402,
+        "height": 800,
+        "bytes": 28334,
+        "sha256": "fd56701e386ffa39764d4c804949343470fa4693468caae02c575f51dc82f0a3"
+      },
+      "output_to_source_ratio": 0.7159,
+      "saved_percent": 28.41
+    },
+    {
+      "industry": "gaming",
+      "viewport": "desktop",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/gaming-desktop.jpg",
+        "width": 1339,
+        "height": 765,
+        "bytes": 112534,
+        "sha256": "4e02d880d8e6cf0915a96f864a34373a887f74b54020c55a63b47bda9a28a689"
+      },
+      "output": {
+        "path": "docs/media/templates/gaming-desktop.webp",
+        "width": 1339,
+        "height": 765,
+        "bytes": 81330,
+        "sha256": "639f19aeb7ee9119167b871d1e32b2fe545340ad4186bd225e06688636ab8071"
+      },
+      "output_to_source_ratio": 0.7227,
+      "saved_percent": 27.73
+    },
+    {
+      "industry": "gaming",
+      "viewport": "mobile",
+      "source": {
+        "path": "docs/designs/2026-10-30-visitor-concepts/implemented/gaming-mobile.jpg",
+        "width": 384,
+        "height": 765,
+        "bytes": 45171,
+        "sha256": "d1e71209f129df98cfc73cdeb247ba36cc0b4c2a9ca949729e5f0a0a68ad7ae1"
+      },
+      "output": {
+        "path": "docs/media/templates/gaming-mobile.webp",
+        "width": 384,
+        "height": 765,
+        "bytes": 34746,
+        "sha256": "31b54f3313312cb4b0923198455aee88604cc7abc2ace74ed12ddf05fc0bdf3c"
+      },
+      "output_to_source_ratio": 0.7692,
+      "saved_percent": 23.08
+    }
+  ],
+  "composites": [
+    {
+      "kind": "seven-mobile-contact-sheet",
+      "sources": [
+        "docs/media/templates/finance-mobile.webp",
+        "docs/media/templates/commerce-mobile.webp",
+        "docs/media/templates/education-mobile.webp",
+        "docs/media/templates/medical-mobile.webp",
+        "docs/media/templates/property-mobile.webp",
+        "docs/media/templates/business-mobile.webp",
+        "docs/media/templates/gaming-mobile.webp"
+      ],
+      "output": {
+        "path": "docs/media/screenshots/visitor-templates.webp",
+        "width": 1504,
+        "height": 1689,
+        "bytes": 173444,
+        "sha256": "67d3ca7431a1a155b067ef6bcc1b445109db0bb48692580441f982324bf008bf"
+      },
+      "layout": "4 + 3 centered; equal width 349px; original aspect ratio; no enlargement"
+    },
+    {
+      "kind": "finance-desktop-mobile-pair",
+      "sources": [
+        "docs/media/templates/finance-desktop.webp",
+        "docs/media/templates/finance-mobile.webp"
+      ],
+      "output": {
+        "path": "docs/media/screenshots/visitor-desktop-mobile.webp",
+        "width": 1575,
+        "height": 951,
+        "bytes": 83804,
+        "sha256": "87c2f3494577962978b598fc1ca4c05e32e42fffd24e267f3d24e11c6ebf374b"
+      },
+      "layout": "native-size desktop and mobile side by side; no enlargement"
+    }
+  ]
+}

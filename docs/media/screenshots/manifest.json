@@ -1,0 +1,499 @@
+{
+  "_comment": "文件作用说明：记录公开文档真实功能截图的原始文件名、尺寸、字节数、SHA-256、裁切及压缩率；不保存凭据和私密来源路径。",
+  "schema_version": 1,
+  "generated_at": "2026-10-30T10:32:19.767Z",
+  "screenshot_notice": "Actual local application screenshots with demonstration or acceptance data. AI assistant shows an empty new conversation, not a successful generation. The manually entered monitoring baseline of 100 is demonstration data, not a performance acceptance result.",
+  "encoding": {
+    "format": "webp",
+    "quality": 84,
+    "effort": 6,
+    "enlargement": false
+  },
+  "totals": {
+    "screenshot_count": 21,
+    "source_bytes": 2316016,
+    "output_bytes": 912740,
+    "saved_percent": 60.59
+  },
+  "screenshots": [
+    {
+      "source": {
+        "file": "access-links.jpg",
+        "format": "jpeg",
+        "width": 500,
+        "height": 960,
+        "bytes": 43437,
+        "sha256": "33d47a39098011a5631521bc13093f586d6528713ea30ef6bcf5abb4daaec1c9"
+      },
+      "output": {
+        "file": "access-links.webp",
+        "format": "webp",
+        "width": 500,
+        "height": 960,
+        "bytes": 25658,
+        "sha256": "d07f313bfcf7af1692a0fe80d684976c023eae5035aae105f327b999d4be7cf1"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5907,
+      "saved_percent": 40.93
+    },
+    {
+      "source": {
+        "file": "ai-assistant.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 71838,
+        "sha256": "c36cce36e5cb97fc0bf1c10ceeafd3a81d510ae5f2fe5cdeeef9b58cc2f24e07"
+      },
+      "output": {
+        "file": "ai-assistant.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 40764,
+        "sha256": "cc222d984abf5a5b8d0c01c2dc7fdba464b69bb48446ee666eb093ba11202c1b"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5674,
+      "saved_percent": 43.26
+    },
+    {
+      "source": {
+        "file": "conversation-history.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 70945,
+        "sha256": "632751eee92b54e12fa182ceb8c688199df123580eee6fe4926b8e9601bc6379"
+      },
+      "output": {
+        "file": "conversation-history.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 39996,
+        "sha256": "6b3c1c7635d99551ab1c1b2c2e4c309598de4db4f8b7076acae587262bf8ced2"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5638,
+      "saved_percent": 43.62
+    },
+    {
+      "source": {
+        "file": "customers.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 63405,
+        "sha256": "c6b30fe8298a07d8723fd6f9aee447b2ea111a590ce12f91371b7f4e55fc8131"
+      },
+      "output": {
+        "file": "customers.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 34270,
+        "sha256": "d0050bb20a99c740f116c865b5705838daac22fb845294a676614f495d5b3cd0"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5405,
+      "saved_percent": 45.95
+    },
+    {
+      "source": {
+        "file": "homepage.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 118168,
+        "sha256": "a2bd12e3eed4219bd1e77dd10a0bfd3a7af0e5dd67cd2f8cdce08f60206d5a9b"
+      },
+      "output": {
+        "file": "homepage.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 75362,
+        "sha256": "48d8ad1d85ed272b4487921203fc817a4082b53e24562c2e73d6f5ad67df3c78"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.6378,
+      "saved_percent": 36.22
+    },
+    {
+      "source": {
+        "file": "keyword-rules.jpg",
+        "format": "jpeg",
+        "width": 480,
+        "height": 960,
+        "bytes": 58316,
+        "sha256": "d639b6ce30116a7da6a6338e9ccedac0a8f8de453522411527b59e4b153e6d07"
+      },
+      "output": {
+        "file": "keyword-rules.webp",
+        "format": "webp",
+        "width": 480,
+        "height": 960,
+        "bytes": 38694,
+        "sha256": "1caa2c4ae00d3af4a0ac4be8c4e3bd723024f8075c6fb1e47eb53d6bc831965d"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.6635,
+      "saved_percent": 33.65
+    },
+    {
+      "source": {
+        "file": "member-statistics.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 93784,
+        "sha256": "a11d396335452f5dc7a5741dcb45055d76465f05b7d9a23971cb98d4c1d920db"
+      },
+      "output": {
+        "file": "member-statistics.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 58904,
+        "sha256": "cb543b68c7383b2ec1021951e144d76596dbfada185c2ac9d6fab61b404f9e3e"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.6281,
+      "saved_percent": 37.19
+    },
+    {
+      "source": {
+        "file": "members.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 58310,
+        "sha256": "5c765ae15377e5dba34304e5bfe69750bc8f3cd160cad4816d9629f6a20b7d0f"
+      },
+      "output": {
+        "file": "members.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 32046,
+        "sha256": "1c31091c6af110ad263e1dd24927063ae7c9bf78fd85e6943bfdcff48c965d8a"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5496,
+      "saved_percent": 45.04
+    },
+    {
+      "source": {
+        "file": "offline-messages.jpg",
+        "format": "jpeg",
+        "width": 600,
+        "height": 850,
+        "bytes": 26233,
+        "sha256": "168a75cffa487a506ebb982a9fd70cfa3926732a451a063aeacd56cbe7610e90"
+      },
+      "output": {
+        "file": "offline-messages.webp",
+        "format": "webp",
+        "width": 600,
+        "height": 850,
+        "bytes": 15662,
+        "sha256": "052a1f3ad2d764f6a7d0e7b5c80131feccd1c472b343c7179fe9f62f862548b7"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.597,
+      "saved_percent": 40.3
+    },
+    {
+      "source": {
+        "file": "platform-overview.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 82205,
+        "sha256": "02dac3939854821ce5e0a2fc34a8db3618e228088ca4bcef3cbd495e3dbd9a8c"
+      },
+      "output": {
+        "file": "platform-overview.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 44810,
+        "sha256": "eacc4526334892be1c1ac0f6cd0df8095c8a4439143c4440f8df7ee48830c20b"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5451,
+      "saved_percent": 45.49
+    },
+    {
+      "source": {
+        "file": "platform-plans.jpg",
+        "format": "jpeg",
+        "width": 530,
+        "height": 960,
+        "bytes": 37382,
+        "sha256": "0eb3e9d75d9e7c1c5dcc5bf342a4ee4664808044b8da67ab0c0c46b164ac3f5b"
+      },
+      "output": {
+        "file": "platform-plans.webp",
+        "format": "webp",
+        "width": 530,
+        "height": 960,
+        "bytes": 19970,
+        "sha256": "e7b7e8db8456daf1ff65703816d218c50cdde739fb8b93de85132b8af016f9e5"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5342,
+      "saved_percent": 46.58
+    },
+    {
+      "source": {
+        "file": "quick-replies.jpg",
+        "format": "jpeg",
+        "width": 520,
+        "height": 701,
+        "bytes": 44092,
+        "sha256": "a98255134d091ed598741d07323d469e2a4ce622173d24a12753ca1650da81f5"
+      },
+      "output": {
+        "file": "quick-replies.webp",
+        "format": "webp",
+        "width": 520,
+        "height": 701,
+        "bytes": 28140,
+        "sha256": "859e7a48f040d520b1cc85dac1b3c8251606b02014970a5d4dffc7df0ea38964"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.6382,
+      "saved_percent": 36.18
+    },
+    {
+      "source": {
+        "file": "reports.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 85564,
+        "sha256": "f505696426c18f455137270b86a645f0fb743c2efcedebf97a8eb0c3cb8038c4"
+      },
+      "output": {
+        "file": "reports.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 48414,
+        "sha256": "339f3f11c155cc4ce72a66cea13c1933e770158e37aadc320d983bb529dc62bc"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5658,
+      "saved_percent": 43.42
+    },
+    {
+      "source": {
+        "file": "routing.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 59318,
+        "sha256": "37d7c6ccf938d6458a5022a9d1679971c6d8ada5cb0103313f821c7a9ab28e3b"
+      },
+      "output": {
+        "file": "routing.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 32304,
+        "sha256": "2165346aa4894372d5035affd912cece8cf4267b221eb8d600aca8b62cc12c65"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5446,
+      "saved_percent": 45.54
+    },
+    {
+      "source": {
+        "file": "satisfaction.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 64971,
+        "sha256": "1276ed515256fbbc8d9931123b88dda2440c677743dbc9ede57473065cd487d7"
+      },
+      "output": {
+        "file": "satisfaction.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 36784,
+        "sha256": "e6ef7d17abb30e3da022301ec1087003007b108fa4c08ddb8c021872b77dae0b"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5662,
+      "saved_percent": 43.38
+    },
+    {
+      "source": {
+        "file": "server-monitor.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 93405,
+        "sha256": "6000c9223bb6b2912009f64825df8a87a96c1ed2bfcec5b7ebdbdd3635890709"
+      },
+      "output": {
+        "file": "server-monitor.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 54198,
+        "sha256": "d439e3c0f8550d4fcc37021246a43463cd87f6865fbc333de7ab6fd3e4407344"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5802,
+      "saved_percent": 41.98
+    },
+    {
+      "source": {
+        "file": "template-editor.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 95477,
+        "sha256": "e22031d9d49fa886bd7e3e04a50df194bd4b41d96db1e4a274132dbe2b1ede8c"
+      },
+      "output": {
+        "file": "template-editor.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 54618,
+        "sha256": "66b89fefe6a81557b6dd04c3bdda74128f340f6a3e30f65715856c4e42740a68"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5721,
+      "saved_percent": 42.79
+    },
+    {
+      "source": {
+        "file": "tenant-settings.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 86401,
+        "sha256": "a9e648f62663b3daecb431f53e62e23558d2ad76b699b1dd069e6bff6759b8b0"
+      },
+      "output": {
+        "file": "tenant-settings.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 51158,
+        "sha256": "de9ec084e85fea68383932f1def87930136603acb5266dab41a416132bc8956c"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.5921,
+      "saved_percent": 40.79
+    },
+    {
+      "source": {
+        "file": "welcome-rules.jpg",
+        "format": "jpeg",
+        "width": 1440,
+        "height": 960,
+        "bytes": 93824,
+        "sha256": "9297f5da0a0cad09fb52a59ba1272c64e4c2a3ed6318a03e0e63f0690843f29b"
+      },
+      "output": {
+        "file": "welcome-rules.webp",
+        "format": "webp",
+        "width": 1440,
+        "height": 960,
+        "bytes": 56482,
+        "sha256": "7fae1048e65bf829a0d537c57a5a12a9b8e6f4aa6ed9aef13059ad7740e4f47e"
+      },
+      "transforms": [],
+      "output_to_source_ratio": 0.602,
+      "saved_percent": 39.8
+    },
+    {
+      "source": {
+        "file": "workspace-native.jpg",
+        "format": "jpeg",
+        "width": 3024,
+        "height": 1654,
+        "bytes": 369389,
+        "sha256": "00cd6facbe39c91282f6d47f63882bcc8f54fb6d049013f934e7eb9a90216be6"
+      },
+      "output": {
+        "file": "workspace.webp",
+        "format": "webp",
+        "width": 1512,
+        "height": 771,
+        "bytes": 39660,
+        "sha256": "e1cb45e87ffa6d8be6d9b7de80bfb375d82fa06cec4cd06118063bd55d4ef018"
+      },
+      "transforms": [
+        {
+          "operation": "crop",
+          "left": 0,
+          "top": 112,
+          "width": 3024,
+          "height": 1542,
+          "reason": "Remove browser debugging bar from native capture"
+        },
+        {
+          "operation": "resize",
+          "width": 1512,
+          "preserve_aspect_ratio": true,
+          "enlargement": false
+        }
+      ],
+      "output_to_source_ratio": 0.1074,
+      "saved_percent": 89.26
+    },
+    {
+      "source": {
+        "file": "template-library-native.jpg",
+        "format": "jpeg",
+        "width": 3024,
+        "height": 1654,
+        "bytes": 599552,
+        "sha256": "7f0ea187453f696fd098bfced3aad8f69cb9df6492d5dbe1c2f2c39ead076043"
+      },
+      "output": {
+        "file": "template-library.webp",
+        "format": "webp",
+        "width": 1600,
+        "height": 816,
+        "bytes": 84846,
+        "sha256": "26f109baaa5e444ab4922c6e2c2e490b50bdae47f38006ca61b0e6d9fdc2aa6a"
+      },
+      "transforms": [
+        {
+          "operation": "crop",
+          "left": 0,
+          "top": 112,
+          "width": 3024,
+          "height": 1542,
+          "reason": "Remove browser debugging bar"
+        },
+        {
+          "operation": "resize",
+          "width": 1600,
+          "preserve_aspect_ratio": true,
+          "enlargement": false
+        }
+      ],
+      "output_to_source_ratio": 0.1415,
+      "saved_percent": 85.85
+    }
+  ],
+  "template_contact_sheets_manifest": "../templates/manifest.json",
+  "context_notes": {
+    "ai-assistant.webp": "Actual new-conversation empty state; it does not show successful generation.",
+    "template-editor.webp": "Actual finance template preview is visible with an authored text element selected.",
+    "workspace.webp": "Native capture of an ended demonstration conversation, including welcome options, fully rendered customer profile and ended-conversation notice. No contact details are shown. The CDP workspace capture is excluded because a rendered sidebar layer was omitted from that screenshot.",
+    "members.webp": "Shows the author email already explicitly authorized for public project documentation.",
+    "server-monitor.webp": "Local acceptance environment; manually entered baseline 100 and derived estimate are demonstration data, not a load test or performance acceptance claim."
+  }
+}
