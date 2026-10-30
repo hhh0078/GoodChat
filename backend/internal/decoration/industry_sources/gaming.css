@@ -1,0 +1,498 @@
+/* 文件作用说明：电竞模板按确认稿采用左聊天右真实设备摄影、黑曜与青柠字体，小屏保持沉浸短开场。 */
+:root {
+  --gc-primary: #d7f26c;
+  --gc-on-primary: #171c0e;
+  --gc-background: #111512;
+  --gc-surface: #171b18;
+  --gc-peer: #282b2b;
+  --gc-ink: #f1f0e6;
+  --gc-muted: #92978e;
+  --gc-border: #ffffff13;
+  --gc-composer: #242826;
+}
+.gaming-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 55%) minmax(0, 45%);
+  grid-template-rows: 72px minmax(0, 1fr);
+  height: 100%;
+  max-width: none;
+  overflow: hidden;
+  background: #111512;
+}
+.gaming-brand {
+  position: relative;
+  z-index: 1;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 20px;
+  padding: 13px 32px;
+  border-bottom: 1px solid #ffffff12;
+  background: #111512;
+}
+.gaming-identity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 13px;
+}
+.gaming-brand-icon {
+  display: block;
+  width: 35px;
+  height: 35px;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(91%) sepia(52%) saturate(633%)
+    hue-rotate(17deg) brightness(104%) contrast(96%);
+}
+.gaming-identity strong {
+  font-size: 23px;
+  font-weight: 750;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.gaming-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gaming-brand .gc-leave-message {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 8px 16px;
+  border-color: #d7f26c;
+  border-radius: 8px;
+  color: #d7f26c;
+  font-size: 14px;
+}
+.gaming-brand .gc-leave-message:hover {
+  background: #d7f26c12;
+}
+.gaming-brand .gc-ui-icon {
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) saturate(100%) invert(91%) sepia(52%) saturate(633%)
+    hue-rotate(17deg) brightness(104%) contrast(96%);
+}
+.gaming-layout > .gc-conversation {
+  grid-column: 1;
+  grid-row: 2;
+}
+.gaming-layout .gc-chat-heading {
+  min-height: 0;
+  height: 0;
+  flex-basis: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+.gaming-layout .gc-chat-heading strong {
+  position: fixed;
+  z-index: 4;
+  top: 21px;
+  left: 293px;
+  font-size: 21px;
+  line-height: 30px;
+}
+.gaming-layout .gc-chat-heading strong::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: -20px;
+  width: 1px;
+  background: #ffffff59;
+}
+/* 连接状态沿用唯一核心节点，只在视觉上放入通栏头部。 */
+.gaming-layout #gc-status {
+  position: fixed;
+  z-index: 4;
+  top: 26px;
+  left: 404px;
+  max-width: 210px;
+  font-size: 12px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gaming-layout #gc-status::before {
+  background: #d7f26c;
+}
+.gaming-layout .gc-service-button {
+  position: fixed;
+  z-index: 4;
+  top: 20px;
+  right: 182px;
+  min-height: 32px;
+  padding: 5px 3px;
+  color: #b3bcaa;
+}
+.gaming-layout #gc-messages {
+  padding-top: 24px;
+}
+.gaming-layout .gc-message {
+  border-radius: 9px;
+}
+.gaming-layout .gc-own .gc-message {
+  background: #d7f26c;
+  color: #171d0f;
+}
+.gaming-layout .gc-welcome-option {
+  border-color: #81877b;
+  border-radius: 13px;
+  background: #262b26;
+  color: #eff1e6;
+}
+.gaming-layout .gc-composer-area {
+  padding-top: 8px;
+  border-top-color: #ffffff0c;
+}
+.gaming-layout #gc-text {
+  border-color: #ffffff16;
+  border-radius: 11px;
+}
+.gaming-layout #gc-send {
+  border-radius: 11px;
+}
+.gaming-layout #gc-add img,
+.gaming-layout .gc-emoji-button img {
+  filter: brightness(0) invert(0.86);
+}
+.gaming-layout .gc-file-save {
+  color: inherit;
+}
+.gaming-layout .gc-reply {
+  border-left-color: #b1c98b;
+}
+.gaming-layout .gc-read-status {
+  color: #92998b;
+}
+.gaming-layout .gc-preview-support {
+  padding-top: 5px;
+}
+.gaming-scene {
+  position: relative;
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #0e1110;
+}
+.gaming-photograph {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+}
+.gaming-photograph img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 58% bottom;
+}
+.gaming-introduction {
+  position: relative;
+  padding: 35px 40px;
+}
+.gaming-introduction h1 {
+  margin: 0 0 21px;
+  color: #f2f0df;
+  font-family: "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: clamp(43px, 5.6vw, 84px);
+  font-weight: 900;
+  font-style: italic;
+  -webkit-text-stroke: 0.65px currentColor;
+  line-height: 1.18;
+  letter-spacing: -0.055em;
+}
+.gaming-introduction h1 > span {
+  display: block;
+}
+.gaming-introduction h1 > span:last-child {
+  color: #d7f26c;
+}
+.gaming-service-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #f0f0e7;
+  font-size: 19px;
+  font-weight: 600;
+}
+.gaming-scope {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 7px;
+  margin-top: 2px;
+  color: #b1b6ad;
+  font-size: 15px;
+}
+.gaming-scope button {
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  white-space: nowrap;
+}
+.gaming-scope button:hover {
+  color: #d7f26c;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+@media (max-width: 1100px) and (min-width: 701px) {
+  .gaming-brand {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+  .gaming-identity strong {
+    font-size: 21px;
+  }
+  .gaming-introduction {
+    padding: 30px 26px;
+  }
+  .gaming-introduction h1 {
+    font-size: clamp(38px, 5.5vw, 62px);
+  }
+  .gaming-service-label {
+    font-size: 16px;
+  }
+  .gaming-scope {
+    font-size: 14px;
+    gap: 0 5px;
+  }
+  .gaming-layout .gc-chat-heading {
+    gap: 0;
+  }
+  .gaming-layout .gc-chat-heading strong {
+    font-size: 19px;
+    left: 250px;
+  }
+  .gaming-layout #gc-status {
+    left: 338px;
+    max-width: 110px;
+  }
+  .gaming-layout .gc-service-button {
+    right: 154px;
+  }
+}
+@media (max-width: 700px) {
+  .gaming-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 60px 190px minmax(0, 1fr);
+  }
+  .gaming-brand {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 10px 16px;
+    gap: 10px;
+  }
+  .gaming-identity {
+    gap: 9px;
+  }
+  .gaming-brand-icon {
+    width: 27px;
+    height: 27px;
+  }
+  .gaming-identity strong {
+    font-size: clamp(14px, 4.25vw, 17px);
+    letter-spacing: -0.035em;
+  }
+  .gaming-brand .gc-leave-message {
+    min-height: 36px;
+    padding: 6px 9px;
+    font-size: 12px;
+    gap: 6px;
+    border-radius: 6px;
+  }
+  .gaming-brand .gc-ui-icon {
+    width: 17px;
+    height: 17px;
+  }
+  .gaming-scene {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  /* 手机照片退到右侧，保持左侧标题和服务文字处于安静深色区域。 */
+  .gaming-photograph {
+    left: 36%;
+  }
+  .gaming-photograph img {
+    object-position: right 72%;
+  }
+  .gaming-introduction {
+    padding: 17px 20px;
+  }
+  .gaming-introduction h1 {
+    margin-bottom: 10px;
+    font-size: 36px;
+    line-height: 1.12;
+    letter-spacing: -0.05em;
+  }
+  .gaming-service-label {
+    gap: 6px;
+    font-size: 14px;
+  }
+  .gaming-scope {
+    gap: 0 4px;
+    margin-top: 1px;
+    font-size: 12px;
+  }
+  .gaming-scope button {
+    min-height: 28px;
+  }
+  .gaming-layout > .gc-conversation {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .gaming-layout .gc-chat-heading {
+    min-height: 0;
+    height: 0;
+    padding: 0;
+    gap: 0;
+  }
+  .gaming-layout .gc-chat-heading strong {
+    display: none;
+  }
+  .gaming-layout #gc-status {
+    top: 8px;
+    right: 112px;
+    left: 47%;
+    max-width: none;
+    font-size: 10px;
+    line-height: 17px;
+  }
+  .gaming-layout #gc-status::before {
+    width: 5px;
+    height: 5px;
+    margin-right: 5px;
+  }
+  .gaming-layout .gc-service-button {
+    top: 29px;
+    right: 120px;
+    min-height: 24px;
+    padding: 1px 2px;
+    font-size: 10px;
+    line-height: 20px;
+  }
+  .gaming-layout #gc-messages {
+    padding-top: 18px;
+  }
+  .gaming-layout .gc-message-row {
+    margin-bottom: 20px;
+  }
+  .gaming-layout .gc-composer-area {
+    padding-top: 4px;
+  }
+  .gaming-layout #gc-text,
+  .gaming-layout #gc-send {
+    border-radius: 8px;
+  }
+}
+/* 装饰在短屏或键盘出现时整体退出网格，保留真实可用高度给聊天与输入。 */
+@media (max-height: 560px) {
+  .gaming-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .gaming-brand {
+    flex: 0 0 auto;
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+  .gaming-identity strong {
+    font-size: 17px;
+  }
+  .gaming-brand-icon {
+    width: 25px;
+    height: 25px;
+  }
+  .gaming-layout > .gc-conversation {
+    flex: 1 1 0;
+  }
+  .gaming-layout .gc-chat-heading {
+    min-height: 0;
+    height: 0;
+    padding: 0;
+  }
+  .gaming-layout .gc-chat-heading strong {
+    top: 7px;
+    font-size: 17px;
+    line-height: 28px;
+  }
+  .gaming-layout #gc-status {
+    top: 10px;
+  }
+  .gaming-layout .gc-service-button {
+    top: 7px;
+  }
+  .gaming-layout #gc-messages {
+    padding: 12px 12px 6px;
+  }
+  .gaming-layout .gc-composer-area {
+    padding-top: 0;
+  }
+}
+@media (max-width: 700px) and (max-height: 560px) {
+  .gaming-layout #gc-status {
+    top: 3px;
+  }
+  .gaming-layout .gc-service-button {
+    top: 20px;
+  }
+}
+/* 极短视口已收起品牌栏，核心状态和说明回到聊天首行，仍保持可见可操作。 */
+@media (max-height: 360px) {
+  .gaming-layout .gc-chat-heading {
+    min-height: 34px;
+    height: auto;
+    flex-basis: auto;
+    padding: 4px 12px;
+    gap: 12px;
+  }
+  .gaming-layout .gc-chat-heading strong {
+    position: static;
+    display: block;
+    font-size: 16px;
+    line-height: 22px;
+  }
+  .gaming-layout .gc-chat-heading strong::before {
+    display: none;
+  }
+  .gaming-layout #gc-status {
+    position: static;
+    max-width: none;
+    font-size: 11px;
+    line-height: 20px;
+  }
+  .gaming-layout .gc-service-button {
+    position: static;
+    min-height: 26px;
+    margin-left: auto;
+    padding: 2px 0 2px 6px;
+    font-size: 11px;
+  }
+}
+body.gc-keyboard-open .gaming-layout {
+  display: flex;
+  flex-direction: column;
+}
+body.gc-keyboard-open .gaming-brand {
+  flex: 0 0 auto;
+}
+body.gc-keyboard-open .gaming-layout > .gc-conversation {
+  flex: 1 1 0;
+}
+body.gc-keyboard-open .gaming-layout .gc-chat-heading {
+  padding-right: 12px;
+  padding-left: 12px;
+}

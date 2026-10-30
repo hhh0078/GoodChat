@@ -74,7 +74,6 @@ export function TemplatePreview({
           sandbox="allow-scripts allow-same-origin"
           referrerPolicy="no-referrer"
           tabIndex={-1}
-          inert
           aria-hidden="true"
           style={{ width: 390, height: 780, transform: `translate(-50%, -50%) scale(${scale})` }}
         />

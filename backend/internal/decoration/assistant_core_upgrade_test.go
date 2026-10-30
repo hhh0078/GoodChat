@@ -19,13 +19,13 @@ func assistantOldCoreFixture(t *testing.T, version string) (*staticPackage, Temp
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, _, err := assistantSplitBasePackage(base)
+	files, assets, err := assistantSplitBasePackage(base)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := range files {
 		if files[i].Path == "index.html" {
-			start := strings.Index(files[i].Content, `<header class="gc-template-header">`)
+			start := strings.Index(files[i].Content, `<header class="gc-brandbar finance-brand"`)
 			if start < 0 {
 				t.Fatal("测试模板头部不存在")
 			}
@@ -46,7 +46,7 @@ func assistantOldCoreFixture(t *testing.T, version string) (*staticPackage, Temp
 	}
 	// 历史文件按原已冻结字节构造，故意不经过只用于新保存foundation的必需新方法检查。
 	contract := templateContract{SchemaVersion: 1, SDKVersion: old.Version, Files: map[string]string{templateSDKPath: digest([]byte(old.SDK)), templateUIPath: digest([]byte(old.ChatUI))}}
-	all := []packageFile{image}
+	all := append([]packageFile{image}, assets...)
 	for _, source := range files {
 		content := []byte(source.Content)
 		if source.Path == "index.html" {
@@ -95,6 +95,9 @@ func TestAssistantCoreUpgradeKeepsOriginal(t *testing.T) {
 	for _, file := range old.Files {
 		if !bytes.Equal(file.Content, before[file.Path].Content) {
 			t.Fatal("原包字节被升级副本修改", file.Path)
+		}
+		if !strings.HasPrefix(file.ContentType, "text/") && file.ContentType != "application/json" && !bytes.Equal(file.Content, after[file.Path].Content) {
+			t.Fatal("新副本必须保留原包的所有二进制素材", file.Path)
 		}
 	}
 	if !strings.Contains(string(after["index.html"].Content), `data-goodchat-version="`+defaultTemplateScripts().Version+`"`) || strings.Contains(string(after["index.html"].Content), "legacy-core-upgrade") {

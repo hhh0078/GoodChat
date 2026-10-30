@@ -62,7 +62,7 @@ func TestAssistantImportedMetadataExcluded(t *testing.T) {
 		t.Fatal(err)
 	}
 	pkg.Files = append(pkg.Files, metadata)
-	files, _, err := assistantSplitBasePackage(pkg)
+	files, assets, err := assistantSplitBasePackage(pkg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestAssistantImportedMetadataExcluded(t *testing.T) {
 			t.Fatal("不可编辑导出清单和核心文件不应交给AI")
 		}
 	}
-	if _, err := buildTemplatePackage("index.html", files, defaultTemplateScripts()); err != nil {
+	if _, err := buildTemplatePackageAssets("index.html", files, defaultTemplateScripts(), assets); err != nil {
 		t.Fatal("导入模板的可编辑文件应可再次打包")
 	}
 }

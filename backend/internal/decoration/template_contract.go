@@ -56,7 +56,7 @@ var templateVersionPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63
 func defaultTemplateScripts() TemplateScripts {
 	config, _ := json.Marshal(map[string]any{"origin": "", "release": "", "preview": false})
 	sdk := strings.Replace(sdkScript("", "", false), "const cfg="+string(config)+";", "const cfg=window.__GoodChatBoot;", 1)
-	return TemplateScripts{Version: "1.0.2", SDK: templatePreviewScript + "\n(function(){if(window.__GoodChatBoot?.preview)return;" + sdk + "})();", ChatUI: templateViewportScript + "\n" + schemaChatScript + "\n" + templateActionScript}
+	return TemplateScripts{Version: "1.0.4", SDK: templatePreviewScript + "\n(function(){if(window.__GoodChatBoot?.preview)return;" + sdk + "})();", ChatUI: templateViewportScript + "\n" + schemaChatScript + "\n" + templateActionScript}
 }
 
 // validateTemplateScripts 校验管理员脚本的静态合约与体积，不在服务器执行浏览器代码。
@@ -119,12 +119,18 @@ func templateContractMatches(contract templateContract, scripts TemplateScripts)
 	return contract.SDKVersion == scripts.Version && contract.Files[templateSDKPath] == digest([]byte(scripts.SDK)) && contract.Files[templateUIPath] == digest([]byte(scripts.ChatUI))
 }
 
-// builtinTemplateContract 认可当前内置字节和已发布1.0.1原始摘要，升级代码不会使历史包失效或重写历史脚本。
+// builtinTemplateContract 认可当前及已发布原始摘要，升级预览不会使历史包失效或重写历史脚本。
 func builtinTemplateContract(contract templateContract) bool {
 	if contract.SchemaVersion != 1 {
 		return false
 	}
 	if templateContractMatches(contract, defaultTemplateScripts()) {
+		return true
+	}
+	if contract.SDKVersion == "1.0.3" && contract.Files[templateSDKPath] == "65239177291785c0b5afbe840fd1102d93b0f242fc22fbf23ed2fe5cb0145c5e" && contract.Files[templateUIPath] == "e084a4cff0b02a16d7417e3ca93b23801180e632d371e1d1beb9ab2c914774bd" {
+		return true
+	}
+	if contract.SDKVersion == "1.0.2" && contract.Files[templateSDKPath] == "87297b49aafcb08361006e11316ccd6d8e240293996c17cb4ca1fa5b6f6bfe1b" && contract.Files[templateUIPath] == "e084a4cff0b02a16d7417e3ca93b23801180e632d371e1d1beb9ab2c914774bd" {
 		return true
 	}
 	return contract.SDKVersion == "1.0.1" &&

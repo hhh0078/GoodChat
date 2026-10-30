@@ -1,0 +1,142 @@
+<!-- 文件作用说明：还原已确认医疗设计稿，以真实诊室人物摄影、瓷白青绿和开放式聊天提供就诊服务咨询。 -->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>和禾健康 · 就诊服务咨询</title>
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body data-gc-preview-industry="medical">
+    <main
+      class="gc-layout gc-industry-medical medical-layout"
+      data-gc-edit-id="medical-layout"
+    >
+      <header class="gc-brandbar medical-brand" data-gc-edit-id="medical-brand">
+        <div class="medical-identity" data-gc-edit-id="medical-identity">
+          <img
+            class="medical-logo"
+            src="static/assets/medical-logo.png"
+            alt=""
+            width="34"
+            height="34"
+            data-gc-edit-id="medical-logo"
+          />
+          <strong data-gc-edit-id="medical-brand-name">和禾健康</strong>
+        </div>
+        <div
+          class="medical-header-actions"
+          data-gc-edit-id="medical-header-actions"
+        >
+          <button
+            class="gc-leave-message"
+            type="button"
+            data-gc-action="leave-message"
+            data-gc-edit-id="leave-message"
+          >
+            <span data-gc-edit-id="medical-leave-label">留下留言</span>
+          </button>
+          <button
+            class="gc-leave-message"
+            type="button"
+            data-gc-action="evaluation"
+            data-gc-edit-id="medical-evaluation"
+            hidden
+          >
+            <span data-gc-edit-id="medical-evaluation-label">服务评价</span>
+          </button>
+        </div>
+      </header>
+      <figure
+        class="medical-scene gc-decoration"
+        data-gc-edit-id="medical-scene"
+      >
+        <img
+          class="medical-photo"
+          src="static/assets/medical-hero.webp"
+          alt="明亮诊室中微笑的就诊服务顾问"
+          data-gc-edit-id="medical-hero-image"
+        />
+        <figcaption
+          class="medical-introduction"
+          data-gc-edit-id="medical-introduction"
+        >
+          <h1 data-gc-edit-id="medical-title">
+            <span data-gc-edit-id="medical-title-line-one">安心就诊，</span
+            ><span data-gc-edit-id="medical-title-line-two">从这里开始</span>
+          </h1>
+          <p class="medical-subtitle" data-gc-edit-id="medical-subtitle">
+            <span data-gc-edit-id="medical-subtitle-line-one"
+              >专业的服务顾问，</span
+            ><span data-gc-edit-id="medical-subtitle-line-two"
+              >为您的就诊提供贴心指引。</span
+            >
+          </p>
+        </figcaption>
+      </figure>
+      <nav
+        class="gc-service-entries medical-services"
+        aria-label="就诊服务指引"
+        data-gc-edit-id="medical-services"
+      >
+        <div
+          class="medical-service-links"
+          data-gc-edit-id="medical-service-links"
+        >
+          <button
+            type="button"
+            data-gc-send="预约前需要准备什么？"
+            data-gc-edit-id="medical-preparation"
+          >
+            <img
+              src="static/assets/icon-document.png"
+              alt=""
+              width="21"
+              height="21"
+              data-gc-edit-id="medical-preparation-icon"
+            /><span data-gc-edit-id="medical-preparation-label">预约准备</span>
+          </button>
+          <span
+            class="medical-service-divider"
+            aria-hidden="true"
+            data-gc-edit-id="medical-service-divider"
+          ></span>
+          <button
+            type="button"
+            data-gc-send="我想了解就诊流程。"
+            data-gc-edit-id="medical-process"
+          >
+            <img
+              src="static/assets/icon-document.png"
+              alt=""
+              width="21"
+              height="21"
+              data-gc-edit-id="medical-process-icon"
+            /><span data-gc-edit-id="medical-process-label">就诊流程</span>
+          </button>
+        </div>
+      </nav>
+      {{CHAT}}
+      <p
+        class="medical-guidance"
+        data-gc-composer-note
+        data-gc-edit-id="medical-guidance"
+      >
+        <img
+          src="static/assets/icon-shield.png"
+          alt=""
+          width="16"
+          height="16"
+          data-gc-edit-id="medical-guidance-icon"
+        />
+        <span data-gc-edit-id="medical-guidance-copy"
+          >仅提供就诊服务指引，不替代医生诊疗。</span
+        >
+      </p>
+    </main>
+    {{SERVICE_DIALOG}}{{SCRIPTS}}
+  </body>
+</html>

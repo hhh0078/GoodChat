@@ -1,0 +1,457 @@
+/* 文件作用说明：定义静态模板点选编辑器的三栏工作区、源码面板与响应式布局，使用工作端现有银白与钴蓝色系。 */
+.static-template-editor {
+  --editor-border: #e5e9f0;
+  --editor-muted: #768297;
+  border: 1px solid var(--editor-border);
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+  color: #172238;
+}
+.static-editor-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--editor-border);
+}
+.static-editor-topbar > div:first-child {
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+}
+.static-editor-topbar > div:first-child > .ant-input {
+  font-size: 17px;
+  font-weight: 650;
+  border-color: transparent;
+  padding-left: 0;
+}
+.static-editor-topbar > div:first-child > .ant-input:hover,
+.static-editor-topbar > div:first-child > .ant-input:focus {
+  border-color: #b6c5e9;
+  padding-left: 8px;
+}
+.static-editor-help {
+  font-size: 12px;
+  color: var(--editor-muted);
+  line-height: 1.6;
+}
+.static-editor-help .ant-tag {
+  margin-left: 8px;
+}
+.static-editor-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--editor-border);
+}
+.static-editor-tools > .ant-select {
+  width: 100px;
+}
+.static-editor-grid {
+  display: grid;
+  grid-template-columns: 190px minmax(300px, 1fr) 270px;
+  min-height: 680px;
+  position: relative;
+}
+.static-editor-grid.is-busy:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #ffffff3b;
+  cursor: wait;
+}
+.static-editor-sidebar {
+  min-width: 0;
+  border-right: 1px solid var(--editor-border);
+  padding: 0 10px;
+}
+.static-editor-sidebar .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+.static-editor-sidebar .ant-tabs-tab {
+  font-size: 12px;
+  padding: 14px 0;
+}
+.static-editor-sidebar .ant-tabs-tab + .ant-tabs-tab {
+  margin-left: 18px;
+}
+.static-editor-node-list {
+  max-height: 720px;
+  overflow: auto;
+  margin: 8px -6px;
+}
+.static-editor-node-list button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  text-align: left;
+  padding: 8px 5px;
+  font-size: 11px;
+  min-height: 36px;
+  color: #46536c;
+  cursor: pointer;
+}
+.static-editor-node-list button code {
+  color: #8490a4;
+  font-size: 9px;
+  min-width: 28px;
+}
+.static-editor-node-list button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.static-editor-node-list button:hover,
+.static-editor-file-list button:hover {
+  background: #f2f5fb;
+}
+.static-editor-node-list button.is-selected,
+.static-editor-file-list button.is-selected {
+  background: #eaf0ff;
+  color: #2352d2;
+}
+.static-editor-node-list button:focus-visible,
+.static-editor-image-picker button:focus-visible,
+.static-editor-assets button:focus-visible {
+  outline: 2px solid #2c60eb;
+  outline-offset: -2px;
+}
+.static-editor-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: auto;
+}
+.static-editor-file-list button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 11px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.static-editor-file-list button > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.static-editor-file-list .ant-tag {
+  font-size: 9px;
+  margin: 0;
+  padding: 0 3px;
+  flex-shrink: 0;
+}
+.static-editor-preview {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #f3f5f8;
+}
+.static-editor-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  min-height: 58px;
+}
+.static-editor-preview-toolbar strong {
+  font-size: 12px;
+}
+.static-editor-preview-toolbar .ant-tag {
+  font-size: 10px;
+  margin: 0;
+}
+.static-editor-preview-toolbar .ant-segmented {
+  font-size: 12px;
+}
+.static-editor-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 540px;
+  height: 660px;
+  max-height: 76vh;
+  overflow: hidden;
+  padding: 12px;
+}
+.static-editor-device {
+  position: relative;
+  flex-shrink: 0;
+  box-shadow:
+    0 0 0 1px #15213a0d,
+    0 8px 32px #15213a0b;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.static-editor-device.is-desktop {
+  border-radius: 6px;
+}
+.static-editor-device iframe {
+  display: block;
+  border: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: top left;
+}
+.static-editor-caption {
+  padding: 10px 16px;
+  margin: 0;
+  color: var(--editor-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  border-top: 1px solid var(--editor-border);
+}
+.static-editor-properties {
+  border-left: 1px solid var(--editor-border);
+  min-width: 0;
+}
+.static-editor-panel-title {
+  padding: 17px 16px;
+  border-bottom: 1px solid var(--editor-border);
+  font-size: 12px;
+  font-weight: 650;
+}
+.static-editor-inspector {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 16px;
+  max-height: 800px;
+  overflow: auto;
+}
+.static-editor-inspector label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 550;
+}
+.static-editor-inspector .code-editor {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.static-editor-inspector .ant-alert {
+  padding: 9px;
+}
+.static-editor-inspector .ant-alert-title {
+  font-size: 11px;
+  font-weight: 400;
+}
+.static-editor-selected {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+.static-editor-selected code {
+  font-size: 10px;
+  color: #8792a4;
+}
+.static-editor-inspector .static-editor-help {
+  margin: 0;
+  font-size: 11px;
+}
+.static-editor-image-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.static-editor-image-picker button {
+  height: 60px;
+  padding: 3px;
+  background: #f5f6f8;
+  border: 1px solid var(--editor-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.static-editor-image-picker img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.static-editor-assets {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.static-editor-assets > button:not(.ant-btn) {
+  display: grid;
+  gap: 6px;
+  background: #fafbfc;
+  border: 1px solid var(--editor-border);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 10px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.static-editor-assets img {
+  width: 100%;
+  height: 100px;
+  object-fit: contain;
+  background: #f1f3f5;
+}
+.static-editor-source-grid {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+}
+.static-editor-source-content {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+.static-editor-source-content > .code-editor {
+  font-size: 12px;
+  line-height: 1.8;
+  tab-size: 2;
+}
+.static-editor-source-image {
+  display: block;
+  max-width: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+}
+.static-editor-loading {
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+  gap: 12px;
+}
+.static-template-editor > .error-notice {
+  margin: 12px;
+}
+.static-editor-source-drawer .ant-drawer-body {
+  padding: 20px;
+}
+@media (min-width: 1600px) {
+  .static-editor-grid {
+    grid-template-columns: 220px minmax(0, 1fr) 300px;
+  }
+  .static-editor-canvas {
+    height: 740px;
+  }
+}
+@media (max-width: 1150px) {
+  .static-editor-grid {
+    grid-template-columns: 160px minmax(260px, 1fr) 230px;
+  }
+  .static-editor-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .static-editor-preview-toolbar {
+    flex-wrap: wrap;
+  }
+  .static-editor-preview-toolbar .ant-space .ant-tag {
+    display: none;
+  }
+  .static-editor-inspector {
+    padding: 12px;
+  }
+  .static-editor-canvas {
+    padding: 8px;
+    min-height: 500px;
+  }
+}
+@media (max-width: 850px) {
+  .static-editor-grid {
+    grid-template-columns: 150px minmax(0, 1fr);
+  }
+  .static-editor-properties {
+    grid-column: 1/-1;
+    border-left: 0;
+    border-top: 1px solid var(--editor-border);
+  }
+  .static-editor-inspector {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: none;
+  }
+  .static-editor-inspector > .ant-alert {
+    grid-column: 1/-1;
+  }
+  .static-editor-canvas {
+    max-height: none;
+    height: 650px;
+  }
+  .static-editor-topbar .ant-space {
+    gap: 8px !important;
+  }
+  .static-editor-source-grid {
+    grid-template-columns: 160px minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+@media (max-width: 520px) {
+  .static-editor-grid {
+    grid-template-columns: 1fr;
+  }
+  .static-editor-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--editor-border);
+    max-height: 200px;
+    overflow: auto;
+  }
+  .static-editor-sidebar .ant-tabs-nav {
+    margin-bottom: 8px;
+  }
+  .static-editor-node-list {
+    max-height: 110px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .static-editor-file-list {
+    max-height: 180px;
+  }
+  .static-editor-canvas {
+    height: 700px;
+    min-height: 550px;
+  }
+  .static-editor-inspector {
+    grid-template-columns: 1fr;
+  }
+  .static-editor-topbar {
+    padding: 12px;
+  }
+  .static-editor-topbar .ant-btn {
+    font-size: 12px;
+  }
+  .static-editor-tools {
+    padding: 10px;
+  }
+  .static-editor-tools .ant-btn {
+    font-size: 12px;
+  }
+  .static-editor-source-grid {
+    grid-template-columns: 1fr;
+  }
+  .static-editor-source-content .code-editor {
+    min-height: 400px;
+  }
+  .static-editor-preview-toolbar {
+    padding: 10px;
+  }
+  .static-editor-assets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .static-editor-assets img {
+    height: 60px;
+  }
+}

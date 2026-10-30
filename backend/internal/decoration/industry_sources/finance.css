@@ -1,0 +1,412 @@
+/* 文件作用说明：忠实实现已确认金融蓝金设计稿，摄影侧屏与移动横幅共享真实素材，聊天开放铺满。 */
+:root {
+  --gc-primary: #204f78;
+  --gc-background: #f7f8fa;
+  --gc-surface: #f7f8fa;
+  --gc-ink: #152b43;
+  --gc-muted: #929aa6;
+  --gc-border: #e7ebf0;
+  --gc-peer: #fff;
+  --gc-composer: #f1f3f5;
+}
+.finance-layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: 37.5% minmax(0, 1fr);
+  max-width: 1920px;
+}
+.finance-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: #e4f0ff;
+}
+.finance-brand {
+  flex: 0 0 auto;
+  min-height: 85px;
+  padding: 20px 34px 0;
+}
+.finance-brand-copy strong {
+  display: block;
+  font-size: 25px;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+}
+.finance-brand-rule {
+  display: block;
+  width: 34px;
+  margin: 5px 0;
+  border-bottom: 3px solid #d9ae4c;
+}
+.finance-brand-copy small {
+  font-size: 14px;
+  color: #8294aa;
+}
+.finance-actions {
+  position: absolute;
+  z-index: 4;
+  right: 28px;
+  top: 23px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #204f78;
+}
+.finance-actions .gc-leave-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 15px;
+}
+.finance-leave img {
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
+}
+.finance-hero {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.finance-hero-image {
+  position: absolute;
+  top: 0;
+  left: -16%;
+  display: block;
+  width: 160%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left top;
+}
+.finance-welcome {
+  position: absolute;
+  z-index: 1;
+  top: 20%;
+  left: 45%;
+  right: 0;
+}
+.finance-welcome h1 {
+  margin: 0 0 19px;
+  font-size: clamp(24px, 2.65vw, 34px);
+  font-weight: 650;
+  line-height: 1.45;
+  letter-spacing: -0.045em;
+}
+.finance-welcome h1 span {
+  display: block;
+  white-space: nowrap;
+}
+.finance-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.finance-tags > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 33px;
+  padding: 6px 10px;
+  border: 1px solid #e1c58a;
+  border-radius: 19px;
+  background: #fff0c9;
+  color: #8d671d;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 2px 3px #a58a4920;
+  white-space: nowrap;
+}
+.finance-tags img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+.finance-introduction {
+  margin: 23px 0 0;
+  font-size: 13px;
+  line-height: 1.9;
+  color: #748ba4;
+}
+.finance-sidebar .gc-service-entries {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  gap: 17px;
+  padding: 22px 38px 37px;
+  background: #e9f3ff;
+}
+.finance-sidebar .gc-service-entries button {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  min-height: 50px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #204f78;
+  text-align: left;
+}
+.finance-sidebar .gc-service-entries button:hover {
+  color: #876b2e;
+}
+.finance-sidebar .gc-service-entries button > img {
+  width: 48px;
+  height: 48px;
+  padding: 11px;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  background: #ffffff66;
+  box-shadow: 0 2px 4px #6e90b010;
+  object-fit: contain;
+}
+.finance-sidebar .gc-service-entries strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+.finance-sidebar .gc-service-entries small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #8094ac;
+}
+.finance-privacy {
+  display: none;
+}
+.finance-workspace {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: #f7f8fa;
+}
+.finance-agent-avatar {
+  position: absolute;
+  z-index: 2;
+  top: 20px;
+  left: 27px;
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.finance-workspace .gc-chat-heading {
+  min-height: 92px;
+  padding-left: 96px;
+  padding-right: 113px;
+  background: #fff;
+  gap: 13px;
+  flex-wrap: wrap;
+  align-content: center;
+}
+.finance-workspace .gc-chat-heading strong {
+  font-size: 20px;
+}
+.finance-workspace #gc-status {
+  font-size: 12px;
+}
+.finance-workspace .gc-service-button {
+  margin-left: auto;
+  font-size: 11px;
+}
+.finance-workspace #gc-messages {
+  padding: 32px 28px 12px;
+}
+.finance-workspace .gc-message {
+  background: #fff;
+  border-radius: 14px;
+  line-height: 1.8;
+}
+.finance-workspace .gc-own .gc-message {
+  background: #204f78;
+}
+.finance-workspace .gc-welcome-option {
+  min-height: 40px;
+  padding: 8px 13px;
+  border-color: #91abc4;
+  border-radius: 9px;
+  color: #204f78;
+  font-size: 12px;
+}
+.finance-workspace .gc-composer-area {
+  background: #fff;
+}
+.finance-workspace .gc-preview-support {
+  background: #fff;
+}
+@media (max-width: 900px) {
+  .finance-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .finance-sidebar {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .finance-brand {
+    min-height: 0;
+    height: 0;
+    padding: 0;
+  }
+  .finance-brand-copy {
+    display: none;
+  }
+  .finance-actions {
+    top: 12px;
+    right: 13px;
+  }
+  .finance-actions .gc-leave-message {
+    min-height: 30px;
+    gap: 5px;
+    padding: 4px 7px;
+    font-size: 12px;
+  }
+  .finance-leave img {
+    width: 18px;
+    height: 18px;
+  }
+  .finance-hero {
+    flex: 0 0 215px;
+    min-height: 215px;
+  }
+  .finance-hero-image {
+    left: -3%;
+    width: 120%;
+    height: 100%;
+    object-fit: cover;
+    object-position: left top;
+  }
+  .finance-welcome {
+    top: 72px;
+    left: 42%;
+    right: 12px;
+  }
+  .finance-welcome h1 {
+    margin-bottom: 14px;
+    font-size: clamp(24px, 6.4vw, 27px);
+    line-height: 1.45;
+    letter-spacing: -0.04em;
+  }
+  .finance-tags {
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .finance-tags > span {
+    min-height: 31px;
+    gap: 4px;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  .finance-tags img {
+    width: 13px;
+    height: 13px;
+  }
+  .finance-introduction,
+  .finance-sidebar .gc-service-entries {
+    display: none;
+  }
+  .finance-privacy {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 33px;
+    padding: 6px 10px;
+    background: #faf8f3;
+    font-size: 11px;
+    color: #7e8a9a;
+  }
+  .finance-privacy img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+  }
+  .finance-workspace {
+    flex: 1 1 0;
+  }
+  .finance-agent-avatar {
+    display: none;
+  }
+  .finance-workspace .gc-chat-heading {
+    min-height: 34px;
+    padding: 5px 17px;
+    gap: 10px;
+    background: #f7f8fa;
+  }
+  .finance-workspace .gc-chat-heading strong {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .finance-workspace #gc-status {
+    font-size: 10px;
+  }
+  .finance-workspace .gc-service-button {
+    min-height: 24px;
+    font-size: 10px;
+  }
+  .finance-workspace #gc-messages {
+    padding: 12px 17px 8px;
+  }
+  .finance-workspace .gc-welcome-option {
+    min-height: 34px;
+    padding: 6px 9px;
+    font-size: 10px;
+  }
+  .finance-workspace .gc-message {
+    font-size: 14px;
+  }
+}
+@media (max-width: 370px) {
+  .finance-welcome {
+    left: 40%;
+    right: 6px;
+  }
+  .finance-welcome h1 {
+    font-size: 22px;
+  }
+  .finance-tags {
+    gap: 4px;
+  }
+  .finance-tags > span {
+    padding: 5px 6px;
+    font-size: 9px;
+  }
+}
+@media (max-height: 560px) {
+  .finance-layout {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    grid-template-rows: none;
+  }
+  .finance-workspace {
+    flex: 1 1 0;
+  }
+  .finance-agent-avatar {
+    display: none;
+  }
+  .finance-workspace .gc-chat-heading {
+    min-height: 38px;
+    padding: 6px 12px;
+  }
+  .finance-workspace .gc-chat-heading strong {
+    font-size: 16px;
+  }
+}
+body.gc-keyboard-open .finance-workspace {
+  flex: 1 1 0;
+}
+body.gc-keyboard-open .finance-agent-avatar {
+  display: none;
+}
+body.gc-keyboard-open .finance-workspace .gc-chat-heading {
+  min-height: 38px;
+  padding: 6px 12px;
+}

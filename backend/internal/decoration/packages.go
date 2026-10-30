@@ -13,14 +13,11 @@ import (
 	"supportdesk/backend/internal/platform"
 )
 
-// packageRevisionInput 定义完整校验后克隆新包的文本变更，禁止修改原包字节。
+// packageRevisionInput 定义完整校验后克隆新包的文本和受控图片变更，禁止修改原包字节。
 type packageRevisionInput struct {
-	Name       string `json:"name"`
-	Entrypoint string `json:"entrypoint"`
-	Files      []struct {
-		Path    string `json:"path"`
-		Content string `json:"content"`
-	} `json:"files"`
+	Name       string             `json:"name"`
+	Entrypoint string             `json:"entrypoint"`
+	Files      []packageFilePatch `json:"files"`
 }
 
 // registerPackages 注册管理员导入修订以及租户内私有素材读取接口。
@@ -30,8 +27,10 @@ func (s *Service) registerPackages(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/tenant/code-packages/example", s.auth.RequireTenant(s.examplePackage))
 	mux.HandleFunc("GET /api/v1/tenant/code-packages/{id}", s.auth.RequireTenant(s.getPackage))
 	mux.HandleFunc("GET /api/v1/tenant/code-packages/{id}/files", s.auth.RequireTenant(s.getPackageFile))
+	mux.HandleFunc("GET /api/v1/tenant/code-packages/{id}/source", s.auth.RequireAdmin(s.getPackageSource))
 	mux.HandleFunc("POST /api/v1/tenant/code-packages/{id}/revisions", s.auth.RequireAdmin(s.revisePackage))
 	mux.HandleFunc("POST /api/v1/tenant/decoration-assets", s.auth.RequireAdmin(s.importDecorationAsset))
+	s.registerEditorPreviews(mux)
 }
 
 // packageSlot 约束解析和像素分配并发，不允许导入请求耗尽服务端内存。
@@ -223,7 +222,7 @@ func (s *Service) revisePackage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(input.Files) > packageFileCount {
-		respond(w, r, nil, invalidDesign("一次最多修改200个文本资源"))
+		respond(w, r, nil, invalidDesign("一次最多修改200个资源"))
 		return
 	}
 	s.tenant(w, r, func(tx pgx.Tx) (any, error) {
@@ -243,44 +242,11 @@ func (s *Service) revisePackage(w http.ResponseWriter, r *http.Request) {
 		if input.Entrypoint != "" {
 			entry = input.Entrypoint
 		}
-		rows, err := tx.Query(r.Context(), "SELECT path,content_type,sha256,content FROM decoration_package_files WHERE package_id=$1 ORDER BY path", id)
+		base, err := loadArchivePackage(r.Context(), tx, CodeDesign{PackageID: id})
 		if err != nil {
 			return nil, err
 		}
-		files := map[string]packageFile{}
-		for rows.Next() {
-			var file packageFile
-			if err := rows.Scan(&file.Path, &file.ContentType, &file.SHA256, &file.Content); err != nil {
-				rows.Close()
-				return nil, err
-			}
-			file.Size = len(file.Content)
-			files[file.Path] = file
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return nil, err
-		}
-		changed := map[string]bool{}
-		for _, change := range input.Files {
-			if changed[change.Path] {
-				return nil, invalidDesign("修改文件路径不能重复")
-			}
-			changed[change.Path] = true
-			file, err := checkStaticFile(change.Path, []byte(change.Content))
-			if err != nil {
-				return nil, err
-			}
-			if !strings.HasPrefix(file.ContentType, "text/") && file.ContentType != "application/json" {
-				return nil, invalidDesign("源码修订仅支持文本；更换二进制素材请重新导入ZIP")
-			}
-			files[change.Path] = file
-		}
-		all := make([]packageFile, 0, len(files))
-		for _, file := range files {
-			all = append(all, file)
-		}
-		pkg, err := finishPackage(entry, all)
+		pkg, err := mergePackageFiles(base, entry, input.Files)
 		if err != nil {
 			return nil, err
 		}
@@ -291,13 +257,13 @@ func (s *Service) revisePackage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// decodePackageRevision 对源码修订单独限制为20MiB请求预算，避免普通JSON接口的1MiB上限截断合法资源。
+// decodePackageRevision 为图片base64预留28MiB请求预算，解码后的资源仍受20MiB总量约束。
 func decodePackageRevision(w http.ResponseWriter, r *http.Request, input *packageRevisionInput) error {
-	r.Body = http.MaxBytesReader(w, r.Body, packageTotalLimit+65536)
+	r.Body = http.MaxBytesReader(w, r.Body, packageRevisionRequestLimit)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(input); err != nil {
-		return invalidDesign("源码修订必须是单个JSON对象且请求不能超过20MiB")
+		return invalidDesign("源码修订必须是单个JSON对象且请求不能超过28MiB")
 	}
 	if decoder.Decode(new(any)) != io.EOF {
 		return invalidDesign("源码修订只能包含一个JSON对象")

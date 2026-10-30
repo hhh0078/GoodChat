@@ -30,7 +30,7 @@ func (s *Service) listTemplates(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil, err
 		}
-		rows, err = tx.Query(r.Context(), "SELECT to_jsonb(t) FROM platform_templates t WHERE status='published' ORDER BY created_at,id LIMIT 100")
+		rows, err = tx.Query(r.Context(), "SELECT to_jsonb(t) FROM platform_templates t WHERE status='published' AND archived_at IS NULL ORDER BY created_at,id LIMIT 100")
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +126,7 @@ func (s *Service) copyTemplate(ctx context.Context, tx pgx.Tx, p platform.Princi
 	var publicDesign json.RawMessage
 	var name string
 	var publicVersion int64
-	if err := tx.QueryRow(ctx, "SELECT render_mode,design,name,version FROM platform_templates WHERE id=$1 AND status='published' FOR SHARE", id).Scan(&mode, &publicDesign, &name, &publicVersion); err != nil {
+	if err := tx.QueryRow(ctx, "SELECT render_mode,design,name,version FROM platform_templates WHERE id=$1 AND status='published' AND archived_at IS NULL FOR SHARE", id).Scan(&mode, &publicDesign, &name, &publicVersion); err != nil {
 		return nil, err
 	}
 	if err := s.checkFeature(ctx, tx, p.TenantID, decorationFeature(mode)); err != nil {
@@ -155,7 +155,7 @@ func (s *Service) copyTemplate(ctx context.Context, tx pgx.Tx, p platform.Princi
 // platformTemplates 维护平台模板当前指针，每次编辑创建不可变历史版本。
 func (s *Service) platformTemplates(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		rows, err := s.pool.Query(r.Context(), "SELECT to_jsonb(t) FROM platform_templates t ORDER BY created_at,id LIMIT 500")
+		rows, err := s.pool.Query(r.Context(), "SELECT to_jsonb(t) FROM platform_templates t WHERE archived_at IS NULL ORDER BY created_at,id LIMIT 500")
 		if err != nil {
 			respond(w, r, nil, err)
 			return
@@ -210,7 +210,7 @@ func (s *Service) platformTemplates(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		} else {
-			tag, err := tx.Exec(r.Context(), "UPDATE platform_templates SET name=$2,render_mode=$3,design=$4,status=$5,version=version+1,updated_at=now() WHERE id=$1 AND version=$6", id, input.Name, input.RenderMode, design, input.Status, input.Version)
+			tag, err := tx.Exec(r.Context(), "UPDATE platform_templates SET name=$2,render_mode=$3,design=$4,status=$5,version=version+1,updated_at=now() WHERE id=$1 AND version=$6 AND archived_at IS NULL", id, input.Name, input.RenderMode, design, input.Status, input.Version)
 			if err != nil {
 				return err
 			}

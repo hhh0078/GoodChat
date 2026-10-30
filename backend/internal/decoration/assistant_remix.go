@@ -19,7 +19,7 @@ func (s *Service) assistantRemixTemplate(ctx context.Context, tx pgx.Tx, p platf
 	var design json.RawMessage
 	err := tx.QueryRow(ctx, "SELECT render_mode,design,coalesce(source_platform_template_id::text,''),coalesce(source_platform_version,0) FROM tenant_templates WHERE id=$1 FOR KEY SHARE", id).Scan(&mode, &design, &sourceID, &sourceVersion)
 	if err == pgx.ErrNoRows {
-		err = tx.QueryRow(ctx, "SELECT render_mode,design,id::text,version FROM platform_templates WHERE id=$1 AND status='published' FOR SHARE", id).Scan(&mode, &design, &sourceID, &sourceVersion)
+		err = tx.QueryRow(ctx, "SELECT render_mode,design,id::text,version FROM platform_templates WHERE id=$1 AND status='published' AND archived_at IS NULL FOR SHARE", id).Scan(&mode, &design, &sourceID, &sourceVersion)
 	}
 	if err != nil {
 		return "", err

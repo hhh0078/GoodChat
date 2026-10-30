@@ -50,7 +50,7 @@ func TestPackageRevisionRequestBudget(t *testing.T) {
 	if err := decodePackageRevision(httptest.NewRecorder(), httptest.NewRequest("POST", "http://trusted.invalid/revisions", bytes.NewReader(raw)), &parsed); err != nil {
 		t.Fatal(err)
 	}
-	if len(parsed.Files) != 1 || len(parsed.Files[0].Content) <= 1<<20 {
+	if len(parsed.Files) != 1 || parsed.Files[0].Content == nil || len(*parsed.Files[0].Content) <= 1<<20 {
 		t.Fatal("大文本测试没有覆盖公共1MiB上限")
 	}
 	for _, raw := range []string{`{"tenant_id":"untrusted","files":[]}`, `{"files":[]} {"files":[]}`} {

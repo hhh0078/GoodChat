@@ -1,0 +1,167 @@
+<!-- 文件作用说明：按已确认金融设计稿呈现蓝金顾问摄影、移动端欢迎横幅和开放聊天。 -->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>金融 · 蓝金专属顾问</title>
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body data-gc-preview-industry="finance">
+    <main
+      class="gc-layout gc-industry-finance finance-layout"
+      data-gc-edit-id="finance-layout"
+    >
+      <aside
+        class="finance-sidebar gc-decoration"
+        data-gc-edit-id="finance-sidebar"
+      >
+        <header
+          class="gc-brandbar finance-brand"
+          data-gc-edit-id="finance-brand"
+        >
+          <div class="finance-brand-copy" data-gc-edit-id="finance-brand-copy">
+            <strong data-gc-edit-id="finance-brand-name">蓝金专属顾问</strong>
+            <span class="finance-brand-rule" aria-hidden="true"></span>
+            <small data-gc-edit-id="finance-brand-subtitle"
+              >专业陪伴 · 用心倾听</small
+            >
+          </div>
+          <div class="finance-actions" data-gc-edit-id="finance-actions">
+            <button
+              class="gc-leave-message finance-leave"
+              type="button"
+              data-gc-action="leave-message"
+              data-gc-edit-id="leave-message"
+            >
+              <img
+                src="static/assets/icon-message.png"
+                alt=""
+                data-gc-edit-id="finance-leave-icon"
+              />留言
+            </button>
+            <button
+              class="gc-leave-message"
+              type="button"
+              data-gc-action="evaluation"
+              hidden
+            >
+              服务评价
+            </button>
+          </div>
+        </header>
+        <section class="finance-hero" data-gc-edit-id="finance-hero">
+          <img
+            class="finance-hero-image"
+            src="static/assets/finance-hero.webp"
+            alt="微笑的专业金融服务顾问，浅蓝背景与柔和金色光带"
+            data-gc-edit-id="finance-hero-image"
+          />
+          <div class="finance-welcome" data-gc-edit-id="finance-welcome">
+            <h1 data-gc-edit-id="finance-title">
+              <span>Hi! 欢迎来到</span><span>您的专属咨询通道</span>
+            </h1>
+            <div class="finance-tags" data-gc-edit-id="finance-tags">
+              <span data-gc-edit-id="finance-tag-adviser"
+                ><img
+                  src="static/assets/icon-user.png"
+                  alt=""
+                  data-gc-edit-id="finance-adviser-icon"
+                />专属顾问</span
+              >
+              <span data-gc-edit-id="finance-tag-privacy"
+                ><img
+                  src="static/assets/icon-shield.png"
+                  alt=""
+                  data-gc-edit-id="finance-protection-icon"
+                />信息保护</span
+              >
+            </div>
+            <p
+              class="finance-introduction"
+              data-gc-edit-id="finance-introduction"
+            >
+              为您提供专业、贴心的咨询服务<br />守护您的隐私与每一份信任
+            </p>
+          </div>
+        </section>
+        <nav
+          class="gc-service-entries"
+          aria-label="金融服务咨询"
+          data-gc-edit-id="finance-services"
+        >
+          <button
+            type="button"
+            data-gc-send="我想了解产品信息"
+            data-gc-edit-id="finance-service-products"
+          >
+            <img
+              src="static/assets/icon-message.png"
+              alt=""
+              data-gc-edit-id="finance-products-icon"
+            /><span
+              ><strong data-gc-edit-id="finance-products-title">产品咨询</strong
+              ><small data-gc-edit-id="finance-products-description"
+                >专业解答，客观中立</small
+              ></span
+            >
+          </button>
+          <button
+            type="button"
+            data-gc-send="我想了解办理流程"
+            data-gc-edit-id="finance-service-process"
+          >
+            <img
+              src="static/assets/icon-document.png"
+              alt=""
+              data-gc-edit-id="finance-process-icon"
+            /><span
+              ><strong data-gc-edit-id="finance-process-title">办理流程</strong
+              ><small data-gc-edit-id="finance-process-description"
+                >清晰指引，高效省心</small
+              ></span
+            >
+          </button>
+          <button
+            type="button"
+            data-gc-send="请帮我联系服务顾问"
+            data-gc-edit-id="finance-service-adviser"
+          >
+            <img
+              src="static/assets/icon-phone.png"
+              alt=""
+              data-gc-edit-id="finance-contact-icon"
+            /><span
+              ><strong data-gc-edit-id="finance-contact-title">联系顾问</strong
+              ><small data-gc-edit-id="finance-contact-description"
+                >一对一服务，随时支持</small
+              ></span
+            >
+          </button>
+        </nav>
+        <div class="finance-privacy" data-gc-edit-id="finance-privacy">
+          <img
+            src="static/assets/icon-shield.png"
+            alt=""
+            data-gc-edit-id="finance-privacy-icon"
+          /><span data-gc-edit-id="finance-privacy-copy"
+            >保护个人信息，守护您的隐私安全</span
+          >
+        </div>
+      </aside>
+      <section class="finance-workspace" data-gc-edit-id="finance-workspace">
+        <img
+          class="finance-agent-avatar"
+          src="static/assets/finance-avatar.webp"
+          alt="专属服务顾问"
+          data-gc-edit-id="finance-agent-avatar"
+        />
+        {{CHAT}}
+      </section>
+    </main>
+    {{SERVICE_DIALOG}} {{SCRIPTS}}
+  </body>
+</html>

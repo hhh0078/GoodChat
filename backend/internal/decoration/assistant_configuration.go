@@ -292,7 +292,7 @@ func (s *Service) assistantFoundationSettings(w http.ResponseWriter, r *http.Req
 			return nil, invalidDesign("修改核心脚本时请同时修改脚本版本名称")
 		}
 		initial := defaultTemplateScripts()
-		if input.Scripts.Version == initial.Version || input.Scripts.Version == "1.0.1" {
+		if input.Scripts.Version == initial.Version || input.Scripts.Version == "1.0.1" || input.Scripts.Version == "1.0.2" || input.Scripts.Version == "1.0.3" {
 			contract := templateContract{SchemaVersion: 1, SDKVersion: input.Scripts.Version, Files: map[string]string{templateSDKPath: digest([]byte(input.Scripts.SDK)), templateUIPath: digest([]byte(input.Scripts.ChatUI))}}
 			if !builtinTemplateContract(contract) {
 				return nil, invalidDesign("内置核心脚本版本不可改写，请使用新版本名称")

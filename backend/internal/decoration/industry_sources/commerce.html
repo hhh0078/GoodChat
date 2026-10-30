@@ -1,0 +1,80 @@
+<!-- 文件作用说明：按已确认电商设计稿呈现柿橙品牌、真实包装生活摄影和开放服务聊天。 -->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>电商 · 好物到家</title>
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body data-gc-preview-industry="commerce">
+    <main
+      class="gc-layout gc-industry-commerce commerce-layout"
+      data-gc-edit-id="commerce-layout"
+    >
+      <aside class="commerce-scene" data-gc-edit-id="commerce-scene">
+        <img
+          class="commerce-hero-image gc-decoration"
+          src="static/assets/commerce-hero.webp"
+          alt="阳光下带有柿橙标识的好物包裹、帆布袋和陶瓷杯"
+          data-gc-edit-id="commerce-hero-image"
+        />
+        <header
+          class="gc-brandbar commerce-brand"
+          data-gc-edit-id="commerce-brand"
+        >
+          <img
+            class="commerce-logo"
+            src="static/assets/commerce-logo.png"
+            alt="好物品牌标识"
+            data-gc-edit-id="commerce-logo"
+          />
+          <div
+            class="commerce-brand-copy"
+            data-gc-edit-id="commerce-brand-copy"
+          >
+            <strong data-gc-edit-id="commerce-brand-name">好物服务</strong
+            ><small data-gc-edit-id="commerce-brand-subtitle"
+              >把每件小事，认真照顾好。</small
+            >
+          </div>
+          <button
+            class="gc-leave-message"
+            type="button"
+            data-gc-action="leave-message"
+            data-gc-edit-id="leave-message"
+          >
+            留下留言
+          </button>
+          <button
+            class="gc-leave-message"
+            type="button"
+            data-gc-action="evaluation"
+            hidden
+          >
+            服务评价
+          </button>
+        </header>
+        <section
+          class="commerce-introduction gc-decoration"
+          data-gc-edit-id="commerce-introduction"
+        >
+          <h1 data-gc-edit-id="commerce-title">
+            <span data-gc-edit-id="commerce-title-first">好物到家，</span
+            ><span data-gc-edit-id="commerce-title-accent">服务也到家。</span>
+          </h1>
+          <p data-gc-edit-id="commerce-subtitle">
+            从下单到收货，<br />我们始终在您身边。
+          </p>
+        </section>
+      </aside>
+      <section class="commerce-workspace" data-gc-edit-id="commerce-workspace">
+        {{CHAT}}
+      </section>
+    </main>
+    {{SERVICE_DIALOG}} {{SCRIPTS}}
+  </body>
+</html>

@@ -1,0 +1,131 @@
+<!-- 文件作用说明：按已确认教育设计稿呈现书刊式品牌栏、真实书桌摄影和开放学习咨询。 -->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>教育 · 书页学习顾问</title>
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body data-gc-preview-industry="education">
+    <main
+      class="gc-layout gc-industry-education education-layout"
+      data-gc-edit-id="education-layout"
+    >
+      <header
+        class="gc-brandbar education-brand"
+        data-gc-edit-id="education-brand"
+      >
+        <strong
+          class="education-wordmark"
+          data-gc-edit-id="education-brand-name"
+          >知序学习</strong
+        >
+        <span
+          class="education-tagline"
+          data-gc-edit-id="education-brand-subtitle"
+          >每一个提问，都是成长的开始</span
+        >
+        <button
+          class="gc-leave-message"
+          type="button"
+          data-gc-action="leave-message"
+          data-gc-edit-id="leave-message"
+        >
+          给老师留言
+        </button>
+        <button
+          class="gc-leave-message"
+          type="button"
+          data-gc-action="evaluation"
+          hidden
+        >
+          服务评价
+        </button>
+      </header>
+      <section
+        class="education-hero gc-decoration"
+        data-gc-edit-id="education-hero"
+      >
+        <img
+          class="education-hero-image"
+          src="static/assets/education-hero.webp"
+          alt="阳光下打开的书本、笔记本、陶瓷杯和绿植"
+          data-gc-edit-id="education-hero-image"
+        />
+        <div
+          class="education-introduction"
+          data-gc-edit-id="education-introduction"
+        >
+          <h1 data-gc-edit-id="education-title">
+            <span data-gc-edit-id="education-title-first">找到你的</span
+            ><span data-gc-edit-id="education-title-last"
+              >学习节奏<em data-gc-edit-id="education-title-punctuation"
+                >。</em
+              ></span
+            >
+          </h1>
+          <p data-gc-edit-id="education-subtitle">
+            在这里，和专业的学习顾问聊一聊<br />关于学习的任何问题。
+          </p>
+        </div>
+      </section>
+      <div class="education-content" data-gc-edit-id="education-content">
+        <section
+          class="education-workspace"
+          data-gc-edit-id="education-workspace"
+        >
+          {{CHAT}}
+        </section>
+        <aside
+          class="education-notes gc-secondary"
+          data-gc-edit-id="education-notes"
+        >
+          <h2 data-gc-edit-id="education-note-title">
+            聊一聊，<br />让我们更好地了解你。
+          </h2>
+          <span class="education-note-rule" aria-hidden="true"></span>
+          <ol class="education-prompts" data-gc-edit-id="education-prompts">
+            <li data-gc-edit-id="education-prompt-stage">
+              <span data-gc-edit-id="education-stage-number">01</span>
+              <div>
+                <h3 data-gc-edit-id="education-stage-title">
+                  你目前的学习阶段？
+                </h3>
+                <p data-gc-edit-id="education-stage-copy">
+                  比如在读年级、备考或职场提升<br />等不同阶段。
+                </p>
+              </div>
+            </li>
+            <li data-gc-edit-id="education-prompt-goal">
+              <span data-gc-edit-id="education-goal-number">02</span>
+              <div>
+                <h3 data-gc-edit-id="education-goal-title">
+                  希望提升哪些方面？
+                </h3>
+                <p data-gc-edit-id="education-goal-copy">
+                  例如知识基础、应试能力、<br />综合素养等。
+                </p>
+              </div>
+            </li>
+            <li data-gc-edit-id="education-prompt-method">
+              <span data-gc-edit-id="education-method-number">03</span>
+              <div>
+                <h3 data-gc-edit-id="education-method-title">
+                  喜欢怎样的学习方式？
+                </h3>
+                <p data-gc-edit-id="education-method-copy">
+                  比如系统学习、针对性辅导<br />或灵活安排时间等。
+                </p>
+              </div>
+            </li>
+          </ol>
+        </aside>
+      </div>
+    </main>
+    {{SERVICE_DIALOG}} {{SCRIPTS}}
+  </body>
+</html>

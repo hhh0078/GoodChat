@@ -1,0 +1,501 @@
+/* 文件作用说明：按已确认房产图稿实现暖砂与深棕的左聊天右摄影，将真实连接状态置于标题上方，手机保留完整聊天输入。 */
+:root {
+  --gc-primary: #493324;
+  --gc-background: #fcfaf5;
+  --gc-surface: #fcfaf5;
+  --gc-peer: #f3f0e9;
+  --gc-ink: #382b21;
+  --gc-muted: #a09a90;
+  --gc-border: #e7e0d5;
+  --gc-composer: #ffffff;
+}
+.property-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
+  grid-template-rows: 72px minmax(0, 1fr);
+  height: 100%;
+  max-width: none;
+  background: var(--gc-background);
+}
+.property-brand {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: 0;
+  padding: 13px 42px;
+  border-bottom: 1px solid var(--gc-border);
+  background: var(--gc-background);
+}
+.property-identity {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+}
+.property-identity strong {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+}
+.property-brand-caption {
+  border-left: 1px solid #ccbeab;
+  padding-left: 24px;
+  color: #8f8273;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+.property-header-actions {
+  display: flex;
+  gap: 8px;
+}
+.property-brand .gc-leave-message {
+  min-height: 38px;
+  padding: 7px 18px;
+  border: 1px solid #493324;
+  border-radius: 2px;
+  background: #493324;
+  color: #fffaf3;
+  font-weight: 500;
+}
+.property-brand .gc-leave-message:hover {
+  background: #624737;
+  border-color: #624737;
+}
+.property-scene {
+  position: relative;
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  background: #d9c9b1;
+}
+.property-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 49%;
+}
+.property-photo-caption {
+  position: absolute;
+  right: 32px;
+  bottom: 40px;
+  color: #fffaf0;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 24px;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 9px #2f211f7a;
+}
+.property-photo-caption > span {
+  white-space: nowrap;
+}
+.property-workspace {
+  position: relative;
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--gc-surface);
+}
+.property-introduction {
+  flex: 0 0 auto;
+  padding: 82px 40px 24px;
+}
+.property-introduction h1 {
+  margin: 0 0 10px;
+  color: #3d2c20;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: clamp(35px, 3.7vw, 49px);
+  font-weight: 500;
+  line-height: 1.42;
+  letter-spacing: -0.025em;
+}
+.property-subtitle {
+  margin: 0;
+  color: #796857;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 21px;
+  line-height: 1.5;
+  letter-spacing: 0.035em;
+}
+.property-services {
+  position: absolute;
+  z-index: 2;
+  top: 20px;
+  right: 122px;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0;
+  color: #7c7164;
+}
+.property-service-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.property-service-links button {
+  min-height: 44px;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: #705c49;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.property-service-links button:hover {
+  color: #2f1b0c;
+}
+.property-service-divider {
+  width: 1px;
+  height: 12px;
+  background: #b6a791;
+  transform: rotate(18deg);
+}
+.property-workspace > .gc-conversation {
+  position: static;
+  flex: 1 1 0;
+  border: 0;
+  border-radius: 0;
+}
+/* 标题上方只保留官方实时连接状态，取消重复的“在线咨询”标签及额外占位行。 */
+.property-workspace .gc-chat-heading {
+  position: absolute;
+  z-index: 1;
+  top: 20px;
+  left: 40px;
+  right: 40px;
+  min-height: 44px;
+  padding: 0;
+  gap: 15px;
+  border-bottom: 1px solid var(--gc-border);
+}
+.property-workspace .gc-chat-heading strong {
+  display: none;
+}
+.property-workspace #gc-status {
+  font-size: 12px;
+}
+.property-workspace .gc-service-button {
+  margin-left: auto;
+  font-size: 11px;
+}
+.property-workspace #gc-messages {
+  padding: 18px 40px 8px;
+}
+.property-workspace .gc-message-row {
+  margin-bottom: 26px;
+  gap: 4px;
+}
+.property-workspace .gc-message-meta {
+  font-size: 10px;
+  line-height: 14px;
+}
+.property-workspace .gc-message {
+  padding: 14px 17px;
+  border-left: 1px solid #bda98f;
+  border-radius: 2px 8px 8px 2px;
+  background: #f4f0e8;
+  color: #3e3429;
+  font-size: 19px;
+  line-height: 1.5;
+}
+.property-workspace .gc-own .gc-message {
+  border: 0;
+  border-radius: 7px;
+  background: #493324;
+  color: #fffaf3;
+}
+.property-workspace .gc-system .gc-message {
+  border: 0;
+  background: transparent;
+  color: var(--gc-muted);
+  font-size: 11px;
+}
+.property-workspace .gc-welcome-option,
+.property-workspace .gc-file-save.gc-welcome-option {
+  border-radius: 2px;
+  border-color: #796653;
+  background: transparent;
+  color: #4d3c2c;
+}
+.property-workspace .gc-composer-area {
+  margin: 0 40px;
+  padding: 0 0 max(20px, env(safe-area-inset-bottom));
+}
+.property-workspace .gc-capsule {
+  gap: 10px;
+}
+.property-workspace #gc-text {
+  border-radius: 5px;
+  background: #fff;
+}
+.property-workspace #gc-send {
+  min-width: 74px;
+  border-radius: 3px;
+}
+.property-workspace .gc-preview-support {
+  padding-bottom: 15px;
+}
+@media (max-width: 1100px) and (min-width: 851px) {
+  .property-brand {
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+  .property-brand-caption {
+    display: none;
+  }
+  .property-introduction {
+    padding: 82px 28px 22px;
+  }
+  .property-introduction h1 {
+    font-size: 38px;
+  }
+  .property-subtitle {
+    font-size: 19px;
+  }
+  .property-services {
+    right: 108px;
+  }
+  .property-service-links {
+    gap: 18px;
+  }
+  .property-workspace .gc-chat-heading {
+    left: 28px;
+    right: 28px;
+  }
+  .property-workspace #gc-messages {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+  .property-workspace .gc-composer-area {
+    margin-left: 28px;
+    margin-right: 28px;
+  }
+}
+@media (max-width: 850px) {
+  .property-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .property-brand {
+    order: 0;
+    flex: 0 0 60px;
+    min-height: 60px;
+    padding: 10px 18px;
+    gap: 12px;
+  }
+  .property-identity {
+    gap: 12px;
+  }
+  .property-identity strong {
+    font-size: 19px;
+    letter-spacing: 0;
+  }
+  .property-brand-caption {
+    display: none;
+  }
+  .property-brand .gc-leave-message {
+    min-height: 33px;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+  .property-scene {
+    order: 1;
+    flex: 0 0 160px;
+    height: 160px;
+  }
+  .property-photo {
+    object-position: center 47%;
+  }
+  .property-photo-caption {
+    display: none;
+  }
+  .property-workspace {
+    order: 2;
+    flex: 1 1 0;
+  }
+  .property-introduction {
+    padding: 18px 20px 54px;
+  }
+  .property-introduction h1 {
+    margin-bottom: 5px;
+    font-size: clamp(26px, 7.8vw, 32px);
+    line-height: 1.35;
+    letter-spacing: -0.035em;
+  }
+  .property-subtitle {
+    font-size: 16px;
+    line-height: 1.45;
+    letter-spacing: 0.015em;
+  }
+  .property-services {
+    top: 92px;
+    right: 90px;
+    min-height: 44px;
+    margin: 0;
+  }
+  .property-service-links {
+    gap: 12px;
+  }
+  .property-service-links button {
+    min-height: 44px;
+    font-size: 11px;
+  }
+  .property-workspace .gc-chat-heading {
+    top: 92px;
+    left: 20px;
+    right: 20px;
+    min-height: 44px;
+    padding: 0;
+    gap: 10px;
+  }
+  .property-workspace #gc-status {
+    font-size: 11px;
+  }
+  .property-workspace .gc-service-button {
+    font-size: 10px;
+  }
+  .property-workspace #gc-messages {
+    padding: 13px 18px 8px;
+  }
+  .property-workspace .gc-message-row {
+    margin-bottom: 22px;
+  }
+  .property-workspace .gc-message {
+    padding: 10px 12px;
+    border-radius: 2px 6px 6px 2px;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .property-workspace .gc-own .gc-message {
+    border-radius: 6px;
+  }
+  .property-workspace .gc-composer-area {
+    margin: 0 18px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .property-workspace .gc-capsule {
+    gap: 6px;
+  }
+  .property-workspace #gc-text {
+    padding-left: 11px;
+    padding-right: 9px;
+  }
+  .property-workspace #gc-send {
+    min-width: 58px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .property-workspace .gc-preview-support {
+    padding-bottom: 10px;
+  }
+}
+/* 摄影与标题收起后，将实时状态行还回正常聊天流，避免残留标题位置和空白轨道。 */
+@media (max-height: 560px) {
+  .property-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .property-brand {
+    grid-column: 1;
+    grid-row: 1;
+    flex: 0 0 auto;
+    min-height: 42px;
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  .property-identity strong {
+    font-size: 17px;
+  }
+  .property-brand .gc-leave-message {
+    min-height: 30px;
+    padding: 4px 10px;
+  }
+  .property-workspace {
+    grid-column: 1;
+    grid-row: 2;
+    flex: 1 1 0;
+    padding: 0;
+  }
+  .property-workspace > .gc-conversation {
+    position: relative;
+  }
+  .property-workspace .gc-chat-heading {
+    position: static;
+    min-height: 38px;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--gc-border);
+  }
+  .property-workspace .gc-chat-heading strong {
+    display: block;
+    font-size: 14px;
+  }
+  .property-workspace #gc-messages {
+    padding: 14px 17px 8px;
+  }
+  .property-workspace .gc-composer-area {
+    margin-left: 12px;
+    margin-right: 12px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+}
+@media (max-height: 360px) {
+  .property-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .property-workspace {
+    flex: 1 1 0;
+  }
+}
+body.gc-keyboard-open .property-workspace {
+  order: 2;
+  flex: 1 1 0;
+  min-height: 0;
+}
+body.gc-keyboard-open .property-workspace > .gc-conversation {
+  position: relative;
+}
+body.gc-keyboard-open .property-workspace .gc-chat-heading {
+  position: static;
+  min-height: 38px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--gc-border);
+}
+body.gc-keyboard-open .property-workspace .gc-chat-heading strong {
+  display: block;
+  font-size: 14px;
+}
+body.gc-keyboard-open .property-workspace .gc-composer-area {
+  margin-left: 12px;
+  margin-right: 12px;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+}
+
+/* 设计板对应窄短手机只压缩辅助空隙，保留标题字号、真实状态与160像素照片。 */
+@media (max-width: 375px) and (min-height: 561px) and (max-height: 820px) {
+  body:not(.gc-keyboard-open) .property-workspace .gc-message-row {
+    margin-bottom: 13px;
+  }
+  body:not(.gc-keyboard-open) .property-workspace .gc-message-row:last-child {
+    margin-bottom: 8px;
+  }
+  body:not(.gc-keyboard-open) .property-workspace #gc-messages {
+    padding-top: 10px;
+    padding-bottom: 4px;
+  }
+}

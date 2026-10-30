@@ -1,6 +1,6 @@
 /** 文件作用说明：编辑结构化或代码装修，处理版本保存、组件排序及真实隔离预览发布回滚。 */
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   App,
@@ -35,6 +35,7 @@ import { BrandLogo } from "./brand-logo";
 import { CodePackages } from "./code-packages";
 import { ErrorNotice, PageTitle } from "@/components/page-state";
 import { TemplatePreviewModal } from "@/features/assistant/template-preview-modal";
+import { StaticTemplateEditor } from "./static-template-editor";
 type Editable = {
   id: string;
   name: string;
@@ -61,6 +62,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
   const [baseline, setBaseline] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
+  const [staticDirty, setStaticDirty] = useState(false);
   const [activeBlock, setActiveBlock] = useState("");
   const [dragged, setDragged] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -68,11 +70,14 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
   const [linkIds, setLinkIds] = useState<string[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [releases, setReleases] = useState<Resource[]>([]);
+  const loadSerial = useRef(0);
   const links = useResource<AccessLink>("/tenant/access-links");
-  const dirty = !!item && JSON.stringify({ name, design }) !== baseline;
+  const packagedEditor = item?.render_mode === "code" && !!design.package_id;
+  const dirty = staticDirty || (!!item && JSON.stringify({ name, design }) !== baseline);
   const selected = design.blocks?.find((block) => block.id === activeBlock);
   /** load 读取最新服务端版本，不将编辑内容写回其他租户。 */
   async function load() {
+    const serial = ++loadSerial.current;
     setError(null);
     try {
       let result: Editable;
@@ -82,16 +87,20 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         if (!template) throw new Error("模板不存在或你没有访问权限。");
         result = { ...template, name: template.name || "", draft: template.design };
       } else result = await api<Editable>(`/tenant/pages/${id}`, { tenantId });
+      if (serial !== loadSerial.current) return;
       setItem(result);
       setName(result.name);
       setDesign(result.draft || starterDesign());
       setBaseline(JSON.stringify({ name: result.name, design: result.draft || starterDesign() }));
     } catch (problem) {
-      setError(problem);
+      if (serial === loadSerial.current) setError(problem);
     }
   }
   useEffect(() => {
     void load();
+    return () => {
+      loadSerial.current++;
+    };
   }, [id, kind, tenantId]);
   useEffect(() => {
     if (!dirty) return;
@@ -222,14 +231,16 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         action={
           <Space wrap>
             {dirty && <Tag color="gold">有未保存修改</Tag>}
-            <Button
-              icon={<SaveOutlined />}
-              onClick={() => void save()}
-              loading={saving}
-              disabled={!dirty}
-            >
-              保存草稿
-            </Button>
+            {!packagedEditor && (
+              <Button
+                icon={<SaveOutlined />}
+                onClick={() => void save()}
+                loading={saving}
+                disabled={!dirty}
+              >
+                保存草稿
+              </Button>
+            )}
             <Button icon={<EyeOutlined />} onClick={preview}>
               隔离预览
             </Button>
@@ -252,366 +263,385 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         }
       />
       <ErrorNotice error={error} />
-      <div className="editor-grid">
-        <Card className="studio-settings-pane" title="设计设置">
-          <div className="studio-design-name">
-            <label htmlFor="goodchat-design-name">设计名称</label>
-            <Input
-              id="goodchat-design-name"
-              aria-label="设计名称"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              maxLength={100}
-            />
-          </div>
-          <div className="studio-editor-meta">
-            <Tag>{item.render_mode === "code" ? "代码装修" : "可视化装修"}</Tag>
-            <span>草稿 v{item.version}</span>
-          </div>
-          {item.render_mode === "schema" ? (
-            <Tabs
-              items={[
-                {
-                  key: "brand",
-                  label: "基础设置",
-                  children: (
-                    <Form layout="vertical">
-                      <Form.Item label="客服页面标题">
-                        <Input
-                          value={design.brand?.title}
-                          onChange={(event) =>
-                            updateDesign({ brand: { ...design.brand, title: event.target.value } })
-                          }
-                        />
-                      </Form.Item>
-                      <Form.Item label="副标题与服务说明">
-                        <Input
-                          value={design.brand?.subtitle}
-                          onChange={(event) =>
-                            updateDesign({
-                              brand: { ...design.brand, subtitle: event.target.value },
-                            })
-                          }
-                        />
-                      </Form.Item>
-                      <Form.Item label="品牌Logo">
-                        <BrandLogo
-                          value={design.brand?.logo_url}
-                          disabled={saving}
-                          onChange={(value) =>
-                            updateDesign({ brand: { ...design.brand, logo_url: value } })
-                          }
-                        />
-                      </Form.Item>
-                      <div className="two-columns">
-                        <Form.Item label="主色">
+      {packagedEditor ? (
+        <StaticTemplateEditor
+          target={{
+            scope: "tenant",
+            kind,
+            id,
+            name,
+            version: item.version,
+            packageId: design.package_id,
+          }}
+          tenantId={tenantId}
+          onSaved={load}
+          onDirtyChange={setStaticDirty}
+        />
+      ) : (
+        <div className="editor-grid">
+          <Card className="studio-settings-pane" title="设计设置">
+            <div className="studio-design-name">
+              <label htmlFor="goodchat-design-name">设计名称</label>
+              <Input
+                id="goodchat-design-name"
+                aria-label="设计名称"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={100}
+              />
+            </div>
+            <div className="studio-editor-meta">
+              <Tag>{item.render_mode === "code" ? "代码装修" : "可视化装修"}</Tag>
+              <span>草稿 v{item.version}</span>
+            </div>
+            {item.render_mode === "schema" ? (
+              <Tabs
+                items={[
+                  {
+                    key: "brand",
+                    label: "基础设置",
+                    children: (
+                      <Form layout="vertical">
+                        <Form.Item label="客服页面标题">
                           <Input
-                            value={design.theme?.primary_color}
+                            value={design.brand?.title}
                             onChange={(event) =>
                               updateDesign({
-                                theme: { ...design.theme, primary_color: event.target.value },
-                              })
-                            }
-                            placeholder="#23684e"
-                          />
-                        </Form.Item>
-                        <Form.Item label="背景色">
-                          <Input
-                            value={design.theme?.background}
-                            onChange={(event) =>
-                              updateDesign({
-                                theme: { ...design.theme, background: event.target.value },
+                                brand: { ...design.brand, title: event.target.value },
                               })
                             }
                           />
                         </Form.Item>
-                      </div>
-                      <Form.Item label="圆角">
-                        <InputNumber
-                          min={0}
-                          max={40}
-                          value={design.theme?.radius}
-                          onChange={(value) =>
-                            updateDesign({ theme: { ...design.theme, radius: value || 0 } })
-                          }
-                        />
-                      </Form.Item>
-                    </Form>
-                  ),
-                },
-                {
-                  key: "blocks",
-                  label: "组件布局",
-                  children: (
-                    <>
-                      <p className="form-hint">拖拽卡片调整顺序，也可使用上下按钮。</p>
-                      <Space orientation="vertical" style={{ width: "100%" }}>
-                        {design.blocks?.map((block, index) => (
-                          <div
-                            key={block.id}
-                            draggable
-                            onDragStart={() => setDragged(block.id)}
-                            onDragOver={(event) => event.preventDefault()}
-                            onDrop={(event) => {
-                              event.preventDefault();
-                              moveBlock(dragged, index);
-                              setDragged("");
-                            }}
-                          >
-                            <Card
-                              className="studio-component-object"
-                              size="small"
-                              style={{
-                                borderColor: activeBlock === block.id ? "var(--brand)" : undefined,
+                        <Form.Item label="副标题与服务说明">
+                          <Input
+                            value={design.brand?.subtitle}
+                            onChange={(event) =>
+                              updateDesign({
+                                brand: { ...design.brand, subtitle: event.target.value },
+                              })
+                            }
+                          />
+                        </Form.Item>
+                        <Form.Item label="品牌Logo">
+                          <BrandLogo
+                            value={design.brand?.logo_url}
+                            disabled={saving}
+                            onChange={(value) =>
+                              updateDesign({ brand: { ...design.brand, logo_url: value } })
+                            }
+                          />
+                        </Form.Item>
+                        <div className="two-columns">
+                          <Form.Item label="主色">
+                            <Input
+                              value={design.theme?.primary_color}
+                              onChange={(event) =>
+                                updateDesign({
+                                  theme: { ...design.theme, primary_color: event.target.value },
+                                })
+                              }
+                              placeholder="#23684e"
+                            />
+                          </Form.Item>
+                          <Form.Item label="背景色">
+                            <Input
+                              value={design.theme?.background}
+                              onChange={(event) =>
+                                updateDesign({
+                                  theme: { ...design.theme, background: event.target.value },
+                                })
+                              }
+                            />
+                          </Form.Item>
+                        </div>
+                        <Form.Item label="圆角">
+                          <InputNumber
+                            min={0}
+                            max={40}
+                            value={design.theme?.radius}
+                            onChange={(value) =>
+                              updateDesign({ theme: { ...design.theme, radius: value || 0 } })
+                            }
+                          />
+                        </Form.Item>
+                      </Form>
+                    ),
+                  },
+                  {
+                    key: "blocks",
+                    label: "组件布局",
+                    children: (
+                      <>
+                        <p className="form-hint">拖拽卡片调整顺序，也可使用上下按钮。</p>
+                        <Space orientation="vertical" style={{ width: "100%" }}>
+                          {design.blocks?.map((block, index) => (
+                            <div
+                              key={block.id}
+                              draggable
+                              onDragStart={() => setDragged(block.id)}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={(event) => {
+                                event.preventDefault();
+                                moveBlock(dragged, index);
+                                setDragged("");
                               }}
                             >
-                              <Space style={{ justifyContent: "space-between", width: "100%" }}>
-                                <Button type="text" onClick={() => setActiveBlock(block.id)}>
-                                  {blockNames[block.type] || block.type}
-                                </Button>
-                                <Space size={2}>
-                                  <Button
-                                    size="small"
-                                    icon={<ArrowUpOutlined />}
-                                    aria-label="上移组件"
-                                    disabled={index === 0}
-                                    onClick={() => moveBlock(block.id, index - 1)}
-                                  />
-                                  <Button
-                                    size="small"
-                                    icon={<ArrowDownOutlined />}
-                                    aria-label="下移组件"
-                                    disabled={index === (design.blocks?.length || 0) - 1}
-                                    onClick={() => moveBlock(block.id, index + 1)}
-                                  />
-                                  <Button
-                                    size="small"
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    aria-label="删除组件"
-                                    disabled={block.type === "chat"}
-                                    onClick={() =>
-                                      updateDesign({
-                                        blocks: design.blocks?.filter(
-                                          (item) => item.id !== block.id,
-                                        ),
-                                      })
-                                    }
-                                  />
+                              <Card
+                                className="studio-component-object"
+                                size="small"
+                                style={{
+                                  borderColor:
+                                    activeBlock === block.id ? "var(--brand)" : undefined,
+                                }}
+                              >
+                                <Space style={{ justifyContent: "space-between", width: "100%" }}>
+                                  <Button type="text" onClick={() => setActiveBlock(block.id)}>
+                                    {blockNames[block.type] || block.type}
+                                  </Button>
+                                  <Space size={2}>
+                                    <Button
+                                      size="small"
+                                      icon={<ArrowUpOutlined />}
+                                      aria-label="上移组件"
+                                      disabled={index === 0}
+                                      onClick={() => moveBlock(block.id, index - 1)}
+                                    />
+                                    <Button
+                                      size="small"
+                                      icon={<ArrowDownOutlined />}
+                                      aria-label="下移组件"
+                                      disabled={index === (design.blocks?.length || 0) - 1}
+                                      onClick={() => moveBlock(block.id, index + 1)}
+                                    />
+                                    <Button
+                                      size="small"
+                                      danger
+                                      icon={<DeleteOutlined />}
+                                      aria-label="删除组件"
+                                      disabled={block.type === "chat"}
+                                      onClick={() =>
+                                        updateDesign({
+                                          blocks: design.blocks?.filter(
+                                            (item) => item.id !== block.id,
+                                          ),
+                                        })
+                                      }
+                                    />
+                                  </Space>
                                 </Space>
-                              </Space>
-                            </Card>
-                          </div>
-                        ))}
-                      </Space>
-                      <Select<string>
-                        style={{ width: "100%", margin: "16px 0" }}
-                        value={undefined}
-                        placeholder="添加组件"
-                        options={Object.entries(blockNames)
-                          .filter(([value]) => value !== "chat")
-                          .map(([value, label]) => ({ value, label }))}
-                        onChange={(value) => {
-                          const newBlock = {
-                            id: crypto.randomUUID(),
-                            type: value,
-                            title: blockNames[value],
-                            content: "",
-                            items: [],
-                          };
-                          updateDesign({ blocks: [...(design.blocks || []), newBlock] });
-                          setActiveBlock(newBlock.id);
-                        }}
-                      />
-                      {selected && (
-                        <Form layout="vertical">
-                          <Form.Item label="组件标题">
-                            <Input
-                              value={selected.title}
-                              onChange={(event) => updateBlock({ title: event.target.value })}
-                            />
-                          </Form.Item>
-                          <Form.Item label="文字内容">
-                            <Input.TextArea
-                              rows={4}
-                              value={selected.content}
-                              onChange={(event) => updateBlock({ content: event.target.value })}
-                            />
-                          </Form.Item>
-                        </Form>
-                      )}
-                    </>
-                  ),
-                },
-                {
-                  key: "css",
-                  label: "自定义 CSS",
-                  children: (
-                    <>
-                      <Alert
-                        type="info"
-                        showIcon
-                        title="样式只会在隔离装修页面内生效，不注入管理端。"
-                      />
+                              </Card>
+                            </div>
+                          ))}
+                        </Space>
+                        <Select<string>
+                          style={{ width: "100%", margin: "16px 0" }}
+                          value={undefined}
+                          placeholder="添加组件"
+                          options={Object.entries(blockNames)
+                            .filter(([value]) => value !== "chat")
+                            .map(([value, label]) => ({ value, label }))}
+                          onChange={(value) => {
+                            const newBlock = {
+                              id: crypto.randomUUID(),
+                              type: value,
+                              title: blockNames[value],
+                              content: "",
+                              items: [],
+                            };
+                            updateDesign({ blocks: [...(design.blocks || []), newBlock] });
+                            setActiveBlock(newBlock.id);
+                          }}
+                        />
+                        {selected && (
+                          <Form layout="vertical">
+                            <Form.Item label="组件标题">
+                              <Input
+                                value={selected.title}
+                                onChange={(event) => updateBlock({ title: event.target.value })}
+                              />
+                            </Form.Item>
+                            <Form.Item label="文字内容">
+                              <Input.TextArea
+                                rows={4}
+                                value={selected.content}
+                                onChange={(event) => updateBlock({ content: event.target.value })}
+                              />
+                            </Form.Item>
+                          </Form>
+                        )}
+                      </>
+                    ),
+                  },
+                  {
+                    key: "css",
+                    label: "自定义 CSS",
+                    children: (
+                      <>
+                        <Alert
+                          type="info"
+                          showIcon
+                          title="样式只会在隔离装修页面内生效，不注入管理端。"
+                        />
+                        <Input.TextArea
+                          className="code-editor"
+                          rows={16}
+                          value={design.custom_css}
+                          onChange={(event) => updateDesign({ custom_css: event.target.value })}
+                          style={{ marginTop: 16 }}
+                        />
+                      </>
+                    ),
+                  },
+                ]}
+              />
+            ) : (
+              <Tabs
+                items={[
+                  {
+                    key: "html",
+                    label: "HTML",
+                    children: (
                       <Input.TextArea
+                        aria-label="HTML 源码"
                         className="code-editor"
-                        rows={16}
-                        value={design.custom_css}
-                        onChange={(event) => updateDesign({ custom_css: event.target.value })}
-                        style={{ marginTop: 16 }}
+                        rows={22}
+                        value={design.html || ""}
+                        placeholder={
+                          design.package_id
+                            ? "留空时使用静态资源包的HTML入口；这里填写内容可覆盖入口。"
+                            : "HTML片段"
+                        }
+                        onChange={(event) => updateDesign({ html: event.target.value })}
                       />
-                    </>
-                  ),
-                },
-              ]}
-            />
-          ) : (
-            <Tabs
-              items={[
-                {
-                  key: "html",
-                  label: "HTML",
-                  children: (
-                    <Input.TextArea
-                      aria-label="HTML 源码"
-                      className="code-editor"
-                      rows={22}
-                      value={design.html || ""}
-                      placeholder={
-                        design.package_id
-                          ? "留空时使用静态资源包的HTML入口；这里填写内容可覆盖入口。"
-                          : "HTML片段"
-                      }
-                      onChange={(event) => updateDesign({ html: event.target.value })}
-                    />
-                  ),
-                },
-                {
-                  key: "css",
-                  label: "CSS",
-                  children: (
-                    <Input.TextArea
-                      aria-label="CSS 源码"
-                      className="code-editor"
-                      rows={22}
-                      value={design.css || ""}
-                      placeholder={
-                        design.package_id ? "可选附加样式；资源包自身CSS会保留。" : "页面样式"
-                      }
-                      onChange={(event) => updateDesign({ css: event.target.value })}
-                    />
-                  ),
-                },
-                {
-                  key: "js",
-                  label: "JavaScript",
-                  children: (
-                    <Input.TextArea
-                      aria-label="JavaScript 源码"
-                      className="code-editor"
-                      rows={22}
-                      value={design.javascript || ""}
-                      placeholder={
-                        design.package_id
-                          ? "可选附加代码；当前资源包已通过GoodChat SDK接入。"
-                          : "通过GoodChat SDK接入的页面代码"
-                      }
-                      onChange={(event) => updateDesign({ javascript: event.target.value })}
-                    />
-                  ),
-                },
-                {
-                  key: "resources",
-                  label: "静态资源包",
-                  children: (
-                    <CodePackages
-                      key={tenantId}
-                      activeId={design.package_id}
-                      onUse={(packageId) =>
-                        updateDesign({ package_id: packageId, html: "", css: "", javascript: "" })
-                      }
-                    />
-                  ),
-                },
-              ]}
-            />
-          )}
-        </Card>
-        <div className="studio-preview-column">
-          <Card title="页面布局预览" className="studio-preview-pane">
-            <div
-              className="design-preview"
-              style={{
-                background: /^#[\da-f]{6}$/i.test(design.theme?.background || "")
-                  ? design.theme?.background
-                  : undefined,
-              }}
-            >
-              {item.render_mode === "code" ? (
-                <Alert
-                  type="info"
-                  showIcon
-                  title="完整代码不会在管理页面直接执行。保存草稿后，通过独立来源预览实际界面。"
-                />
-              ) : (
-                <div
-                  className="studio-preview-document"
-                  style={{
-                    maxWidth: 390,
-                    margin: "auto",
-                    background: "#fff",
-                    borderRadius: design.theme?.radius || 14,
-                    overflow: "hidden",
-                  }}
-                >
+                    ),
+                  },
+                  {
+                    key: "css",
+                    label: "CSS",
+                    children: (
+                      <Input.TextArea
+                        aria-label="CSS 源码"
+                        className="code-editor"
+                        rows={22}
+                        value={design.css || ""}
+                        placeholder={
+                          design.package_id ? "可选附加样式；资源包自身CSS会保留。" : "页面样式"
+                        }
+                        onChange={(event) => updateDesign({ css: event.target.value })}
+                      />
+                    ),
+                  },
+                  {
+                    key: "js",
+                    label: "JavaScript",
+                    children: (
+                      <Input.TextArea
+                        aria-label="JavaScript 源码"
+                        className="code-editor"
+                        rows={22}
+                        value={design.javascript || ""}
+                        placeholder={
+                          design.package_id
+                            ? "可选附加代码；当前资源包已通过GoodChat SDK接入。"
+                            : "通过GoodChat SDK接入的页面代码"
+                        }
+                        onChange={(event) => updateDesign({ javascript: event.target.value })}
+                      />
+                    ),
+                  },
+                  {
+                    key: "resources",
+                    label: "静态资源包",
+                    children: (
+                      <CodePackages
+                        key={tenantId}
+                        activeId={design.package_id}
+                        onUse={(packageId) =>
+                          updateDesign({ package_id: packageId, html: "", css: "", javascript: "" })
+                        }
+                      />
+                    ),
+                  },
+                ]}
+              />
+            )}
+          </Card>
+          <div className="studio-preview-column">
+            <Card title="页面布局预览" className="studio-preview-pane">
+              <div
+                className="design-preview"
+                style={{
+                  background: /^#[\da-f]{6}$/i.test(design.theme?.background || "")
+                    ? design.theme?.background
+                    : undefined,
+                }}
+              >
+                {item.render_mode === "code" ? (
+                  <Alert
+                    type="info"
+                    showIcon
+                    title="完整代码不会在管理页面直接执行。保存草稿后，通过独立来源预览实际界面。"
+                  />
+                ) : (
                   <div
-                    className="studio-preview-brand"
+                    className="studio-preview-document"
                     style={{
-                      padding: 24,
-                      background: /^#[\da-f]{6}$/i.test(design.theme?.primary_color || "")
-                        ? design.theme?.primary_color
-                        : "#23684e",
-                      color: "#fff",
+                      maxWidth: 390,
+                      margin: "auto",
+                      background: "#fff",
+                      borderRadius: design.theme?.radius || 14,
+                      overflow: "hidden",
                     }}
                   >
-                    <h3 style={{ marginBottom: 6, color: "inherit" }}>
-                      {design.brand?.title || "在线客服"}
-                    </h3>
-                    <small>{design.brand?.subtitle}</small>
+                    <div
+                      className="studio-preview-brand"
+                      style={{
+                        padding: 24,
+                        background: /^#[\da-f]{6}$/i.test(design.theme?.primary_color || "")
+                          ? design.theme?.primary_color
+                          : "#23684e",
+                        color: "#fff",
+                      }}
+                    >
+                      <h3 style={{ marginBottom: 6, color: "inherit" }}>
+                        {design.brand?.title || "在线客服"}
+                      </h3>
+                      <small>{design.brand?.subtitle}</small>
+                    </div>
+                    <div className="studio-preview-blocks" style={{ padding: 20 }}>
+                      {design.blocks?.map((block) => (
+                        <div key={block.id} style={{ marginBottom: 20 }}>
+                          <strong>{block.title || blockNames[block.type]}</strong>
+                          {block.type === "chat" ? (
+                            <div className="preview-composer">消息输入区域 · 示意</div>
+                          ) : (
+                            <p className="muted" style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>
+                              {block.content || "尚未填写内容"}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="studio-preview-blocks" style={{ padding: 20 }}>
-                    {design.blocks?.map((block) => (
-                      <div key={block.id} style={{ marginBottom: 20 }}>
-                        <strong>{block.title || blockNames[block.type]}</strong>
-                        {block.type === "chat" ? (
-                          <div className="preview-composer">消息输入区域 · 示意</div>
-                        ) : (
-                          <p className="muted" style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>
-                            {block.content || "尚未填写内容"}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <p className="form-hint">
-              此处为布局示意，不使用真实聊天数据；自定义样式与代码以隔离预览结果为准。
-            </p>
-          </Card>
-          <Alert
-            type="info"
-            title={
-              kind === "templates"
-                ? "保存后可反复创建多个页面。平台模板更新不会覆盖本租户作品。"
-                : "发布之前请确认电脑与手机、排队和离线场景。回滚不会删除聊天记录。"
-            }
-            showIcon
-            style={{ marginTop: 20 }}
-          />
+                )}
+              </div>
+              <p className="form-hint">
+                此处为布局示意，不使用真实聊天数据；自定义样式与代码以隔离预览结果为准。
+              </p>
+            </Card>
+            <Alert
+              type="info"
+              title={
+                kind === "templates"
+                  ? "保存后可反复创建多个页面。平台模板更新不会覆盖本租户作品。"
+                  : "发布之前请确认电脑与手机、排队和离线场景。回滚不会删除聊天记录。"
+              }
+              showIcon
+              style={{ marginTop: 20 }}
+            />
+          </div>
         </div>
-      </div>
+      )}
       <TemplatePreviewModal
         path={`/tenant/${kind}/${encodeURIComponent(id)}/preview`}
         name={name}

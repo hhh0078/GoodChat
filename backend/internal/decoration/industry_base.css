@@ -1,134 +1,165 @@
-/* 文件作用说明：六行业静态访客模板的响应布局和固定SDK聊天状态样式，无外部资源或构建步骤。 */
-html{height:100%;min-height:0}*{box-sizing:border-box}body{height:100%;min-height:0;margin:0;background:var(--gc-background);color:#25313b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}button,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.45;cursor:wait}button:focus-visible,textarea:focus-visible,.gc-message:focus-visible{outline:3px solid var(--gc-primary);outline-offset:3px}button:active{transform:translateY(1px)}[hidden]{display:none!important}.gc-template{width:min(100%,960px);margin:auto;height:100%;height:var(--gc-viewport-height,100dvh);min-height:0;display:flex;flex-direction:column;padding:16px}.gc-hero{position:relative;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:200px;padding:24px 30px;background:#fff;border-radius:24px;overflow:hidden}.gc-hero-copy{position:relative;z-index:1;max-width:70%}.gc-eyebrow{font-size:10px;letter-spacing:.18em;font-weight:650;color:var(--gc-primary);margin:0 0 12px}.gc-industry-label{font-size:13px;margin:0 0 5px;color:var(--gc-primary)}h1{font-size:clamp(24px,3.2vw,36px);line-height:1.22;letter-spacing:-.045em;margin:0 0 14px}.gc-subtitle{font-size:13px;color:#66717a;margin:0 0 22px}.gc-hero-badge{display:inline-block;font-size:11px;padding:6px 10px;border:1px solid #00000012;border-radius:6px;color:var(--gc-primary)}.gc-hero-art{display:grid;place-items:center;flex:1;min-width:150px;align-self:stretch}.gc-service-entries{flex:0 0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}.gc-service-entries button{display:flex;gap:10px;align-items:center;padding:16px;background:#ffffffb8;border:1px solid #0000000b;border-radius:12px;text-align:left;min-height:64px;color:inherit;font-size:13px}.gc-service-entries button small{color:var(--gc-primary);opacity:.6;font-size:10px}.gc-service-entries button b{margin-left:auto;color:var(--gc-primary)}.gc-service-entries button:hover{background:#fff}.gc-service-notice{flex:0 0 auto;font-size:11px;line-height:1.7;padding:0 3px;margin:12px 0 18px;color:#66717a}.gc-conversation{display:flex;flex-direction:column;flex:1 1 0;min-height:0;overflow:hidden;background:#fff;border:1px solid #0000000b;border-radius:20px}.gc-chat-heading{flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid #00000009;font-size:13px}.gc-chat-heading strong{flex-shrink:0}#gc-status{color:#78828a;font-size:11px}.gc-service-button{margin-left:auto;flex-shrink:0;background:none;color:var(--gc-primary);border:0;font-size:11px;padding:8px}#gc-messages{height:auto;flex:1 1 0;min-height:0;overflow:auto;padding:18px 20px;overscroll-behavior:contain;overflow-anchor:none}#gc-messages:empty:after{content:"发送一条消息，开始您的专属咨询";display:block;padding:64px 10px;text-align:center;color:#879099;font-size:13px}.gc-message-row{display:flex;flex-direction:column;align-items:flex-start;margin:0 0 18px;gap:4px}.gc-message-meta{display:flex;align-items:center;gap:7px;color:#8b9298;font-size:10px}.gc-message-meta time{font-size:10px;font-variant-numeric:tabular-nums}.gc-avatar{width:28px;height:28px;object-fit:cover;border-radius:50%}.gc-message{max-width:82%;border-radius:3px 15px 15px 15px;background:var(--gc-background);padding:11px 14px;font-size:14px;overflow-wrap:anywhere;white-space:pre-wrap}.gc-message-body{white-space:pre-wrap;overflow-wrap:anywhere}.gc-own{align-items:flex-end}.gc-own .gc-message{background:var(--gc-primary);color:#fff;border-radius:15px 3px 15px 15px}.gc-system{align-items:center}.gc-system .gc-message{background:transparent;font-size:11px;color:#8b9298;text-align:center;padding:4px}.gc-system .gc-message-meta{justify-content:center}.gc-read-status{font-size:10px;color:#879099}.gc-message-actions{display:flex;gap:6px;font-size:11px}.gc-message-actions button,#gc-reply-cancel{padding:3px 6px;background:none;border:0;color:var(--gc-primary);font-size:11px}.gc-reply{margin:0 0 8px;padding:5px 8px;border-left:2px solid #0003;font-size:11px;opacity:.7}.gc-message-options{display:flex;flex-direction:column;gap:8px;min-width:170px;margin-top:12px}.gc-welcome-option{background:#fff9;border:1px solid color-mix(in srgb,var(--gc-primary),transparent 65%);color:var(--gc-primary);min-height:42px;padding:9px 12px;border-radius:9px;text-align:left;font-size:12px;white-space:normal}.gc-attachment-preview{margin-top:10px}.gc-attachment-preview img,.gc-attachment-preview video{display:block;max-width:100%;max-height:240px;border-radius:10px}.gc-attachment-preview audio{max-width:100%}.gc-file-save{background:none;border:1px solid #7a8b7d44;border-radius:8px;padding:6px 9px;color:inherit;font-size:11px;white-space:normal;overflow-wrap:anywhere}.gc-file-notice,.gc-attachment-error{display:block;margin-top:5px;font-size:10px}.gc-attachment-error,#gc-error{color:#b24432}.gc-history-control{display:grid;justify-items:center;gap:4px;padding:0 0 16px}.gc-history-control button{background:none;border:1px solid #7a8b7d44;border-radius:20px;font-size:10px;color:#7b838a;padding:6px 12px}.gc-history-error{font-size:11px;color:#b24432}.gc-composer-area{flex:0 0 auto;padding:0 16px max(12px,env(safe-area-inset-bottom));border-top:1px solid #00000008}#gc-typing{font-size:10px;min-height:16px;margin:3px 4px;color:#8b9298}#gc-reply-bar:not([hidden]){display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;margin-bottom:8px;background:var(--gc-background);border-left:2px solid var(--gc-primary);font-size:11px}#gc-reply-text{overflow-wrap:anywhere}#gc-compose{position:relative}.gc-capsule{display:flex;align-items:flex-end;gap:8px;background:#f4f5f5;border-radius:24px;padding:6px}.gc-capsule button{border:0;flex-shrink:0;min-width:40px;height:40px;border-radius:50%}#gc-add{font-size:25px;background:none;color:#6c767e}#gc-text{flex:1;min-width:0;resize:none;border:0;outline:none;background:none;font-size:13px;line-height:24px;min-height:40px;max-height:120px;padding:8px 2px;color:inherit}#gc-send{border-radius:20px;background:var(--gc-primary);color:#fff;font-size:12px;min-width:62px}#gc-attachment-menu{position:absolute;bottom:calc(100% + 8px);left:0;display:flex;gap:8px;background:#fff;padding:10px;border:1px solid #0001;border-radius:12px;box-shadow:0 8px 24px #172b4d18;z-index:3}#gc-attachment-menu button{min-height:40px;background:var(--gc-background);border:0;border-radius:8px;padding:8px 14px;color:var(--gc-primary);font-size:12px}#gc-error{font-size:11px;min-height:0;margin:5px 4px 0}.gc-footer{flex:0 0 auto;text-align:center;font-size:10px;color:#8d969d;padding:16px}.gc-dialog{max-width:420px;width:calc(100% - 40px);border:0;border-radius:18px;padding:26px;box-shadow:0 20px 80px #0003;color:inherit}.gc-dialog::backdrop{background:#1c263a66}.gc-dialog h2{font-size:20px;margin:0 0 14px}.gc-dialog p{font-size:13px;color:#66717a}.gc-dialog button{background:var(--gc-primary);color:#fff;border:0;border-radius:8px;min-height:42px;padding:10px 20px;width:100%;margin-top:10px}
-.gc-industry-finance .gc-hero{background:#e1edf8}.gc-industry-finance .gc-hero-badge{background:#fff4ce;border-color:#d0b26d;color:#7d6528}.gc-industry-finance .gc-service-notice{color:#a65738}.finance-seal{width:150px;height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#f8edcd;border:3px solid #d6bc7b;border-radius:65px 65px 54px 54px;color:#8c7039;transform:rotate(7deg)}.finance-seal span{font-size:11px}.finance-seal strong{font-size:22px}.finance-seal small{font-size:9px}.gc-industry-commerce .gc-hero{background:#ffe9cd}.commerce-parcel{width:145px;height:145px;background:#d29962;border:1px solid #a56e3c;box-shadow:14px -12px 0 #e6b783;transform:rotate(-7deg);position:relative;padding:28px 18px}.commerce-parcel span{font-size:24px;font-weight:750;color:#fff8ee;line-height:1.1}.commerce-parcel i{position:absolute;right:14px;bottom:6px;color:#83512c;font-size:40px;font-style:normal}.gc-industry-education .gc-hero{border-radius:5px 24px 5px 24px;background:#e7ebda}.education-books{width:160px;display:flex;flex-direction:column;gap:7px;transform:rotate(-8deg)}.education-books b{display:block;padding:10px 16px;background:#77916e;color:#fff;font-size:13px;letter-spacing:.15em;border-radius:3px 10px 10px 3px;box-shadow:inset -12px 0 #ffffff55}.education-books b:nth-child(2){background:#b6a16e;margin-left:15px}.education-books b:nth-child(3){background:#526747}.gc-industry-medical .gc-hero{background:#dff1ee}.medical-cross{display:flex;flex-direction:column;align-items:center;gap:8px;color:#3c8a80}.medical-cross span{display:grid;place-items:center;width:125px;height:125px;background:#fff9;border-radius:50%;font-size:95px;font-weight:200;line-height:1}.medical-cross small{font-size:11px}.gc-industry-property .gc-hero{background:#e7ded1;border-radius:3px}.gc-industry-property .gc-conversation,.gc-industry-property .gc-service-entries button{border-radius:5px}.property-building{width:140px;height:168px;display:grid;grid-template-columns:repeat(2,1fr);gap:14px;background:#ab9580;padding:18px;box-shadow:20px 15px 0 #c9bba7;transform:skewY(-6deg)}.property-building i{background:#f5efe4;box-shadow:inset -6px 0 #d9cfbc}.gc-industry-business .gc-hero{background:#303d46;color:#f4f7f7;border-radius:6px}.gc-industry-business .gc-eyebrow,.gc-industry-business .gc-industry-label,.gc-industry-business .gc-subtitle,.gc-industry-business .gc-hero-badge{color:#ced8dc}.gc-industry-business .gc-hero-badge{border-color:#ffffff33}.business-grid{display:grid;grid-template-columns:repeat(2,66px);grid-auto-rows:66px;gap:6px;transform:rotate(7deg)}.business-grid b{display:grid;place-items:center;border:1px solid #d7e2e333;font-size:11px;color:#c9d8db}.business-grid b:nth-child(2){background:#d4e2dd;color:#303d46}.gc-industry-business .gc-service-entries button{border-radius:4px}
-@media(min-width:760px){.gc-industry-business .gc-template{max-width:1060px}.gc-industry-business .gc-hero-copy{max-width:72%}}@media(max-width:600px){.gc-template{padding:0;min-height:0}.gc-hero{min-height:112px;border-radius:0!important;padding:14px 16px;gap:10px}.gc-hero-copy{max-width:75%}.gc-hero-art{min-width:70px;max-width:86px}.gc-eyebrow{display:none}.gc-industry-label{font-size:10px;margin-bottom:4px}.gc-subtitle{font-size:10px;margin-bottom:0;max-width:240px}.gc-hero-badge{display:none}.gc-service-entries{gap:6px;margin:8px 10px}.gc-service-entries button{padding:9px 8px;min-height:44px;gap:5px;font-size:11px;flex-wrap:wrap}.gc-service-entries button small{font-size:8px}.gc-service-entries button b{display:none}.gc-service-notice{margin:4px 14px 8px;font-size:9.5px;line-height:1.45}.gc-conversation{margin:0 10px;border-radius:17px}.gc-chat-heading{padding:11px 12px;gap:8px;font-size:12px}#gc-status{font-size:9px}.gc-service-button{font-size:10px;padding:6px 0}#gc-messages{height:auto;min-height:0;padding:12px}.gc-message{max-width:89%;font-size:13px;padding:10px 12px}.gc-message-meta{font-size:9px}.gc-composer-area{padding:0 10px max(8px,env(safe-area-inset-bottom))}.gc-avatar{width:25px;height:25px}.gc-footer{display:none}.finance-seal{width:76px;height:88px;border-width:2px;gap:7px}.finance-seal strong{font-size:12px}.finance-seal span{font-size:9px}.finance-seal small{font-size:6px}.commerce-parcel{width:78px;height:88px;padding:18px 9px;box-shadow:8px -9px 0 #e6b783}.commerce-parcel span{font-size:17px}.commerce-parcel i{font-size:26px}.education-books{width:94px;gap:6px}.education-books b{padding:7px;font-size:7.5px;letter-spacing:.05em}.education-books b:nth-child(2){margin-left:8px}.medical-cross span{width:68px;height:68px;font-size:57px}.medical-cross small{font-size:7px}.property-building{width:76px;height:88px;padding:12px;gap:8px;box-shadow:10px 9px 0 #c9bba7}.business-grid{grid-template-columns:repeat(2,43px);grid-auto-rows:43px;gap:4px}.business-grid b{font-size:8px}.gc-dialog{padding:22px}.gc-service-entries button{min-height:44px}.gc-message-options{min-width:150px}.gc-welcome-option{min-height:44px}.gc-capsule button{min-height:40px}}
-@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}button:active{transform:none}}
-
-/* 短视口与软键盘仅压缩装饰区，消息仍独立滚动，输入控件保留其真实高度。 */
-@media(max-width:600px){
-  #gc-text{font-size:16px}
-  .gc-hero h1{font-size:22px;line-height:1.25;margin-bottom:8px}
-  body.gc-keyboard-open .gc-hero,body.gc-keyboard-open .gc-service-entries,body.gc-keyboard-open .gc-service-notice{display:none}
-  body.gc-keyboard-open .gc-conversation{margin:0;border-radius:0}
+/* 文件作用说明：七套已确认设计稿共用的开放式聊天、附件、输入及短屏适配，行业构图由各自文件定义。 */
+:root {
+  --gc-primary: #24594c;
+  --gc-background: #fff;
+  --gc-surface: #fff;
+  --gc-ink: #202831;
+  --gc-muted: #9298a1;
+  --gc-border: #e9ebee;
+  --gc-peer: #f2f3f5;
+  --gc-on-primary: #fff;
+  --gc-composer: #f5f6f7;
 }
-@media(max-height:560px){
-  .gc-template{padding:0}
-  .gc-hero{min-height:64px;padding:10px 16px;border-radius:0}
-  .gc-hero-copy{max-width:100%}
-  .gc-hero h1{font-size:18px;line-height:1.25;margin:0}
-  .gc-hero-art,.gc-eyebrow,.gc-industry-label,.gc-subtitle,.gc-hero-badge,.gc-service-entries,.gc-footer{display:none}
-  .gc-service-notice{font-size:9px;line-height:1.3;max-height:2.6em;overflow:auto;margin:4px 12px 6px}
-  .gc-chat-heading{padding:8px 12px}
+* { box-sizing: border-box; }
+html, body { height: 100%; min-height: 0; margin: 0; }
+body { background: var(--gc-background); color: var(--gc-ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+button, textarea { font: inherit; }
+button { cursor: pointer; transition: background-color .16s, color .16s, border-color .16s; }
+button:disabled { opacity: .45; cursor: wait; }
+button:focus-visible, textarea:focus-visible, .gc-message:focus-visible { outline: 2px solid var(--gc-primary); outline-offset: 3px; }
+[hidden] { display: none !important; }
+h1, h2, p { margin-top: 0; }
+.gc-layout, .gc-template { height: var(--gc-viewport-height, 100dvh); min-height: 0; width: 100%; margin: auto; }
+.gc-layout { max-width: 1920px; }
+.gc-template { display: flex; flex-direction: column; }
+.gc-conversation { position: relative; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; min-width: 0; overflow: hidden; background: var(--gc-surface); }
+.gc-chat-heading { display: flex; align-items: center; gap: 20px; flex: 0 0 auto; min-height: 76px; padding: 18px 36px; border-bottom: 1px solid var(--gc-border); }
+.gc-chat-heading strong { font-size: 23px; font-weight: 650; flex-shrink: 0; }
+#gc-status { color: var(--gc-muted); font-size: 13px; }
+#gc-status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: #48b965; vertical-align: 1px; }
+.gc-service-button { margin-left: auto; padding: 8px 0 8px 10px; min-height: 40px; flex-shrink: 0; border: 0; background: transparent; color: var(--gc-primary); font-size: 12px; }
+#gc-messages { flex: 1 1 0; min-height: 0; overflow: auto; overscroll-behavior: contain; overflow-anchor: none; padding: 30px 36px 12px; }
+#gc-messages:empty:after { content: "发送一条消息，开始您的专属咨询"; display: block; text-align: center; padding: 64px 10px; color: var(--gc-muted); font-size: 13px; }
+.gc-message-row { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 26px; padding-left: 68px; min-height: 44px; }
+.gc-message-meta { display: flex; align-items: center; gap: 8px; color: var(--gc-muted); font-size: 12px; line-height: 18px; }
+.gc-message-meta time { font-variant-numeric: tabular-nums; }
+.gc-avatar { position: absolute; top: 2px; left: 0; display: block; width: 52px; height: 52px; border-radius: 50%; object-fit: cover; }
+.gc-message { max-width: 94%; padding: 15px 19px; border-radius: 14px; background: var(--gc-peer); color: var(--gc-ink); font-size: 19px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.gc-message-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.gc-own { align-items: flex-end; padding-left: 0; padding-right: 68px; }
+.gc-own .gc-avatar { left: auto; right: 0; }
+.gc-own .gc-message { background: var(--gc-primary); color: var(--gc-on-primary); }
+.gc-system { align-items: center; padding: 0; min-height: 0; margin-bottom: 24px; }
+.gc-system .gc-message { padding: 4px; background: transparent; text-align: center; color: var(--gc-muted); font-size: 11px; }
+.gc-system .gc-message-meta { justify-content: center; }
+.gc-read-status { font-size: 10px; color: var(--gc-muted); }
+.gc-reply { margin: 0 0 8px; padding: 5px 9px; border-left: 2px solid currentColor; font-size: 11px; opacity: .75; }
+.gc-message-actions { display: flex; gap: 8px; }
+.gc-message-actions button, #gc-reply-cancel { min-height: 32px; padding: 4px 8px; border: 0; background: transparent; color: var(--gc-primary); font-size: 11px; }
+.gc-message-options { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 15px; }
+.gc-welcome-option { min-height: 38px; padding: 7px 14px; border: 1px solid var(--gc-primary); border-radius: 22px; background: var(--gc-surface); color: var(--gc-primary); text-align: center; white-space: normal; font-size: 13px; }
+.gc-attachment-preview { margin-top: 10px; }
+.gc-attachment-preview img, .gc-attachment-preview video { display: block; max-width: 100%; max-height: 240px; border-radius: 8px; }
+.gc-attachment-preview audio { max-width: 100%; }
+.gc-file-save { max-width: 100%; padding: 7px 10px; border: 1px solid currentColor; border-radius: 7px; background: transparent; color: inherit; overflow-wrap: anywhere; white-space: normal; font-size: 11px; }
+.gc-file-save.gc-welcome-option { padding: 7px 14px; color: var(--gc-primary); border: 1px solid var(--gc-primary); border-radius: 22px; font-size: 13px; }
+.gc-file-notice, .gc-attachment-error { display: block; margin-top: 6px; font-size: 11px; }
+.gc-attachment-error, #gc-error, .gc-history-error { color: #b6543e; }
+.gc-history-control { display: grid; justify-items: center; gap: 5px; padding: 0 0 18px; }
+.gc-history-control button { min-height: 32px; padding: 6px 12px; border: 1px solid var(--gc-border); border-radius: 20px; background: transparent; color: var(--gc-muted); font-size: 11px; }
+.gc-history-error { font-size: 11px; }
+.gc-composer-area { flex: 0 0 auto; padding: 0 26px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid var(--gc-border); background: var(--gc-surface); }
+#gc-typing { min-height: 13px; margin: 2px 4px; color: var(--gc-muted); font-size: 10px; }
+#gc-reply-bar:not([hidden]) { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 8px; padding: 7px 10px; background: var(--gc-peer); border-left: 2px solid var(--gc-primary); font-size: 11px; }
+#gc-reply-text { overflow-wrap: anywhere; }
+#gc-compose { position: relative; }
+.gc-capsule { display: flex; align-items: center; gap: 13px; }
+.gc-capsule button { flex-shrink: 0; min-width: 38px; height: 44px; border: 0; border-radius: 50%; }
+#gc-add, .gc-emoji-button { background: transparent; color: var(--gc-muted); padding: 6px; }
+#gc-add img, .gc-emoji-button img { display: block; width: 25px; height: 25px; }
+#gc-text { flex: 1; min-width: 0; min-height: 46px; max-height: 120px; margin: 0; padding: 11px 18px; border: 1px solid var(--gc-border); border-radius: 26px; resize: none; outline: none; background: var(--gc-composer); color: var(--gc-ink); font-size: 15px; line-height: 24px; }
+#gc-text::placeholder { color: var(--gc-muted); }
+#gc-send { min-width: 78px; padding: 0 18px; border-radius: 25px; background: var(--gc-primary); color: var(--gc-on-primary); font-size: 15px; font-weight: 600; }
+#gc-attachment-menu { position: absolute; z-index: 5; left: 0; bottom: calc(100% + 8px); display: flex; gap: 8px; padding: 10px; border: 1px solid var(--gc-border); border-radius: 12px; background: var(--gc-surface); box-shadow: 0 8px 24px #172b4d18; }
+#gc-attachment-menu button { min-height: 44px; padding: 8px 14px; border: 0; border-radius: 8px; background: var(--gc-peer); color: var(--gc-primary); font-size: 13px; }
+#gc-error { font-size: 11px; margin: 5px 4px 0; }
+.gc-emoji-menu { position: absolute; z-index: 6; bottom: calc(100% + 8px); right: 0; display: flex; gap: 3px; padding: 8px; border: 1px solid var(--gc-border); border-radius: 12px; background: var(--gc-surface); box-shadow: 0 8px 24px #172b4d18; }
+.gc-emoji-menu button { min-width: 40px; min-height: 40px; border: 0; background: transparent; font-size: 22px; }
+.gc-dialog { max-width: 430px; width: calc(100% - 36px); padding: 28px; border: 1px solid var(--gc-border); border-radius: 14px; background: var(--gc-surface); color: var(--gc-ink); box-shadow: 0 20px 80px #0003; }
+.gc-dialog::backdrop { background: #14251e66; }
+.gc-dialog h2 { font-size: 21px; }
+.gc-dialog p { font-size: 14px; line-height: 1.8; color: var(--gc-muted); }
+.gc-dialog button { width: 100%; min-height: 44px; padding: 10px; border: 0; border-radius: 9px; background: var(--gc-primary); color: var(--gc-on-primary); }
+.gc-leave-message { min-height: 38px; padding: 7px 15px; border: 1px solid currentColor; border-radius: 7px; background: transparent; color: inherit; font-size: 13px; white-space: nowrap; }
+.gc-leave-message:hover { background: #7f8c9910; }
+.gc-service-entries button { min-height: 44px; }
+.gc-ui-icon { width: 22px; height: 22px; object-fit: contain; vertical-align: middle; }
+.gc-preview-support { flex: 0 0 auto; text-align: center; padding: 0 12px 12px; color: var(--gc-muted); background: var(--gc-surface); font-size: 11px; }
+.gc-preview-day { display: flex; align-items: center; justify-content: center; gap: 18px; padding-bottom: 26px; color: var(--gc-muted); font-size: 11px; }
+.gc-preview-day::before, .gc-preview-day::after { content: ""; width: 45px; height: 1px; background: var(--gc-border); }
+.gc-intro { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: var(--gc-background); color: var(--gc-primary); animation: gc-intro-exit 1.8s step-end forwards; }
+.gc-intro strong { font-size: 20px; letter-spacing: .15em; }
+.gc-intro small { font-size: 12px; color: var(--gc-muted); }
+.gc-intro progress { width: 180px; height: 4px; accent-color: var(--gc-primary); }
+@keyframes gc-intro-exit { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+body[data-gc-editor="true"] .gc-intro { display: none !important; }
+@media (max-width: 700px) {
+  .gc-chat-heading { min-height: 48px; padding: 13px 19px; gap: 13px; }
+  .gc-chat-heading strong { font-size: 17px; }
+  #gc-status { font-size: 11px; }
+  .gc-service-button { font-size: 11px; min-height: 32px; }
+  #gc-messages { padding: 18px 17px 8px; }
+  .gc-message-row { padding-left: 52px; gap: 5px; margin-bottom: 22px; }
+  .gc-avatar { width: 40px; height: 40px; }
+  .gc-message { max-width: 100%; padding: 11px 13px; font-size: 15px; line-height: 1.65; border-radius: 12px; }
+  .gc-own { padding-left: 0; padding-right: 52px; }
+  .gc-message-meta { font-size: 11px; }
+  .gc-file-save.gc-welcome-option { padding: 6px 12px; min-height: 35px; font-size: 12px; }
+  .gc-message-options { gap: 7px; margin-top: 12px; }
+  .gc-composer-area { padding: 0 12px max(10px, env(safe-area-inset-bottom)); }
+  .gc-capsule { gap: 6px; }
+  .gc-capsule button { min-width: 32px; height: 40px; }
+  #gc-text { min-height: 42px; padding: 9px 12px; font-size: 16px; }
+  #gc-text::placeholder { font-size: 14px; }
+  #gc-send { min-width: 62px; padding: 0 13px; font-size: 14px; }
+  #gc-add img, .gc-emoji-button img { width: 23px; height: 23px; }
+  .gc-leave-message { min-height: 34px; padding: 6px 11px; font-size: 12px; }
+  .gc-preview-support { font-size: 10px; padding-bottom: 10px; }
+  .gc-preview-day { padding-bottom: 20px; }
 }
-@media(max-height:360px){
-  .gc-hero,.gc-service-entries,.gc-service-notice,.gc-footer{display:none}
-  .gc-conversation{margin:0;border-radius:0}
+/* 短屏及键盘收起装饰，输入与附件始终占用真实可用高度。 */
+@media (max-height: 560px) {
+  .gc-layout, .gc-template { padding: 0 !important; gap: 0 !important; }
+  .gc-decoration, .gc-secondary, .gc-service-entries { display: none !important; }
+  .gc-chat-heading { min-height: 38px; padding: 6px 12px; }
+  .gc-chat-heading strong { font-size: 16px; }
+  .gc-conversation { border-radius: 0 !important; }
+  .gc-brandbar { min-height: 38px !important; padding-top: 4px !important; padding-bottom: 4px !important; }
+  .gc-brandbar small { display: none !important; }
+  .gc-message-row { margin-bottom: 20px; }
+  #gc-messages { padding-top: 14px; }
 }
-
-/* 行业视觉只调整材质与装饰，消息区和输入区继续使用前述可用高度布局。 */
-.gc-hero{border:1px solid #00000005;padding:22px 28px}
-.gc-hero h1{letter-spacing:-.025em;text-wrap:balance}
-.gc-eyebrow{font-size:9px;letter-spacing:.2em;margin-bottom:12px}
-.gc-industry-label{font-size:12px;font-weight:600;margin-bottom:7px}
-.gc-subtitle{line-height:1.65;margin-bottom:17px}
-.gc-hero-badge{border-radius:30px;background:#ffffff70;padding:6px 11px;font-size:10px}
-.gc-hero-badge:before{content:"";display:inline-block;width:5px;height:5px;margin-right:7px;border-radius:50%;background:currentColor;vertical-align:2px;opacity:.7}
-.gc-service-entries{margin:12px 0 8px}
-.gc-service-entries button{position:relative;border-color:#00000008;transition:background-color .16s,border-color .16s}
-.gc-service-entries button:hover{border-color:color-mix(in srgb,var(--gc-primary),transparent 70%)}
-.gc-service-entries button small{display:grid;place-items:center;width:26px;height:26px;flex-shrink:0;border:1px solid color-mix(in srgb,var(--gc-primary),transparent 80%);border-radius:50%;font-weight:650;opacity:.85}
-.gc-service-entries button span{font-weight:550}
-.gc-service-entries button b{font-size:16px;font-weight:400}
-.gc-service-notice{margin:6px 2px 14px;line-height:1.6}
-.gc-conversation{box-shadow:0 3px 18px #1f3e4a04}
-.gc-chat-heading strong{font-weight:650}
-.gc-service-button{min-height:36px}
-.gc-capsule{background:#f4f6f6;border:1px solid #00000004}
-#gc-send{font-weight:600}
-.finance-scene,.commerce-scene,.education-scene,.medical-scene,.property-scene,.business-scene{position:relative;width:190px;height:156px}
-.art-caption{position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:8px;letter-spacing:.12em}
-.gc-industry-finance .gc-hero{background:#e5eef6}
-.finance-orbit{position:absolute;left:0;top:0;width:150px;height:150px;border:1px solid #adc2d04d;border-radius:50%}
-.finance-orbit:before,.finance-orbit:after{content:"";position:absolute;inset:14px;border:1px solid #adc2d04d;border-radius:50%}
-.finance-orbit:after{inset:29px}
-.finance-seal{position:absolute;right:13px;top:0;width:133px;height:137px;gap:8px;background:#2c506b;color:#f8f4e7;border:1px solid #bfa66f;border-radius:13px;transform:rotate(7deg);box-shadow:7px 9px 0 #b6c8d138}
-.finance-seal:before{content:"";position:absolute;inset:7px;border:1px solid #d8c18a55;border-radius:8px}
-.finance-seal small{font-size:7px;letter-spacing:.15em;color:#d8c18a}
-.finance-seal span{font-size:10px;opacity:.8}
-.finance-seal strong{font-size:20px;letter-spacing:.08em;font-weight:550}
-.finance-seal i{display:grid;place-items:center;width:24px;height:24px;border:1px solid #d8c18a99;border-radius:50%;font:15px Georgia,serif;color:#dfcc9d}
-.finance-scene .art-caption{color:#6e8292}
-.gc-industry-commerce .gc-hero{background:#fbe8d2}
-.commerce-parcel{position:absolute;left:20px;top:4px;width:133px;height:130px;padding:22px 14px;background:#c99561;border:1px solid #aa7b4e;box-shadow:10px -8px 0 #dfb98d;transform:rotate(-6deg)}
-.commerce-parcel span{position:relative;font-size:23px;letter-spacing:-.04em;line-height:1.06}
-.commerce-parcel .parcel-tape{position:absolute;inset:0 auto 0 62%;width:18px;background:#ead2ac7d}
-.commerce-parcel .parcel-label{position:absolute;left:12px;bottom:11px;background:#fffaf0;padding:5px 6px;font-size:5.5px;line-height:1.5;letter-spacing:.04em;color:#86654c}
-.parcel-tag{position:absolute;right:0;bottom:2px;border:1px solid #bf855866;background:#fff8eb;border-radius:5px;padding:5px 8px;font-size:8px;color:#94512f;transform:rotate(3deg)}
-.gc-industry-commerce .gc-service-entries button{background:#fffaf3}
-.gc-industry-education .gc-hero{background:#e9eddf}
-.education-page{position:absolute;right:9px;top:1px;width:95px;height:114px;padding:13px;background:#fcfbef;border:1px solid #c9ceaf;border-radius:4px;transform:rotate(9deg);box-shadow:4px 5px 0 #ced5bc66}
-.education-page span{display:block;font:35px Georgia,serif;color:#6f855f;margin-bottom:8px}
-.education-page i{display:block;height:1px;background:#d9ddc8;margin-top:7px}
-.education-page i:last-child{width:65%}
-.education-books{position:absolute;left:1px;bottom:23px;width:147px;gap:5px;transform:rotate(-5deg)}
-.education-books b{padding:7px 12px;font-size:10px;border-radius:2px 6px 6px 2px;box-shadow:inset -9px 0 #e8e9d966}
-.education-books b:nth-child(2){margin-left:10px;background:#ab9670}
-.education-scene>small{position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:8px;color:#7a866b;letter-spacing:.04em}
-.gc-industry-education .gc-service-entries button{border-radius:3px 11px 3px 11px;background:#fbfcf5}
-.gc-industry-medical .gc-hero{background:#e1f0eb}
-.medical-calendar{position:absolute;top:5px;left:12px;width:148px;height:139px;padding:15px 15px 10px;background:#ffffffc9;border:1px solid #c2dcd2;border-radius:12px;transform:rotate(-5deg);box-shadow:6px 7px 0 #b5d8cc55}
-.medical-calendar small{display:block;font-size:6px;letter-spacing:.16em;color:#6c978c}
-.medical-calendar strong{display:block;font-size:16px;color:#3b776b;font-weight:550;margin:5px 0 11px}
-.medical-calendar>div{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
-.medical-calendar i{height:12px;border-radius:3px;background:#dcece5}
-.medical-calendar i:nth-child(2){background:#6da28f;box-shadow:inset 0 0 0 2px #4e8876}
-.medical-calendar>span{display:block;font-size:6px;margin-top:10px;color:#86a297}
-.medical-cross{position:absolute;right:0;bottom:0;display:block}
-.medical-cross span{width:53px;height:53px;font-size:40px;background:#478878;color:#fff;border:5px solid #e1f0eb;border-radius:15px;font-weight:300}
-.gc-industry-medical .gc-service-entries button{background:#f8fcfa}
-.gc-industry-property .gc-hero{background:#eae2d8;border-radius:6px}
-.property-outline{position:absolute;left:4px;top:14px;width:132px;height:122px;border:1px solid #af9a8273;transform:skewY(-7deg)}
-.property-outline:before{content:"";position:absolute;inset:9px;border:1px solid #af9a8238}
-.property-building{position:absolute;right:18px;top:0;width:108px;height:137px;gap:10px;padding:15px;background:#9c8770;box-shadow:17px 9px 0 #c3b39d;transform:skewY(-6deg)}
-.property-building i{background:#f1e9da;box-shadow:inset -5px 0 #d6cbb8}
-.property-scene .art-caption{font-size:7px;color:#957e65;letter-spacing:.14em}
-.gc-industry-property .gc-service-entries button{border-radius:4px;background:#fdfaf5}
-.gc-industry-property .gc-service-entries button small{border-radius:3px}
-.gc-industry-business .gc-hero{background:#2e3b43}
-.business-caption{display:block;font-size:7px;letter-spacing:.16em;color:#92aaa9;margin:0 0 12px 14px}
-.business-grid{grid-template-columns:repeat(2,65px);grid-auto-rows:61px;gap:5px;transform:rotate(5deg);margin-left:18px}
-.business-grid b{position:relative;font-size:11px;letter-spacing:.07em;background:#3a4850;border-color:#cddbd226}
-.business-grid b small{position:absolute;top:5px;left:7px;font-size:6px;font-weight:400;opacity:.5}
-.business-grid b:nth-child(2){background:#dce7d7;color:#32423e}
-.business-grid b:last-child{border-color:#a7bdaf66;background:transparent}
-.gc-industry-business .gc-service-entries button small{border-radius:4px}
-
-/* 紧凑手机装饰使用同一比例画布，保持现有112px头图区和可见的聊天输入框。 */
-@media(max-width:600px){
-  .gc-hero{padding:14px 16px;border-width:0;gap:7px}
-  .gc-hero-copy{max-width:calc(100% - 80px)}
-  .gc-industry-label{font-size:10px;margin-bottom:5px}
-  .gc-hero h1{font-size:21px;margin-bottom:7px}
-  .gc-subtitle{font-size:10px;line-height:1.5;margin-bottom:0}
-  .gc-hero-art{position:relative;min-width:74px;max-width:80px;align-self:center;height:86px;overflow:visible}
-  .finance-scene,.commerce-scene,.education-scene,.medical-scene,.property-scene,.business-scene{position:absolute;top:0;left:0;transform:scale(.48);transform-origin:top left;width:166px;height:156px}
-  .gc-service-entries{margin:8px 10px 6px}
-  .gc-service-entries button{padding:9px 7px;gap:5px;flex-wrap:nowrap;font-size:10.5px}
-  .gc-service-entries button small{width:20px;height:20px;font-size:8px}
-  .gc-service-entries button span{line-height:1.4}
-  .gc-service-notice{font-size:10px;line-height:1.5;margin:4px 14px 8px}
+@media (max-height: 360px) {
+  .gc-brandbar { display: none !important; }
+  .gc-chat-heading { min-height: 34px; padding: 4px 12px; }
+  #gc-typing { min-height: 8px; margin-top: 1px; }
+  .gc-composer-area { padding-bottom: max(6px, env(safe-area-inset-bottom)); }
 }
-/* 短视口仍优先保留聊天内容，不用装饰覆盖键盘和输入区。 */
-@media(max-height:560px){
-  .gc-hero{padding:10px 16px}
-  .gc-hero-copy{max-width:100%}
-  .gc-subtitle{display:none}
-  .gc-hero h1{font-size:18px;line-height:1.25;margin:0}
-  .gc-service-notice{font-size:9px;line-height:1.3;margin:4px 12px 6px}
+body.gc-keyboard-open .gc-decoration, body.gc-keyboard-open .gc-secondary, body.gc-keyboard-open .gc-service-entries { display: none !important; }
+body.gc-keyboard-open .gc-layout { display: flex !important; flex-direction: column; padding: 0 !important; gap: 0 !important; }
+body.gc-keyboard-open .gc-brandbar { flex: 0 0 auto; }
+body.gc-keyboard-open .gc-conversation { border-radius: 0 !important; }
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+  .gc-intro { display: none; }
 }
-
-/* 品牌顶部及留言入口属于模板，固定留言动作由官方SDK处理；技术支持仅由宿主显示。 */
-.gc-template-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:0 0 auto;min-height:40px;margin-bottom:10px;color:var(--gc-primary);font-size:12px;font-weight:600}.gc-leave-message{min-height:36px;flex-shrink:0;border:1px solid currentColor;border-radius:8px;background:transparent;color:inherit;padding:7px 12px;font-size:12px;line-height:1.4}.gc-leave-message:hover{background:#ffffff88}
-@media(max-width:600px){.gc-template-header{min-height:32px;margin-bottom:8px;font-size:11px}.gc-leave-message{padding:5px 10px;font-size:11px}}
-@media(max-height:560px){.gc-template-header{min-height:28px;margin-bottom:5px}.gc-leave-message{min-height:28px;padding:3px 8px}}
-.gc-template-header>span:first-child{margin-right:auto}
+/* 顾问回复与快捷咨询分成独立视觉层，沿用官方生成的同一消息结构。 */
+body:is([data-gc-preview-industry="medical"], [data-gc-preview-industry="property"], [data-gc-preview-industry="business"], [data-gc-preview-industry="gaming"], [data-gc-preview-industry="education"]) .gc-message:has(> .gc-message-options) {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+body:is([data-gc-preview-industry="medical"], [data-gc-preview-industry="property"], [data-gc-preview-industry="business"], [data-gc-preview-industry="gaming"], [data-gc-preview-industry="education"]) .gc-message:has(> .gc-message-options) > .gc-message-body {
+  padding: 15px 19px;
+  background: var(--gc-peer);
+  border-radius: inherit;
+}
+@media (max-width: 700px) {
+  body:is([data-gc-preview-industry="medical"], [data-gc-preview-industry="property"], [data-gc-preview-industry="business"], [data-gc-preview-industry="gaming"], [data-gc-preview-industry="education"]) .gc-message:has(> .gc-message-options) > .gc-message-body {
+    padding: 11px 13px;
+  }
+}
+/* 没有输入提示时不预留空白，客服正在输入的真实文案仍按原样显示。 */
+#gc-typing:empty {
+  display: none;
+}

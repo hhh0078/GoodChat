@@ -1,4 +1,4 @@
-// 文件作用说明：验证六行业固定SDK模板、破坏性输入、旧模板导出闭环和纯内存预览动作。
+// 文件作用说明：验证七行业固定SDK模板、破坏性输入、旧模板导出闭环和纯内存预览动作。
 package decoration
 
 import (
@@ -19,14 +19,14 @@ func templateFileMap(pkg *staticPackage) map[string]packageFile {
 	return files
 }
 
-// TestIndustryTemplatePackages 六个行业全部经过真实转换和SDK版本校验，并可ZIP导出后重导入。
+// TestIndustryTemplatePackages 七个行业全部经过真实转换和SDK版本校验，并可ZIP导出后重导入。
 func TestIndustryTemplatePackages(t *testing.T) {
 	scripts := defaultTemplateScripts()
 	if err := validateTemplateScripts(scripts); err != nil {
 		t.Fatal(err)
 	}
-	if len(industryTemplateCatalog()) != 6 {
-		t.Fatal("官方目录必须包含六个行业")
+	if len(industryTemplateCatalog()) != 7 {
+		t.Fatal("官方目录必须包含七个行业")
 	}
 	for _, industry := range industryTemplateCatalog() {
 		t.Run(industry.Key, func(t *testing.T) {
@@ -132,6 +132,7 @@ func TestTemplateBuildNormalizesInitialHidden(t *testing.T) {
 		t.Fatal(err)
 	}
 	generated := []TemplateFile{}
+	assets := []packageFile{}
 	rawZIPFiles := map[string][]byte{}
 	for _, file := range pkg.Files {
 		content := file.Content
@@ -139,14 +140,19 @@ func TestTemplateBuildNormalizesInitialHidden(t *testing.T) {
 			content = []byte(strings.ReplaceAll(string(content), ` hidden=""`, ""))
 		}
 		rawZIPFiles[file.Path] = content
-		if !isProtectedTemplatePath(file.Path) {
+		if isProtectedTemplatePath(file.Path) {
+			continue
+		}
+		if strings.HasPrefix(file.ContentType, "text/") || file.ContentType == "application/json" {
 			generated = append(generated, TemplateFile{Path: file.Path, Content: string(content)})
+		} else {
+			assets = append(assets, file)
 		}
 	}
 	if _, err := readStaticZIP(zipFixture(t, rawZIPFiles, 0), "index.html"); err == nil {
 		t.Fatal("ZIP导入不得自动补齐隐藏属性后绕过严格校验")
 	}
-	rebuilt, err := buildTemplatePackage("index.html", generated, scripts)
+	rebuilt, err := buildTemplatePackageAssets("index.html", generated, scripts, assets)
 	if err != nil {
 		t.Fatalf("构建器应固化三个既有平台控件的初始隐藏状态：%v", err)
 	}
@@ -164,7 +170,7 @@ func TestTemplateBuildNormalizesInitialHidden(t *testing.T) {
 				broken[i].Content = strings.Replace(broken[i].Content, alteration.old, alteration.next, 1)
 			}
 		}
-		if _, err := buildTemplatePackage("index.html", broken, scripts); err == nil {
+		if _, err := buildTemplatePackageAssets("index.html", broken, scripts, assets); err == nil {
 			t.Fatal("初始隐藏规范化不能放过缺节点、错误类型或重复ID")
 		}
 	}

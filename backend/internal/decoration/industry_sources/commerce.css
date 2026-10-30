@@ -1,0 +1,346 @@
+/* 文件作用说明：忠实实现已确认电商白橙设计稿，生活摄影占左侧，手机只保留品牌与短幅商品图。 */
+:root {
+  --gc-primary: #ff622e;
+  --gc-background: #fff;
+  --gc-surface: #fff;
+  --gc-ink: #1b1c1e;
+  --gc-muted: #9198a3;
+  --gc-border: #eceef1;
+  --gc-peer: #f2f3f5;
+  --gc-composer: #f5f6f7;
+}
+.commerce-layout {
+  display: grid;
+  grid-template-columns: 41.5% minmax(0, 1fr);
+  max-width: 1920px;
+}
+.commerce-scene {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: #f5f0e7;
+}
+.commerce-hero-image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% center;
+}
+.commerce-brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  flex: 0 0 auto;
+  min-height: 118px;
+  padding: 26px 28px;
+}
+.commerce-logo {
+  flex-shrink: 0;
+  width: 57px;
+  height: 66px;
+  object-fit: contain;
+}
+.commerce-brand-copy {
+  min-width: 0;
+}
+.commerce-brand-copy strong {
+  display: block;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+.commerce-brand-copy small {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #8a8781;
+  white-space: nowrap;
+}
+.commerce-brand > .gc-leave-message {
+  margin-left: auto;
+  padding: 8px 13px;
+  min-height: 39px;
+  border-color: #d5d0c7;
+  border-radius: 12px;
+  background: #ffffff56;
+  color: #292929;
+  font-size: 13px;
+}
+.commerce-brand > .gc-leave-message:hover {
+  background: #fff;
+}
+.commerce-introduction {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  padding: 32px 36px 0;
+}
+.commerce-introduction h1 {
+  margin: 0;
+  font-size: clamp(44px, 4.6vw, 62px);
+  font-weight: 700;
+  line-height: 1.32;
+  letter-spacing: -0.05em;
+}
+.commerce-introduction h1 span {
+  display: block;
+  white-space: nowrap;
+}
+.commerce-introduction h1 span:last-child {
+  color: #ff622e;
+}
+.commerce-introduction p {
+  margin: 22px 0 0;
+  color: #7e7b76;
+  font-size: 21px;
+  line-height: 1.5;
+}
+.commerce-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: #fff;
+}
+.commerce-workspace .gc-chat-heading {
+  min-height: 91px;
+  padding: 20px 36px;
+  border-bottom: 0;
+}
+.commerce-workspace #gc-messages {
+  border-top: 1px solid #eef0f3;
+  margin: 0 28px;
+  padding: 27px 5px 12px;
+}
+.commerce-workspace .gc-message {
+  border-radius: 15px;
+  background: #f2f3f5;
+}
+.commerce-workspace .gc-own .gc-message {
+  background: #ff622e;
+}
+.commerce-workspace .gc-welcome-option {
+  min-height: 36px;
+  padding: 6px 14px;
+  border-color: #ffe1c4;
+  background: #fff0e0;
+  color: #ed793d;
+  font-size: 13px;
+}
+.commerce-workspace .gc-composer-area {
+  padding-top: 8px;
+}
+.commerce-workspace .gc-emoji-button {
+  display: none;
+}
+.commerce-workspace #gc-add {
+  border: 1px solid #e9edf1;
+  border-radius: 50%;
+  background: #fff;
+  min-width: 44px;
+}
+.commerce-workspace #gc-send {
+  background: #ff622e;
+}
+.commerce-workspace .gc-preview-support {
+  padding-top: 7px;
+}
+@media (max-width: 1100px) and (min-width: 901px) {
+  .commerce-brand {
+    padding: 24px 20px;
+    gap: 9px;
+  }
+  .commerce-logo {
+    width: 45px;
+    height: 51px;
+  }
+  .commerce-brand-copy strong {
+    font-size: 23px;
+  }
+  .commerce-brand-copy small {
+    font-size: 10px;
+  }
+  .commerce-brand > .gc-leave-message {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  .commerce-introduction {
+    padding-left: 28px;
+  }
+}
+@media (max-width: 900px) {
+  .commerce-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .commerce-scene {
+    flex: 0 0 216px;
+    min-height: 216px;
+    overflow: hidden;
+  }
+  .commerce-brand {
+    min-height: 66px;
+    height: 66px;
+    padding: 9px 17px;
+    gap: 9px;
+    background: #fff;
+  }
+  .commerce-logo {
+    width: 38px;
+    height: 46px;
+  }
+  .commerce-brand-copy strong {
+    font-size: 21px;
+    letter-spacing: -0.035em;
+  }
+  .commerce-brand-copy small {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+  .commerce-brand > .gc-leave-message {
+    min-height: 34px;
+    padding: 5px 11px;
+    border-radius: 11px;
+    font-size: 11px;
+  }
+  .commerce-hero-image {
+    top: 66px;
+    height: 150px;
+    object-position: center 60%;
+  }
+  .commerce-introduction {
+    display: none;
+  }
+  .commerce-workspace {
+    flex: 1 1 0;
+  }
+  .commerce-workspace .gc-chat-heading {
+    min-height: 55px;
+    padding: 12px 18px;
+    gap: 13px;
+  }
+  .commerce-workspace .gc-chat-heading strong {
+    font-size: 17px;
+  }
+  .commerce-workspace .gc-service-button {
+    min-height: 30px;
+    font-size: 10px;
+  }
+  .commerce-workspace #gc-status {
+    font-size: 10px;
+  }
+  .commerce-workspace #gc-messages {
+    margin: 0 17px;
+    padding: 18px 0 8px;
+  }
+  .commerce-workspace .gc-welcome-option {
+    min-height: 33px;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+  .commerce-workspace .gc-composer-area {
+    padding-top: 5px;
+  }
+  .commerce-workspace #gc-add {
+    min-width: 36px;
+    height: 37px;
+  }
+}
+@media (max-width: 370px) {
+  .commerce-brand {
+    gap: 7px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .commerce-logo {
+    width: 32px;
+  }
+  .commerce-brand-copy strong {
+    font-size: 18px;
+  }
+  .commerce-brand-copy small {
+    font-size: 9px;
+  }
+  .commerce-brand > .gc-leave-message {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+}
+@media (max-height: 560px) {
+  .commerce-layout {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    grid-template-rows: none;
+  }
+  .commerce-scene {
+    flex: 0 0 auto;
+    min-height: 0;
+    height: auto;
+  }
+  .commerce-brand {
+    min-height: 38px;
+    height: 38px;
+    padding: 4px 12px;
+    background: #fff;
+  }
+  .commerce-logo {
+    width: 28px;
+    height: 30px;
+  }
+  .commerce-brand-copy strong {
+    font-size: 16px;
+  }
+  .commerce-brand > .gc-leave-message {
+    min-height: 29px;
+    padding: 3px 9px;
+    font-size: 11px;
+  }
+  .commerce-workspace {
+    flex: 1 1 0;
+  }
+  .commerce-workspace .gc-chat-heading {
+    min-height: 38px;
+    padding: 6px 12px;
+  }
+  .commerce-workspace .gc-chat-heading strong {
+    font-size: 16px;
+  }
+}
+body.gc-keyboard-open .commerce-scene {
+  flex: 0 0 auto;
+  min-height: 0;
+  height: auto;
+}
+body.gc-keyboard-open .commerce-brand {
+  min-height: 38px;
+  height: 38px;
+  padding: 4px 12px;
+  background: #fff;
+}
+body.gc-keyboard-open .commerce-logo {
+  width: 28px;
+  height: 30px;
+}
+body.gc-keyboard-open .commerce-brand-copy strong {
+  font-size: 16px;
+}
+body.gc-keyboard-open .commerce-brand-copy small {
+  display: none;
+}
+body.gc-keyboard-open .commerce-workspace {
+  flex: 1 1 0;
+}
+body.gc-keyboard-open .commerce-workspace .gc-chat-heading {
+  min-height: 38px;
+  padding: 6px 12px;
+}

@@ -10,11 +10,12 @@ import (
 
 // renderSnapshot 只包含公开或短期授权的静态设计元数据，不含任何客户或管理员凭证。
 type renderSnapshot struct {
-	RenderMode string          `json:"render_mode"`
-	Design     json.RawMessage `json:"design"`
-	Entrypoint string          `json:"package_entrypoint"`
-	Manifest   []packageFile   `json:"package_manifest"`
-	Ephemeral  bool            `json:"ephemeral_package"`
+	RenderMode  string          `json:"render_mode"`
+	Design      json.RawMessage `json:"design"`
+	Entrypoint  string          `json:"package_entrypoint"`
+	Manifest    []packageFile   `json:"package_manifest"`
+	Ephemeral   bool            `json:"ephemeral_package"`
+	EditorNonce string          `json:"editor_nonce"`
 }
 
 // packagePrefix 将预览令牌固定到资源目录，嵌套相对import和url不依赖第三方Cookie或查询参数传递。
@@ -121,6 +122,14 @@ func (s *Service) renderPackageAsset(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			sdk = templateBootScript(parent, id, preview)
+		}
+		if preview && snapshot.Ephemeral && snapshot.EditorNonce != "" && name == snapshot.Entrypoint {
+			sdk += "\n" + editorPreviewBoot(parent, id, snapshot.EditorNonce)
+			raw, err = markEditorDocument(raw)
+			if err != nil {
+				http.Error(w, "编辑文档校验失败", http.StatusUnprocessableEntity)
+				return
+			}
 		}
 		raw, err = packageHTML(raw, name, prefix, nonce, sdk, files, code)
 	} else if strings.HasPrefix(mime, "text/css") {

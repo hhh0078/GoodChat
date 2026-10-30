@@ -12,6 +12,7 @@ import (
 
 // registerPlatformTemplatePackages 注册仅平台管理员可执行的官方模板初始化及显式私有作品上架接口。
 func (s *Service) registerPlatformTemplatePackages(mux *http.ServeMux) {
+	s.registerPlatformTemplateLifecycle(mux)
 	mux.HandleFunc("POST /api/v1/platform/template-industries/{key}/copy", s.auth.RequirePlatform(s.createPlatformIndustryTemplate))
 	mux.HandleFunc("POST /api/v1/platform/templates/from-private", s.auth.RequirePlatform(s.publishPrivatePlatformTemplate))
 }
@@ -155,7 +156,7 @@ func (s *Service) createPlatformIndustryTemplate(w http.ResponseWriter, r *http.
 		if _, err := tx.Exec(r.Context(), "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", "platform-template-industry:"+key); err != nil {
 			return nil, err
 		}
-		existing, err := record(r.Context(), tx, "SELECT to_jsonb(t) FROM platform_templates t WHERE industry_key=$1", key)
+		existing, err := record(r.Context(), tx, "SELECT to_jsonb(t) FROM platform_templates t WHERE industry_key=$1 AND archived_at IS NULL", key)
 		if err == nil {
 			return existing, nil
 		}

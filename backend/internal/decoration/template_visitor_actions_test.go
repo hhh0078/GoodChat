@@ -12,12 +12,15 @@ import (
 // TestTemplateVisitorActionDeclarations 拒绝任意动作和混合声明，允许模板用固定动作直接绑定留言与评价。
 func TestTemplateVisitorActionDeclarations(t *testing.T) {
 	for _, action := range []string{"leave-message", "evaluation"} {
-		_, files := templateWithActionButton(t, `<button type="button" data-gc-action="`+action+`">固定访客动作</button>`)
-		if _, err := buildTemplatePackage("index.html", files, defaultTemplateScripts()); err != nil {
+		_, files, assets := templateWithActionButton(t, `<button type="button" data-gc-action="`+action+`">固定访客动作</button>`)
+		if _, err := buildTemplatePackageAssets("index.html", files, defaultTemplateScripts(), assets); err != nil {
 			t.Fatalf("固定访客动作%s不能打包：%v", action, err)
 		}
 	}
-	legacy, _ := industryTemplatePackage("finance", defaultTemplateScripts())
+	legacy, err := industryTemplatePackage("finance", defaultTemplateScripts())
+	if err != nil {
+		t.Fatal(err)
+	}
 	legacyFiles := templateFileMap(legacy)
 	oldSDK := legacyFiles[templateSDKPath]
 	oldSDK.Content = []byte(strings.ReplaceAll(string(oldSDK.Content), "openLeaveMessage", "oldUnsupportedAction"))
@@ -26,8 +29,8 @@ func TestTemplateVisitorActionDeclarations(t *testing.T) {
 		t.Fatal("不能把留言按钮绑定到不支持该方法的旧SDK")
 	}
 	for _, button := range []string{`<button type="button" data-gc-action="">空动作</button>`, `<button type="button" data-gc-action="submit-payment">越权动作</button>`, `<button type="button" data-gc-action="leave-message" data-gc-send="伪装发送">混合动作</button>`} {
-		_, files := templateWithActionButton(t, button)
-		if _, err := buildTemplatePackage("index.html", files, defaultTemplateScripts()); err == nil {
+		_, files, assets := templateWithActionButton(t, button)
+		if _, err := buildTemplatePackageAssets("index.html", files, defaultTemplateScripts(), assets); err == nil {
 			t.Fatal("非法动作或双重动作不能被新模板接受")
 		}
 	}
@@ -70,7 +73,7 @@ const nodes=[];
 /** PreviewNode 仅模拟原生对话框生命周期，不模拟业务接口。 */
 class PreviewNode {
  /** constructor 建立仅供预览生命周期断言的DOM节点替身。 */
- constructor(tag){this.tag=tag;this.handlers={};this.children=[];this.open=false;this.removed=false;nodes.push(this)}
+ constructor(tag){this.tag=tag;this.dataset={};this.handlers={};this.children=[];this.open=false;this.removed=false;nodes.push(this)}
  /** append 保留说明与关闭按钮的顺序。 */
  append(...children){this.children.push(...children)}
  /** addEventListener 记录本地界面事件，不创建网络回调。 */

@@ -1,0 +1,486 @@
+/* 文件作用说明：忠实实现已确认教育书刊设计稿，以书桌摄影、暖纸白和墨绿开放聊天取代套娃卡片。 */
+:root {
+  --gc-primary: #285849;
+  --gc-background: #fbf9f3;
+  --gc-surface: #fbf9f3;
+  --gc-ink: #24392e;
+  --gc-muted: #939b9d;
+  --gc-border: #e1dfd5;
+  --gc-peer: #fff;
+  --gc-composer: #f4f4f4;
+}
+.education-layout {
+  display: flex;
+  flex-direction: column;
+  max-width: 1920px;
+  background: #fbf9f3;
+}
+.education-brand {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  flex: 0 0 auto;
+  min-height: 78px;
+  padding: 17px 42px;
+  background: #fcfaf4;
+}
+.education-wordmark {
+  font-family: "Songti SC", "Noto Serif CJK SC", SimSun, serif;
+  font-size: 28px;
+  line-height: 1.25;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.education-tagline {
+  padding-left: 24px;
+  border-left: 1px solid #afa896;
+  font-family: "Songti SC", SimSun, serif;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: #7c8072;
+}
+.education-brand > .gc-leave-message {
+  margin-left: auto;
+  min-height: 38px;
+  padding: 7px 17px;
+  border-color: #3f695a;
+  border-radius: 23px;
+  color: #315a4b;
+  background: transparent;
+  font-size: 13px;
+}
+.education-hero {
+  position: relative;
+  flex: 0 0 220px;
+  min-height: 220px;
+  overflow: hidden;
+}
+.education-hero-image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 48%;
+}
+.education-introduction {
+  position: absolute;
+  top: 36px;
+  left: 42px;
+  right: 45%;
+}
+.education-introduction h1 {
+  margin: 0;
+  font-family: "Songti SC", "Noto Serif CJK SC", SimSun, serif;
+  font-size: 54px;
+  font-weight: 550;
+  line-height: 1.4;
+  letter-spacing: -0.04em;
+}
+.education-introduction h1 > span {
+  display: inline;
+  white-space: nowrap;
+}
+.education-introduction h1 em {
+  font-style: normal;
+  color: #dda928;
+}
+.education-introduction > p {
+  margin: 17px 0 0;
+  font-family: "Songti SC", SimSun, serif;
+  font-size: 18px;
+  line-height: 1.65;
+  letter-spacing: 0.025em;
+  color: #74796c;
+}
+.education-content {
+  display: grid;
+  grid-template-columns: minmax(0, 70%) minmax(0, 1fr);
+  flex: 1 1 0;
+  min-height: 0;
+}
+.education-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.education-workspace .gc-chat-heading {
+  min-height: 76px;
+  margin: 0 33px;
+  padding: 20px 8px 16px;
+  border-bottom-color: #e0ded5;
+}
+.education-workspace .gc-chat-heading strong {
+  color: #27372d;
+}
+.education-workspace .gc-service-button {
+  color: #7a8c79;
+}
+.education-workspace #gc-messages {
+  padding: 27px 37px 8px;
+}
+.education-workspace .gc-message {
+  background: #fff;
+  box-shadow: 0 4px 16px #76664c04;
+}
+.education-workspace .gc-own .gc-message {
+  background: #285849;
+  color: #fff;
+}
+.education-workspace .gc-welcome-option {
+  padding: 8px 17px;
+  border-color: #3d6b5a;
+  background: transparent;
+  color: #315b4b;
+  border-radius: 24px;
+}
+.education-workspace .gc-composer-area {
+  margin: 0 28px 12px;
+  padding: 6px 10px;
+  border: 1px solid #ece8de;
+  border-radius: 31px;
+  background: #fff;
+  box-shadow: 0 2px 6px #76664c05;
+}
+.education-workspace #gc-typing {
+  min-height: 0;
+  margin: 0;
+}
+.education-workspace .gc-capsule {
+  gap: 10px;
+}
+.education-workspace #gc-add {
+  min-width: 35px;
+  padding: 4px;
+}
+.education-workspace #gc-text {
+  background: #f5f5f5;
+  border-color: transparent;
+  font-size: 15px;
+}
+.education-workspace #gc-send {
+  min-width: 85px;
+  height: 42px;
+  background: #285849;
+}
+.education-workspace .gc-emoji-button {
+  display: none;
+}
+.education-workspace .gc-preview-support {
+  padding: 0 37px 19px;
+  text-align: left;
+}
+.education-notes {
+  min-height: 0;
+  overflow: auto;
+  margin: 35px 0 33px;
+  padding: 9px 35px 0 34px;
+  border-left: 1px solid #d2c3a3;
+}
+.education-notes h2 {
+  margin: 0;
+  font-family: "Songti SC", SimSun, serif;
+  font-size: 25px;
+  font-weight: 500;
+  line-height: 1.65;
+  letter-spacing: -0.02em;
+}
+.education-note-rule {
+  display: block;
+  width: 42px;
+  margin: 22px 0 34px;
+  border-bottom: 2px solid #d7ac3f;
+}
+.education-prompts {
+  display: grid;
+  gap: 41px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.education-prompts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.education-prompts li > span {
+  flex: 0 0 45px;
+  padding-top: 3px;
+  font-family: Georgia, serif;
+  font-size: 34px;
+  font-style: italic;
+  line-height: 1.15;
+  color: #536941;
+}
+.education-prompts h3 {
+  margin: 0 0 7px;
+  color: #29362c;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.55;
+}
+.education-prompts p {
+  margin: 0;
+  color: #949b9b;
+  font-size: 12px;
+  line-height: 1.75;
+}
+@media (max-width: 1100px) and (min-width: 901px) {
+  .education-brand {
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+  .education-introduction {
+    left: 32px;
+  }
+  .education-introduction h1 {
+    font-size: 50px;
+  }
+  .education-introduction > p {
+    font-size: 16px;
+  }
+  .education-notes {
+    padding-left: 23px;
+    padding-right: 20px;
+  }
+  .education-notes h2 {
+    font-size: 22px;
+  }
+  .education-prompts {
+    gap: 30px;
+  }
+  .education-prompts li {
+    gap: 10px;
+  }
+  .education-prompts li > span {
+    flex-basis: 34px;
+    font-size: 29px;
+  }
+  .education-prompts h3 {
+    font-size: 13px;
+  }
+  .education-prompts p {
+    font-size: 11px;
+  }
+}
+@media (max-width: 900px) {
+  .education-brand {
+    min-height: 59px;
+    padding: 12px 20px;
+    gap: 10px;
+  }
+  .education-wordmark {
+    font-size: 23px;
+    letter-spacing: 0.02em;
+  }
+  .education-tagline {
+    display: none;
+  }
+  .education-brand > .gc-leave-message {
+    min-height: 33px;
+    padding: 5px 13px;
+    font-size: 11px;
+  }
+  .education-hero {
+    flex-basis: 185px;
+    min-height: 185px;
+  }
+  .education-hero-image {
+    object-position: left 45%;
+  }
+  .education-introduction {
+    top: 23px;
+    left: 21px;
+    right: 38%;
+  }
+  .education-introduction h1 {
+    font-size: 32px;
+    line-height: 1.3;
+    letter-spacing: -0.03em;
+  }
+  .education-introduction h1 > span {
+    display: block;
+  }
+  .education-introduction > p {
+    margin-top: 14px;
+    font-size: 11px;
+    line-height: 1.8;
+    letter-spacing: 0;
+  }
+  .education-content {
+    display: flex;
+    flex-direction: column;
+  }
+  .education-workspace {
+    flex: 1 1 0;
+  }
+  .education-notes {
+    display: none;
+  }
+  .education-workspace .gc-chat-heading {
+    min-height: 56px;
+    margin: 0 19px;
+    padding: 13px 0;
+    gap: 13px;
+  }
+  .education-workspace .gc-chat-heading strong {
+    font-size: 17px;
+  }
+  .education-workspace #gc-status {
+    font-size: 10px;
+  }
+  .education-workspace .gc-service-button {
+    min-height: 30px;
+    font-size: 10px;
+  }
+  .education-workspace #gc-messages {
+    padding: 18px 18px 6px;
+  }
+  .education-workspace .gc-welcome-option {
+    min-height: 35px;
+    padding: 7px 14px;
+    font-size: 12px;
+  }
+  .education-workspace .gc-composer-area {
+    margin: 0 10px 10px;
+    padding: 5px 6px;
+    border-radius: 27px;
+  }
+  .education-workspace .gc-capsule {
+    gap: 5px;
+  }
+  .education-workspace #gc-add {
+    min-width: 31px;
+  }
+  .education-workspace #gc-text {
+    min-height: 37px;
+    padding: 7px 10px;
+    font-size: 16px;
+  }
+  .education-workspace #gc-send {
+    min-width: 68px;
+    height: 37px;
+  }
+  .education-workspace .gc-preview-support {
+    padding: 0 15px 13px;
+    text-align: center;
+  }
+}
+@media (max-width: 370px) {
+  .education-brand {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  .education-wordmark {
+    font-size: 21px;
+  }
+  .education-introduction {
+    right: 36%;
+    left: 17px;
+  }
+  .education-introduction h1 {
+    font-size: 29px;
+  }
+  .education-introduction > p {
+    font-size: 10px;
+  }
+}
+@media (max-height: 720px) and (min-width: 901px) {
+  .education-hero {
+    flex-basis: 165px;
+    min-height: 165px;
+  }
+  .education-introduction {
+    top: 22px;
+  }
+  .education-introduction h1 {
+    font-size: 37px;
+  }
+  .education-introduction > p {
+    margin-top: 10px;
+    font-size: 15px;
+  }
+  .education-notes {
+    margin-top: 20px;
+  }
+  .education-notes h2 {
+    font-size: 22px;
+  }
+  .education-note-rule {
+    margin-top: 15px;
+    margin-bottom: 23px;
+  }
+  .education-prompts {
+    gap: 23px;
+  }
+}
+@media (max-height: 560px) {
+  .education-layout {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    grid-template-rows: none;
+  }
+  .education-brand {
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 4px 12px;
+  }
+  .education-wordmark {
+    font-size: 20px;
+  }
+  .education-brand > .gc-leave-message {
+    min-height: 28px;
+    padding: 3px 10px;
+    font-size: 11px;
+  }
+  .education-tagline {
+    display: none;
+  }
+  .education-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .education-workspace {
+    flex: 1 1 0;
+  }
+  .education-workspace .gc-chat-heading {
+    min-height: 38px;
+    margin: 0 12px;
+    padding: 6px 0;
+  }
+  .education-workspace .gc-chat-heading strong {
+    font-size: 16px;
+  }
+  .education-workspace .gc-composer-area {
+    margin-bottom: 6px;
+  }
+}
+body.gc-keyboard-open .education-brand {
+  min-height: 38px;
+  padding: 4px 12px;
+}
+body.gc-keyboard-open .education-wordmark {
+  font-size: 20px;
+}
+body.gc-keyboard-open .education-tagline {
+  display: none;
+}
+body.gc-keyboard-open .education-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+body.gc-keyboard-open .education-workspace {
+  flex: 1 1 0;
+}
+body.gc-keyboard-open .education-workspace .gc-chat-heading {
+  min-height: 38px;
+  margin: 0 12px;
+  padding: 6px 0;
+}

@@ -1,0 +1,124 @@
+<!-- 文件作用说明：还原已确认房产设计稿，以暖砂杂志排版、真实室内摄影和开放式聊天提供居住需求咨询。 -->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>栖居 · 空间咨询</title>
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body data-gc-preview-industry="property">
+    <main
+      class="gc-layout gc-industry-property property-layout"
+      data-gc-edit-id="property-layout"
+    >
+      <header
+        class="gc-brandbar property-brand"
+        data-gc-edit-id="property-brand"
+      >
+        <div class="property-identity" data-gc-edit-id="property-identity">
+          <strong data-gc-edit-id="property-brand-name">栖居 · 空间咨询</strong>
+          <span
+            class="property-brand-caption gc-secondary"
+            data-gc-edit-id="property-brand-caption"
+            >关于居住，慢慢聊</span
+          >
+        </div>
+        <div
+          class="property-header-actions"
+          data-gc-edit-id="property-header-actions"
+        >
+          <button
+            class="gc-leave-message"
+            type="button"
+            data-gc-action="leave-message"
+            data-gc-edit-id="leave-message"
+          >
+            <span data-gc-edit-id="property-leave-label">留下留言</span>
+          </button>
+          <button
+            class="gc-leave-message"
+            type="button"
+            data-gc-action="evaluation"
+            data-gc-edit-id="property-evaluation"
+            hidden
+          >
+            <span data-gc-edit-id="property-evaluation-label">服务评价</span>
+          </button>
+        </div>
+      </header>
+      <figure
+        class="property-scene gc-decoration"
+        data-gc-edit-id="property-scene"
+      >
+        <img
+          class="property-photo"
+          src="static/assets/property-hero.webp"
+          alt="暖阳下的落地窗、城市景观与奶油色客厅"
+          data-gc-edit-id="property-hero-image"
+        />
+        <figcaption
+          class="property-photo-caption"
+          data-gc-edit-id="property-photo-caption"
+        >
+          <span data-gc-edit-id="property-photo-caption-one">让空间，</span
+          ><span data-gc-edit-id="property-photo-caption-two">回应生活</span>
+        </figcaption>
+      </figure>
+      <section
+        class="property-workspace"
+        data-gc-edit-id="property-workspace"
+        aria-label="居住需求咨询"
+      >
+        <div
+          class="property-introduction gc-decoration"
+          data-gc-edit-id="property-introduction"
+        >
+          <h1 data-gc-edit-id="property-title">
+            <span data-gc-edit-id="property-title-one">好的生活，</span
+            ><span data-gc-edit-id="property-title-two">始于一次对话</span>
+          </h1>
+          <p class="property-subtitle" data-gc-edit-id="property-subtitle">
+            <span data-gc-edit-id="property-subtitle-one">看房流程</span
+            ><span data-gc-edit-id="property-subtitle-two">与居住需求咨询</span>
+          </p>
+        </div>
+        <nav
+          class="gc-service-entries property-services"
+          aria-label="房产服务咨询"
+          data-gc-edit-id="property-services"
+        >
+          <div
+            class="property-service-links"
+            data-gc-edit-id="property-service-links"
+          >
+            <button
+              type="button"
+              data-gc-send="我想先了解看房流程。"
+              data-gc-edit-id="property-process"
+            >
+              <span data-gc-edit-id="property-process-label">看房流程</span>
+            </button>
+            <span
+              class="property-service-divider"
+              aria-hidden="true"
+              data-gc-edit-id="property-service-divider"
+            ></span>
+            <button
+              type="button"
+              data-gc-send="我想与顾问沟通居住需求。"
+              data-gc-edit-id="property-needs"
+            >
+              <span data-gc-edit-id="property-needs-label">沟通需求</span>
+            </button>
+          </div>
+        </nav>
+        {{CHAT}}
+      </section>
+    </main>
+    {{SERVICE_DIALOG}}{{SCRIPTS}}
+  </body>
+</html>

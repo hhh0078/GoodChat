@@ -7,25 +7,29 @@ import (
 	"testing"
 )
 
-// templateWithActionButton 在有效模板中插入一个待测试业务或本地界面按钮。
-func templateWithActionButton(t *testing.T, button string) (*staticPackage, []TemplateFile) {
+// templateWithActionButton 保留真实模板的二进制素材，在稳定的主区域末尾插入待测按钮。
+func templateWithActionButton(t *testing.T, button string) (*staticPackage, []TemplateFile, []packageFile) {
 	t.Helper()
 	pkg, err := industryTemplatePackage("finance", defaultTemplateScripts())
 	if err != nil {
 		t.Fatal(err)
 	}
-	files := []TemplateFile{}
-	for _, file := range pkg.Files {
-		if isProtectedTemplatePath(file.Path) {
-			continue
-		}
-		text := string(file.Content)
-		if file.Path == "index.html" {
-			text = strings.Replace(text, `<nav class="gc-service-entries"`, button+`<nav class="gc-service-entries"`, 1)
-		}
-		files = append(files, TemplateFile{Path: file.Path, Content: text})
+	files, assets, err := assistantSplitBasePackage(pkg)
+	if err != nil {
+		t.Fatal(err)
 	}
-	return pkg, files
+	if _, err := buildTemplatePackageAssets("index.html", files, defaultTemplateScripts(), assets); err != nil {
+		t.Fatalf("插入待测按钮前的完整静态包必须有效：%v", err)
+	}
+	for i := range files {
+		if files[i].Path == "index.html" {
+			if strings.Count(files[i].Content, "</main>") != 1 {
+				t.Fatal("测试模板必须有唯一主区域，不能静默跳过按钮插入")
+			}
+			files[i].Content = strings.Replace(files[i].Content, "</main>", button+"</main>", 1)
+		}
+	}
+	return pkg, files, assets
 }
 
 // TestNewTemplateButtonsRequireActions 拒绝空按钮、只声明分期期数和无效动作，不替模型猜测业务消息。
@@ -44,8 +48,8 @@ func TestNewTemplateButtonsRequireActions(t *testing.T) {
 		"close outside dialog":   `<button type="button" data-dialog-close>关闭</button>`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, files := templateWithActionButton(t, button)
-			if _, err := buildTemplatePackage("index.html", files, defaultTemplateScripts()); err == nil {
+			_, files, assets := templateWithActionButton(t, button)
+			if _, err := buildTemplatePackageAssets("index.html", files, defaultTemplateScripts(), assets); err == nil {
 				t.Fatal("新模板的按钮缺少有效明确动作，不应被接受")
 			}
 		})
@@ -60,8 +64,8 @@ func TestNewTemplateExplicitActions(t *testing.T) {
 		"local UI":     `<button type="button" data-gc-ui="toggle_details">展开说明</button>`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, files := templateWithActionButton(t, button)
-			pkg, err := buildTemplatePackage("index.html", files, defaultTemplateScripts())
+			_, files, assets := templateWithActionButton(t, button)
+			pkg, err := buildTemplatePackageAssets("index.html", files, defaultTemplateScripts(), assets)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -74,11 +78,15 @@ func TestNewTemplateExplicitActions(t *testing.T) {
 
 // TestNewButtonRulesDoNotBlockExistingPackage 旧包仍可通过原静态校验和导出，但新导入入口会拒绝未绑定按钮。
 func TestNewButtonRulesDoNotBlockExistingPackage(t *testing.T) {
-	original, _ := templateWithActionButton(t, "")
+	original, _, _ := templateWithActionButton(t, "")
 	files := append([]packageFile(nil), original.Files...)
 	for i := range files {
 		if files[i].Path == "index.html" {
-			raw := strings.Replace(string(files[i].Content), `<nav class="gc-service-entries"`, `<button type="button" data-period="6">6个月</button><nav class="gc-service-entries"`, 1)
+			markup := string(files[i].Content)
+			if strings.Count(markup, "</main>") != 1 {
+				t.Fatal("测试模板必须有唯一主区域，确保旧按钮确实被插入")
+			}
+			raw := strings.Replace(markup, "</main>", `<button type="button" data-period="6">6个月</button></main>`, 1)
 			file, err := checkStaticFile("index.html", []byte(raw))
 			if err != nil {
 				t.Fatal(err)
@@ -114,18 +122,20 @@ func TestNewTemplateRejectsPermanentHiddenControls(t *testing.T) {
 			"commented style":   ` style="display:/*initial*/none"`,
 		} {
 			t.Run(id+"/"+name, func(t *testing.T) {
-				files := []TemplateFile{}
-				for _, file := range pkg.Files {
-					if isProtectedTemplatePath(file.Path) {
-						continue
-					}
-					text := string(file.Content)
-					if file.Path == "index.html" {
-						text = strings.Replace(text, `id="`+id+`"`, `id="`+id+`"`+attr, 1)
-					}
-					files = append(files, TemplateFile{Path: file.Path, Content: text})
+				files, assets, err := assistantSplitBasePackage(pkg)
+				if err != nil {
+					t.Fatal(err)
 				}
-				if _, err := buildTemplatePackage("index.html", files, defaultTemplateScripts()); err == nil {
+				for i := range files {
+					if files[i].Path == "index.html" {
+						marker := `id="` + id + `"`
+						if strings.Count(files[i].Content, marker) != 1 {
+							t.Fatal("测试必须修改唯一的真实固定控件", id)
+						}
+						files[i].Content = strings.Replace(files[i].Content, marker, marker+attr, 1)
+					}
+				}
+				if _, err := buildTemplatePackageAssets("index.html", files, defaultTemplateScripts(), assets); err == nil {
 					t.Fatal("不能接受SDK无法解除的永久隐藏样式")
 				}
 			})
@@ -159,18 +169,16 @@ func TestNewTemplateKeepsSDKHiddenAttribute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files := []TemplateFile{}
-	for _, file := range pkg.Files {
-		if isProtectedTemplatePath(file.Path) {
-			continue
-		}
-		text := string(file.Content)
-		if file.Path == "index.html" {
-			text = strings.Replace(text, `id="gc-reply-bar"`, `id="gc-reply-bar" class="custom-reply hidden-label"`, 1)
-		}
-		files = append(files, TemplateFile{Path: file.Path, Content: text})
+	files, assets, err := assistantSplitBasePackage(pkg)
+	if err != nil {
+		t.Fatal(err)
 	}
-	next, err := buildTemplatePackage("index.html", files, defaultTemplateScripts())
+	for i := range files {
+		if files[i].Path == "index.html" {
+			files[i].Content = strings.Replace(files[i].Content, `id="gc-reply-bar"`, `id="gc-reply-bar" class="custom-reply hidden-label"`, 1)
+		}
+	}
+	next, err := buildTemplatePackageAssets("index.html", files, defaultTemplateScripts(), assets)
 	if err != nil {
 		t.Fatal(err)
 	}

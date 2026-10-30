@@ -33,7 +33,7 @@ func (s *Service) previewTenantTemplate(w http.ResponseWriter, r *http.Request) 
 		err := tx.QueryRow(r.Context(), "SELECT render_mode,design FROM tenant_templates WHERE id=$1", id).Scan(&mode, &design)
 		if err == pgx.ErrNoRows {
 			sourceID = ""
-			err = tx.QueryRow(r.Context(), "SELECT render_mode,design FROM platform_templates WHERE id=$1 AND status='published'", id).Scan(&mode, &design)
+			err = tx.QueryRow(r.Context(), "SELECT render_mode,design FROM platform_templates WHERE id=$1 AND status='published' AND archived_at IS NULL", id).Scan(&mode, &design)
 		}
 		if err != nil {
 			return nil, err
@@ -53,7 +53,7 @@ func (s *Service) previewPlatformTemplate(w http.ResponseWriter, r *http.Request
 	s.tenant(w, r, func(tx pgx.Tx) (any, error) {
 		var mode string
 		var design json.RawMessage
-		if err := tx.QueryRow(r.Context(), "SELECT render_mode,design FROM platform_templates WHERE id=$1", id).Scan(&mode, &design); err != nil {
+		if err := tx.QueryRow(r.Context(), "SELECT render_mode,design FROM platform_templates WHERE id=$1 AND archived_at IS NULL", id).Scan(&mode, &design); err != nil {
 			return nil, err
 		}
 		return s.templatePreviewSnapshot(r.Context(), tx, platform.Current(r).TenantID, "", mode, design)

@@ -1,0 +1,127 @@
+<!-- 文件作用说明：按已确认电竞设计稿呈现黑曜青柠配色、真实耳机场馆摄影和左侧主聊天，手机采用短开场。 -->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>电竞 · 黑曜竞技服务</title>
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body data-gc-preview-industry="gaming">
+    <main
+      class="gc-layout gc-industry-gaming gaming-layout"
+      data-gc-edit-id="gaming-layout"
+    >
+      <header class="gc-brandbar gaming-brand" data-gc-edit-id="gaming-brand">
+        <div class="gaming-identity" data-gc-edit-id="gaming-identity">
+          <img
+            class="gaming-brand-icon"
+            src="static/assets/icon-headset.png"
+            alt=""
+            data-gc-edit-id="gaming-brand-icon"
+          />
+          <strong data-gc-edit-id="gaming-brand-name">黑曜竞技服务</strong>
+        </div>
+        <div
+          class="gaming-header-actions"
+          data-gc-edit-id="gaming-header-actions"
+        >
+          <button
+            type="button"
+            class="gc-leave-message"
+            data-gc-action="leave-message"
+            data-gc-edit-id="leave-message"
+          >
+            <img
+              class="gc-ui-icon"
+              src="static/assets/icon-message.png"
+              alt=""
+              data-gc-edit-id="gaming-leave-icon"
+            />
+            <span data-gc-edit-id="gaming-leave-label">留下留言</span>
+          </button>
+          <button
+            type="button"
+            class="gc-leave-message"
+            data-gc-action="evaluation"
+            data-gc-edit-id="gaming-evaluation"
+            hidden
+          >
+            <span data-gc-edit-id="gaming-evaluation-label">服务评价</span>
+          </button>
+        </div>
+      </header>
+      {{CHAT}}
+      <aside
+        class="gaming-scene gc-decoration"
+        aria-label="电竞服务咨询"
+        data-gc-edit-id="gaming-scene"
+      >
+        <figure class="gaming-photograph" data-gc-edit-id="gaming-photograph">
+          <img
+            src="static/assets/gaming-hero.webp"
+            alt="竞技场馆中的黑色耳机与机械键盘"
+            data-gc-edit-id="gaming-hero-image"
+          />
+        </figure>
+        <div class="gaming-introduction" data-gc-edit-id="gaming-introduction">
+          <h1 data-gc-edit-id="gaming-title">
+            <span data-gc-edit-id="gaming-title-first">好状态，</span>
+            <span data-gc-edit-id="gaming-title-last">马上开场。</span>
+          </h1>
+          <p
+            class="gaming-service-label"
+            data-gc-edit-id="gaming-service-label"
+          >
+            <span data-gc-edit-id="gaming-label-first">竞技服务</span>
+            <span aria-hidden="true" data-gc-edit-id="gaming-label-divider"
+              >·</span
+            >
+            <span data-gc-edit-id="gaming-label-last">在线响应</span>
+          </p>
+          <nav
+            class="gaming-scope gc-service-entries"
+            aria-label="电竞咨询方向"
+            data-gc-edit-id="gaming-scope"
+          >
+            <button
+              type="button"
+              data-gc-send="我想了解场馆服务"
+              data-gc-edit-id="gaming-venue"
+            >
+              <span data-gc-edit-id="gaming-venue-label">场馆咨询</span>
+            </button>
+            <span
+              aria-hidden="true"
+              data-gc-edit-id="gaming-scope-separator-one"
+              >/</span
+            >
+            <button
+              type="button"
+              data-gc-send="我想了解设备与使用服务"
+              data-gc-edit-id="gaming-equipment"
+            >
+              <span data-gc-edit-id="gaming-equipment-label">设备沟通</span>
+            </button>
+            <span
+              aria-hidden="true"
+              data-gc-edit-id="gaming-scope-separator-two"
+              >/</span
+            >
+            <button
+              type="button"
+              data-gc-send="我有一个服务问题需要帮助"
+              data-gc-edit-id="gaming-help"
+            >
+              <span data-gc-edit-id="gaming-help-label">服务帮助</span>
+            </button>
+          </nav>
+        </div>
+      </aside>
+    </main>
+    {{SERVICE_DIALOG}} {{SCRIPTS}}
+  </body>
+</html>

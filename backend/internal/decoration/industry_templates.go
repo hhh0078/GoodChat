@@ -1,10 +1,10 @@
-// 文件作用说明：提供六个行业的官方静态访客模板，以同一固定SDK接入聊天并物化为租户私有资源包。
+// 文件作用说明：提供七套人工编写且版式独立的行业访客模板，统一复用受保护的聊天SDK。
 package decoration
 
 import (
-	_ "embed"
+	"embed"
 	"fmt"
-	"html"
+	"path"
 	"strings"
 )
 
@@ -16,42 +16,39 @@ type IndustryTemplate struct {
 	Description string `json:"description"`
 }
 
-// industryTemplateStyle 保存各行业的品牌语气、版式与预先登记的普通咨询入口。
-type industryTemplateStyle struct {
-	IndustryTemplate
-	Kicker, Title, Subtitle, Notice, Accent, Background, Badge, Decoration string
-	Questions                                                              []string
-}
-
-// industryBaseCSS 为无需构建的行业模板提供响应布局和完整固定聊天节点样式。
+// industryBaseCSS 只共享消息、附件、输入与小视口的可用性样式，行业外壳各自独立。
 //
 //go:embed industry_base.css
 var industryBaseCSS string
 
-// industryTemplateStyles 返回具有行业辨识度的本地官方素材，内容不包含审批或资质承诺。
-func industryTemplateStyles() []industryTemplateStyle {
-	return []industryTemplateStyle{
-		{IndustryTemplate{"finance", "金融咨询 · 稳健蓝金", "金融", "咨询顾问、反诈提醒和方案沟通，蓝金配色与清晰风险提示。"}, "FINANCIAL CONSULTING", "每一步，都有专业回应", "金融服务在线咨询 · 为您解答产品与办理流程", "反诈提醒：请通过官方渠道核实身份，切勿向陌生账户转账或提供验证码。", "#234e70", "#edf3f8", "专属顾问 · 信息保护", `<div class="finance-scene"><div class="finance-orbit"></div><div class="finance-seal"><small>PRIVATE SERVICE</small><span>专属服务</span><strong>安心咨询</strong><i>✓</i></div><span class="art-caption">每一份托付 · 认真回应</span></div>`, []string{"了解产品方案", "咨询办理流程", "联系服务顾问"}},
-		{IndustryTemplate{"commerce", "电商售后 · 奶油橙", "电商", "围绕订单、物流和售后组织入口，让客户快速找到购物帮助。"}, "CUSTOMER CARE", "好物到家，服务也到家", "从下单到签收，我们都在这里", "温馨提示：查询订单时请提供订单编号，请勿发送支付密码或验证码。", "#a44722", "#fff6eb", "订单 · 配送 · 售后", `<div class="commerce-scene"><div class="commerce-parcel"><i class="parcel-tape"></i><span>GOOD<br>THINGS</span><small class="parcel-label">HANDLE WITH CARE<br>用心送达每一份期待</small></div><span class="parcel-tag">售后也有好服务 ↗</span></div>`, []string{"查询订单物流", "咨询退换货", "了解商品详情"}},
-		{IndustryTemplate{"education", "教育咨询 · 书页绿", "教育", "课程选择、学习计划和试听咨询，柔和纸张与知识卡片布局。"}, "LEARNING STARTS HERE", "找到适合你的成长节奏", "课程咨询、学习规划与报名帮助", "咨询提示：可以先说明学习阶段与目标，我们会为您介绍可选课程和服务。", "#386249", "#f2f4e9", "了解目标 / 匹配课程 / 开始学习", `<div class="education-scene"><div class="education-page"><span>Aa</span><i></i><i></i><i></i></div><div class="education-books"><b>LEARN</b><b>EXPLORE</b><b>GROW</b></div><small>每一次提问，都是新的开始</small></div>`, []string{"了解课程安排", "咨询试听体验", "获取学习规划"}},
-		{IndustryTemplate{"medical", "医疗服务 · 清透青", "医疗", "预约、科室和就诊流程导航，明确区分服务咨询与医疗诊断。"}, "CARE WITH YOU", "让每一次就诊，都更从容", "预约帮助 · 科室指引 · 就诊流程", "服务说明：在线客服提供预约与流程咨询，不能替代医生诊断；紧急情况请及时线下就医。", "#246b68", "#eef7f6", "预约指引 · 温暖服务", `<div class="medical-scene"><div class="medical-calendar"><small>CARE WITH YOU</small><strong>就诊服务</strong><div><i></i><i></i><i></i><i></i><i></i><i></i></div><span>让服务多一点温度</span></div><div class="medical-cross"><span>＋</span></div></div>`, []string{"了解预约流程", "咨询科室服务", "查看就诊准备"}},
-		{IndustryTemplate{"property", "房产顾问 · 岩砂棕", "房产", "围绕区域、户型和看房安排提供咨询入口，呈现建筑空间感。"}, "FIND YOUR PLACE", "关于家的期待，慢慢聊", "项目咨询、户型介绍与看房服务", "咨询提示：展示信息仅供沟通参考，具体房源、价格与交易条件以实际确认资料为准。", "#795941", "#f5f0e9", "空间 / 生活 / 归属", `<div class="property-scene"><div class="property-outline"></div><div class="property-building"><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="art-caption">A PLACE TO CALL HOME</span></div>`, []string{"了解在售项目", "咨询户型空间", "预约看房沟通"}},
-		{IndustryTemplate{"business", "企业服务 · 石墨黑", "企业服务", "以项目目标、交付流程和合作沟通为主线，简洁的企业服务工作室风格。"}, "LET’S BUILD TOGETHER", "把业务问题，变成下一步", "解决方案咨询 · 项目需求 · 合作沟通", "服务提示：请简要描述业务场景与目标，客服将协助您对接相应服务。", "#37434b", "#f1f3f4", "需求梳理 → 方案沟通 → 服务交付", `<div class="business-scene"><span class="business-caption">FROM IDEA TO IMPACT</span><div class="business-grid"><b><small>01</small>IDEA</b><b><small>02</small>PLAN</b><b><small>03</small>BUILD</b><b><small>04</small>GROW</b></div></div>`, []string{"咨询解决方案", "沟通项目需求", "了解合作流程"}},
-	}
-}
+// industrySources 保存人工编写的行业页面、获确认设计稿对应照片及本地图标。
+//
+//go:embed industry_sources/*
+var industrySources embed.FS
 
-// industryTemplateCatalog 返回可复制的公共目录，调用方按租户身份生成全新私有包。
+// industryTemplateCatalog 返回七套独立构图的公共设计，复制后成为租户自己的不可变资源包。
 func industryTemplateCatalog() []IndustryTemplate {
-	items := []IndustryTemplate{}
-	for _, item := range industryTemplateStyles() {
-		items = append(items, item.IndustryTemplate)
+	return []IndustryTemplate{
+		{"finance", "金融 · 蓝金专属顾问", "金融", "参考顾问会客场景，浅蓝人物照片、金色服务标签与通高聊天。"},
+		{"commerce", "电商 · 好物到家", "电商", "橙色品牌、真实生活摄影和开放式售后咨询。"},
+		{"education", "教育 · 书页学习顾问", "教育", "暖白书桌摄影、墨绿文字与学习问题边注。"},
+		{"medical", "医疗 · 清白预约服务台", "医疗", "清透白青、预约流程和科室指引，聊天占据主要空间。"},
+		{"property", "房产 · 岩砂空间会客厅", "房产", "暖砂留白、真实空间摄影与编辑式分屏会客。"},
+		{"business", "企业 · 石墨项目服务台", "企业服务", "黑白编辑排版、混凝土空间摄影与开放式咨询。"},
+		{"gaming", "电竞 · 黑曜竞技服务站", "电竞", "黑曜底色、青柠点缀与真实电竞设备摄影。"},
 	}
-	return items
 }
 
 // templateChatMarkup 保留唯一固定聊天节点，所有消息和动作由chat-ui.js实现。
 func templateChatMarkup() string {
-	return `<section class="gc-conversation" aria-label="在线咨询"><div class="gc-chat-heading"><strong>在线咨询</strong><span id="gc-status" role="status">正在连接咨询服务…</span><button type="button" data-dialog-open="gc-service-notice" class="gc-service-button">服务说明</button></div><div id="gc-messages" role="log" aria-label="聊天消息" aria-live="polite"></div><div class="gc-composer-area"><p id="gc-typing" role="status" aria-live="polite"></p><div id="gc-reply-bar" hidden><span id="gc-reply-text"></span><button id="gc-reply-cancel" type="button">取消引用</button></div><div id="gc-compose"><div class="gc-capsule"><button id="gc-add" type="button" aria-label="添加附件" aria-expanded="false">＋</button><textarea id="gc-text" maxlength="10000" rows="1" placeholder="输入您想咨询的内容" aria-label="消息内容"></textarea><button id="gc-send" type="button" aria-label="发送消息">发送</button></div><div id="gc-attachment-menu" hidden><button type="button" data-kind="image">图片</button><button type="button" data-kind="file">文件</button><button type="button" data-kind="video">视频</button></div><input id="gc-file" type="file" aria-label="选择附件" hidden></div><p id="gc-error" role="alert"></p></div></section>`
+	return `<section class="gc-conversation" data-gc-edit-id="chat-panel" aria-label="在线咨询"><div class="gc-chat-heading" data-gc-edit-id="chat-heading"><strong data-gc-edit-id="chat-title">在线咨询</strong><span id="gc-status" data-gc-edit-id="chat-status" role="status">正在连接咨询服务…</span><button type="button" data-dialog-open="gc-service-notice" class="gc-service-button">服务说明</button></div><div id="gc-messages" data-gc-edit-id="chat-messages" role="log" aria-label="聊天消息" aria-live="polite"></div><div class="gc-composer-area" data-gc-edit-id="composer-area"><p id="gc-typing" role="status" aria-live="polite"></p><div id="gc-reply-bar" hidden><span id="gc-reply-text"></span><button id="gc-reply-cancel" type="button">取消引用</button></div><div id="gc-compose" data-gc-edit-id="composer"><div class="gc-capsule" data-gc-edit-id="composer-capsule"><button id="gc-add" type="button" data-gc-edit-id="attachment-button" aria-label="添加附件" aria-expanded="false">＋</button><textarea id="gc-text" data-gc-edit-id="message-input" maxlength="10000" rows="1" placeholder="输入您想咨询的内容" aria-label="消息内容"></textarea><button id="gc-send" data-gc-edit-id="send-button" type="button" aria-label="发送消息">发送</button></div><div id="gc-attachment-menu" hidden><button type="button" data-kind="image">图片</button><button type="button" data-kind="file">文件</button><button type="button" data-kind="video">视频</button></div><input id="gc-file" type="file" aria-label="选择附件" hidden></div><p id="gc-error" role="alert"></p></div></section>`
+}
+
+// industryChatMarkup 为新版摄影模板添加本地库图标与表情，旧版导出和迁移继续使用原始节点。
+func industryChatMarkup() string {
+	markup := strings.Replace(templateChatMarkup(), ">＋</button>", `><img src="static/assets/icon-picture.png" alt="" width="25" height="25"></button>`, 1)
+	markup = strings.Replace(markup, `</textarea><button id="gc-send"`, `</textarea><button type="button" class="gc-emoji-button" data-gc-ui="emoji-toggle" aria-label="选择表情" aria-expanded="false"><img src="static/assets/icon-smile.png" alt="" width="25" height="25"></button><button id="gc-send"`, 1)
+	return strings.Replace(markup, `<input id="gc-file"`, `<div class="gc-emoji-menu" hidden><button type="button" data-gc-ui="emoji-insert" data-emoji="😊" aria-label="微笑">😊</button><button type="button" data-gc-ui="emoji-insert" data-emoji="👍" aria-label="赞">👍</button><button type="button" data-gc-ui="emoji-insert" data-emoji="🙏" aria-label="感谢">🙏</button></div><input id="gc-file"`, 1)
 }
 
 // templateScriptsMarkup 按顺序引用平台固定脚本，不携带租户身份和核心脚本字节。
@@ -63,32 +60,84 @@ func templateScriptsMarkup(custom bool) string {
 	return value
 }
 
-// industryTemplatePackage 将官方行业素材转换成经过严格校验的新静态包。
+// industryTemplatePackage 读取独立人工设计，注入唯一官方聊天挂载点并严格验证完整静态包。
 func industryTemplatePackage(key string, scripts TemplateScripts) (*staticPackage, error) {
-	var chosen *industryTemplateStyle
-	for _, item := range industryTemplateStyles() {
+	found := false
+	for _, item := range industryTemplateCatalog() {
 		if item.Key == key {
-			value := item
-			chosen = &value
+			found = true
 			break
 		}
 	}
-	if chosen == nil {
+	if !found {
 		return nil, invalidDesign("未找到该行业的官方访客模板")
 	}
-	var actions strings.Builder
-	label := chosen.Industry
-	if !strings.HasSuffix(label, "服务") {
-		label += "服务"
+	markup, err := industrySources.ReadFile("industry_sources/" + key + ".html")
+	if err != nil {
+		return nil, fmt.Errorf("读取行业HTML：%w", err)
 	}
-	for i, question := range chosen.Questions {
-		fmt.Fprintf(&actions, `<button type="button" data-gc-send="%s"><small>0%d</small><span>%s</span><b aria-hidden="true">↗</b></button>`, html.EscapeString(question), i+1, html.EscapeString(question))
+	css, err := industrySources.ReadFile("industry_sources/" + key + ".css")
+	if err != nil {
+		return nil, fmt.Errorf("读取行业CSS：%w", err)
 	}
-	markup := fmt.Sprintf(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>%s</title><link rel="stylesheet" href="static/style.css"></head><body><main class="gc-template gc-industry-%s"><header class="gc-template-header"><span>在线咨询服务</span><button type="button" class="gc-leave-message" data-gc-action="leave-message">留下留言</button><button type="button" class="gc-leave-message" data-gc-action="evaluation" hidden>服务评价</button></header><header class="gc-hero"><div class="gc-hero-copy"><p class="gc-eyebrow">%s</p><p class="gc-industry-label">%s</p><h1>%s</h1><p class="gc-subtitle">%s</p><span class="gc-hero-badge">%s</span></div><div class="gc-hero-art" aria-hidden="true">%s</div></header><nav class="gc-service-entries" aria-label="快捷咨询">%s</nav><p class="gc-service-notice">%s</p>%s</main><dialog id="gc-service-notice" class="gc-dialog"><h2>服务说明</h2><p>%s</p><p>您可以在此发送咨询消息和附件。服务入口只发送普通咨询文字，具体业务将由客服与您确认。</p><button type="button" data-dialog-close>我知道了</button></dialog>%s</body></html>`, html.EscapeString(chosen.Name), chosen.Key, chosen.Kicker, label, html.EscapeString(chosen.Title), html.EscapeString(chosen.Subtitle), html.EscapeString(chosen.Badge), chosen.Decoration, actions.String(), html.EscapeString(chosen.Notice), templateChatMarkup(), html.EscapeString(chosen.Notice), templateScriptsMarkup(true))
-	css := fmt.Sprintf("/* 文件作用说明：定义%s静态访客模板及固定聊天控件的响应样式。 */\n:root{--gc-primary:%s;--gc-background:%s}\n", chosen.Name, chosen.Accent, chosen.Background) + industryBaseCSS
-	return buildTemplatePackage("index.html", []TemplateFile{{Path: "index.html", Content: markup}, {Path: "static/style.css", Content: css}, {Path: "static/custom.js", Content: industryDialogScript}}, scripts)
+	assets := []packageFile{}
+	entries, err := industrySources.ReadDir("industry_sources/assets")
+	if err != nil {
+		return nil, fmt.Errorf("读取模板素材目录：%w", err)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || (!strings.HasPrefix(name, "icon-") && !strings.HasPrefix(name, "avatar-") && name != key+"-hero.webp" && name != key+"-avatar.webp" && name != key+"-logo.png") {
+			continue
+		}
+		raw, readErr := industrySources.ReadFile(path.Join("industry_sources/assets", name))
+		if readErr != nil {
+			return nil, fmt.Errorf("读取模板图片：%w", readErr)
+		}
+		assets = append(assets, packageFile{Path: "static/assets/" + name, Content: raw})
+	}
+	dialog := `<dialog id="gc-service-notice" class="gc-dialog" data-gc-edit-id="service-dialog"><h2 data-gc-edit-id="service-dialog-title">服务说明</h2><p data-gc-edit-id="service-dialog-copy">您可以发送文字、图片和文件咨询。服务入口只发送普通咨询文字，具体事项由客服与您确认。请勿发送支付密码、验证码等敏感信息。</p><button type="button" data-dialog-close>我知道了</button></dialog>`
+	chat := industryChatMarkup()
+	if key == "finance" {
+		chat = strings.Replace(chat, `data-gc-edit-id="chat-title">在线咨询`, `data-gc-edit-id="chat-title">专属顾问`, 1)
+	} else if key == "education" {
+		chat = strings.Replace(chat, `data-gc-edit-id="chat-title">在线咨询`, `data-gc-edit-id="chat-title">学习咨询`, 1)
+		chat = strings.Replace(chat, `placeholder="输入您想咨询的内容"`, `placeholder="写下你想聊的问题"`, 1)
+	}
+	content := strings.NewReplacer("{{CHAT}}", chat, "{{SCRIPTS}}", templateScriptsMarkup(true), "{{SERVICE_DIALOG}}", dialog).Replace(string(markup))
+	return buildTemplatePackageAssets("index.html", []TemplateFile{{Path: "index.html", Content: content}, {Path: "static/style.css", Content: industryBaseCSS + "\n" + string(css)}, {Path: "static/custom.js", Content: industryDialogScript}}, scripts, assets)
 }
 
-// industryDialogScript 只控制当前HTML的本地说明弹框，不包含聊天或业务请求。
-const industryDialogScript = `/** 文件作用说明：仅控制行业模板的本地服务说明弹框。 */
-(function(){'use strict';for(const button of document.querySelectorAll('[data-dialog-open]')){/** 打开当前模板内的说明弹框。 */function openDialog(){const dialog=document.getElementById(button.getAttribute('data-dialog-open'));if(dialog&&typeof dialog.showModal==='function')dialog.showModal()}button.addEventListener('click',openDialog)}for(const button of document.querySelectorAll('[data-dialog-close]')){/** 关闭说明弹框并由浏览器恢复焦点。 */function closeDialog(){button.closest('dialog')?.close()}button.addEventListener('click',closeDialog)}})();`
+// industryDialogScript 只控制本地说明框和有时限的页面开场，不实现网络或聊天业务。
+const industryDialogScript = `/** 文件作用说明：控制行业模板本地说明弹框及不阻塞连接的短开场，编辑模式直接跳过。 */
+(function(){'use strict';
+for(const button of document.querySelectorAll('[data-dialog-open]')){
+/** 打开当前模板的本地说明框，由浏览器管理焦点。 */
+function openDialog(){const dialog=document.getElementById(button.getAttribute('data-dialog-open'));if(dialog&&typeof dialog.showModal==='function')dialog.showModal()}
+button.addEventListener('click',openDialog)}
+for(const button of document.querySelectorAll('[data-dialog-close]')){
+/** 关闭本地说明框并恢复触发按钮焦点。 */
+function closeDialog(){button.closest('dialog')?.close()}
+button.addEventListener('click',closeDialog)}
+const composer=document.querySelector('.gc-composer-area');
+for(const note of document.querySelectorAll('[data-gc-composer-note]')){if(composer)composer.append(note)}
+const emojiToggle=document.querySelector('[data-gc-ui="emoji-toggle"]'),emojiMenu=document.querySelector('.gc-emoji-menu');
+/** 切换本地表情面板，不发送消息或调用业务接口。 */
+function toggleEmoji(){if(!emojiMenu)return;emojiMenu.hidden=!emojiMenu.hidden;emojiToggle?.setAttribute('aria-expanded',String(!emojiMenu.hidden))}
+emojiToggle?.addEventListener('click',toggleEmoji);
+for(const button of document.querySelectorAll('[data-gc-ui="emoji-insert"]')){
+/** 将表情写入输入框，沿用官方核心处理输入和发送。 */
+function insertEmoji(){const input=document.getElementById('gc-text');if(!input||input.disabled)return;const value=button.getAttribute('data-emoji')||'';if(input.value.length+value.length>input.maxLength)return;input.setRangeText(value,input.selectionStart,input.selectionEnd,'end');input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();if(emojiMenu)emojiMenu.hidden=true;emojiToggle?.setAttribute('aria-expanded','false')}
+button.addEventListener('click',insertEmoji)}
+const intro=document.querySelector('[data-gc-intro]');
+if(!intro)return;
+/** 关闭页面开场；不等待或伪造客服连接状态。 */
+function finishIntro(){intro.hidden=true}
+if(document.body.dataset.gcEditor==='true'||new URLSearchParams(window.location.search).get('editor')==='1'||window.matchMedia('(prefers-reduced-motion:reduce)').matches){finishIntro();return}
+const meter=intro.querySelector('progress'),label=intro.querySelector('[data-intro-label]');
+if(meter)meter.value=65;
+/** 本地页面资源就绪后完成进度，最多停留一千八百毫秒。 */
+function pageReady(){if(meter)meter.value=100;if(label)label.textContent='页面已就绪';setTimeout(finishIntro,160)}
+if(document.readyState==='complete')pageReady();else window.addEventListener('load',pageReady,{once:true});
+setTimeout(finishIntro,1800);
+})();`
