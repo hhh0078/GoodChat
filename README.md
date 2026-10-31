@@ -11,6 +11,8 @@ The project is designed for teams that want to manage customer conversations and
 
 **Website:** [goodchat.58it.cn](https://goodchat.58it.cn)
 
+**Search keywords:** self-hosted live chat · website live chat · customer support software · multi-tenant customer service · HTML chat templates · visual template editor · AI-assisted template design. [Full keyword list](#search-keywords)
+
 Screenshots below show the actual **Chinese-language interface with demonstration and acceptance data**. The English documentation does not imply a fully translated application UI. Screenshot files are compressed WebP images; template images are rendered application pages, not concept mockups.
 
 ## A quick tour
@@ -227,9 +229,16 @@ The current real-time push implementation is single-instance. Horizontal scaling
 
 Please contact the author for licensing, commercial use and customization terms.
 
-## Project topics
+## Search keywords
 
-GoodChat covers self-hosted live chat, multi-tenant customer support software, a Go customer service backend and a React agent dashboard. The repository also includes WebSocket message recovery, customer profiles, service analytics, static HTML chat templates, a visual CSS editor and AI-assisted visitor-page design.
+Find GoodChat by its customer support workflows, visitor-page tools and deployment options:
+
+| Area | Keywords and common search terms | Explore |
+| --- | --- | --- |
+| Live chat software | self-hosted live chat, website live chat, customer support software, customer service platform, multi-tenant customer service SaaS | [Features](docs/en/features.md) |
+| Team operations | agent dashboard, conversation routing, customer profile management, quick replies, customer service analytics | [Agent workspace and reporting](docs/en/features.md) |
+| Visitor chat templates | responsive HTML chat templates, industry chat templates, visual HTML/CSS editor, static template import and export, AI-assisted template design | [Seven industry templates](docs/en/templates.md) |
+| Technology and deployment | Go live chat backend, React customer support dashboard, Next.js chat application, WebSocket message recovery, Docker self-hosted deployment | [Getting started](docs/en/getting-started.md) |
 
 ## Author and contact
 
