@@ -1,76 +1,246 @@
-<!-- 文件作用说明：说明GoodChat网页SaaS的运行入口、已有数据库复用、私有配置、验证方式和实际交付边界。 -->
-# GoodChat
+<!-- 文件作用说明：作为英文优先的GoodChat项目首页，介绍产品、真实压缩截图、文档、部署入口与作者联系方式。 -->
+![GoodChat live chat icon](docs/media/goodchat-icon.png)
 
-Go + PostgreSQL + Redis + Next.js + React + TypeScript + Ant Design 的在线客服 SaaS。默认免费版 ¥0、长期有效、2 个客服坐席；平台可维护套餐价格、有效期、席位和功能开关，官网从发布配置读取定价。
+# GoodChat — Self-Hosted Live Chat & Customer Support Platform
 
-已实现邮箱身份、租户成员邀请、链接接入、客户资料与标签、会话分配、实时聊天、进入回调、记录统计、私有装修模板、隔离预览发布、AI 任务和人工确认开通流程。需求中的完整目标范围与实际验证状态分别记录在 `docs/` 的三份主文档和开发验收记录中。
+[English](README.md) · [简体中文](README.zh-CN.md) · [Official website](https://goodchat.58it.cn) · [Feature guide](docs/en/features.md) · [Getting started](docs/en/getting-started.md)
 
-高级路由包含持久加权轮询、必备/可选技能、历史客服优先及当前接待资格重判。接待运营支持分层营业场景欢迎、图片/选项、评价期限和改评历史，以及留言附件和默认关闭的可靠邮件提醒。完整代码装修支持已构建静态ZIP、包内资源、源码另存新版本、受控Logo与独立来源发布；不执行租户构建脚本。AI当前生成结构化页面或内联HTML/CSS/JS，对资源包直接AI改稿会明确拒绝，避免丢失包内依赖。
+GoodChat is a **self-hosted, multi-tenant live chat and customer service SaaS** built with **Go, PostgreSQL, Redis, Next.js, React and TypeScript**. It brings an agent workspace, customer profiles, conversation routing, service automation and reporting together with **seven responsive visitor chat templates**, a visual editor and an AI-assisted template design workflow.
 
-## 本机运行
+The project is designed for teams that want to manage customer conversations and control the pages their visitors see. Use the standard chat page, choose an industry template, or create a private HTML/CSS/JavaScript design while keeping messaging on the platform's protected chat core.
 
-本项目只新增 `goodchat` 一个应用容器，复用现有 `local_postgres` 与 `jijie-redis`。PostgreSQL 使用独立的 `goodchat_saas` 数据库，应用使用非 superuser、非 BYPASSRLS 的 `goodchat_saas_app` 角色。现有其他项目数据库和 Redis 键保持独立，GoodChat 键统一以 `goodchat:` 开头。
+**Website:** [goodchat.58it.cn](https://goodchat.58it.cn)
+
+Screenshots below show the actual **Chinese-language interface with demonstration and acceptance data**. The English documentation does not imply a fully translated application UI. Screenshot files are compressed WebP images; template images are rendered application pages, not concept mockups.
+
+## A quick tour
+
+- Handle conversations in a browser-based customer support dashboard.
+- Separate tenant workspaces, administrative roles and reception eligibility.
+- Route consultations through groups, skills, queues and weighted allocation.
+- Keep customer profiles, notes, tags and conversation history together.
+- Reuse welcome messages, quick replies and keyword-based service rules.
+- Customize a visitor page visually or edit its static source files.
+- Publish deliberately, bind consultation links and preserve existing private copies.
+- Review service activity, export records and monitor the running application.
+
+![Locally running GoodChat website homepage introducing the live chat platform](docs/media/screenshots/homepage.webp)
+
+*A local preview of the product website and its service and account entry points.*
+
+## Documentation
+
+| Guide | What you will find |
+| --- | --- |
+| [Getting started](docs/en/getting-started.md) | Dependencies, configuration, local startup and deployment considerations. |
+| [Complete feature guide](docs/en/features.md) | A screenshot-led tour of reception, customers, automation, reporting and administration. |
+| [Visitor templates](docs/en/templates.md) | Seven industry styles, desktop/mobile examples and the editing workflow. |
+| [中文项目首页](README.zh-CN.md) | The full project introduction in Simplified Chinese. |
+| [Source conventions](AGENTS.md) | Repository scope and development conventions. |
+
+## Live chat built around the agent's work
+
+The workspace combines a conversation inbox, message history and customer context. Agents can inspect unread activity, move between consultations, use prepared replies and maintain available or busy reception states. Claiming, accepting, rejecting, transferring and closing conversations follow the configured routing rules.
+
+Text, images, files and audio are handled through authorized messaging and attachment APIs. Quoted replies, read receipts, typing indicators and time-limited withdrawal help both sides follow the conversation.
+
+![GoodChat React agent workspace with live chat, conversation inbox and customer context](docs/media/screenshots/workspace.webp)
+
+*One workspace for the conversation and the information needed to continue it.*
+
+### Messaging recovery, not just a connected socket
+
+GoodChat persists messages through HTTP requests with stable client message IDs. WebSocket notifications announce updates, while durable event backfill restores missed changes after reconnection. The client distinguishes connection and recovery states, deduplicates messages and preserves IDs when a send needs a controlled retry.
+
+A sleeping computer or frozen browser tab can still disconnect. The recovery workflow is designed to reconnect and synchronize; it does not promise an uninterrupted socket under every browser or network condition.
+
+## Seven visitor chat templates worth making your own
+
+The visitor page is part of the service experience. GoodChat includes seven distinct industry directions, with layouts for both desktop and mobile browsers.
+
+| Industry | Design direction |
+| --- | --- |
+| Finance | Powder blue and gold, advisor photography and a private-consultation layout. |
+| Commerce | Persimmon orange, packaging photography and approachable after-sales support. |
+| Education | Warm paper tones, ink green, books and learning prompts. |
+| Healthcare services | Porcelain white and teal, consultation-room photography and clear service guidance. |
+| Property | Warm neutrals, editorial typography and interior photography. |
+| Business services | Black-and-white typography, concrete interiors and focused consultation. |
+| Gaming | Charcoal and acid lime, esports equipment and a dark conversation interface. |
+
+![Seven GoodChat mobile visitor chat templates for finance, commerce, education, healthcare, property, business and gaming](docs/media/screenshots/visitor-templates.webp)
+
+*Seven rendered mobile pages, with independent visual styles and the same protected messaging capabilities.*
+
+The template library displays real page previews. Tenants can create private copies, compare designs and keep their own versions when the platform library changes.
+
+![Responsive GoodChat visitor templates shown in desktop and mobile layouts](docs/media/screenshots/visitor-desktop-mobile.webp)
+
+*Desktop and mobile layouts adapt the composition while keeping the conversation and input usable.*
+
+A template package contains **HTML, CSS, JavaScript and static assets**. Download it, change it and import a new version without a second frontend compilation step. The official SDK continues to handle messages, attachments, history, consultation options, offline messages and evaluations.
+
+[Explore the full visitor-template gallery →](docs/en/templates.md)
+
+## Point-and-click editing with source access
+
+Select an element in the rendered preview to change its text, CSS classes and styles. Open the HTML/CSS source, add local page interactions in JavaScript, or upload and replace images. Image handling checks format, dimensions and size and applies compression when needed.
+
+The ordinary editor keeps the official chat SDK and package contract read-only. This lets a design change independently from the connection, authorization and messaging infrastructure.
+
+![GoodChat visual template editor with element selection, CSS controls and a live page preview](docs/media/screenshots/template-editor.webp)
+
+*Inspect an element, adjust its appearance, refresh the preview and save a new draft.*
+
+Source changes are saved as new immutable packages. Tenant page edits remain drafts until explicitly published. Consultation links can follow a published page or remain on a fixed release. Deletion checks references before reclaiming unused files, and an unbound link keeps the built-in visitor page.
+
+## AI-assisted template design
+
+Administrators can describe a page, upload reference images, continue a saved design conversation or remix an existing template. A side-by-side preview uses simulated messages so the page can be reviewed before publication.
+
+Text/vision and image-generation models can be configured separately. Tenant and platform settings remain distinct, provider keys are stored encrypted, and generated file JSON must pass the template contract before it becomes a package. Generated code cannot replace the protected chat scripts.
+
+Platform administrators maintain versioned system prompts and official core scripts through separate foundation settings. Existing packages retain their script snapshots.
+
+![GoodChat administrator AI template assistant showing a new conversation and an empty preview](docs/media/screenshots/ai-assistant.webp)
+
+*A new design conversation before any template has been generated.*
+
+The current AI feature is a **template design assistant**, not an autonomous visitor-support chatbot. Provider credentials, model access and usage limits must be configured for actual calls.
+
+## Customer context, reporting and daily operations
+
+### Customer profiles that support the next conversation
+
+Manage contact information, tags, categories, custom fields, visit history and internal notes. Search and filtering help the team find the right record; authorized note attachments preserve supporting context.
+
+![GoodChat customer profile management with searchable records, contact details and classifications](docs/media/screenshots/customers.webp)
+
+*Customer service context remains within the authorized tenant workspace.*
+
+### Reports connected to recorded service activity
+
+Tenant reports show activity by date, agent and entry channel, including conversation and message totals, waiting time and first-response measures. Member and link statistics provide more focused views. Administrators can export filtered CSV records or use asynchronous jobs for larger exports.
+
+![GoodChat customer service analytics with activity trends, agent breakdowns and report filters](docs/media/screenshots/reports.webp)
+
+*Template-preview messages are local demonstrations and do not count as real customer consultations.*
+
+### Monitoring with an explicit measurement scope
+
+Platform monitoring includes measured application/control-group resources, database pool health, live connection counts and reception-capacity summaries. Capacity estimates require a configured measurement baseline.
+
+![GoodChat server monitoring with resources, connections and a manually entered demo capacity baseline](docs/media/screenshots/server-monitor.webp)
+
+*Resource and connection monitoring with a manually entered 100-user demo baseline.*
+
+## Feature map
+
+| Area | Implemented capabilities |
+| --- | --- |
+| Conversations | Inbox, unread activity, assignment actions, transfers, history, quoted replies and read receipts. |
+| Media | Authorized image/file/audio handling, previews, downloads and browser-dependent voice recording. |
+| Routing | Manual reception, round robin, persistent weighted round robin, skills, capacity and queues. |
+| Customers | Profiles, search, tags, categories, custom fields, visit history, notes and blocking. |
+| Service automation | Shared/personal quick replies, welcome rules, keyword rules and notification preferences. |
+| Feedback | Offline messages with attachments, follow-up lists, optional email notifications and satisfaction evaluations. |
+| Analytics | Tenant, member and link statistics; filtered CSV and asynchronous export jobs. |
+| Visitor pages | Seven responsive industry templates, static packages, visual/source editing and ZIP import/export. |
+| AI design | Administrator conversations, reference images, template remixing and separate model settings. |
+| Identity | Email verification, password/code login, invitations, roles, sessions and ownership transfer. |
+| Platform operations | Tenant management, plan definitions, seat entitlements, upgrade requests and manual activation. |
+| Integration | Signed visitor-entry callbacks with delivery records and retry controls. |
+
+See the [complete feature guide](docs/en/features.md) for additional screenshots and role-specific details.
+
+## Roles and service boundaries
+
+| Role | Main responsibilities |
+| --- | --- |
+| Visitor | Chat, send attachments, leave messages and evaluate service. |
+| Agent | Handle consultations, use personal service tools and manage reception state. |
+| Tenant owner/admin | Configure the team, links, routing, templates, service rules and reports. |
+| Platform admin | Manage tenants, public templates, plans, platform AI and monitoring. |
+
+Administrative permissions and reception eligibility are separate. Optional capabilities also depend on the applicable plan entitlements.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Users["Visitors · Agents · Administrators"] --> Web["Next.js · React web interface"]
+    Web <-->|"HTTP + WebSocket events"| API["Go API · Identity · Chat · Routing"]
+    Web <-->|"Protected SDK bridge"| Templates["Isolated HTML/CSS/JS visitor pages"]
+    API --> Database[("PostgreSQL · Messages · Events · Tenant data")]
+    API --> Redis[("Redis")]
+    API --> Assets["Private attachments · Immutable template packages"]
+    API --> Mail["SMTP"]
+    API --> AI["Optional configured AI providers"]
+```
+
+PostgreSQL stores durable conversation and event data. Tenant-scoped authorization and business-table row-level security separate workspaces. Redis is required by the runtime; SMTP enables email verification and notification workflows, while AI providers are optional. Visitor templates run on an isolated origin and communicate with their trusted host through the fixed SDK.
+
+## Getting started
+
+The implementation documented here is on the `dev` branch:
 
 ```bash
-python3 scripts/prepare-docker.py
+git clone --branch dev https://github.com/hhh0078/GoodChat.git
+cd GoodChat
+```
+
+Follow the [getting-started guide](docs/en/getting-started.md) to prepare PostgreSQL, Redis, the private environment and database roles. The current Compose file provides the GoodChat application; it does not provision a fresh database or Redis service for you.
+
+After the guide has prepared `.local/docker.env` and the required services:
+
+```bash
 docker compose --env-file .local/docker.env build goodchat
 docker compose --env-file .local/docker.env up -d --no-build goodchat
 curl --fail http://127.0.0.1:13000/healthz
 ```
 
-官网与工作端入口为 `http://127.0.0.1:13000`，装修在独立版本来源 `http://<release-id>.localhost:18081` 运行。浏览器必须使用与 `SUPPORT_PUBLIC_URL` 完全相同的来源。Docker Desktop 使用稳定的 `host.docker.internal:5432/56379` 连接已有 PostgreSQL/Redis，不依赖容器重启后变化的 IP。
+The local web entry is `http://127.0.0.1:13000`. Production setup needs its own HTTPS, public origin, isolated template domain, persistent storage and backup configuration.
 
-首次邮箱注册会创建自己的租户和所有者管理员。已有本机验收平台管理员凭证只保存在 `.local/bootstrap-account.json`（私有文件，不提交 Git），不设公共默认口令。正式环境第一次初始化平台管理员可执行容器内 `/app/bootstrap --email 实际邮箱 --name 管理员`；该命令拒绝覆盖既有账号或重复初始化，随机口令只写 `/data/bootstrap-account.json`。
+## Frequently asked questions
 
-## 配置与迁移
+### Is GoodChat an AI chatbot?
 
-配置示例在 `backend/.env.example`。本机私有文件格式如下，真实值不要粘贴到源码或提交：
+Its current AI assistant helps administrators create and revise templates. The live-chat workflow connects visitors and service agents; a general autonomous answer bot is not part of the described feature set.
 
-- `.local/dev-database.json`：`database_url` 是应用 DSN，`migration_url` 是独立迁移 DSN。
-- `.local/smtp.json`：`host`、`port`、`username`、`password`、`from`。当前按用户授权复用已有 SMTP 的运行配置。
-- `.local/auth-secret`：至少 32 字节随机服务密钥，重启和备份恢复时保留。
-- `.local/docker.env`：脚本生成的容器环境，权限 0600。
+### Can I edit a template without rebuilding the application?
 
-在全新环境先由数据库管理员建立独立库与应用角色，并为迁移 owner 创建的表和序列配置应用权限；迁移使用独立 owner 连接，应用不得持有 superuser/BYPASSRLS 权限。所有迁移须在 `public` schema 执行，带有版本校验，不要修改已应用的 SQL。
+Yes. Visitor template packages use static HTML/CSS/JavaScript and assets. Editing, ZIP import/export and publication are supported; changes to the application itself still require its normal build and deployment workflow.
 
-```bash
-cd backend
-go run ./cmd/migrate
-```
+### Can I use GoodChat for several teams or tenants?
 
-或在已有应用容器执行 `docker exec goodchat /app/migrate`。新表的 `SELECT/INSERT/UPDATE/DELETE`、序列的 `USAGE/SELECT` 以及受限渲染函数的 `EXECUTE` 需授予应用角色；本机已配置。迁移账户为 PostgreSQL 对象 owner，受限 SECURITY DEFINER 函数的 owner 必须按技术文档管理，应用本身不能拥有这些表。
+Yes. It has tenant workspaces, member roles, routing groups and administrative boundaries. Reception eligibility is configured separately from administrative permissions.
 
-生产需设置 `APP_ENV=production`、HTTPS 官网、独立可注册装修域名及 DNS/TLS，并在部署时重建 `NEXT_PUBLIC_SITE_URL`。Next.js、Go API、网关和代码渲染服务都在同一镜像内。容器持久目录 `.local/container-data` 保存私有附件；数据库、附件与服务密钥需联合备份。
+### Are payments, social channels and native apps included?
 
-AI 使用 `SUPPORT_AI_ENDPOINT`、`SUPPORT_AI_KEY`、`SUPPORT_AI_MODEL`，只从服务端读取。本机可保存 `.local/ai.json` 的 `endpoint/key/model/daily_limit`，Docker私有环境生成器会加载并允许环境变量覆盖。`SUPPORT_AI_DAILY_LIMIT` 默认每租户每日20次提交，0禁用；按租户时区计数，失败或取消不返提交次数，供应商token用量与实际费用单独核对。供应商缺失时明确返回不可用，不生成假结果。配置环境后重新生成私有 Docker 环境并重启应用。2026年10月27日已用授权配置实际生成租户私有模板、隔离预览并发布到入口，供应商报告2966 tokens；该用量不等于已经核对费用账单。
+Plan definitions and manual upgrade activation are implemented. Online payment gateways, native desktop/mobile clients and social-channel connectors are not implied by this web application.
 
-## 验证
+### Does it already provide a distributed real-time cluster?
 
-```bash
-cd backend
-go test ./...
-go vet ./...
-SUPPORT_AUTH_INTEGRATION=1 go test -race ./internal/auth -count=1
-SUPPORT_BILLING_INTEGRATION=1 go test -race ./internal/billing -count=1
-SUPPORT_CHAT_INTEGRATION=1 go test -race ./internal/chat -count=1
-SUPPORT_CALLBACK_INTEGRATION=1 go test -race ./internal/callbacks -count=1
-GOODCHAT_TEST_CONFIG=/绝对项目路径/.local/dev-database.json go test -race ./internal/decoration -count=1
-SUPPORT_REDIS_INTEGRATION=1 go test -race ./cmd/server -count=1
-cd ../frontend
-npm run typecheck
-npm test
-npm run format:check
-npm run build
-```
+The current real-time push implementation is single-instance. Horizontal scaling requires shared event distribution; durable HTTP event backfill remains the recovery path.
 
-PostgreSQL 集成测试使用隔离schema或随机租户，使用非特权应用角色验证 RLS；不会新建数据库或容器。装修AI测试另用随机schema中的物理隔离调度队列，正式worker看不到测试任务。邮件测试使用本地假 SMTP；AI 协议测试使用本地测试供应商。Redis 并发测试只写随机的短期 `goodchat:rate:integration:` 键。浏览器截图与私有验收数据放在 `.local/evidence/`。`python3 scripts/http-smoke.py` 使用本机私有验收账号进行26项实际HTTP检查，不发送业务邮件。
+### What are the licensing and commercial-use terms?
 
-`python3 scripts/backup.py --quiesce` 会短暂停止唯一GoodChat应用，再通过现有PostgreSQL生成数据库、附件与身份密钥备份集并恢复应用。`python3 scripts/verify-backup.py 备份目录名 --allow-temporary-database` 在同一现有PG容器的临时库恢复，核对附件与密钥归档后删除本次临时库；不会覆盖运行库或创建容器。本轮已执行隔离恢复，恢复后的应用启动和生产切换仍未演练。备份保存在 `.local/backups/`，包含私有身份数据，不能提交Git。
+Please contact the author for licensing, commercial use and customization terms.
 
-即时CSV最多10000行/32MiB；批量导出任务最多100000行/64MiB、结果24小时有效，每租户两个待执行任务、每日20次提交、临时结果加待执行预留合计最多256MiB。申请者下载时重新检查角色与权益；有新的已提交消息撤回时，旧正文文件失效并要求重新生成，会话元数据不受影响。当前消息只软撤回；引入物理清理前须将撤回数量快照升级为单调版本。
+## Project topics
 
-## 文档
+GoodChat covers self-hosted live chat, multi-tenant customer support software, a Go customer service backend and a React agent dashboard. The repository also includes WebSocket message recovery, customer profiles, service analytics, static HTML chat templates, a visual CSS editor and AI-assisted visitor-page design.
 
-`docs/在线客服SaaS需求文档.md`、`docs/在线客服SaaS技术文档.md`、`docs/在线客服SaaS开发顺序与前端规范.md` 为主稿；可编辑 Word 在 `文档/`。`scripts/build-documents.py` 使用 python-docx 生成 Word，生成后须按文档工作流渲染并逐页检查，不能以文本提取代替排版验收。
+## Author and contact
 
-原生 macOS、Windows、Android 客服端后续独立开发。当前为本地网页验证环境，真实收件、真实模型、支付渠道、生产 HTTPS/域名、真实设备和负载容量的证据不能由构建成功替代。
+| | |
+| --- | --- |
+| Author | **邓云川 · Deng Yunchuan** |
+| GitHub | [@hhh0078](https://github.com/hhh0078) |
+| Website | [goodchat.58it.cn](https://goodchat.58it.cn) |
+| Phone / WeChat | **17607080935** |
+| Email | [1224299352@qq.com](mailto:1224299352@qq.com) |
+
+For issues and feature requests, use the repository's [issue tracker](https://github.com/hhh0078/GoodChat/issues). For deployment, business cooperation or customization, contact the author above.
+
+[Getting started](docs/en/getting-started.md) · [Full feature guide](docs/en/features.md) · [Visitor templates](docs/en/templates.md) · [简体中文](README.zh-CN.md)
