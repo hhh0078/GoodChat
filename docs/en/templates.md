@@ -150,6 +150,6 @@ Once deletion is allowed, GoodChat removes the template's unbound pages and hist
 
 All 14 gallery images preserve the source screenshots' dimensions and are compressed as WebP. English and Chinese documentation share the same assets. The [asset manifest](../media/templates/manifest.json) records source paths, dimensions, sizes, SHA-256 digests, and compression ratios.
 
-The repository records desktop and responsive-browser checks for all seven templates, including typing, simulated sending, leave-message controls, options, attachments, image entry points, editing, and ZIP round trips. See the [implementation and acceptance record](../2026-10-30七套行业模板与元素编辑器验收.md) for the tested scope. These are local browser results; the screenshots do not represent a physical-phone or production deployment test.
+The repository records desktop and responsive-browser checks for all seven templates, including typing, simulated sending, leave-message controls, options, attachments, image entry points, editing, and ZIP round trips. See the [implementation and acceptance record](https://github.com/hhh0078/GoodChat/blob/dev/docs/2026-10-30%E4%B8%83%E5%A5%97%E8%A1%8C%E4%B8%9A%E6%A8%A1%E6%9D%BF%E4%B8%8E%E5%85%83%E7%B4%A0%E7%BC%96%E8%BE%91%E5%99%A8%E9%AA%8C%E6%94%B6.md) for the tested scope. These are local browser results; the screenshots do not represent a physical-phone or production deployment test.
 
 [Back to English README](../../README.md) · [中文模板指南](../zh-CN/templates.md)
