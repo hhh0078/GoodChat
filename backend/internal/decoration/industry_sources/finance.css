@@ -236,6 +236,7 @@
   font-size: 12px;
 }
 .finance-workspace .gc-composer-area {
+  padding-top: 8px;
   background: #fff;
 }
 .finance-workspace .gc-preview-support {

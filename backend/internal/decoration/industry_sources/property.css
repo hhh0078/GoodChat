@@ -233,7 +233,7 @@
 }
 .property-workspace .gc-composer-area {
   margin: 0 40px;
-  padding: 0 0 max(20px, env(safe-area-inset-bottom));
+  padding: 8px 0 max(20px, env(safe-area-inset-bottom));
 }
 .property-workspace .gc-capsule {
   gap: 10px;
