@@ -3,7 +3,6 @@
 import argparse
 import datetime
 import fcntl
-import gzip
 import json
 import os
 from pathlib import Path
@@ -41,7 +40,7 @@ def start(root, private, image, name, port, code_port):
 
 
 def deploy(root, private, force):
-    """快进主分支、备份独立库、构建候选、迁移并健康切换，失败时恢复旧应用。"""
+    """快进主分支、构建候选、迁移并健康切换，按用户要求不自动备份。"""
     if run(["git", "status", "--porcelain"], root, True).strip():
         raise RuntimeError("服务器源码有未提交改动，拒绝覆盖")
     run(["git", "fetch", "origin", "main"], root)
@@ -64,16 +63,6 @@ def deploy(root, private, force):
     image = "goodchat:" + commit[:12]
     print("构建候选", commit, flush=True)
     run(["docker", "build", "--build-arg", "NEXT_PUBLIC_SITE_URL=https://goodchat.58it.cn", "-t", image, "."], root)
-    backups = private / "backups"
-    backups.mkdir(mode=0o700, exist_ok=True)
-    backup = backups / (datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".sql.gz")
-    with gzip.open(backup, "wb") as target:
-        process = subprocess.Popen(["docker", "exec", "postgres", "pg_dump", "-U", "postgres", "--dbname=goodchat_saas"], stdout=subprocess.PIPE)
-        for chunk in iter(lambda: process.stdout.read(1024 * 1024), b""):
-            target.write(chunk)
-        if process.wait() != 0:
-            raise RuntimeError("数据库备份失败，部署已停止")
-    os.chmod(backup, 0o600)
     run(["docker", "run", "--rm", "--network", "good-headhunter-data-services", "--env-file", str(private / "app.env"), "--env-file", str(private / "migration.env"), "-v", f"{private / 'data'}:/data", image, "/app/migrate"], root)
     if exists("goodchat-candidate"):
         run(["docker", "rm", "-f", "goodchat-candidate"], root)
@@ -101,10 +90,8 @@ def deploy(root, private, force):
             run(["docker", "rename", "goodchat-rollback", "goodchat"], root)
             run(["docker", "start", "goodchat"], root)
         raise
-    state_path.write_text(json.dumps({"commit": commit, "image": image, "deployed_at": datetime.datetime.now().isoformat(), "backup": str(backup)}, indent=2))
+    state_path.write_text(json.dumps({"commit": commit, "image": image, "deployed_at": datetime.datetime.now().isoformat()}, indent=2))
     os.chmod(state_path, 0o600)
-    for path in sorted(backups.glob("*.sql.gz"))[:-7]:
-        path.unlink()
     print("部署成功", commit, flush=True)
 
 
