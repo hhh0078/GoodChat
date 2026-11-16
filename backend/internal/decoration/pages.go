@@ -176,6 +176,9 @@ func (s *Service) previewPage(w http.ResponseWriter, r *http.Request) {
 
 // EntryDecoration 读取入口绑定的不可变设计，未发布页面回退基础聊天。
 func (s *Service) EntryDecoration(ctx context.Context, tx pgx.Tx, tenantID, linkID string) (map[string]any, error) {
+	if s.cfg.DecorationDisabled {
+		return nil, nil
+	}
 	var pageID, releaseID, mode string
 	var design json.RawMessage
 	err := tx.QueryRow(ctx, `SELECT p.id::text,r.id::text,r.render_mode,r.design FROM access_links l JOIN decoration_pages p ON p.id=l.page_id AND p.tenant_id=l.tenant_id JOIN decoration_releases r ON r.id=CASE WHEN l.binding_mode='PIN_RELEASE' THEN l.pinned_release_id ELSE p.current_release_id END AND r.tenant_id=p.tenant_id AND r.page_id=p.id WHERE l.tenant_id=$1 AND l.id=$2`, tenantID, linkID).Scan(&pageID, &releaseID, &mode, &design)

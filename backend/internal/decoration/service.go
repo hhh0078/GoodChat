@@ -37,8 +37,10 @@ var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 
 // New 创建装修模块，并拒绝代码站点与可信站点同源或生产同站配置。
 func New(pool *pgxpool.Pool, auth platform.Authorizer, cfg platform.Config) (*Service, error) {
-	if err := validateOrigins(cfg.PublicURL, cfg.CodeOrigin, cfg.Production); err != nil {
-		return nil, err
+	if !cfg.DecorationDisabled {
+		if err := validateOrigins(cfg.PublicURL, cfg.CodeOrigin, cfg.Production); err != nil {
+			return nil, err
+		}
 	}
 	return &Service{pool: pool, auth: auth, cfg: cfg, client: &http.Client{Timeout: 100 * time.Second, CheckRedirect: rejectRedirect}, packageSlots: make(chan struct{}, 2)}, nil
 }
@@ -58,6 +60,18 @@ func (s *Service) checkFeature(ctx context.Context, tx pgx.Tx, tenant, feature s
 
 // Register 注册租户与平台管理接口，所有写操作要求管理员身份。
 func (s *Service) Register(mux *http.ServeMux) {
+	if s.cfg.DecorationDisabled {
+		for _, prefix := range []string{
+			"/api/v1/tenant/templates", "/api/v1/tenant/template-industries", "/api/v1/tenant/pages",
+			"/api/v1/tenant/code-packages", "/api/v1/tenant/decoration-assets", "/api/v1/tenant/ai-configuration",
+			"/api/v1/tenant/ai-design-jobs", "/api/v1/tenant/assistant", "/api/v1/platform/templates",
+			"/api/v1/platform/template-industries", "/api/v1/platform/assistant",
+		} {
+			mux.HandleFunc(prefix, s.unavailable)
+			mux.HandleFunc(prefix+"/", s.unavailable)
+		}
+		return
+	}
 	s.registerAssistant(mux)
 	s.registerPackages(mux)
 	s.registerTemplateLifecycle(mux)
@@ -82,6 +96,11 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/tenant/ai-design-jobs", s.auth.RequireTenant(s.listAIJobs))
 	mux.HandleFunc("GET /api/v1/tenant/ai-design-jobs/{id}", s.auth.RequireTenant(s.getAIJob))
 	mux.HandleFunc("POST /api/v1/tenant/ai-design-jobs/{id}/cancel", s.auth.RequireAdmin(s.cancelAIJob))
+}
+
+// unavailable 明确提示缺少独立域名时装修暂停，不生成无法访问的发布链接。
+func (s *Service) unavailable(w http.ResponseWriter, r *http.Request) {
+	platform.ErrorJSON(w, r, platform.Fail(503, "decoration_unavailable", "装修功能暂未启用，请先配置独立渲染域名与通配符HTTPS证书；基础客服仍可使用"))
 }
 
 // tenant 在认证租户范围执行事务并统一处理错误。

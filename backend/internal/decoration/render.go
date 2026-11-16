@@ -12,7 +12,12 @@ import (
 )
 
 // CodeHandler 提供隔离静态站点处理器，不注册认证、客户、消息或附件接口。
-func (s *Service) CodeHandler() http.Handler { return http.HandlerFunc(s.render) }
+func (s *Service) CodeHandler() http.Handler {
+	if s.cfg.DecorationDisabled {
+		return http.HandlerFunc(s.unavailable)
+	}
+	return http.HandlerFunc(s.render)
+}
 
 // render 在精确版本子域定位发布或短期预览，并输出与后台完全分离的静态HTML。
 func (s *Service) render(w http.ResponseWriter, r *http.Request) {

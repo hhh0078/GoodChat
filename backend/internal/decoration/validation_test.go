@@ -3,6 +3,7 @@ package decoration
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strings"
@@ -10,6 +11,34 @@ import (
 
 	"supportdesk/backend/internal/platform"
 )
+
+// TestDisabledDecoration 拒绝未隔离的装修发布与渲染，同时不查询访客装修数据。
+func TestDisabledDecoration(t *testing.T) {
+	s, err := New(nil, nil, platform.Config{Production: true, DecorationDisabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	s.Register(mux)
+	for _, path := range []string{"/api/v1/tenant/pages", "/api/v1/tenant/templates/test/preview", "/api/v1/platform/templates", "/api/v1/tenant/assistant/threads"} {
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, httptest.NewRequest("POST", path, nil))
+		if w.Code != 503 || !strings.Contains(w.Body.String(), "decoration_unavailable") {
+			t.Fatalf("停用装修没有明确拒绝%s: %d", path, w.Code)
+		}
+	}
+	w := httptest.NewRecorder()
+	s.CodeHandler().ServeHTTP(w, httptest.NewRequest("GET", "/render/test", nil))
+	if w.Code != 503 {
+		t.Fatal("停用后不能渲染")
+	}
+	if data, err := s.EntryDecoration(nil, nil, "", ""); err != nil || data != nil {
+		t.Fatal("停用后基础客服应回退默认界面")
+	}
+	if _, err := New(nil, nil, platform.Config{Production: true}); err == nil {
+		t.Fatal("未显式停用时必须继续校验隔离域名")
+	}
+}
 
 // TestDesignRejectsUnsafeInputs 覆盖结构化脚本注入、外部资源、缺少聊天及超大输入。
 func TestDesignRejectsUnsafeInputs(t *testing.T) {
