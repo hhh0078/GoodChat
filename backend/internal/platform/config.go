@@ -14,7 +14,12 @@ import (
 func LoadConfig() (Config, error) {
 	config := Config{Address: env("SUPPORT_ADDR", "127.0.0.1:18080"), DatabaseURL: os.Getenv("DATABASE_URL"), MigrationURL: os.Getenv("MIGRATION_DATABASE_URL"), PublicURL: env("SUPPORT_PUBLIC_URL", "http://127.0.0.1:13000"), DataDir: env("SUPPORT_DATA_DIR", "../.local"), Production: os.Getenv("APP_ENV") == "production", SMTPHost: os.Getenv("SUPPORT_SMTP_HOST"), SMTPPort: env("SUPPORT_SMTP_PORT", "587"), SMTPUser: os.Getenv("SUPPORT_SMTP_USERNAME"), SMTPPassword: os.Getenv("SUPPORT_SMTP_PASSWORD"), SMTPFrom: os.Getenv("SUPPORT_SMTP_FROM"), SMTPAllowPlain: os.Getenv("SUPPORT_SMTP_ALLOW_PLAIN") == "true", AIEndpoint: os.Getenv("SUPPORT_AI_ENDPOINT"), AIKey: os.Getenv("SUPPORT_AI_KEY"), AIModel: os.Getenv("SUPPORT_AI_MODEL"), AuthSecret: os.Getenv("SUPPORT_AUTH_SECRET")}
 	var err error
-	config.CodeOrigin = env("SUPPORT_CODE_ORIGIN", config.PublicURL)
+	defaultCodeOrigin := config.PublicURL
+	if !config.Production {
+		// 本机Next开发服务没有生产网关，保留原有直连渲染端口，避免127.0.0.1默认值失效。
+		defaultCodeOrigin = "http://localhost:18081"
+	}
+	config.CodeOrigin = env("SUPPORT_CODE_ORIGIN", defaultCodeOrigin)
 	config.AIDailyLimit, err = aiDailyLimit(env("SUPPORT_AI_DAILY_LIMIT", "20"))
 	if err != nil {
 		return config, err
