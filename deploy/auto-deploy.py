@@ -12,9 +12,9 @@ import time
 import urllib.request
 
 
-def run(args, root, capture=False):
+def run(args, root, capture=False, timeout=None):
     """执行固定参数数组，失败中止；不把环境文件展开到日志。"""
-    return subprocess.run(args, cwd=root, check=True, text=True, stdout=subprocess.PIPE if capture else None).stdout
+    return subprocess.run(args, cwd=root, check=True, text=True, timeout=timeout, stdout=subprocess.PIPE if capture else None).stdout
 
 
 def healthy(port, attempts=60):
@@ -58,7 +58,7 @@ def deploy(root, private, force):
     """快进主分支、构建候选、迁移并健康切换，按用户要求不自动备份。"""
     if run(["git", "status", "--porcelain"], root, True).strip():
         raise RuntimeError("服务器源码有未提交改动，拒绝覆盖")
-    run(["git", "fetch", "origin", "main"], root)
+    run(["git", "-c", "http.lowSpeedLimit=1024", "-c", "http.lowSpeedTime=30", "fetch", "origin", "main"], root, timeout=90)
     run(["git", "merge", "--ff-only", "origin/main"], root)
     commit = run(["git", "rev-parse", "HEAD"], root, True).strip()
     state_path = private / "release.json"
