@@ -1,11 +1,13 @@
 <!-- 文件作用说明：作为英文优先的GoodChat项目首页，介绍产品、真实压缩截图、文档、部署入口与作者联系方式。 -->
-![GoodChat live chat icon](docs/media/goodchat-icon.png)
+<img src="docs/media/goodchat-icon.png" width="96" height="96" alt="GoodChat live chat icon" />
 
 # GoodChat — Self-Hosted Live Chat & Customer Support Platform
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Official website](https://goodchat.58it.cn) · [Feature guide](docs/en/features.md) · [Getting started](docs/en/getting-started.md)
 
 Mac / Windows desktop builds with configurable versions and default servers: [desktop development guide](desktop/README.md) · [validation scope](docs/桌面端开发与验收.md).
+
+Brand assets: [logo kit](logo/README.md) · [variant preview](logo/preview.html), including SVG, PNG, WebP, ICO and ICNS.
 
 GoodChat is a **self-hosted, multi-tenant live chat and customer service SaaS** built with **Go, PostgreSQL, Redis, Next.js, React and TypeScript**. It brings an agent workspace, customer profiles, conversation routing, service automation and reporting together with **seven responsive visitor chat templates**, a visual editor and an AI-assisted template design workflow.
 

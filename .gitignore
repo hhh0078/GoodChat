@@ -22,3 +22,5 @@ desktop/frontend/dist/
 __pycache__/
 *.pyc
 *.tsbuildinfo
+# 本地便捷下载包由已入库的Logo素材压缩生成，避免仓库重复保存二进制。
+/logo/GoodChat-Logo.zip

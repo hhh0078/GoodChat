@@ -18,3 +18,5 @@ docs/designs
 desktop/dist
 desktop/frontend/dist
 docs/media
+# Logo完整交付包留在仓库，运行镜像只使用frontend/public/logo中的少量文件。
+logo

@@ -71,6 +71,14 @@ h3 {
   place-items: center;
   color: var(--brand);
   font-size: 30px;
+  flex-shrink: 0;
+}
+.brand-symbol {
+  display: block;
+}
+.brand-mark .brand-symbol {
+  width: 100%;
+  height: 100%;
 }
 .public-width {
   width: min(1160px, calc(100% - 48px));

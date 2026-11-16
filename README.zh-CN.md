@@ -1,11 +1,13 @@
 <!-- 文件作用说明：作为GoodChat中文项目首页，介绍产品、真实压缩截图、文档、部署入口与作者联系方式。 -->
-![GoodChat 在线客服图标](docs/media/goodchat-icon.png)
+<img src="docs/media/goodchat-icon.png" width="96" height="96" alt="GoodChat 在线客服图标" />
 
 # GoodChat — 私有化部署的多租户在线客服系统与客户服务平台
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [官方网站](https://goodchat.58it.cn) · [功能导览](docs/zh-CN/features.md) · [开始使用](docs/zh-CN/getting-started.md)
 
 Mac / Windows 桌面端及自定义版本、默认服务器打包：[桌面端开发说明](desktop/README.md) · [验收范围](docs/桌面端开发与验收.md)。
+
+品牌素材：[Logo 文件夹说明](logo/README.md) · [形状预览](logo/preview.html)，包含 SVG、PNG、WebP、ICO 和 ICNS。
 
 GoodChat 是一套支持**私有化部署的多租户在线客服与客户服务 SaaS**，采用 **Go、PostgreSQL、Redis、Next.js、React 和 TypeScript**。项目将客服工作台、客户资料、会话分配、回复运营和统计报表，与**七套响应式用户端模板**、可视化编辑器和 AI 辅助模板设计流程连接在一起。
 

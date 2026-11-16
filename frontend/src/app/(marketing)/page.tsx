@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "antd";
 import { ProductPreview } from "@/components/product-preview";
 import { HeroRings } from "@/components/hero-rings";
+import { brandShareImages } from "@/lib/site-brand";
 import {
   ArrowRightOutlined,
   ApartmentOutlined,
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
     title: "GoodChat · 连接每一位客户，即刻回应每一次期待",
     description: "在线客服、团队协作与品牌页面，一处连接。基础版长期免费，包含 2 个客服坐席。",
     url: "/",
+    images: brandShareImages,
   },
 };
 const connections = [

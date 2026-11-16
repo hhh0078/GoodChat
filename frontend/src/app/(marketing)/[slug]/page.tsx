@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Button } from "antd";
 import { ProductPreview } from "@/components/product-preview";
+import { brandShareImages } from "@/lib/site-brand";
 
 const pages: Record<
   string,
@@ -133,7 +134,12 @@ export async function generateMetadata({
     title: page.title,
     description: page.lead,
     alternates: { canonical: `/${slug}` },
-    openGraph: { title: page.title, description: page.lead, url: `/${slug}` },
+    openGraph: {
+      title: page.title,
+      description: page.lead,
+      url: `/${slug}`,
+      images: brandShareImages,
+    },
   };
 }
 /** PublicContentPage 输出可被搜索引擎读取的产品与服务说明。 */

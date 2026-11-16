@@ -503,6 +503,10 @@
   font-size: 21px;
   font-weight: 700;
 }
+.product-mini-brand .brand-symbol {
+  width: 80%;
+  height: 80%;
+}
 .product-preview-nav .selected {
   display: grid;
   place-items: center;

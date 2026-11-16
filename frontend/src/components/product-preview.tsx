@@ -1,5 +1,6 @@
 /** 文件作用说明：用可缩放的服务端原生界面示意展示接待、接入、分配和装修能力，所有人物与消息均为示例。 */
 import Image from "next/image";
+import { BrandMark } from "./brand-mark";
 import {
   ApartmentOutlined,
   ArrowRightOutlined,
@@ -41,7 +42,7 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
       <figure className={`product-illustration product-illustration-${kind}`}>
         <div className="product-mini-chrome">
           <span className="product-mini-brand">
-            <MessageOutlined />
+            <BrandMark inverted />
           </span>
           <strong>
             {kind === "links" ? "接入链接" : kind === "routing" ? "分组与分配" : "品牌页面装修"}
@@ -133,7 +134,7 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
               <span className="product-design-stage-label">页面预览</span>
               <div className="product-design-phone">
                 <span className="product-mini-brand">
-                  <MessageOutlined />
+                  <BrandMark inverted />
                 </span>
                 <strong>欢迎咨询 GoodChat</strong>
                 <small>我们很高兴为你提供帮助</small>
@@ -175,7 +176,7 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
       <div className="product-workspace-body">
         <aside className="product-preview-nav" aria-hidden="true">
           <span className="product-mini-brand">
-            <MessageOutlined />
+            <BrandMark inverted />
           </span>
           <span className="selected">
             <MessageOutlined />
