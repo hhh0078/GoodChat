@@ -1,0 +1,63 @@
+# 文件作用说明：用同一代码和手动传入的版本及默认服务器构建Mac与Windows桌面包，不发布线上服务。
+name: GoodChat desktop packages
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号，例如 1.0.0'
+        required: true
+        default: '0.1.0'
+      server:
+        description: '安装包默认服务器根地址'
+        required: true
+        default: 'https://goodchat.58it.cn'
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: mac-universal
+          - os: windows-latest
+            target: win-amd64
+    runs-on: ${{ matrix.os }}
+    env:
+      GOPROXY: https://goproxy.cn,direct
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: desktop/go.mod
+          cache-dependency-path: desktop/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check mirrors and install locked dependencies
+        working-directory: frontend
+        run: |
+          npm config get registry
+          go env GOPROXY
+          npm ci --registry=https://registry.npmmirror.com
+      - name: Native reliability tests
+        working-directory: desktop
+        run: go test ./internal/...
+      - name: Build package
+        env:
+          DESKTOP_VERSION: ${{ inputs.version }}
+          DESKTOP_SERVER: ${{ inputs.server }}
+          DESKTOP_TARGET: ${{ matrix.target }}
+        shell: bash
+        run: python desktop/scripts/build.py --target "$DESKTOP_TARGET" --version "$DESKTOP_VERSION" --server "$DESKTOP_SERVER"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GoodChat-${{ matrix.target }}
+          path: desktop/dist/*
+          if-no-files-found: error

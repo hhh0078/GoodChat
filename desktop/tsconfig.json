@@ -1,0 +1,31 @@
+// 文件作用说明：检查桌面入口和复用客服组件的跨平台类型。
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/features/auth/session": ["frontend/src/session.tsx"],
+      "@/lib/realtime/use-realtime": ["frontend/src/use-realtime.ts"],
+      "@/features/chat/workspace-reminders": ["frontend/src/reminders.tsx"],
+      "next/link": ["frontend/src/link.tsx"],
+      "@/*": ["../frontend/src/*"],
+      "react": ["../frontend/node_modules/@types/react"],
+      "react/*": ["../frontend/node_modules/@types/react/*"],
+      "react-dom": ["../frontend/node_modules/@types/react-dom"],
+      "react-dom/*": ["../frontend/node_modules/@types/react-dom/*"],
+      "antd": ["../frontend/node_modules/antd"],
+      "antd/*": ["../frontend/node_modules/antd/*"],
+      "@ant-design/icons": ["../frontend/node_modules/@ant-design/icons"],
+      "@wailsio/runtime": ["../frontend/node_modules/@wailsio/runtime"]
+    }
+  },
+  "include": ["frontend/src/**/*.ts", "frontend/src/**/*.tsx"]
+}

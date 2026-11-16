@@ -6,7 +6,11 @@ import { AudioMutedOutlined, SoundOutlined } from "@ant-design/icons";
 import { errorMessage } from "@/lib/api";
 import type { useReminders } from "./reminders";
 /** ReminderVolume 仅在用户操作时保存音量或申请通知权限，失败保持原偏好。 */
-export function ReminderVolume({ reminders }: { reminders: ReturnType<typeof useReminders> }) {
+export function ReminderVolume({
+  reminders,
+}: {
+  reminders: ReturnType<typeof useReminders> & { native?: boolean };
+}) {
   const { message } = App.useApp();
   const [preferenceBusy, setPreferenceBusy] = useState(false);
   const [volumeDraft, setVolumeDraft] = useState<number | null>(null);
@@ -67,10 +71,12 @@ export function ReminderVolume({ reminders }: { reminders: ReturnType<typeof use
             disabled={!reminders.preferences || preferenceBusy}
             onChange={(event) => void changeSystemNotifications(event.target.checked)}
           >
-            浏览器系统通知
+            {reminders.native ? "系统通知" : "浏览器系统通知"}
           </Checkbox>
           <p className="muted">
-            浏览器通知会在页面处于后台时弹出，首次开启需允许通知权限；音量为 0 时仍可显示通知。
+            {reminders.native
+              ? "工作台处于后台时由程序发送系统通知，首次开启需允许通知权限；音量为 0 时仍可显示通知。"
+              : "浏览器通知会在页面处于后台时弹出，首次开启需允许通知权限；音量为 0 时仍可显示通知。"}
           </p>
           <p className="muted">
             {reminders.audioReady ? "提示音已就绪" : "点击或输入后，浏览器才允许播放提示音"}。

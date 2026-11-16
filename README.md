@@ -5,6 +5,8 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Official website](https://goodchat.58it.cn) · [Feature guide](docs/en/features.md) · [Getting started](docs/en/getting-started.md)
 
+Mac / Windows desktop builds with configurable versions and default servers: [desktop development guide](desktop/README.md) · [validation scope](docs/桌面端开发与验收.md).
+
 GoodChat is a **self-hosted, multi-tenant live chat and customer service SaaS** built with **Go, PostgreSQL, Redis, Next.js, React and TypeScript**. It brings an agent workspace, customer profiles, conversation routing, service automation and reporting together with **seven responsive visitor chat templates**, a visual editor and an AI-assisted template design workflow.
 
 The project is designed for teams that want to manage customer conversations and control the pages their visitors see. Use the standard chat page, choose an industry template, or create a private HTML/CSS/JavaScript design while keeping messaging on the platform's protected chat core.

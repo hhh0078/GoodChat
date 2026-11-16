@@ -5,6 +5,8 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [官方网站](https://goodchat.58it.cn) · [功能导览](docs/zh-CN/features.md) · [开始使用](docs/zh-CN/getting-started.md)
 
+Mac / Windows 桌面端及自定义版本、默认服务器打包：[桌面端开发说明](desktop/README.md) · [验收范围](docs/桌面端开发与验收.md)。
+
 GoodChat 是一套支持**私有化部署的多租户在线客服与客户服务 SaaS**，采用 **Go、PostgreSQL、Redis、Next.js、React 和 TypeScript**。项目将客服工作台、客户资料、会话分配、回复运营和统计报表，与**七套响应式用户端模板**、可视化编辑器和 AI 辅助模板设计流程连接在一起。
 
 它面向既需要统一处理客户咨询，又希望掌握用户端页面外观的服务团队。可以使用默认聊天页、选择行业模板，也可以制作自己的 HTML/CSS/JavaScript 私有设计，同时继续使用平台受保护的聊天核心。
