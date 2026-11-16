@@ -15,3 +15,6 @@ frontend/playwright-report
 
 # 设计原图单独留在仓库中，应用只复制frontend/public中的实际展示资源。
 docs/designs
+desktop/dist
+desktop/frontend/dist
+docs/media

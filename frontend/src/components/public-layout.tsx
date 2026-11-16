@@ -13,6 +13,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <Link href="/features">产品功能</Link>
             <Link href="/solutions">使用场景</Link>
             <Link href="/pricing">价格方案</Link>
+            <Link href="/downloads">客户端下载</Link>
             <Link href="/help">接入帮助</Link>
           </nav>
           <div className="public-actions">
@@ -36,6 +37,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <Link href="/pricing">价格方案</Link>
             <Link href="/help">接入帮助</Link>
             <Link href="/privacy">隐私政策</Link>
+            <Link href="/downloads">客户端下载</Link>
             <Link href="/terms">服务条款</Link>
             <Link href="/console">工作台</Link>
           </nav>

@@ -66,6 +66,8 @@ func newTestClient(t *testing.T, server string, emit func(string, any)) *Client 
 	if err = c.SelectServer(server); err != nil {
 		t.Fatal(err)
 	}
+	s, _ := c.current()
+	s.updateChecked = true
 	return c
 }
 
@@ -81,6 +83,7 @@ func activateForQueue(t *testing.T, c *Client, tenant string) *session {
 	s.tenant = tenant
 	s.member = "member-a"
 	s.scope = scopeHash(s.server, s.user, tenant)
+	s.updateChecked = true
 	s.mu.Unlock()
 	return s
 }

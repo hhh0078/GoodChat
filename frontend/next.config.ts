@@ -5,6 +5,7 @@ const backend = process.env.BACKEND_URL || "http://127.0.0.1:18080";
 const config: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
+  experimental: { cpus: 2 },
   /** rewrites 将 API 和实时连接代理到本项目 Go 服务。 */
   async rewrites() {
     return [

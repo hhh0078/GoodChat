@@ -113,6 +113,12 @@ func (c *Client) Middleware(next http.Handler) http.Handler {
 			localError(w, 400, "server_required", err.Error())
 			return
 		}
+		if !strings.HasPrefix(r.URL.Path, "/api/v1/public/") && r.URL.Path != "/healthz" {
+			if err = compatible(s); err != nil {
+				localError(w, 426, "client_update_required", err.Error())
+				return
+			}
+		}
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 		stop := context.AfterFunc(s.ctx, cancel)

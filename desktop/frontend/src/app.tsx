@@ -38,6 +38,7 @@ import {
 
 import { Login } from "./login";
 import { switchDraftServer } from "./drafts";
+import { UpdateRequired, type Update } from "./update-required";
 
 const labels: Record<string, string> = {
   idle: "尚未连接",
@@ -52,6 +53,7 @@ const labels: Record<string, string> = {
 /** DesktopApp 将服务器确认置于登录之前，每次启动都保留用户选择权。 */
 export default function DesktopApp() {
   const [serverForm] = Form.useForm();
+  const [update, setUpdate] = useState<Update | null>(null);
   const [startup, setStartup] = useState<Startup | null>(null);
   const [server, setServer] = useState("");
   const [choosing, setChoosing] = useState(true);
@@ -142,6 +144,7 @@ export default function DesktopApp() {
   /** connect 先让原生模块切换服务器，再尝试恢复该服务器自己的安全登录。 */
   async function connect(values: { server: string }) {
     setBusy(true);
+    setUpdate(null);
     setError("");
     setCurrent(null);
     setReady(false);
@@ -156,6 +159,9 @@ export default function DesktopApp() {
       setState({ status: "idle", detail: "", pending: 0, failed: 0 });
       setPending([]);
       setQueueOpen(false);
+      const checked = await invoke<Update>("CheckUpdate");
+      setUpdate(checked);
+      if (checked.required) return;
       try {
         await loadSession();
       } catch (problem) {
@@ -375,6 +381,14 @@ export default function DesktopApp() {
             关闭窗口后，GoodChat 将留在系统托盘或菜单栏。彻底退出后停止接收。
           </p>
         </main>
+      ) : update?.required ? (
+        <UpdateRequired
+          update={update}
+          busy={busy}
+          error={error}
+          onServer={requestServer}
+          onCheck={() => void connect({ server })}
+        />
       ) : !current ? (
         <Login
           server={server}

@@ -9,6 +9,7 @@ import { PlatformTemplates } from "./templates";
 import { PlatformOverview } from "./overview";
 import { PlatformUpgrades } from "./upgrades";
 import { PlatformPlans } from "./plans";
+import { ClientReleases } from "./client-releases";
 /** PlatformConsole 在成员身份加载后校验平台角色，再连接平台级管理资源。 */
 export function PlatformConsole() {
   const { current } = useSession();
@@ -37,6 +38,7 @@ export function PlatformConsole() {
             { key: "templates", label: "公共装修模板", children: <PlatformTemplates /> },
             { key: "plans", label: "套餐版本与官网价格", children: <PlatformPlans /> },
             { key: "upgrades", label: "升级申请与人工开通", children: <PlatformUpgrades /> },
+            { key: "clients", label: "客户端下载与版本", children: <ClientReleases /> },
           ]}
         />
       </div>

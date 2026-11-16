@@ -1,5 +1,7 @@
 /** 文件作用说明：提供应用统一入口，覆盖来源IP头并代理HTTP及WebSocket，后端只信任本机认证网关。 */
 import http from "node:http";
+import { timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 
 const port = Number(process.env.PORT || 3000);
 const secret = process.env.SUPPORT_GATEWAY_SECRET || process.env.SUPPORT_AUTH_SECRET;
@@ -10,9 +12,13 @@ function target(path) { return path.startsWith("/api/") || path.startsWith("/ws/
 
 /** 丢弃访客伪造的转发头，并写入仅后端可验证的真实连接来源。 */
 function headers(request, destination) {
+  const expected = Buffer.from(process.env.SUPPORT_EDGE_SECRET || "");
+  const supplied = Buffer.from(String(request.headers["x-goodchat-edge-token"] || ""));
+  const trusted = expected.length >= 32 && supplied.length === expected.length && timingSafeEqual(expected, supplied);
+  const edgeIP = String(request.headers["x-real-ip"] || "");
   const value = { ...request.headers, host: `127.0.0.1:${destination}` };
   for (const key of Object.keys(value)) if (key.startsWith("x-forwarded-") || key.startsWith("x-goodchat-") || key === "forwarded" || key === "x-real-ip") delete value[key];
-  value["x-goodchat-client-ip"] = request.socket.remoteAddress || "";
+  value["x-goodchat-client-ip"] = trusted && isIP(edgeIP) ? edgeIP : request.socket.remoteAddress || "";
   value["x-goodchat-gateway-token"] = secret;
   return value;
 }

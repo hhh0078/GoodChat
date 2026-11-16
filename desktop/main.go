@@ -20,7 +20,7 @@ import (
 )
 
 // version 和 defaultServer 由打包脚本通过链接参数注入，不保存任何密钥。
-var version = "0.1.0"
+var version = "0.1.1"
 var defaultServer = "https://goodchat.58it.cn"
 
 //go:embed all:frontend/dist
@@ -42,6 +42,9 @@ func (d *Desktop) Startup() (client.Startup, error) { return d.client.Startup() 
 
 // SelectServer 确认服务器并隔离旧服务器的任务与凭证。
 func (d *Desktop) SelectServer(server string) error { return d.client.SelectServer(server) }
+
+// CheckUpdate 在原生层执行启动版本检查，避免页面绕过强制更新。
+func (d *Desktop) CheckUpdate() (client.Update, error) { return d.client.CheckUpdate() }
 
 // SetIdentity 核验并切换客服工作空间。
 func (d *Desktop) SetIdentity(tenant string) error { return d.client.SetIdentity(tenant) }

@@ -1,0 +1,78 @@
+/* 文件作用说明：复用银白钴蓝品牌排版，突出各系统下载与版本信息。 */
+.download-page {
+  padding-block: 80px;
+}
+.download-eyebrow {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+.download-page h1 {
+  font-size: 44px;
+  margin: 16px 0;
+}
+.download-intro {
+  max-width: 660px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.8;
+}
+.download-platforms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin: 48px 0;
+}
+.download-platform {
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+}
+.download-icon {
+  font-size: 34px;
+  color: var(--brand);
+  margin-bottom: 18px;
+}
+.download-platform h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+.download-platform > p {
+  color: var(--muted);
+  font-size: 14px;
+}
+.download-version {
+  display: block;
+  color: var(--muted);
+  margin: 24px 0 12px;
+  font-variant-numeric: tabular-nums;
+}
+.download-platform .ant-btn {
+  width: 100%;
+}
+.download-notes {
+  margin: 20px 0 0;
+  white-space: pre-wrap;
+}
+.download-help {
+  max-width: 800px;
+  color: var(--muted);
+  line-height: 1.9;
+}
+.download-help h2 {
+  color: var(--ink);
+  font-size: 22px;
+}
+.download-help a {
+  color: var(--brand);
+}
+@media (max-width: 700px) {
+  .download-page {
+    padding-block: 40px;
+  }
+  .download-page h1 {
+    font-size: 30px;
+  }
+}

@@ -28,6 +28,7 @@ import (
 	"supportdesk/backend/internal/decoration"
 	"supportdesk/backend/internal/monitoring"
 	"supportdesk/backend/internal/platform"
+	"supportdesk/backend/internal/releases"
 	"supportdesk/backend/internal/reporting"
 )
 
@@ -106,6 +107,7 @@ func main() {
 	messaging.SetVisitorEnteredHook(hooks.Enqueue)
 	mux := http.NewServeMux()
 	identity.Register(mux)
+	releases.New(pool, identity).Register(mux)
 	messaging.Register(mux)
 	hooks.Register(mux)
 	plans.Register(mux)

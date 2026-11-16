@@ -73,6 +73,8 @@ type session struct {
 	runCancel                   context.CancelFunc
 	conn                        *websocket.Conn
 	ready                       bool
+	updateChecked               bool
+	updateRequired              bool
 	dirty                       map[string]uint64
 	revision                    uint64
 	rescan                      bool
@@ -170,8 +172,13 @@ func (c *Client) beginLogin() error {
 		return errors.New("请先选择服务器")
 	}
 	old := c.session
+	old.mu.Lock()
+	checked, required := old.updateChecked, old.updateRequired
+	old.mu.Unlock()
 	old.cancel()
 	c.session = newSession(old.server)
+	c.session.updateChecked = checked
+	c.session.updateRequired = required
 	return nil
 }
 
@@ -189,6 +196,9 @@ func (c *Client) current() (*session, error) {
 func (c *Client) SetIdentity(tenant string) error {
 	s, err := c.current()
 	if err != nil {
+		return err
+	}
+	if err = compatible(s); err != nil {
 		return err
 	}
 	s.identityMu.Lock()
