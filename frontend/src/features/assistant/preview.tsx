@@ -69,7 +69,7 @@ export function AssistantPreview({
               key={`${source.href}:${revision}`}
               title={`${device === "mobile" ? "手机" : "桌面"}用户端模板模拟预览`}
               src={source.href}
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts"
               referrerPolicy="no-referrer"
               style={{ width: viewportWidth, height: viewportHeight, transform: `scale(${scale})` }}
             />

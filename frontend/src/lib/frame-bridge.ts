@@ -145,13 +145,16 @@ export async function requestBridgeAttachment(
   if (!blob.size) throw new Error("附件内容为空，无法发起下载");
   return { blob, name: attachment.file_name, content_type: attachment.content_type };
 }
-/** safeRenderURL 只接受无内嵌账号且与可信父页面不同源的 HTTP 页面。 */
+/** safeRenderURL 校验渲染地址，同域仅开放发布路径；所有调用方必须使用无同源权限的沙箱。 */
 export function safeRenderURL(value: string, platformOrigin: string): URL | null {
   try {
     const url = new URL(value);
     if (
       !["http:", "https:"].includes(url.protocol) ||
-      url.origin === platformOrigin ||
+      (url.origin === platformOrigin &&
+        !/^\/render\/[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(
+          url.pathname,
+        )) ||
       (platformOrigin.startsWith("https:") && url.protocol !== "https:") ||
       url.username ||
       url.password
@@ -162,7 +165,7 @@ export function safeRenderURL(value: string, platformOrigin: string): URL | null
     return null;
   }
 }
-/** validBridgeHandshake 同时检查精确来源、窗口、协议版本、发布编号与随机握手值。 */
+/** validBridgeHandshake 校验不透明沙箱来源、精确窗口、协议版本、发布编号与随机值。 */
 export function validBridgeHandshake(
   input: unknown,
   origin: string,
@@ -171,7 +174,8 @@ export function validBridgeHandshake(
   releaseId: string,
 ): input is BridgeHello {
   if (
-    origin !== expectedOrigin ||
+    origin !== "null" ||
+    expectedOrigin !== "null" ||
     !sourceMatches ||
     !input ||
     typeof input !== "object" ||

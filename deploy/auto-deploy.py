@@ -5,6 +5,7 @@ import datetime
 import fcntl
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -39,6 +40,20 @@ def start(root, private, image, name, port, code_port):
     run(["docker", "run", "-d", "--name", name, "--init", "--restart", "unless-stopped", "--network", "good-headhunter-data-services", "--user", "1000:1000", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "--env-file", str(private / "app.env"), "-v", f"{private / 'data'}:/data", "-p", f"127.0.0.1:{port}:3000", "-p", f"127.0.0.1:{code_port}:18081", "--log-opt", "max-size=10m", "--log-opt", "max-file=3", image], root)
 
 
+def cleanup_images(root):
+    """仅回收带GoodChat构建标签的中间层及无容器引用的旧应用，不触碰卷和其他项目。"""
+    builds = run(["docker", "image", "ls", "-q", "--filter", "label=cn.goodchat.build-stage=true"], root, True).split()
+    for image in set(builds):
+        subprocess.run(["docker", "image", "rm", image], cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # docker image rm不加force，任何被正式、候选、回退或其他容器引用的镜像都会保留。
+    images = run(["docker", "image", "ls", "goodchat", "--format", "{{.Repository}}:{{.Tag}}"], root, True).split()
+    for image in images:
+        if re.fullmatch(r"goodchat:[0-9a-f]{12}", image):
+            used = run(["docker", "ps", "-aq", "--filter", "ancestor=" + image], root, True).strip()
+            if not used:
+                subprocess.run(["docker", "image", "rm", image], cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def deploy(root, private, force):
     """快进主分支、构建候选、迁移并健康切换，按用户要求不自动备份。"""
     if run(["git", "status", "--porcelain"], root, True).strip():
@@ -62,7 +77,7 @@ def deploy(root, private, force):
             raise RuntimeError(f"缺少必须复用的现有容器：{name}；不会新建")
     image = "goodchat:" + commit[:12]
     print("构建候选", commit, flush=True)
-    run(["docker", "build", "--build-arg", "NEXT_PUBLIC_SITE_URL=https://goodchat.58it.cn", "-t", image, "."], root)
+    run(["docker", "build", "--force-rm", "--build-arg", "NEXT_PUBLIC_SITE_URL=https://goodchat.58it.cn", "-t", image, "."], root)
     run(["docker", "run", "--rm", "--network", "good-headhunter-data-services", "--env-file", str(private / "app.env"), "--env-file", str(private / "migration.env"), "-v", f"{private / 'data'}:/data", image, "/app/migrate"], root)
     if exists("goodchat-candidate"):
         run(["docker", "rm", "-f", "goodchat-candidate"], root)
@@ -109,7 +124,10 @@ def main():
         except BlockingIOError:
             print("上次构建尚未结束，本轮跳过", flush=True)
             return
-        deploy(args.root.resolve(), args.private.resolve(), args.force)
+        try:
+            deploy(args.root.resolve(), args.private.resolve(), args.force)
+        finally:
+            cleanup_images(args.root.resolve())
 
 
 if __name__ == "__main__":

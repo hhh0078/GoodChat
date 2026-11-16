@@ -3,7 +3,6 @@ package decoration
 
 import (
 	"encoding/json"
-	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strings"
@@ -12,31 +11,27 @@ import (
 	"supportdesk/backend/internal/platform"
 )
 
-// TestDisabledDecoration 拒绝未隔离的装修发布与渲染，同时不查询访客装修数据。
-func TestDisabledDecoration(t *testing.T) {
-	s, err := New(nil, nil, platform.Config{Production: true, DecorationDisabled: true})
+// TestSameOriginRendering 验证同域发布使用原站点路径，响应级沙箱不授予Cookie和DOM同源权限。
+func TestSameOriginRendering(t *testing.T) {
+	s, err := New(nil, nil, platform.Config{Production: true, PublicURL: "https://goodchat.58it.cn", CodeOrigin: "https://goodchat.58it.cn"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	mux := http.NewServeMux()
-	s.Register(mux)
-	for _, path := range []string{"/api/v1/tenant/pages", "/api/v1/tenant/templates/test/preview", "/api/v1/platform/templates", "/api/v1/tenant/assistant/threads"} {
+	id := "20000000-0000-4000-8000-000000000001"
+	if got := s.renderURL(id, ""); got != "https://goodchat.58it.cn/render/"+id {
+		t.Fatal(got)
+	}
+	for _, packaged := range []bool{false, true} {
 		w := httptest.NewRecorder()
-		mux.ServeHTTP(w, httptest.NewRequest("POST", path, nil))
-		if w.Code != 503 || !strings.Contains(w.Body.String(), "decoration_unavailable") {
-			t.Fatalf("停用装修没有明确拒绝%s: %d", path, w.Code)
+		if packaged {
+			setPackageRenderPolicy(w, "nonce", "https://goodchat.58it.cn", "https://goodchat.58it.cn/assets/"+id+"/")
+		} else {
+			setRenderPolicy(w, "nonce", "https://goodchat.58it.cn")
 		}
-	}
-	w := httptest.NewRecorder()
-	s.CodeHandler().ServeHTTP(w, httptest.NewRequest("GET", "/render/test", nil))
-	if w.Code != 503 {
-		t.Fatal("停用后不能渲染")
-	}
-	if data, err := s.EntryDecoration(nil, nil, "", ""); err != nil || data != nil {
-		t.Fatal("停用后基础客服应回退默认界面")
-	}
-	if _, err := New(nil, nil, platform.Config{Production: true}); err == nil {
-		t.Fatal("未显式停用时必须继续校验隔离域名")
+		csp := strings.Join(w.Header().Values("Content-Security-Policy"), ";")
+		if !strings.Contains(csp, "sandbox allow-scripts") || strings.Contains(csp, "allow-same-origin") || !strings.Contains(csp, "connect-src 'none'") {
+			t.Fatal(csp)
+		}
 	}
 }
 
@@ -84,10 +79,10 @@ func TestOriginsAndRenderHost(t *testing.T) {
 		production, want bool
 	}{
 		{"http://127.0.0.1:13000", "http://localhost:18081", false, true},
-		{"http://localhost:18081", "http://localhost:18081", false, false},
+		{"http://localhost:18081", "http://localhost:18081", false, true},
 		{"http://localhost:13000", "http://127.0.0.1:18081", false, false},
-		{"https://admin.example.com", "https://code.example.com", true, false},
-		{"https://admin.example.com.", "https://code.example.com", true, false},
+		{"https://admin.example.com", "https://code.example.com", true, true},
+		{"https://admin.example.com.", "https://code.example.com", true, true},
 		{"https://support.example.com", "https://goodchat-content.net", true, true},
 		{"https://support.example.com", "http://goodchat-content.net", true, false},
 		{"https://support.example.com", "https://goodchat-content.net/path", true, false},

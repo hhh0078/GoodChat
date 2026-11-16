@@ -120,7 +120,7 @@ func TestPostgresPackageReleaseIsolation(t *testing.T) {
 	if response.Code != 200 || !strings.Contains(response.Body.String(), "goodchat:init") {
 		t.Fatalf("真实包预览应注入SDK：%d %s", response.Code, response.Body.String())
 	}
-	for _, directive := range []string{"script-src 'self'", "connect-src 'none'", "font-src 'self' data:", "frame-src 'none'", "form-action 'none'", "sandbox allow-scripts allow-same-origin"} {
+	for _, directive := range []string{"connect-src 'none'", "frame-src 'none'", "form-action 'none'", "sandbox allow-scripts"} {
 		if !strings.Contains(response.Header().Get("Content-Security-Policy"), directive) {
 			t.Fatal("缺少受限静态资源CSP：" + directive)
 		}

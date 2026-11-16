@@ -15,6 +15,37 @@ import (
 	"supportdesk/backend/internal/platform"
 )
 
+// TestPostgresSameOriginPublishLifecycle 验证同域路径的草稿预览、发布与访客入口绑定，不依赖预置模板。
+func TestPostgresSameOriginPublishLifecycle(t *testing.T) {
+	f := newIntegrationFixture(t, platform.Config{})
+	f.service.cfg.PublicURL = "https://goodchat.58it.cn"
+	f.service.cfg.CodeOrigin = f.service.cfg.PublicURL
+	page := f.mustRequest("POST", "/tenant/pages", f.member, map[string]any{"name": "同域装修生命周期"})
+	id := page["id"].(string)
+	preview := f.mustRequest("POST", "/tenant/pages/"+id+"/preview", f.member, nil)
+	if !strings.HasPrefix(preview["preview_url"].(string), "https://goodchat.58it.cn/render/") {
+		t.Fatal(preview)
+	}
+	if got := f.renderRequest(preview["preview_url"].(string)); got.Code != 200 || strings.Contains(got.Header().Get("Content-Security-Policy"), "allow-same-origin") {
+		t.Fatal("同域预览没有保持隔离", got.Code)
+	}
+	published := f.mustRequest("POST", "/tenant/pages/"+id+"/publish", f.member, map[string]any{"version": 1, "expected_release_id": "", "link_ids": []string{f.link}})
+	url := f.service.renderURL(published["release_id"].(string), "")
+	if got := f.renderRequest(url); got.Code != 200 || !strings.Contains(got.Body.String(), "GoodChat") {
+		t.Fatal("同域发布无法访问", got.Code)
+	}
+	err := platform.TenantTx(context.Background(), f.pool, f.tenant, func(tx pgx.Tx) error {
+		entry, err := f.service.EntryDecoration(context.Background(), tx, f.tenant, f.link)
+		if err == nil && entry["render_url"] != url {
+			t.Fatal("访客入口未使用同域装修", entry)
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestPostgresTenantReleaseIsolation 验证真实RLS、链接复合外键、短预览和两次并行发布的互斥保护。
 func TestPostgresTenantReleaseIsolation(t *testing.T) {
 	f := newIntegrationFixture(t, platform.Config{})

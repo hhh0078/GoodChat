@@ -33,7 +33,6 @@ type Config struct {
 	AIModel            string
 	AIDailyLimit       int // 每租户每自然日的AI提交上限，零表示禁用。
 	CodeOrigin         string
-	DecorationDisabled bool // 缺少独立渲染域名时显式停用装修，基础客服不受影响。
 	AuthSecret         string
 	CallbackAllowLocal bool
 	RedisURL           string

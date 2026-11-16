@@ -54,7 +54,7 @@ func TestBrowserIndustryTemplates(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		setPackageRenderPolicy(w, "browser-template-test", origin)
+		setPackageRenderPolicy(w, "browser-template-test", origin, origin+"/"+parts[0]+"/")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Type", file.ContentType)
 		raw := file.Content

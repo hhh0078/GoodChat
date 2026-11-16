@@ -71,7 +71,7 @@ export function TemplatePreview({
         <iframe
           title={`${name}页面缩略预览`}
           src={source}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           referrerPolicy="no-referrer"
           tabIndex={-1}
           aria-hidden="true"

@@ -35,12 +35,10 @@ type Service struct {
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
-// New 创建装修模块，并拒绝代码站点与可信站点同源或生产同站配置。
+// New 创建装修模块；同域页面依靠响应级不透明沙箱隔离，不依赖额外域名。
 func New(pool *pgxpool.Pool, auth platform.Authorizer, cfg platform.Config) (*Service, error) {
-	if !cfg.DecorationDisabled {
-		if err := validateOrigins(cfg.PublicURL, cfg.CodeOrigin, cfg.Production); err != nil {
-			return nil, err
-		}
+	if err := validateOrigins(cfg.PublicURL, cfg.CodeOrigin, cfg.Production); err != nil {
+		return nil, err
 	}
 	return &Service{pool: pool, auth: auth, cfg: cfg, client: &http.Client{Timeout: 100 * time.Second, CheckRedirect: rejectRedirect}, packageSlots: make(chan struct{}, 2)}, nil
 }
@@ -60,18 +58,6 @@ func (s *Service) checkFeature(ctx context.Context, tx pgx.Tx, tenant, feature s
 
 // Register 注册租户与平台管理接口，所有写操作要求管理员身份。
 func (s *Service) Register(mux *http.ServeMux) {
-	if s.cfg.DecorationDisabled {
-		for _, prefix := range []string{
-			"/api/v1/tenant/templates", "/api/v1/tenant/template-industries", "/api/v1/tenant/pages",
-			"/api/v1/tenant/code-packages", "/api/v1/tenant/decoration-assets", "/api/v1/tenant/ai-configuration",
-			"/api/v1/tenant/ai-design-jobs", "/api/v1/tenant/assistant", "/api/v1/platform/templates",
-			"/api/v1/platform/template-industries", "/api/v1/platform/assistant",
-		} {
-			mux.HandleFunc(prefix, s.unavailable)
-			mux.HandleFunc(prefix+"/", s.unavailable)
-		}
-		return
-	}
 	s.registerAssistant(mux)
 	s.registerPackages(mux)
 	s.registerTemplateLifecycle(mux)
@@ -96,11 +82,6 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/tenant/ai-design-jobs", s.auth.RequireTenant(s.listAIJobs))
 	mux.HandleFunc("GET /api/v1/tenant/ai-design-jobs/{id}", s.auth.RequireTenant(s.getAIJob))
 	mux.HandleFunc("POST /api/v1/tenant/ai-design-jobs/{id}/cancel", s.auth.RequireAdmin(s.cancelAIJob))
-}
-
-// unavailable 明确提示缺少独立域名时装修暂停，不生成无法访问的发布链接。
-func (s *Service) unavailable(w http.ResponseWriter, r *http.Request) {
-	platform.ErrorJSON(w, r, platform.Fail(503, "decoration_unavailable", "装修功能暂未启用，请先配置独立渲染域名与通配符HTTPS证书；基础客服仍可使用"))
 }
 
 // tenant 在认证租户范围执行事务并统一处理错误。
@@ -190,7 +171,7 @@ func validName(name string) error {
 	return nil
 }
 
-// validateOrigins 检查独立渲染来源，生产保守拒绝共享末两段域名的部署。
+// validateOrigins 检查渲染地址，生产要求HTTPS；实际隔离由无同源权限的响应沙箱执行。
 func validateOrigins(publicOrigin, codeOrigin string, production bool) error {
 	p, err := url.Parse(publicOrigin)
 	if err != nil || p.Host == "" || p.User != nil {
@@ -198,22 +179,19 @@ func validateOrigins(publicOrigin, codeOrigin string, production bool) error {
 	}
 	c, err := url.Parse(codeOrigin)
 	if err != nil || c.Host == "" || c.User != nil || c.RawQuery != "" || c.Fragment != "" || strings.Trim(c.Path, "/") != "" {
-		return errors.New("独立代码站点地址配置无效")
+		return errors.New("装修渲染地址配置无效")
 	}
 	if hostIsIP(c.Hostname()) || strings.Contains(c.Hostname(), "*") {
-		return errors.New("代码站点必须使用可分配版本子域的域名，开发可使用localhost")
+		return errors.New("装修渲染地址必须使用域名，开发可使用localhost")
 	}
 	if (p.Scheme != "http" && p.Scheme != "https") || (c.Scheme != "http" && c.Scheme != "https") {
 		return errors.New("装修站点必须使用HTTP或HTTPS")
 	}
-	if strings.EqualFold(p.Host, c.Host) && p.Scheme == c.Scheme {
-		return errors.New("装修代码站点必须与可信站点跨来源")
-	}
 	if production {
 		ph, ch := strings.TrimSuffix(strings.ToLower(p.Hostname()), "."), strings.TrimSuffix(strings.ToLower(c.Hostname()), ".")
 		a, b := strings.Split(ph, "."), strings.Split(ch, ".")
-		if c.Scheme != "https" || p.Scheme != "https" || len(a) < 2 || len(b) < 2 || hostIsIP(ph) || hostIsIP(ch) || strings.HasSuffix(ch, "localhost") || strings.HasSuffix(ph, "localhost") || strings.Join(a[len(a)-2:], ".") == strings.Join(b[len(b)-2:], ".") {
-			return errors.New("生产装修代码站点必须使用HTTPS与独立可注册域名")
+		if c.Scheme != "https" || p.Scheme != "https" || len(a) < 2 || len(b) < 2 || hostIsIP(ph) || hostIsIP(ch) || strings.HasSuffix(ch, "localhost") || strings.HasSuffix(ph, "localhost") {
+			return errors.New("生产装修地址必须使用HTTPS域名")
 		}
 	}
 	return nil
@@ -224,14 +202,17 @@ func rejectRedirect(request *http.Request, previous []*http.Request) error {
 	return http.ErrUseLastResponse
 }
 
-// renderURL 为每个静态快照分配独立子域来源，避免租户之间共享浏览器存储。
+// renderURL 在同域配置下使用发布路径，兼容已有独立域名配置的版本子域。
 func (s *Service) renderURL(id, token string) string {
 	u, _ := url.Parse(s.cfg.CodeOrigin)
-	host := id + "." + u.Hostname()
-	if u.Port() != "" {
-		host += ":" + u.Port()
+	public, _ := url.Parse(s.cfg.PublicURL)
+	if !strings.EqualFold(public.Host, u.Host) || public.Scheme != u.Scheme {
+		host := id + "." + u.Hostname()
+		if u.Port() != "" {
+			host += ":" + u.Port()
+		}
+		u.Host = host
 	}
-	u.Host = host
 	u.Path = "/render/" + id
 	if token != "" {
 		q := url.Values{}

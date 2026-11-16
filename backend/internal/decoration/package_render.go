@@ -96,7 +96,8 @@ func (s *Service) renderPackageAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	public, _ := url.Parse(s.cfg.PublicURL)
 	parent := public.Scheme + "://" + public.Host
-	setPackageRenderPolicy(w, nonce, parent)
+	code, _ := url.Parse(s.cfg.CodeOrigin)
+	setPackageRenderPolicy(w, nonce, parent, code.Scheme+"://"+r.Host+packagePrefix(id, token))
 	files := map[string]packageFile{}
 	for _, file := range snapshot.Manifest {
 		files[file.Path] = file
@@ -148,9 +149,11 @@ func (s *Service) renderPackageAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 // setPackageRenderPolicy 只扩展到当前发布白名单静态来源，不增加外网、API、子框架、表单或下载权限。
-func setPackageRenderPolicy(w http.ResponseWriter, nonce, parent string) {
-	csp := "default-src 'none'; script-src 'self' 'nonce-" + nonce + "'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors " + parent + "; sandbox allow-scripts allow-same-origin"
+func setPackageRenderPolicy(w http.ResponseWriter, nonce, parent, static string) {
+	csp := "default-src 'none'; script-src " + static + " 'nonce-" + nonce + "'; style-src " + static + " 'unsafe-inline'; img-src " + static + " data: blob:; media-src " + static + " blob:; font-src " + static + " data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors " + parent + "; sandbox allow-scripts"
 	w.Header().Set("Content-Security-Policy", csp)
-	w.Header().Add("Content-Security-Policy", "script-src 'self' 'unsafe-inline'")
+	w.Header().Add("Content-Security-Policy", "script-src "+static+" 'unsafe-inline'")
+	// 不透明来源加载模块与字体需要匿名CORS，静态处理器不提供认证接口且不允许携带凭据读取。
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	// 任意脚本仍可导航自身窗口，隔离不承诺获授权展示的聊天正文绝对不可外传。
 }

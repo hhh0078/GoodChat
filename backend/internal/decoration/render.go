@@ -1,4 +1,4 @@
-// 文件作用说明：仅在独立版本子域提供静态装修设计，设置拒绝外网和平台凭证的限制性浏览器策略。
+// 文件作用说明：仅提供静态装修设计，通过不透明来源沙箱隔离主站，设置拒绝外网和平台凭证的限制性浏览器策略。
 package decoration
 
 import (
@@ -12,14 +12,9 @@ import (
 )
 
 // CodeHandler 提供隔离静态站点处理器，不注册认证、客户、消息或附件接口。
-func (s *Service) CodeHandler() http.Handler {
-	if s.cfg.DecorationDisabled {
-		return http.HandlerFunc(s.unavailable)
-	}
-	return http.HandlerFunc(s.render)
-}
+func (s *Service) CodeHandler() http.Handler { return http.HandlerFunc(s.render) }
 
-// render 在精确版本子域定位发布或短期预览，并输出与后台完全分离的静态HTML。
+// render 按发布路径与配置Host定位发布或短期预览，并输出与后台完全分离的静态HTML。
 func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -91,7 +86,7 @@ func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 
 // setRenderPolicy 叠加两条CSP，使脚本同时满足随机nonce与仅内联要求，阻止脚本复用nonce加载外链。
 func setRenderPolicy(w http.ResponseWriter, nonce, parentOrigin string) {
-	csp := "default-src 'none'; script-src 'nonce-" + nonce + "'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; font-src 'none'; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors " + parentOrigin + "; sandbox allow-scripts allow-same-origin"
+	csp := "default-src 'none'; script-src 'nonce-" + nonce + "'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; font-src 'none'; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors " + parentOrigin + "; sandbox allow-scripts"
 	w.Header().Set("Content-Security-Policy", csp)
 	// W3C要求多个策略同时执行；第二条没有nonce，因此即使租户读取nonce也只能执行内联脚本。
 	w.Header().Add("Content-Security-Policy", "script-src 'unsafe-inline'")

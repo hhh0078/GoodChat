@@ -66,7 +66,7 @@ export function DecoratedVisitor({
   const renderURL =
     typeof location === "undefined" ? null : safeRenderURL(decoration.render_url, location.origin);
   const source = renderURL?.toString() || "";
-  const origin = renderURL?.origin || "";
+  const origin = renderURL ? "null" : "";
   const frameScope = `${source}.${revision}`;
   useEffect(() => {
     attemptedRecovery.current = false;
@@ -398,7 +398,7 @@ export function DecoratedVisitor({
           release_id: decoration.release_id,
           nonce: input.nonce,
         },
-        origin,
+        "*",
         [connection.port2],
       );
       connection.port1.postMessage({ type: "state", data: state() });
@@ -489,7 +489,7 @@ export function DecoratedVisitor({
           ref={frame}
           src={source}
           title="商户客服页面"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           allow="camera 'none'; microphone 'none'"
           referrerPolicy="no-referrer"
           className="visitor-decoration-frame"

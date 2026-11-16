@@ -53,7 +53,7 @@ export function StaticEditorPreview({
         element_id: selected,
         style_selector: styleSelector,
       },
-      origin,
+      "*",
     );
     frame.current?.contentWindow?.postMessage(
       {
@@ -63,7 +63,7 @@ export function StaticEditorPreview({
         element_id: selected,
         style_selector: styleSelector,
       },
-      origin,
+      "*",
     );
   }
   useEffect(() => {
@@ -73,7 +73,7 @@ export function StaticEditorPreview({
       const data = event.data;
       if (
         event.source !== frame.current?.contentWindow ||
-        event.origin !== origin ||
+        event.origin !== "null" ||
         !data ||
         data.release_id !== preview!.release_id ||
         data.nonce !== preview!.nonce
@@ -129,7 +129,7 @@ export function StaticEditorPreview({
               ref={frame}
               title="模板元素编辑预览"
               src={source.href}
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts"
               referrerPolicy="no-referrer"
               onLoad={postMode}
               style={{ width, height, transform: `scale(${scale})` }}

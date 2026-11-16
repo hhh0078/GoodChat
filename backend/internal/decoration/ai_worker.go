@@ -14,9 +14,6 @@ import (
 
 // Start 启动最多两个并发模型调用，持久租约防止重启后静默重复计费。
 func (s *Service) Start(ctx context.Context) {
-	if s.cfg.DecorationDisabled {
-		return
-	}
 	s.startAssistant(ctx)
 	go func() {
 		slots := make(chan struct{}, 2)

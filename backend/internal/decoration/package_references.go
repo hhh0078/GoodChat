@@ -219,6 +219,16 @@ func packageHTML(raw []byte, current, prefix, nonce, sdk string, files map[strin
 				}
 				n.Attr = append(filtered, xhtml.Attribute{Key: "nonce", Val: nonce})
 			}
+			// 沙箱为不透明来源，包内脚本与样式统一匿名加载，禁止作者改成携带主站凭据。
+			if tag == "script" && attrs["src"] != "" || tag == "link" || tag == "img" || tag == "audio" || tag == "video" {
+				filtered := n.Attr[:0]
+				for _, a := range n.Attr {
+					if !strings.EqualFold(a.Key, "crossorigin") {
+						filtered = append(filtered, a)
+					}
+				}
+				n.Attr = append(filtered, xhtml.Attribute{Key: "crossorigin", Val: "anonymous"})
+			}
 		}
 		for child := n.FirstChild; child != nil; child = child.NextSibling {
 			if err := walk(child, depth+1); err != nil {

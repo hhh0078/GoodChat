@@ -234,7 +234,7 @@ accepted、delivered 与 read 分别表示持久化、授权终端确认与参�
 
 例如平台使用 support.example，代码静态站点使用 supportusercontent.example。示例域名用于说明隔离关系，实际域名在部署时配置。代码发布建议使用独立发布来源，避免不同租户代码同源共享存储。
 
-首版选择跨来源 iframe，sandbox 仅开启确有需要的 allow-scripts 与 allow-same-origin，必须保证子页与可信父页永不同源。不得把租户代码直接写入管理页面 DOM，也不得将用户代码 srcdoc 与同源权限组合使用。此处 sandbox 例外与来源要求依据 WHATWG，见 T04。
+当前使用同域路径加不透明来源 iframe，sandbox 只开放 allow-scripts，HTML响应同时设置CSP sandbox，禁止allow-same-origin。租户代码不能访问主站Cookie、浏览器存储和父页DOM；不得将其直接写入管理页面DOM。静态资源限定当前发布路径并匿名CORS加载，消息通过校验窗口、发布编号和随机数的受限通道处理。实现与验收详见《生产部署与客户端版本管理》。浏览器沙箱规则依据WHATWG，见T04。
 
 ### 7 3 聊天桥接
 

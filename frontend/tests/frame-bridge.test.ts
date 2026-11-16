@@ -130,10 +130,16 @@ test("装修消息仅公开安全头像地址，不导出私有附件、危险�
     );
   }
 });
-test("装修来源必须跨源且不接受危险协议或内嵌凭证", () => {
+test("装修同域仅开放发布路径且不接受危险协议或内嵌凭证", () => {
   assert.equal(
     safeRenderURL("https://code.example.net/render/release", "https://app.example.com")?.hostname,
     "code.example.net",
+  );
+  assert.ok(
+    safeRenderURL(
+      "https://app.example.com/render/20000000-0000-4000-8000-000000000001?preview=token",
+      "https://app.example.com",
+    ),
   );
   for (const value of [
     "https://app.example.com/render",
@@ -146,7 +152,7 @@ test("装修来源必须跨源且不接受危险协议或内嵌凭证", () => {
   }
 });
 test("精确来源和窗口与协议均正确才允许握手", () => {
-  const origin = "https://code.example.net";
+  const origin = "null";
   const input = {
     type: "goodchat:init",
     version: 1,

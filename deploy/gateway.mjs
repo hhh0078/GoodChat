@@ -8,7 +8,10 @@ const secret = process.env.SUPPORT_GATEWAY_SECRET || process.env.SUPPORT_AUTH_SE
 if (!secret) throw new Error("缺少应用网关密钥");
 
 /** 从固定路由选择本机服务，不接受用户控制的目标URL。 */
-function target(path) { return path.startsWith("/api/") || path.startsWith("/ws/") || path === "/healthz" ? 18080 : 3001; }
+function target(path) {
+  if (["/render/", "/assets/", "/preview-assets/"].some((prefix) => path.startsWith(prefix))) return 18081;
+  return path.startsWith("/api/") || path.startsWith("/ws/") || path === "/healthz" ? 18080 : 3001;
+}
 
 /** 丢弃访客伪造的转发头，并写入仅后端可验证的真实连接来源。 */
 function headers(request, destination) {
@@ -16,7 +19,11 @@ function headers(request, destination) {
   const supplied = Buffer.from(String(request.headers["x-goodchat-edge-token"] || ""));
   const trusted = expected.length >= 32 && supplied.length === expected.length && timingSafeEqual(expected, supplied);
   const edgeIP = String(request.headers["x-real-ip"] || "");
-  const value = { ...request.headers, host: `127.0.0.1:${destination}` };
+  const value = { ...request.headers, host: destination === 18081 ? new URL(process.env.SUPPORT_CODE_ORIGIN || process.env.SUPPORT_PUBLIC_URL).host : `127.0.0.1:${destination}` };
+  if (destination === 18081) {
+    delete value.cookie;
+    delete value.authorization;
+  }
   for (const key of Object.keys(value)) if (key.startsWith("x-forwarded-") || key.startsWith("x-goodchat-") || key === "forwarded" || key === "x-real-ip") delete value[key];
   value["x-goodchat-client-ip"] = trusted && isIP(edgeIP) ? edgeIP : request.socket.remoteAddress || "";
   value["x-goodchat-gateway-token"] = secret;
