@@ -180,3 +180,8 @@ func defaultDesign(mode, name string) json.RawMessage {
 	body, _ := json.Marshal(Schema{SchemaVersion: 1, Theme: Theme{"#1f6f5b", "#f6f7f4", "#17231f", 16}, Brand: Brand{Title: name, Subtitle: "欢迎在线咨询"}, Blocks: []Block{{ID: "welcome", Type: "welcome", Title: "您好，有什么可以帮您？", Items: []map[string]string{}}, {ID: "chat", Type: "chat", Title: "在线咨询", Items: []map[string]string{}}}})
 	return body
 }
+
+// invalidDesignf 为带资源编号的装修错误保留模板，编号不会被翻译。
+func invalidDesignf(source string, args ...any) error {
+	return platform.Failf(400, "invalid_design", source, args...)
+}

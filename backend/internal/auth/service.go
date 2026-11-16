@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -175,6 +174,8 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/auth/login", s.endpoint(s.loginPassword))
 	mux.HandleFunc("POST /api/v1/auth/reset-password", s.endpoint(s.resetPassword))
 	mux.HandleFunc("POST /api/v1/auth/accept-invitation", s.endpoint(s.acceptInvitation))
+	mux.HandleFunc("GET /api/v1/auth/preferences", s.RequireUser(s.endpoint(s.userPreferences)))
+	mux.HandleFunc("PATCH /api/v1/auth/preferences", s.RequireUser(s.endpoint(s.userPreferences)))
 	mux.HandleFunc("GET /api/v1/auth/me", s.RequireUser(s.endpoint(s.me)))
 	mux.HandleFunc("POST /api/v1/auth/logout", s.RequireUser(s.endpoint(s.logout)))
 	mux.HandleFunc("POST /api/v1/auth/logout-others", s.RequireUser(s.endpoint(s.logoutOthers)))
@@ -384,7 +385,7 @@ func lockIdentity(ctx context.Context, tx pgx.Tx, email string) error {
 // validateName 统一校验显示名称与租户名称，防止空白及异常长度。
 func validateName(value string, limit int) error {
 	if strings.TrimSpace(value) == "" || len([]rune(value)) > limit || strings.ContainsAny(value, "\x00\r\n") {
-		return platform.Fail(400, "invalid_name", fmt.Sprintf("名称不能为空且最多%d个字符", limit))
+		return platform.Failf(400, "invalid_name", "名称不能为空且最多%d个字符", limit)
 	}
 	return nil
 }

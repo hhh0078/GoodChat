@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -292,7 +293,7 @@ func (s *Service) assistantCreateMessage(w http.ResponseWriter, r *http.Request)
 		if err := tx.QueryRow(r.Context(), "INSERT INTO assistant_messages(tenant_id,thread_id,role,content,asset_ids,client_message_id) VALUES($1,$2,'user',$3,$4,$5) RETURNING id::text", p.TenantID, id, input.Content, input.AssetIDs, input.ClientMessageID).Scan(&messageID); err != nil {
 			return nil, err
 		}
-		if err := tx.QueryRow(r.Context(), "INSERT INTO assistant_jobs(tenant_id,thread_id,message_id,created_by,source,config_version,contract_version,base_template_id,base_version,base_design) VALUES($1,$2,$3,$4,$5,$6,$7,NULLIF($8,'')::uuid,$9,$10) RETURNING id::text", p.TenantID, id, messageID, p.MembershipID, source, cfg.Version, foundation.Version, templateID, version, baseDesign).Scan(&jobID); err != nil {
+		if err := tx.QueryRow(r.Context(), "INSERT INTO assistant_jobs(tenant_id,thread_id,message_id,created_by,source,config_version,contract_version,base_template_id,base_version,base_design,target_locale) VALUES($1,$2,$3,$4,$5,$6,$7,NULLIF($8,'')::uuid,$9,$10,$11) RETURNING id::text", p.TenantID, id, messageID, p.MembershipID, source, cfg.Version, foundation.Version, templateID, version, baseDesign, localization.RequestLocale(r)).Scan(&jobID); err != nil {
 			return nil, err
 		}
 		if _, err := tx.Exec(r.Context(), "UPDATE assistant_messages SET job_id=$2 WHERE id=$1", messageID, jobID); err != nil {

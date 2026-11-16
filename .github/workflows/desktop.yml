@@ -46,6 +46,12 @@ jobs:
           npm config get registry
           go env GOPROXY
           npm ci --registry=https://registry.npmmirror.com
+      - name: Internationalization catalog checks
+        working-directory: frontend
+        run: npm run i18n:check
+      - name: Translation catalog checks
+        working-directory: frontend
+        run: npm run i18n:check
       - name: Native reliability tests
         working-directory: desktop
         run: go test ./internal/...

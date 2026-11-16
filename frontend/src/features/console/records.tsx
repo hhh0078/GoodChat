@@ -1,6 +1,17 @@
 /** 文件作用说明：独立查询授权聊天记录，并按相同筛选分别下载会话元数据或默认不含内部备注的正文CSV。 */
 "use client";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import filterStyles from "@/components/filter-toolbar.module.css";
+import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
+import { useSession } from "@/features/auth/session";
+import { AttachmentView } from "@/features/chat/attachment";
+import { localizeStatic } from "@/i18n/runtime";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
+import { api } from "@/lib/api";
+import { requestCSV, startFileDownload } from "@/lib/csv-download";
+import type { ChatMessage, Conversation, Member } from "@/lib/types";
+import { useResource } from "@/lib/use-resource";
+import { DownloadOutlined } from "@ant-design/icons";
 import {
   App,
   Avatar,
@@ -14,17 +25,9 @@ import {
   Table,
   Tag,
 } from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useResource } from "@/lib/use-resource";
-import { api, errorMessage } from "@/lib/api";
-import { requestCSV, startFileDownload } from "@/lib/csv-download";
-import { AttachmentView } from "@/features/chat/attachment";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ExportJobs } from "./export-jobs";
-import { useSession } from "@/features/auth/session";
-import type { ChatMessage, Conversation, Member } from "@/lib/types";
-import { PageTitle, ErrorNotice, EmptyData } from "@/components/page-state";
-import filterStyles from "@/components/filter-toolbar.module.css";
 const statusText: Record<string, string> = {
   queued: "排队中",
   assigned: "待接单",
@@ -33,6 +36,9 @@ const statusText: Record<string, string> = {
 };
 /** RecordsPage 以独立会话查询历史，导出生成结果和浏览器实际保存分开反馈。 */
 export function RecordsPage() {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  const tr = useTranslator();
   const { tenantId, current } = useSession();
   const manages = current.memberships.some(
     (member) => member.tenant_id === tenantId && ["owner", "admin"].includes(member.role),
@@ -96,10 +102,12 @@ export function RecordsPage() {
       if (pending || controller.signal.aborted) return;
       pending = true;
       try {
-        const data = await api<{ items: ChatMessage[] }>(
-          `/conversations/${conversationId}/messages?limit=100`,
-          { tenantId, signal: controller.signal },
-        );
+        const data = await api<{
+          items: ChatMessage[];
+        }>(`/conversations/${conversationId}/messages?limit=100`, {
+          tenantId,
+          signal: controller.signal,
+        });
         if (!controller.signal.aborted) {
           setMessages(data.items || []);
           setError(null);
@@ -142,13 +150,16 @@ export function RecordsPage() {
       const file = await requestCSV(
         `/tenant/chat-records/export?${filters}`,
         tenantId,
-        includeMessages ? "GoodChat-消息正文.csv" : "GoodChat-会话列表.csv",
+        includeMessages ? tr("GoodChat-消息正文.csv") : tr("GoodChat-会话列表.csv"),
         controller.signal,
       );
       if (controller.signal.aborted) return;
       startFileDownload(file.blob, file.filename);
       message.success(
-        `已发起${includeMessages ? "消息正文" : "会话列表"}下载${file.rows !== null ? `（${file.rows}条数据）` : ""}，请查看浏览器下载记录`,
+        tr("已发起{p0}下载{p1}，请查看浏览器下载记录", {
+          p0: String(includeMessages ? tr("消息正文") : tr("会话列表")),
+          p1: String(file.rows !== null ? tr("（{p0}条数据）", { p0: String(file.rows) }) : ""),
+        }),
       );
     } catch (problem) {
       if (!controller.signal.aborted) setExportError(problem);
@@ -162,8 +173,8 @@ export function RecordsPage() {
   return (
     <section className="console-screen console-records">
       <PageTitle
-        title="聊天记录"
-        description="按独立会话检索授权历史；日期按租户时区解释，结束日期包含当天。"
+        title={tr("聊天记录")}
+        description={tr("按独立会话检索授权历史；日期按租户时区解释，结束日期包含当天。")}
         action={
           manages && (
             <Space wrap>
@@ -176,7 +187,7 @@ export function RecordsPage() {
                 loading={exporting === "metadata"}
                 onClick={() => void exportRecords(false)}
               >
-                导出会话列表
+                {tr("导出会话列表 ")}
               </Button>
               <Button
                 icon={<DownloadOutlined />}
@@ -186,19 +197,23 @@ export function RecordsPage() {
                 loading={exporting === "messages"}
                 onClick={() => void exportRecords(true)}
               >
-                导出消息正文
+                {tr("导出消息正文 ")}
               </Button>
             </Space>
           )
         }
       />
       <div className="table-card">
-        <form className={filterStyles.toolbar} aria-label="聊天记录筛选" onSubmit={searchRecords}>
+        <form
+          className={filterStyles.toolbar}
+          aria-label={tr("聊天记录筛选")}
+          onSubmit={searchRecords}
+        >
           <div className={filterStyles.field} style={{ width: 150 }}>
-            <span>客户</span>
+            <span>{tr("客户")}</span>
             <Input
-              placeholder="名称 / 电话"
-              aria-label="客户名称或电话"
+              placeholder={tr("名称 / 电话")}
+              aria-label={tr("客户名称或电话")}
               variant="borderless"
               allowClear
               maxLength={200}
@@ -207,23 +222,26 @@ export function RecordsPage() {
             />
           </div>
           <div className={filterStyles.field} style={{ width: 116 }}>
-            <span>状态</span>
+            <span>{tr("状态")}</span>
             <Select
-              aria-label="会话状态"
+              aria-label={tr("会话状态")}
               variant="borderless"
               allowClear
-              placeholder="全部"
+              placeholder={tr("全部")}
               value={status || undefined}
-              options={Object.entries(statusText).map(([value, label]) => ({ value, label }))}
+              options={Object.entries(localizeStatic(statusText, tr)).map(([value, label]) => ({
+                value,
+                label,
+              }))}
               onChange={(value) => setStatus(value || "")}
             />
           </div>
           <div className={`${filterStyles.field} ${filterStyles.date}`} style={{ width: 264 }}>
-            <span>日期</span>
+            <span>{tr("日期")}</span>
             <DatePicker.RangePicker
-              aria-label="会话日期"
+              aria-label={tr("会话日期")}
               variant="borderless"
-              placeholder={["开始", "结束"]}
+              placeholder={[tr("开始"), tr("结束")]}
               value={dates[0] && dates[1] ? [dayjs(dates[0]), dayjs(dates[1])] : null}
               onChange={(value) =>
                 setDates(
@@ -236,14 +254,14 @@ export function RecordsPage() {
           </div>
           {manages && (
             <div className={filterStyles.field} style={{ width: 130 }}>
-              <span>客服</span>
+              <span>{tr("客服")}</span>
               <Select
-                aria-label="接待客服"
+                aria-label={tr("接待客服")}
                 variant="borderless"
                 allowClear
                 showSearch
                 optionFilterProp="label"
-                placeholder="全部"
+                placeholder={tr("全部")}
                 value={agent || undefined}
                 options={members.items.map((item) => ({
                   label: item.display_name || item.email,
@@ -254,10 +272,10 @@ export function RecordsPage() {
             </div>
           )}
           <div className={filterStyles.field} style={{ width: 126 }}>
-            <span>渠道</span>
+            <span>{tr("渠道")}</span>
             <Input
-              placeholder="来源编码"
-              aria-label="渠道来源编码"
+              placeholder={tr("来源编码")}
+              aria-label={tr("渠道来源编码")}
               variant="borderless"
               allowClear
               value={channel}
@@ -266,15 +284,16 @@ export function RecordsPage() {
           </div>
           <div className={filterStyles.actions}>
             <Button type="primary" htmlType="submit">
-              搜索
+              {tr("搜索 ")}
             </Button>
-            <Button onClick={resetFilters}>重置</Button>
+            <Button onClick={resetFilters}>{tr("重置")}</Button>
           </div>
         </form>
         {manages && (
           <p className="form-hint">
-            两个导出动作都沿用当前筛选。正文默认不含内部备注，最多 10000
-            条数据；超限请缩小范围。浏览器发起下载不代表文件已保存到磁盘。
+            {tr(
+              "两个导出动作都沿用当前筛选。正文默认不含内部备注，最多 10000 条数据；超限请缩小范围。浏览器发起下载不代表文件已保存到磁盘。 ",
+            )}
           </p>
         )}
         <ErrorNotice error={exportError} />
@@ -284,19 +303,19 @@ export function RecordsPage() {
           dataSource={records.items}
           loading={records.loading}
           scroll={{ x: 850 }}
-          locale={{ emptyText: <EmptyData text="没有符合条件的会话" /> }}
+          locale={{ emptyText: <EmptyData text={tr("没有符合条件的会话")} /> }}
           columns={[
             {
-              title: "客户",
+              title: tr("客户"),
               render: (_, row) =>
                 row.contact?.display_name ||
                 row.contact_name ||
                 row.display_name ||
                 row.contact_id?.slice(0, 8) ||
-                "访客",
+                tr("访客"),
             },
             {
-              title: "接待客服",
+              title: tr("接待客服"),
               render: (_, row) =>
                 row.agent_name ? (
                   <Space size={8}>
@@ -306,40 +325,56 @@ export function RecordsPage() {
                     <span>{row.agent_name}</span>
                   </Space>
                 ) : (
-                  <span className="muted">尚未分配</span>
+                  <span className="muted">{tr("尚未分配")}</span>
                 ),
             },
-            { title: "会话编号", dataIndex: "id", ellipsis: true, className: "console-record-id" },
             {
-              title: "状态",
+              title: tr("会话编号"),
+              dataIndex: "id",
+              ellipsis: true,
+              className: "console-record-id",
+            },
+            {
+              title: tr("状态"),
               dataIndex: "status",
-              render: (value) => <Tag>{statusText[value] || value}</Tag>,
+              render: (value) => <Tag>{localizeStatic(statusText, tr)[value] || value}</Tag>,
             },
             {
-              title: "创建时间",
+              title: tr("创建时间"),
               dataIndex: "created_at",
-              render: (value) => (value ? new Date(String(value)).toLocaleString("zh-CN") : "—"),
+              render: (value) =>
+                value
+                  ? new Date(String(value)).toLocaleString(currentPreferences().locale, {
+                      timeZone: currentPreferences().timezone,
+                    })
+                  : "—",
             },
             {
-              title: "操作",
+              title: tr("操作"),
               render: (_, row) => (
                 <Button type="link" size="small" onClick={() => setSelected(row)}>
-                  查看聊天记录
+                  {tr("查看聊天记录 ")}
                 </Button>
               ),
             },
           ]}
         />
       </div>
-      <Drawer open={!!selected} title="会话聊天记录" onClose={() => setSelected(null)} width={680}>
+      <Drawer
+        open={!!selected}
+        title={tr("会话聊天记录")}
+        onClose={() => setSelected(null)}
+        width={680}
+      >
         <p className="muted" style={{ fontSize: 12 }}>
-          会话编号 {selected?.id}
+          {tr("会话编号 ")}
+          {selected?.id}
         </p>
         <ErrorNotice error={error} />
         {loading ? (
           <Spin />
         ) : !messages.length ? (
-          <EmptyData text="该会话还没有消息" />
+          <EmptyData text={tr("该会话还没有消息")} />
         ) : (
           messages.map((item) => (
             <div
@@ -347,22 +382,28 @@ export function RecordsPage() {
               key={item.id}
             >
               <div className="message-meta">
-                {item.audience === "internal" ? "内部备注 · " : ""}
+                {item.audience === "internal" ? tr("内部备注 \u00B7 ") : ""}
                 {item.sender_kind === "visitor"
-                  ? "访客"
+                  ? tr("访客")
                   : item.sender_kind === "system"
-                    ? "系统"
-                    : "客服"}{" "}
-                · {item.created_at ? new Date(item.created_at).toLocaleString("zh-CN") : ""}
+                    ? tr("系统")
+                    : tr("客服")}{" "}
+                ·{" "}
+                {item.created_at
+                  ? new Date(item.created_at).toLocaleString(currentPreferences().locale, {
+                      timeZone: currentPreferences().timezone,
+                    })
+                  : ""}
               </div>
               <div className="message-bubble">
                 {item.withdrawn_at ? (
-                  "消息已撤回"
+                  tr("消息已撤回")
                 ) : (
                   <>
                     {item.reply && (
                       <div className="form-hint">
-                        引用：{item.reply.withdrawn ? "消息已撤回" : item.reply.content}
+                        {tr("引用：")}
+                        {item.reply.withdrawn ? tr("消息已撤回") : item.reply.content}
                       </div>
                     )}
                     {item.content}

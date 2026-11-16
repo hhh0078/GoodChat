@@ -21,18 +21,20 @@ type Service struct {
 
 // Plan 是官网、后台和申请快照共用的套餐表示，价格单位为整数分。
 type Plan struct {
-	ID           string          `json:"id"`
-	Code         string          `json:"code"`
-	Name         string          `json:"name"`
-	Description  string          `json:"description"`
-	PriceAmount  int64           `json:"price_amount"`
-	Currency     string          `json:"currency"`
-	ValidityDays int             `json:"validity_days"`
-	SeatLimit    int             `json:"seat_limit"`
-	Features     map[string]bool `json:"features"`
-	IsPublic     bool            `json:"is_public"`
-	IsActive     bool            `json:"is_active"`
-	SortOrder    int             `json:"sort_order"`
+	ID            string                     `json:"id"`
+	Code          string                     `json:"code"`
+	Name          string                     `json:"name"`
+	Description   string                     `json:"description"`
+	PriceAmount   int64                      `json:"price_amount"`
+	Currency      string                     `json:"currency"`
+	ValidityDays  int                        `json:"validity_days"`
+	SeatLimit     int                        `json:"seat_limit"`
+	Features      map[string]bool            `json:"features"`
+	IsPublic      bool                       `json:"is_public"`
+	IsActive      bool                       `json:"is_active"`
+	SortOrder     int                        `json:"sort_order"`
+	Translations  map[string]PlanTranslation `json:"translations"`
+	ContentLocale string                     `json:"content_locale,omitempty"`
 }
 
 // Subscription 返回最近一次开通及其实际有效状态；effective_plan在外层plan中体现。
@@ -52,7 +54,7 @@ type Usage struct {
 	SeatLimit     int `json:"seat_limit"`
 }
 
-const planColumns = "id::text,code,name,description,price_amount,currency,validity_days,seat_limit,features,is_public,is_active,sort_order"
+const planColumns = "id::text,code,name,description,price_amount,currency,validity_days,seat_limit,features,is_public,is_active,sort_order,translations"
 
 var featureCodes = map[string]bool{"chat": true, "multi_link": true, "labels": true, "statistics": true, "decoration": true, "advanced_decoration": true, "ai_design": true, "callbacks": true, "export": true}
 
@@ -89,7 +91,7 @@ func endpoint(action func(http.ResponseWriter, *http.Request) error) http.Handle
 // scanPlan 从明确列顺序读取套餐，所有外部响应不包含内部管理员信息。
 func scanPlan(row pgx.Row) (Plan, error) {
 	var p Plan
-	err := row.Scan(&p.ID, &p.Code, &p.Name, &p.Description, &p.PriceAmount, &p.Currency, &p.ValidityDays, &p.SeatLimit, &p.Features, &p.IsPublic, &p.IsActive, &p.SortOrder)
+	err := row.Scan(&p.ID, &p.Code, &p.Name, &p.Description, &p.PriceAmount, &p.Currency, &p.ValidityDays, &p.SeatLimit, &p.Features, &p.IsPublic, &p.IsActive, &p.SortOrder, &p.Translations)
 	return p, err
 }
 

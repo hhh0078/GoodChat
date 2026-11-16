@@ -1,10 +1,10 @@
 /** 文件作用说明：在可信访客父页面呈现待确认消息并由用户手动以原编号重试，不向装修iframe暴露暂存。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Alert, Button } from "antd";
+import { useTranslator } from "@/i18n/use-translator";
 import { errorMessage } from "@/lib/api";
+import { Alert, Button } from "antd";
+import { useEffect, useRef, useState } from "react";
 import type { Outgoing } from "./use-chat";
-
 /** UnconfirmedMessages 只在消息快照加载后显示原身份暂存，重试直接提交原完整消息体。 */
 export function UnconfirmedMessages({
   items,
@@ -17,6 +17,7 @@ export function UnconfirmedMessages({
   pendingError: unknown;
   onRetry: (body: Outgoing) => Promise<unknown>;
 }) {
+  const tr = useTranslator();
   const [retrying, setRetrying] = useState("");
   const [error, setError] = useState<unknown>(null);
   const lock = useRef(false);
@@ -45,7 +46,7 @@ export function UnconfirmedMessages({
   if (loading || !items.length) return null;
   return (
     <section
-      aria-label="待确认消息恢复"
+      aria-label={tr("待确认消息恢复")}
       style={{
         padding: "10px 12px",
         background: "#fff8ea",
@@ -54,10 +55,14 @@ export function UnconfirmedMessages({
       }}
     >
       <strong style={{ display: "block", fontSize: 13 }}>
-        有 {items.length} 条消息等待服务器确认
+        {tr("有 ")}
+        {items.length}
+        {tr(" 条消息等待服务器确认 ")}
       </strong>
       <p style={{ fontSize: 12, color: "#795922", margin: "4px 0 8px" }}>
-        这些内容保留在当前浏览器中。点击重试会使用原消息编号，服务器已收到的消息不会重复发送。
+        {tr(
+          "这些内容保留在当前浏览器中。点击重试会使用原消息编号，服务器已收到的消息不会重复发送。 ",
+        )}
       </p>
       {(!!pendingError || !!error) && (
         <Alert
@@ -90,15 +95,15 @@ export function UnconfirmedMessages({
             >
               {item.content ||
                 (
-                  { image: "图片消息", audio: "语音消息", file: "文件消息" } as Record<
+                  { image: tr("图片消息"), audio: tr("语音消息"), file: tr("文件消息") } as Record<
                     string,
                     string
                   >
                 )[item.message_type] ||
-                "消息"}
+                tr("消息")}
               {item.attachment_id && (
                 <span style={{ display: "block", fontSize: 11, color: "#795922" }}>
-                  附件已上传，等待消息确认
+                  {tr("附件已上传，等待消息确认 ")}
                 </span>
               )}
             </div>
@@ -107,9 +112,11 @@ export function UnconfirmedMessages({
               loading={retrying === item.client_message_id}
               disabled={!!retrying && retrying !== item.client_message_id}
               onClick={() => void retry(item)}
-              aria-label={`重试待确认${item.message_type === "text" ? "文字" : "附件"}消息`}
+              aria-label={tr("重试待确认{p0}消息", {
+                p0: String(item.message_type === "text" ? tr("文字") : tr("附件")),
+              })}
             >
-              重试发送
+              {tr("重试发送 ")}
             </Button>
           </li>
         ))}

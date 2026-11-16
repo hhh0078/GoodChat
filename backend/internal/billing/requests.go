@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -63,6 +64,12 @@ func (s *Service) subscription(w http.ResponseWriter, r *http.Request) error {
 	})
 	if err != nil {
 		return err
+	}
+	locale := localization.RequestLocale(r)
+	plan = localizePlan(plan, locale)
+	sub.PlanSnapshot = localizePlan(sub.PlanSnapshot, locale)
+	for index := range plans {
+		plans[index] = localizePlan(plans[index], locale)
 	}
 	platform.JSON(w, 200, map[string]any{"plan": plan, "subscription": sub, "usage": usage, "available_plans": plans})
 	return nil
@@ -177,6 +184,9 @@ func (s *Service) tenantRequests(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	for index := range items {
+		items[index].PlanSnapshot = localizePlan(items[index].PlanSnapshot, localization.RequestLocale(r))
+	}
 	platform.JSON(w, 200, map[string]any{"items": items})
 	return nil
 }
@@ -195,6 +205,9 @@ func (s *Service) platformRequests(w http.ResponseWriter, r *http.Request) error
 	})
 	if err != nil {
 		return err
+	}
+	for index := range items {
+		items[index].PlanSnapshot = localizePlan(items[index].PlanSnapshot, localization.RequestLocale(r))
 	}
 	platform.JSON(w, 200, map[string]any{"items": items})
 	return nil

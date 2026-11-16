@@ -1,6 +1,13 @@
 /** 文件作用说明：配置默认关闭的留言邮件提醒并展示真实排队、SMTP受理、失败及不确定结果。 */
 "use client";
-import { useEffect, useState } from "react";
+import { ErrorNotice } from "@/components/page-state";
+import { useSession } from "@/features/auth/session";
+import { localizeStatic } from "@/i18n/runtime";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, errorMessage } from "@/lib/api";
+import type { Resource } from "@/lib/types";
+import { useResource } from "@/lib/use-resource";
 import {
   Alert,
   App,
@@ -16,11 +23,7 @@ import {
   Table,
   Tag,
 } from "antd";
-import { api, errorMessage } from "@/lib/api";
-import { useSession } from "@/features/auth/session";
-import { useResource } from "@/lib/use-resource";
-import { ErrorNotice } from "@/components/page-state";
-import type { Resource } from "@/lib/types";
+import { useEffect, useState } from "react";
 const deliveryNames: Record<string, string> = {
   queued: "排队中",
   running: "投递中",
@@ -42,6 +45,9 @@ const failureNames: Record<string, string> = {
 };
 /** LeadNotifications 保存管理员主动选择的提醒邮箱，不提供任意客户外发或测试收件按钮。 */
 export function LeadNotifications() {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  const tr = useTranslator();
   const { tenantId } = useSession();
   const { message } = App.useApp();
   const [form] = Form.useForm();
@@ -57,10 +63,12 @@ export function LeadNotifications() {
     const controller = new AbortController();
     setLoaded(false);
     setError(null);
-    api<{ enabled: boolean; email: string; version: number; smtp_configured: boolean }>(
-      "/tenant/lead-settings",
-      { tenantId, signal: controller.signal },
-    )
+    api<{
+      enabled: boolean;
+      email: string;
+      version: number;
+      smtp_configured: boolean;
+    }>("/tenant/lead-settings", { tenantId, signal: controller.signal })
       .then((data) => {
         if (controller.signal.aborted) return;
         form.setFieldsValue({ enabled: data.enabled, email: data.email, version: data.version });
@@ -83,7 +91,7 @@ export function LeadNotifications() {
     setError(null);
     try {
       await api("/tenant/lead-settings", { method: "PUT", tenantId, bodyJSON: values });
-      message.success("留言提醒配置已保存");
+      message.success(tr("留言提醒配置已保存"));
       setRevision((value) => value + 1);
       jobs.reload();
     } catch (problem) {
@@ -101,7 +109,7 @@ export function LeadNotifications() {
         bodyJSON: {},
       });
       jobs.reload();
-      message.success("失败提醒已重新排队，尚未投递");
+      message.success(tr("失败提醒已重新排队，尚未投递"));
     } catch (problem) {
       message.error(errorMessage(problem));
     }
@@ -113,9 +121,10 @@ export function LeadNotifications() {
         style={{ maxWidth: 800, marginBottom: 20 }}
         title={
           <>
-            留言邮件提醒{" "}
+            {tr("留言邮件提醒")}{" "}
             <Tag color={configured ? "green" : "default"}>
-              发信服务{configured ? "已配置" : "未配置"}
+              {tr("发信服务")}
+              {configured ? tr("已配置") : tr("未配置")}
             </Tag>
           </>
         }
@@ -123,8 +132,10 @@ export function LeadNotifications() {
         <Alert
           type="info"
           showIcon
-          title="访客提交离线留言后，给管理员发一封邮件提醒。默认关闭。"
-          description="邮件提供留言编号和登录入口，具体内容与附件请登录后查看。此处只提醒新提交的离线留言；聊天消息的提示音由客服在右上角调整音量。"
+          title={tr("访客提交离线留言后，给管理员发一封邮件提醒。默认关闭。")}
+          description={tr(
+            "邮件提供留言编号和登录入口，具体内容与附件请登录后查看。此处只提醒新提交的离线留言；聊天消息的提示音由客服在右上角调整音量。",
+          )}
           style={{ marginBottom: 16 }}
         />
         <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
@@ -134,20 +145,24 @@ export function LeadNotifications() {
           </Form.Item>
           <Form.Item
             name="enabled"
-            label="新留言邮件提醒"
+            label={tr("新留言邮件提醒")}
             valuePropName="checked"
-            extra="开启并保存后，新收到的离线留言会排队发送邮件；不会为历史留言补发。需要平台已配置发信服务。"
+            extra={tr(
+              "开启并保存后，新收到的离线留言会排队发送邮件；不会为历史留言补发。需要平台已配置发信服务。",
+            )}
           >
             <Switch />
           </Form.Item>
           <Form.Item
             name="email"
-            label="管理员收件邮箱"
+            label={tr("管理员收件邮箱")}
             rules={[
-              { type: "email", message: "请填写有效邮箱" },
-              { required: !!enabled, message: "开启提醒需填写收件邮箱" },
+              { type: "email", message: tr("请填写有效邮箱") },
+              { required: !!enabled, message: tr("开启提醒需填写收件邮箱") },
             ]}
-            extra="填写负责跟进留言的管理员邮箱。更换邮箱后，尚未发送的旧提醒会停止，可在下方记录中查看原因。"
+            extra={tr(
+              "填写负责跟进留言的管理员邮箱。更换邮箱后，尚未发送的旧提醒会停止，可在下方记录中查看原因。",
+            )}
           >
             <Input maxLength={254} autoComplete="email" />
           </Form.Item>
@@ -157,17 +172,19 @@ export function LeadNotifications() {
             loading={busy}
             disabled={!loaded || (!!enabled && !configured)}
           >
-            保存提醒设置
+            {tr("保存提醒设置 ")}
           </Button>
         </Form>
       </Card>
       <div className="table-card studio-table-surface">
         <Space style={{ marginBottom: 12 }}>
-          <strong>真实通知记录</strong>
-          <Button onClick={jobs.reload}>刷新记录</Button>
+          <strong>{tr("真实通知记录")}</strong>
+          <Button onClick={jobs.reload}>{tr("刷新记录")}</Button>
         </Space>
         <p className="form-hint">
-          “排队中”表示等待发送；“邮件服务已受理”表示已交给发信服务，不等于已到收件箱。“失败”可等待一分钟后重试；“结果不确定”请先核对邮箱，系统不会自动重发。
+          {tr(
+            "\u201C排队中\u201D表示等待发送；\u201C邮件服务已受理\u201D表示已交给发信服务，不等于已到收件箱。\u201C失败\u201D可等待一分钟后重试；\u201C结果不确定\u201D请先核对邮箱，系统不会自动重发。 ",
+          )}
         </p>
         <ErrorNotice error={jobs.error} retry={jobs.reload} />
         <Table
@@ -176,10 +193,10 @@ export function LeadNotifications() {
           loading={jobs.loading}
           scroll={{ x: 850 }}
           columns={[
-            { title: "留言编号", dataIndex: "lead_id", ellipsis: true },
-            { title: "收件邮箱", dataIndex: "recipient" },
+            { title: tr("留言编号"), dataIndex: "lead_id", ellipsis: true },
+            { title: tr("收件邮箱"), dataIndex: "recipient" },
             {
-              title: "状态",
+              title: tr("状态"),
               dataIndex: "status",
               render: (value) => (
                 <Tag
@@ -187,30 +204,31 @@ export function LeadNotifications() {
                     value === "accepted" ? "green" : value === "unknown" ? "orange" : "default"
                   }
                 >
-                  {deliveryNames[String(value)] || String(value)}
+                  {localizeStatic(deliveryNames, tr)[String(value)] || String(value)}
                 </Tag>
               ),
             },
-            { title: "尝试次数", dataIndex: "attempts" },
+            { title: tr("尝试次数"), dataIndex: "attempts" },
             {
-              title: "说明",
+              title: tr("说明"),
               dataIndex: "last_error",
-              render: (value) => failureNames[String(value)] || String(value || "—"),
+              render: (value) =>
+                localizeStatic(failureNames, tr)[String(value)] || String(value || "—"),
             },
             {
-              title: "操作",
+              title: tr("操作"),
               render: (_, item) => (
                 <Space>
                   <Button type="link" onClick={() => setSelected(item)}>
-                    查看尝试记录
+                    {tr("查看尝试记录 ")}
                   </Button>
                   {item.status === "failed" && (
                     <Popconfirm
-                      title="按当前已配置邮箱重新排队？"
-                      description="失败后需等待一分钟。结果不确定的通知不能重发。"
+                      title={tr("按当前已配置邮箱重新排队？")}
+                      description={tr("失败后需等待一分钟。结果不确定的通知不能重发。")}
                       onConfirm={() => retry(item)}
                     >
-                      <Button type="link">重试失败提醒</Button>
+                      <Button type="link">{tr("重试失败提醒")}</Button>
                     </Popconfirm>
                   )}
                 </Space>
@@ -221,33 +239,37 @@ export function LeadNotifications() {
       </div>
       <Drawer
         rootClassName="studio-drawer"
-        title="通知尝试记录"
+        title={tr("通知尝试记录")}
         open={!!selected}
         onClose={() => setSelected(null)}
         width={650}
       >
         <p className="muted">
-          这里记录每次发送的处理结果；邮件是否进入收件箱，仍需到收件邮箱核对。
+          {tr("这里记录每次发送的处理结果；邮件是否进入收件箱，仍需到收件邮箱核对。 ")}
         </p>
         <Table
           rowKey={(item) => String(item.attempt)}
           dataSource={(selected?.history as Record<string, unknown>[]) || []}
           columns={[
-            { title: "尝试", dataIndex: "attempt" },
+            { title: tr("尝试"), dataIndex: "attempt" },
             {
-              title: "结果",
+              title: tr("结果"),
               dataIndex: "status",
-              render: (value) => deliveryNames[String(value)] || String(value),
+              render: (value) => localizeStatic(deliveryNames, tr)[String(value)] || String(value),
             },
             {
-              title: "说明",
+              title: tr("说明"),
               dataIndex: "failure_kind",
-              render: (value) => failureNames[String(value)] || String(value || "—"),
+              render: (value) =>
+                localizeStatic(failureNames, tr)[String(value)] || String(value || "—"),
             },
             {
-              title: "时间",
+              title: tr("时间"),
               dataIndex: "at",
-              render: (value) => new Date(String(value)).toLocaleString("zh-CN"),
+              render: (value) =>
+                new Date(String(value)).toLocaleString(currentPreferences().locale, {
+                  timeZone: currentPreferences().timezone,
+                }),
             },
           ]}
         />

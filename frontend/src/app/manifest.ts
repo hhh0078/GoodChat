@@ -4,7 +4,7 @@ import type { MetadataRoute } from "next";
 /** manifest 将普通图标和遮罩安全图分别交给浏览器，保持正常浏览器打开方式。 */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "GoodChat 在线客服",
+    name: "GoodChat",
     short_name: "GoodChat",
     start_url: "/",
     display: "browser",

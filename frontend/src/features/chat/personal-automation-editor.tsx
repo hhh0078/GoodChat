@@ -1,6 +1,10 @@
 /** 文件作用说明：编辑客服本人的富欢迎语和关键词规则，媒体上传沿用受控附件接口。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, errorMessage } from "@/lib/api";
+import type { PersonalKeyword, PersonalWelcome, WelcomeContent } from "@/lib/personal-replies";
+import type { QuickReply } from "@/lib/quick-replies";
+import { PlusOutlined, UploadOutlined } from "@ant-design/icons";
 import {
   App,
   Button,
@@ -14,19 +18,21 @@ import {
   Switch,
   Upload,
 } from "antd";
-import { PlusOutlined, UploadOutlined } from "@ant-design/icons";
-import { api, errorMessage } from "@/lib/api";
-import type { PersonalKeyword, PersonalWelcome, WelcomeContent } from "@/lib/personal-replies";
-import type { QuickReply } from "@/lib/quick-replies";
+import { useEffect, useRef, useState } from "react";
 import { AttachmentView } from "./attachment";
-
 type EditorProps = {
   tenantId: string;
   onClose: () => void;
   onSaved: () => void;
 } & (
-  | { kind: "welcome"; item: PersonalWelcome | null }
-  | { kind: "keyword"; item: PersonalKeyword | null }
+  | {
+      kind: "welcome";
+      item: PersonalWelcome | null;
+    }
+  | {
+      kind: "keyword";
+      item: PersonalKeyword | null;
+    }
 );
 type RuleForm = {
   name: string;
@@ -39,9 +45,9 @@ type RuleForm = {
   priority: number;
   cooldown_seconds: number;
 };
-
 /** PersonalAutomationEditor 仅提交个人规则字段，卸载后取消上传并阻止旧请求更新界面。 */
 export function PersonalAutomationEditor(props: EditorProps) {
+  const tr = useTranslator();
   const { tenantId, kind, item, onClose, onSaved } = props;
   const { message } = App.useApp();
   const [form] = Form.useForm<RuleForm>();
@@ -102,7 +108,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
         },
       );
       if (mounted.current) {
-        message.success("个人规则已保存");
+        message.success(tr("个人规则已保存"));
         onSaved();
       }
     } catch (problem) {
@@ -116,7 +122,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
   async function uploadImage(file: File, index: number) {
     if (locked.current || (request.current && uploading !== null)) return;
     if (!file.size || file.size > 10 * 1024 * 1024) {
-      message.error("请选择不超过10MB的图片");
+      message.error(tr("请选择不超过10MB的图片"));
       return;
     }
     const controller = new AbortController();
@@ -131,7 +137,8 @@ export function PersonalAutomationEditor(props: EditorProps) {
         body,
         signal: controller.signal,
       });
-      if (!attachment?.content_type?.startsWith("image/")) throw new Error("请选择实际图片文件");
+      if (!attachment?.content_type?.startsWith("image/"))
+        throw new Error(tr("请选择实际图片文件"));
       if (!controller.signal.aborted && mounted.current) {
         form.setFieldValue(["contents", index, "attachment_id"], attachment.id);
         setAttachments((current) => ({ ...current, [index]: attachment }));
@@ -145,7 +152,10 @@ export function PersonalAutomationEditor(props: EditorProps) {
   }
   return (
     <Modal
-      title={`${item ? "编辑" : "新增"}我的${kind === "welcome" ? "欢迎语" : "关键词回复"}`}
+      title={tr("{p0}我的{p1}", {
+        p0: String(item ? tr("编辑") : tr("新增")),
+        p1: String(kind === "welcome" ? tr("欢迎语") : tr("关键词回复")),
+      })}
       open
       width={680}
       onCancel={busy || uploading !== null ? undefined : onClose}
@@ -153,7 +163,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
       footer={
         <Space>
           <Button disabled={busy || uploading !== null} onClick={onClose}>
-            取消
+            {tr("取消 ")}
           </Button>
           <Button
             type="primary"
@@ -161,7 +171,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
             disabled={uploading !== null}
             onClick={() => form.submit()}
           >
-            保存
+            {tr("保存 ")}
           </Button>
         </Space>
       }
@@ -187,16 +197,16 @@ export function PersonalAutomationEditor(props: EditorProps) {
       >
         <Form.Item
           name="name"
-          label="规则名称"
-          rules={[{ required: true, whitespace: true, message: "请输入规则名称" }]}
+          label={tr("规则名称")}
+          rules={[{ required: true, whitespace: true, message: tr("请输入规则名称") }]}
         >
           <Input maxLength={100} />
         </Form.Item>
         <Form.Item
           name="enabled"
-          label="启用这条个人规则"
+          label={tr("启用这条个人规则")}
           valuePropName="checked"
-          extra="只影响你自己的规则，不修改团队设置。"
+          extra={tr("只影响你自己的规则，不修改团队设置。")}
         >
           <Switch />
         </Form.Item>
@@ -204,19 +214,21 @@ export function PersonalAutomationEditor(props: EditorProps) {
           <>
             <Form.Item
               name="scenario"
-              label="生效时段"
-              extra="营业时间沿用团队设置；每个时段最多一组，具体时段优先于全部时段。"
+              label={tr("生效时段")}
+              extra={tr("营业时间沿用团队设置；每个时段最多一组，具体时段优先于全部时段。")}
             >
               <Select
                 options={[
-                  { value: "all", label: "全部时段" },
-                  { value: "business", label: "营业中" },
-                  { value: "outside", label: "非营业" },
+                  { value: "all", label: tr("全部时段") },
+                  { value: "business", label: tr("营业中") },
+                  { value: "outside", label: tr("非营业") },
                 ]}
               />
             </Form.Item>
             <p className="personal-reply-hint">
-              本会话首次接单时追加个人欢迎语。延迟从接单时计算；转接后尚未发送的个人欢迎语会取消。
+              {tr(
+                "本会话首次接单时追加个人欢迎语。延迟从接单时计算；转接后尚未发送的个人欢迎语会取消。 ",
+              )}
             </p>
             <Form.List name="contents">
               {(fields, { add, remove }) => (
@@ -226,7 +238,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
                       key={field.key}
                       size="small"
                       className="personal-welcome-content"
-                      title={`欢迎内容 ${index + 1}`}
+                      title={tr("欢迎内容 {p0}", { p0: String(index + 1) })}
                       extra={
                         <Button
                           size="small"
@@ -236,17 +248,17 @@ export function PersonalAutomationEditor(props: EditorProps) {
                             remove(field.name);
                           }}
                         >
-                          移除
+                          {tr("移除 ")}
                         </Button>
                       }
                     >
                       <div className="personal-rule-fields">
-                        <Form.Item name={[field.name, "type"]} label="内容类型">
+                        <Form.Item name={[field.name, "type"]} label={tr("内容类型")}>
                           <Select
                             options={[
-                              { value: "text", label: "文字" },
-                              { value: "image", label: "图片" },
-                              { value: "options", label: "可点击选项" },
+                              { value: "text", label: tr("文字") },
+                              { value: "image", label: tr("图片") },
+                              { value: "options", label: tr("可点击选项") },
                             ]}
                             onChange={() => {
                               form.setFieldValue(["contents", index, "attachment_id"], undefined);
@@ -261,8 +273,8 @@ export function PersonalAutomationEditor(props: EditorProps) {
                         </Form.Item>
                         <Form.Item
                           name={[field.name, "delay_seconds"]}
-                          label="接单后延迟（秒）"
-                          rules={[{ required: true, message: "请输入延迟秒数" }]}
+                          label={tr("接单后延迟（秒）")}
+                          rules={[{ required: true, message: tr("请输入延迟秒数") }]}
                         >
                           <InputNumber min={0} max={3600} precision={0} />
                         </Form.Item>
@@ -270,11 +282,13 @@ export function PersonalAutomationEditor(props: EditorProps) {
                       <Form.Item
                         name={[field.name, "content"]}
                         label={
-                          contents?.[index]?.type === "image" ? "图片说明（选填）" : "欢迎文字"
+                          contents?.[index]?.type === "image"
+                            ? tr("图片说明（选填）")
+                            : tr("欢迎文字")
                         }
                         rules={
                           contents?.[index]?.type === "text"
-                            ? [{ required: true, whitespace: true, message: "请输入欢迎文字" }]
+                            ? [{ required: true, whitespace: true, message: tr("请输入欢迎文字") }]
                             : []
                         }
                       >
@@ -284,13 +298,13 @@ export function PersonalAutomationEditor(props: EditorProps) {
                         <>
                           <Form.Item
                             name={[field.name, "attachment_id"]}
-                            label="欢迎图片"
-                            rules={[{ required: true, message: "请上传欢迎图片" }]}
+                            label={tr("欢迎图片")}
+                            rules={[{ required: true, message: tr("请上传欢迎图片") }]}
                             getValueProps={(value) => ({
-                              value: value ? "已选择图片，保存后生效" : "",
+                              value: value ? tr("已选择图片，保存后生效") : "",
                             })}
                           >
-                            <Input readOnly placeholder="请先上传欢迎图片" />
+                            <Input readOnly placeholder={tr("请先上传欢迎图片")} />
                           </Form.Item>
                           <Upload
                             accept="image/png,image/jpeg,image/gif,image/webp"
@@ -306,7 +320,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
                               loading={uploading === index}
                               disabled={busy || uploading !== null}
                             >
-                              选择并上传图片
+                              {tr("选择并上传图片 ")}
                             </Button>
                           </Upload>
                           {contents[index].attachment_id && (
@@ -315,7 +329,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
                                 attachment={
                                   attachments[index] || {
                                     id: contents[index].attachment_id!,
-                                    file_name: "欢迎图片",
+                                    file_name: tr("欢迎图片"),
                                     content_type: "image/png",
                                   }
                                 }
@@ -333,7 +347,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
                             {
                               validator: async (_, values) => {
                                 if (!values?.length || values.length > 8)
-                                  throw new Error("请配置1至8个选项");
+                                  throw new Error(tr("请配置1至8个选项"));
                               },
                             },
                           ]}
@@ -347,12 +361,12 @@ export function PersonalAutomationEditor(props: EditorProps) {
                                   </Form.Item>
                                   <Form.Item
                                     name={[option.name, "label"]}
-                                    label="按钮文案"
+                                    label={tr("按钮文案")}
                                     rules={[
                                       {
                                         required: true,
                                         whitespace: true,
-                                        message: "请输入按钮文案",
+                                        message: tr("请输入按钮文案"),
                                       },
                                     ]}
                                   >
@@ -360,12 +374,12 @@ export function PersonalAutomationEditor(props: EditorProps) {
                                   </Form.Item>
                                   <Form.Item
                                     name={[option.name, "value"]}
-                                    label="点击后发送"
+                                    label={tr("点击后发送")}
                                     rules={[
                                       {
                                         required: true,
                                         whitespace: true,
-                                        message: "请输入发送内容",
+                                        message: tr("请输入发送内容"),
                                       },
                                     ]}
                                   >
@@ -376,7 +390,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
                                     onClick={() => actions.remove(option.name)}
                                     disabled={busy || uploading !== null}
                                   >
-                                    移除选项
+                                    {tr("移除选项 ")}
                                   </Button>
                                 </div>
                               ))}
@@ -387,7 +401,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
                                   actions.add({ id: crypto.randomUUID(), label: "", value: "" })
                                 }
                               >
-                                添加选项
+                                {tr("添加选项 ")}
                               </Button>
                               <Form.ErrorList errors={errors} />
                             </>
@@ -401,7 +415,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
                     disabled={fields.length >= 12 || busy || uploading !== null}
                     onClick={() => add({ type: "text", content: "", delay_seconds: 0 })}
                   >
-                    添加欢迎内容
+                    {tr("添加欢迎内容 ")}
                   </Button>
                 </>
               )}
@@ -409,47 +423,49 @@ export function PersonalAutomationEditor(props: EditorProps) {
           </>
         ) : (
           <>
-            <Form.Item name="match_mode" label="匹配方式">
+            <Form.Item name="match_mode" label={tr("匹配方式")}>
               <Select
                 options={[
-                  { value: "contains", label: "包含关键词" },
-                  { value: "exact", label: "完全匹配" },
+                  { value: "contains", label: tr("包含关键词") },
+                  { value: "exact", label: tr("完全匹配") },
                 ]}
               />
             </Form.Item>
             <Form.Item
               name="pattern"
-              label="关键词"
-              rules={[{ required: true, whitespace: true, message: "请输入关键词" }]}
-              extra="只匹配访客新发来的文字消息。"
+              label={tr("关键词")}
+              rules={[{ required: true, whitespace: true, message: tr("请输入关键词") }]}
+              extra={tr("只匹配访客新发来的文字消息。")}
             >
               <Input maxLength={2000} />
             </Form.Item>
             <Form.Item
               name="reply"
-              label="回复内容"
-              rules={[{ required: true, whitespace: true, message: "请输入回复内容" }]}
+              label={tr("回复内容")}
+              rules={[{ required: true, whitespace: true, message: tr("请输入回复内容") }]}
             >
               <Input.TextArea rows={4} maxLength={2000} />
             </Form.Item>
             <div className="personal-rule-fields">
               <Form.Item
                 name="priority"
-                label="优先级"
-                extra="数值越大越优先；相同时团队规则优先。"
+                label={tr("优先级")}
+                extra={tr("数值越大越优先；相同时团队规则优先。")}
               >
                 <InputNumber min={-2147483648} max={2147483647} precision={0} />
               </Form.Item>
               <Form.Item
                 name="cooldown_seconds"
-                label="同会话冷却（秒）"
-                extra="同一会话再次回复前的等待时间，0表示不限制。"
+                label={tr("同会话冷却（秒）")}
+                extra={tr("同一会话再次回复前的等待时间，0表示不限制。")}
               >
                 <InputNumber min={0} max={86400} precision={0} />
               </Form.Item>
             </div>
             <p className="personal-reply-hint">
-              仅在你当前接待的会话生效。每条访客消息最多自动回复一次，按个人和团队规则的优先级选择。
+              {tr(
+                "仅在你当前接待的会话生效。每条访客消息最多自动回复一次，按个人和团队规则的优先级选择。 ",
+              )}
             </p>
           </>
         )}

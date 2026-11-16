@@ -1,15 +1,19 @@
 /** 文件作用说明：计算会话自然日期范围，并串行维护游标分页与实时刷新，避免列表漏项和重复。 */
+import { translate as tr } from "../i18n/runtime.ts";
 import type { Conversation } from "./types.ts";
-
-export type ConversationPeriod = { from: string; to: string };
+export type ConversationPeriod = {
+  from: string;
+  to: string;
+};
 export type ConversationPage = {
   items: Conversation[];
   next_cursor: string;
   has_more: boolean;
   timezone?: string;
 };
-export type ConversationListSnapshot = ConversationPage & { loaded_pages: number };
-
+export type ConversationListSnapshot = ConversationPage & {
+  loaded_pages: number;
+};
 /** recentConversationPeriod 按租户时区计算含今天的三个自然日，跨月、跨年和夏令时均按日历推算。 */
 export function recentConversationPeriod(
   now = new Date(),
@@ -28,7 +32,6 @@ export function recentConversationPeriod(
   first.setUTCDate(first.getUTCDate() - 2);
   return { from: first.toISOString().slice(0, 10), to: today };
 }
-
 /** conversationActivityMicros 保留公开消息活动时间的微秒精度，时区交由标准日期解析，异常值按零处理。 */
 function conversationActivityMicros(value: string): bigint {
   const milliseconds = Date.parse(value);
@@ -37,7 +40,6 @@ function conversationActivityMicros(value: string): bigint {
   const remainder = fraction.padEnd(6, "0").slice(3, 6);
   return BigInt(milliseconds) * 1000n + BigInt(remainder);
 }
-
 /** mergeConversationPages 以服务端最新记录覆盖重复编号，再按活动时间降序和编号升序保持稳定顺序。 */
 export function mergeConversationPages(
   previous: Conversation[],
@@ -51,7 +53,6 @@ export function mergeConversationPages(
     return timeA > timeB ? -1 : timeA < timeB ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 }
-
 /** createConversationPager 合并刷新唤醒并串行翻页，刷新成功前保留原列表，重建已加载前缀以接回活跃老会话。 */
 export function createConversationPager(options: {
   fetchPage: (cursor: string) => Promise<ConversationPage>;
@@ -72,15 +73,13 @@ export function createConversationPager(options: {
   let morePending = false;
   let loadingMore = false;
   let running: Promise<void> | null = null;
-
   /** checkedPage 拒绝不前进的游标，防止触底回调在异常响应下不断请求同一页。 */
   async function checkedPage(cursor: string) {
     const page = await options.fetchPage(cursor);
     if (page.has_more && (!page.next_cursor || page.next_cursor === cursor))
-      throw new Error("会话分页游标未前进，请重试。");
+      throw new Error(tr("会话分页游标未前进，请重试。"));
     return page;
   }
-
   /** run 顺序处理刷新与触底请求；刷新期间收到的新事件在本轮结束后继续补查。 */
   async function run(onFinish: () => void) {
     try {
@@ -142,7 +141,6 @@ export function createConversationPager(options: {
       onFinish();
     }
   }
-
   /** schedule 启动唯一队列；清理与最后检查同处一个微任务，避免丢失末尾唤醒。 */
   function schedule() {
     if (stopped) return Promise.resolve();

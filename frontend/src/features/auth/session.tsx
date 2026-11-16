@@ -1,11 +1,11 @@
 /** 文件作用说明：管理当前账号、可用租户与工作空间切换，不在浏览器保存成员登录令牌。 */
 "use client";
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { Alert, Button, Result, Spin } from "antd";
+import { useTranslator } from "@/i18n/use-translator";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import type { CurrentUser } from "@/lib/types";
-
+import { Alert, Button, Result, Spin } from "antd";
+import { usePathname, useRouter } from "next/navigation";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 type SessionValue = {
   current: CurrentUser;
   tenantId: string;
@@ -13,9 +13,9 @@ type SessionValue = {
   reload: () => Promise<void>;
 };
 const SessionContext = createContext<SessionValue | null>(null);
-
 /** SessionProvider 获取服务端身份，限定可选租户并在未登录时跳转。 */
 export function SessionProvider({ children }: { children: React.ReactNode }) {
+  const tr = useTranslator();
   const [current, setCurrent] = useState<CurrentUser | null>(null);
   const [tenantId, setTenant] = useState("");
   const [error, setError] = useState("");
@@ -26,6 +26,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await api<CurrentUser>("/auth/me");
       setCurrent(data);
+      window.dispatchEvent(new Event("goodchat:authenticated"));
       setError("");
       let remembered: string | null = null;
       try {
@@ -62,15 +63,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return (
       <Result
         status="warning"
-        title="暂时没有读到工作空间"
+        title={tr("暂时没有读到工作空间")}
         subTitle={<Alert type="error" title={error} />}
-        extra={<Button onClick={() => void reload()}>重新连接</Button>}
+        extra={<Button onClick={() => void reload()}>{tr("重新连接")}</Button>}
       />
     );
   if (!current)
     return (
       <div className="console-loading">
-        <Spin description="正在读取工作空间" size="large" />
+        <Spin description={tr("正在读取工作空间")} size="large" />
       </div>
     );
   return (
@@ -81,7 +82,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 }
 /** useSession 读取工作端身份，避免在未认证区域误用租户请求。 */
 export function useSession(): SessionValue {
+  const tr = useTranslator();
   const context = useContext(SessionContext);
-  if (!context) throw new Error("工作空间身份尚未初始化");
+  if (!context) throw new Error(tr("工作空间身份尚未初始化"));
   return context;
 }

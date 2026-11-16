@@ -1,17 +1,22 @@
 /** 文件作用说明：让租户管理员保存未读重复提醒周期与约1秒提示音，试听由明确点击触发。 */
 "use client";
-import { useEffect, useState } from "react";
-import { App, Button, Form, InputNumber, Select, Space } from "antd";
-import { SoundOutlined } from "@ant-design/icons";
-import { api, errorMessage } from "@/lib/api";
-import { useSession } from "@/features/auth/session";
 import { ErrorNotice } from "@/components/page-state";
-import { notificationSounds } from "@/lib/notification-sounds";
+import { useSession } from "@/features/auth/session";
 import { useNotificationAudio } from "@/features/chat/use-notification-audio";
-type Settings = { repeat_unread_seconds: number; notification_sound_id: string };
-
+import { localizeStatic } from "@/i18n/runtime";
+import { useTranslator } from "@/i18n/use-translator";
+import { api } from "@/lib/api";
+import { notificationSounds } from "@/lib/notification-sounds";
+import { SoundOutlined } from "@ant-design/icons";
+import { App, Button, Form, InputNumber, Select, Space } from "antd";
+import { useEffect, useState } from "react";
+type Settings = {
+  repeat_unread_seconds: number;
+  notification_sound_id: string;
+};
 /** TenantReminders 只写本表单的两项租户配置，失败保留选择，不覆盖其他欢迎语或个人音量。 */
 export function TenantReminders() {
+  const tr = useTranslator();
   const { tenantId } = useSession();
   const { message } = App.useApp();
   const [form] = Form.useForm<Settings>();
@@ -51,7 +56,7 @@ export function TenantReminders() {
         bodyJSON: values,
       });
       form.setFieldsValue(saved);
-      message.success("接待提醒已保存");
+      message.success(tr("接待提醒已保存"));
     } catch (problem) {
       setError(problem);
     } finally {
@@ -61,49 +66,66 @@ export function TenantReminders() {
   /** preview 试听当前选中提示音，长度由受控1秒音频文件决定。 */
   async function preview() {
     const played = await audio.play(form.getFieldValue("notification_sound_id"), 0.6, true);
-    if (!played) message.warning("提示音未能播放，请检查浏览器声音权限");
+    if (!played) message.warning(tr("提示音未能播放，请检查浏览器声音权限"));
   }
   return (
     <section className="tenant-reminder-settings">
-      <h2>接待提醒</h2>
+      <h2>{tr("接待提醒")}</h2>
       <p className="muted">
-        这里统一设置整个团队的提醒节奏和提示音。每位客服的音量只需在客服工作台右上角调整，设为0即可静音。
+        {tr(
+          "这里统一设置整个团队的提醒节奏和提示音。每位客服的音量只需在客服工作台右上角调整，设为0即可静音。 ",
+        )}
       </p>
       <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
       <Form form={form} layout="vertical" onFinish={save} style={{ maxWidth: 560 }}>
         <Form.Item
           name="repeat_unread_seconds"
-          label="未读重复提醒间隔（秒）"
+          label={tr("未读重复提醒间隔（秒）")}
           rules={[
-            { required: true, type: "integer", min: 1, max: 3600, message: "请输入1至3600秒整数" },
+            {
+              required: true,
+              type: "integer",
+              min: 1,
+              max: 3600,
+              message: tr("请输入1至3600秒整数"),
+            },
           ]}
-          extra="默认10秒，可填1至3600秒。例如填10：分配给客服的新咨询或未读消息超过10秒未查看，就每隔10秒提醒一次，直到客服打开并读完、转接或结束。没有明确接待客服的排队咨询不提醒；没有待查看的咨询或消息也不会响。"
+          extra={tr(
+            "默认10秒，可填1至3600秒。例如填10：分配给客服的新咨询或未读消息超过10秒未查看，就每隔10秒提醒一次，直到客服打开并读完、转接或结束。没有明确接待客服的排队咨询不提醒；没有待查看的咨询或消息也不会响。",
+          )}
         >
           <InputNumber min={1} max={3600} precision={0} disabled={!loaded} />
         </Form.Item>
         <Form.Item
-          label="团队提示音 · 每段约1秒"
-          extra="选择铃声后可以先试听，点击“保存接待提醒”才对整个团队生效。这里只选音色，不控制任何客服的个人音量。"
+          label={tr("团队提示音 \u00B7 每段约1秒")}
+          extra={tr(
+            "选择铃声后可以先试听，点击\u201C保存接待提醒\u201D才对整个团队生效。这里只选音色，不控制任何客服的个人音量。",
+          )}
         >
           <Space wrap>
             <Form.Item name="notification_sound_id" noStyle rules={[{ required: true }]}>
               <Select
-                aria-label="租户提示音"
+                aria-label={tr("租户提示音")}
                 style={{ width: 190 }}
                 disabled={!loaded}
-                options={notificationSounds.map((item) => ({ value: item.id, label: item.name }))}
+                options={localizeStatic(notificationSounds, tr).map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                }))}
               />
             </Form.Item>
             <Button icon={<SoundOutlined />} disabled={!loaded} onClick={() => void preview()}>
-              试听
+              {tr("试听 ")}
             </Button>
           </Space>
         </Form.Item>
         <p className="form-hint">
-          客服和访客使用所选音色。每位客服仍可调整自己的音量或静音；浏览器需先有一次点击或输入才允许播放。
+          {tr(
+            "客服和访客使用所选音色。每位客服仍可调整自己的音量或静音；浏览器需先有一次点击或输入才允许播放。 ",
+          )}
         </p>
         <Button type="primary" htmlType="submit" disabled={!loaded} loading={saving}>
-          保存接待提醒
+          {tr("保存接待提醒 ")}
         </Button>
       </Form>
     </section>

@@ -1,32 +1,22 @@
 /** 文件作用说明：以紧凑客户卡片展示真实资料、渠道、入口额外参数和跨会话备注，访问记录可折叠。 */
 "use client";
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Avatar, Button, Skeleton, Tag } from "antd";
-import { ReloadOutlined } from "@ant-design/icons";
-import { api } from "@/lib/api";
 import { ErrorNotice } from "@/components/page-state";
+import Link from "@/i18n/link";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
+import { api } from "@/lib/api";
 import type { Conversation, Membership, Resource } from "@/lib/types";
 import { channelTags, customerFields, displayValue, recordValue } from "@/lib/workspace-display";
+import { ReloadOutlined } from "@ant-design/icons";
+import { Avatar, Button, Skeleton, Tag } from "antd";
+import { useEffect, useState } from "react";
 import { CustomerNotes } from "./customer-notes";
-
 /** visitSource 展示真实访问来源，空渠道不占据时间线。 */
 function visitSource(value: unknown): string {
   const tracking = recordValue(value);
   return [tracking.channel_code, tracking.utm_source, tracking.source]
     .filter((item): item is string => typeof item === "string" && !!item.trim())
     .join(" · ");
-}
-/** formatTime 将建档和访问时间压缩为次要文本，缺失时显示占位。 */
-function formatTime(value: unknown): string {
-  return typeof value === "string" && Number.isFinite(new Date(value).getTime())
-    ? new Date(value).toLocaleString("zh-CN", {
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "—";
 }
 /** CustomerContext 在当前授权范围内加载客户，失权或请求失败立即清除缓存资料。 */
 export function CustomerContext({
@@ -36,6 +26,24 @@ export function CustomerContext({
   conversation: Conversation;
   membership: Membership;
 }) {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  /** formatTime 将建档和访问时间压缩为次要文本，缺失时显示占位。 */
+  function formatTime(value: unknown): string {
+    return typeof value === "string" && Number.isFinite(new Date(value).getTime())
+      ? new Date(value).toLocaleString(currentPreferences().locale, {
+          timeZone: currentPreferences().timezone,
+          ...{
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          },
+        })
+      : "—";
+  }
+
+  const tr = useTranslator();
   const manages = membership.role === "owner" || membership.role === "admin";
   const allowed =
     manages ||
@@ -60,7 +68,9 @@ export function CustomerContext({
             tenantId: membership.tenant_id,
             signal: controller.signal,
           }),
-          api<{ items: Resource[] }>(`/tenant/contacts/${conversation.contact_id}/visits`, {
+          api<{
+            items: Resource[];
+          }>(`/tenant/contacts/${conversation.contact_id}/visits`, {
             tenantId: membership.tenant_id,
             signal: controller.signal,
           }),
@@ -86,7 +96,7 @@ export function CustomerContext({
       clearInterval(timer);
     };
   }, [allowed, conversation.contact_id, membership.tenant_id, revision]);
-  const name = String(contact?.display_name || conversation.contact?.display_name || "访客");
+  const name = String(contact?.display_name || conversation.contact?.display_name || tr("访客"));
   const channels = channelTags(conversation.source_snapshot);
   const fields = Object.fromEntries(
     Object.entries(customerFields(contact?.attributes, conversation.context)).filter(
@@ -96,18 +106,18 @@ export function CustomerContext({
   if (!allowed)
     return (
       <div className="customer-context">
-        <h2>客户资料</h2>
-        <p className="muted">详细资料仅向当前接待客服或管理员开放。</p>
+        <h2>{tr("客户资料")}</h2>
+        <p className="muted">{tr("详细资料仅向当前接待客服或管理员开放。")}</p>
       </div>
     );
   return (
     <div className="customer-context">
       <header>
-        <h2>客户资料</h2>
+        <h2>{tr("客户资料")}</h2>
         <Button
           type="text"
           size="small"
-          aria-label="刷新客户资料"
+          aria-label={tr("刷新客户资料")}
           icon={<ReloadOutlined />}
           onClick={() => setRevision((value) => value + 1)}
         />
@@ -135,12 +145,13 @@ export function CustomerContext({
               </div>
             </div>
             <div className="customer-created">
-              建档 {formatTime(contact.created_at)}
-              {contact.blocked ? <Tag color="red">已封禁</Tag> : null}
+              {tr("建档 ")}
+              {formatTime(contact.created_at)}
+              {contact.blocked ? <Tag color="red">{tr("已封禁")}</Tag> : null}
             </div>
             {channels.length > 0 && (
               <div className="customer-channels">
-                <span>渠道</span>
+                <span>{tr("渠道")}</span>
                 {channels.map((channel) => (
                   <Tag key={channel}>{channel}</Tag>
                 ))}
@@ -155,7 +166,7 @@ export function CustomerContext({
             )}
             {Object.keys(fields).length > 0 && (
               <section>
-                <h3>客户信息</h3>
+                <h3>{tr("客户信息")}</h3>
                 <dl className="customer-fields">
                   {Object.entries(fields).map(([key, value]) => (
                     <div className="customer-field-pair" key={key}>
@@ -171,7 +182,7 @@ export function CustomerContext({
             )}
             {manages && (
               <Link className="customer-manage" href="/console/contacts">
-                管理客户档案
+                {tr("管理客户档案 ")}
               </Link>
             )}
             <CustomerNotes
@@ -181,16 +192,20 @@ export function CustomerContext({
             />
             <details className="customer-visit-details">
               <summary>
-                访问记录 <span>{visits.length} 次入口访问</span>
+                {tr("访问记录 ")}
+                <span>
+                  {visits.length}
+                  {tr(" 次入口访问")}
+                </span>
               </summary>
               {visits.length === 0 ? (
-                <p className="muted">暂无访问记录</p>
+                <p className="muted">{tr("暂无访问记录")}</p>
               ) : (
                 <ol className="customer-visits">
                   {visits.slice(0, 8).map((visit) => (
                     <li key={visit.id}>
                       <time>{formatTime(visit.created_at)}</time>
-                      <strong>进入咨询</strong>
+                      <strong>{tr("进入咨询")}</strong>
                       {visitSource(visit.tracking) && <span>{visitSource(visit.tracking)}</span>}
                     </li>
                   ))}

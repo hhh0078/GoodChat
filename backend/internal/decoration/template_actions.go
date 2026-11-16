@@ -48,12 +48,12 @@ func validateNewTemplateVisibility(ids map[string]*xhtml.Node) error {
 		attrs := templateNodeAttributes(node)
 		if id != "gc-reply-bar" && id != "gc-attachment-menu" {
 			if _, hidden := attrs["hidden"]; hidden {
-				return invalidDesign("固定消息和输入节点不能初始隐藏：" + id)
+				return invalidDesignf("固定消息和输入节点不能初始隐藏：%s", id)
 			}
 		}
 		for _, name := range strings.Fields(attrs["class"]) {
 			if strings.EqualFold(name, "hidden") || strings.EqualFold(name, "is-hidden") {
-				return invalidDesign("固定聊天节点不能使用hidden/is-hidden类永久隐藏：" + id + "；初始隐藏请仅用hidden属性，由固定SDK切换")
+				return invalidDesignf("固定聊天节点不能使用hidden/is-hidden类永久隐藏：%s；初始隐藏请仅用hidden属性，由固定SDK切换", id)
 			}
 		}
 		style, err := cssWord(attrs["style"])
@@ -62,7 +62,7 @@ func validateNewTemplateVisibility(ids map[string]*xhtml.Node) error {
 		}
 		style = templateInlineCSSComments.ReplaceAllString(style, "")
 		if templatePermanentHiddenStyle.MatchString(style) {
-			return invalidDesign("固定聊天节点不能以内联display:none或visibility:hidden永久隐藏：" + id + "；初始隐藏请仅用hidden属性，由固定SDK切换")
+			return invalidDesignf("固定聊天节点不能以内联display:none或visibility:hidden永久隐藏：%s；初始隐藏请仅用hidden属性，由固定SDK切换", id)
 		}
 	}
 	return nil
@@ -113,7 +113,7 @@ func validateNewTemplateActions(raw []byte, files map[string]packageFile) error 
 		id := attrs["id"]
 		if id == "gc-send" || id == "gc-add" || id == "gc-reply-cancel" {
 			if actions != 0 || attrs["data-kind"] != "" {
-				return invalidDesign("固定聊天控件不能重复声明其他动作：" + id)
+				return invalidDesignf("固定聊天控件不能重复声明其他动作：%s", id)
 			}
 			continue
 		}

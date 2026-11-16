@@ -114,6 +114,14 @@ func identityIntegration(t *testing.T) *identityFixture {
 	if _, err := admin.Exec(ctx, string(file)); err != nil {
 		t.Fatal("隔离平台容量迁移失败", err)
 	}
+	// 为隔离身份库应用个人偏好迁移，避免依赖业务表。
+	file, err = os.ReadFile(filepath.Join("..", "database", "migrations", "035_internationalization.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, string(file)); err != nil {
+		t.Fatal(err)
+	}
 	poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
 		t.Fatal("运行数据库配置解析失败")

@@ -1,5 +1,6 @@
 /** 文件作用说明：配置前端启动、独立构建和同源后端 API 及实时连接代理。 */
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const backend = process.env.BACKEND_URL || "http://127.0.0.1:18080";
 const config: NextConfig = {
@@ -14,4 +15,4 @@ const config: NextConfig = {
     ];
   },
 };
-export default config;
+export default createNextIntlPlugin("./src/i18n/request.ts")(config);

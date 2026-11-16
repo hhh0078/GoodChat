@@ -17,7 +17,7 @@ The project is designed for teams that want to manage customer conversations and
 
 **Search keywords:** self-hosted live chat · website live chat · customer support software · multi-tenant customer service · HTML chat templates · visual template editor · AI-assisted template design. [Full keyword list](#search-keywords)
 
-Screenshots below show the actual **Chinese-language interface with demonstration and acceptance data**. The English documentation does not imply a fully translated application UI. Screenshot files are compressed WebP images; template images are rendered application pages, not concept mockups.
+Screenshots below show the actual **Chinese-language interface with demonstration and acceptance data**. The application now supports Simplified Chinese, English, Traditional Chinese, Japanese, Korean, Spanish, Brazilian Portuguese, French and German. Screenshot files are compressed WebP images; template images are rendered application pages, not concept mockups.
 
 ## A quick tour
 

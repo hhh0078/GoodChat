@@ -3,7 +3,6 @@ package chat
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/mail"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -112,8 +112,12 @@ func (s *Service) enqueueLeadNotification(ctx context.Context, tx pgx.Tx, tenant
 	if !config.Enabled {
 		return nil
 	}
-	body := fmt.Sprintf("收到一条新的待处理留言。\n留言编号：%s\n请登录GoodChat查看处理：%s/login\n本提醒不包含客户电话、聊天正文或附件。", lead, strings.TrimRight(s.cfg.PublicURL, "/"))
-	_, err = tx.Exec(ctx, "INSERT INTO lead_notification_jobs(tenant_id,lead_id,recipient,settings_version,subject,body) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(tenant_id,lead_id) DO NOTHING", tenant, lead, config.Email, config.Version, "GoodChat有新的待处理留言", body)
+	locale := "zh-CN"
+	if err := tx.QueryRow(ctx, "SELECT coalesce(nullif((SELECT preferred_locale FROM users WHERE email=$1),''),default_locale) FROM tenants WHERE id=$2", config.Email, tenant).Scan(&locale); err != nil {
+		return err
+	}
+	body := localization.Format(locale, "收到一条新的待处理留言。\n留言编号：%s\n请登录GoodChat查看处理：%s/login\n本提醒不包含客户电话、聊天正文或附件。", lead, strings.TrimRight(s.cfg.PublicURL, "/"))
+	_, err = tx.Exec(ctx, "INSERT INTO lead_notification_jobs(tenant_id,lead_id,recipient,settings_version,subject,body) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(tenant_id,lead_id) DO NOTHING", tenant, lead, config.Email, config.Version, localization.Format(locale, "GoodChat有新的待处理留言"), body)
 	return err
 }
 

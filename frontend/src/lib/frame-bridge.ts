@@ -1,8 +1,14 @@
 /** 文件作用说明：校验装修运行来源与握手边界，避免跨窗口或协议伪造获得访客桥能力。 */
-import type { ChatMessage } from "./types";
+import { preferenceHeaders, translate as tr } from "../i18n/runtime.ts";
 import { ApiError } from "./api.ts";
 import { messageDisplay, type MessageDisplayContext } from "./message-display.ts";
-type BridgeHello = { type: "goodchat:init"; version: 1; nonce: string; release_id: string };
+import type { ChatMessage } from "./types";
+type BridgeHello = {
+  type: "goodchat:init";
+  version: 1;
+  nonce: string;
+  release_id: string;
+};
 const bridgeFields: Record<string, readonly string[]> = {
   getState: [],
   getAvatar: ["message_id"],
@@ -25,9 +31,9 @@ export function validateBridgeRequest(
   visitorId: string,
   displayContext?: MessageDisplayContext,
 ): void {
-  if (!Object.hasOwn(bridgeFields, method)) throw new Error("当前页面无权调用此方法");
+  if (!Object.hasOwn(bridgeFields, method)) throw new Error(tr("当前页面无权调用此方法"));
   if (Object.keys(payload).some((key) => !bridgeFields[method].includes(key)))
-    throw new Error("当前方法包含未授权参数");
+    throw new Error(tr("当前方法包含未授权参数"));
   if (method === "getAvatar") {
     visibleBridgeAvatar(messages, payload.message_id, displayContext);
     return;
@@ -41,12 +47,12 @@ export function validateBridgeRequest(
   const item = messages.find(
     (message) => message.id === target && message.audience !== "internal" && !message.withdrawn_at,
   );
-  if (typeof target !== "string" || !item) throw new Error("目标消息不属于当前可见会话");
+  if (typeof target !== "string" || !item) throw new Error(tr("目标消息不属于当前可见会话"));
   if (
     method === "withdrawMessage" &&
     (item.sender_kind !== "visitor" || item.sender_id !== visitorId)
   )
-    throw new Error("只能撤回本人消息");
+    throw new Error(tr("只能撤回本人消息"));
 }
 /** visibleBridgeAvatar 将头像读取绑定到当前公开消息，只允许平台内置或本平台受控上传图片路径。 */
 export function visibleBridgeAvatar(
@@ -70,7 +76,7 @@ export function visibleBridgeAvatar(
       )
     )
   )
-    throw new Error("头像不属于当前可见消息或平台受控图片");
+    throw new Error(tr("头像不属于当前可见消息或平台受控图片"));
   return value;
 }
 /** requestBridgeAvatar 在可信父层读取公开PNG字节，使隔离页面可创建本来源Blob，无需放宽图片CSP。 */
@@ -90,7 +96,7 @@ export async function requestBridgeAvatar(
     signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
   });
   if (!response.ok || Number(response.headers.get("content-length")) > 256 * 1024)
-    throw new Error("头像暂时无法读取");
+    throw new Error(tr("头像暂时无法读取"));
   const blob = await response.blob();
   signal?.throwIfAborted();
   if (
@@ -99,7 +105,7 @@ export async function requestBridgeAvatar(
     blob.type.split(";")[0] !== "image/png" ||
     visibleBridgeAvatar(getMessages(), messageId, getDisplayContext?.()) !== path
   )
-    throw new Error("头像格式或当前消息权限已变化");
+    throw new Error(tr("头像格式或当前消息权限已变化"));
   return blob;
 }
 /** visibleBridgeAttachment 只授权当前会话已加载、公开且未撤回消息中的附件。 */
@@ -111,7 +117,7 @@ export function visibleBridgeAttachment(messages: ChatMessage[], attachmentId: u
       message.attachment?.id === attachmentId,
   );
   if (typeof attachmentId !== "string" || !item?.attachment)
-    throw new Error("附件不属于当前可见会话，或已经撤回");
+    throw new Error(tr("附件不属于当前可见会话，或已经撤回"));
   return item.attachment;
 }
 /** requestBridgeAttachment 在用户确认后重新核对最新消息，凭证只放请求头并支持撤销请求。 */
@@ -127,13 +133,13 @@ export async function requestBridgeAttachment(
   const response = await fetch(`/api/v1/attachments/${encodeURIComponent(attachmentId)}`, {
     credentials: "same-origin",
     cache: "no-store",
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { ...preferenceHeaders(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
   });
   if (!response.ok) {
     const error = await response.json().catch(() => null);
     throw new ApiError(
-      error?.message || "附件已撤回、不可用或无权读取",
+      error?.message || tr("附件已撤回、不可用或无权读取"),
       response.status,
       error?.code || "ATTACHMENT_DOWNLOAD_FAILED",
       error?.request_id,
@@ -142,7 +148,7 @@ export async function requestBridgeAttachment(
   const blob = await response.blob();
   signal?.throwIfAborted();
   visibleBridgeAttachment(getMessages(), attachmentId);
-  if (!blob.size) throw new Error("附件内容为空，无法发起下载");
+  if (!blob.size) throw new Error(tr("附件内容为空，无法发起下载"));
   return { blob, name: attachment.file_name, content_type: attachment.content_type };
 }
 /** safeRenderURL 校验渲染地址，同域仅开放发布路径；所有调用方必须使用无同源权限的沙箱。 */

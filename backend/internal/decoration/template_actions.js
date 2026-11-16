@@ -1,6 +1,6 @@
 /** 文件作用说明：为静态模板提供预先登记的文字咨询、留言、评价入口和本地弹框，业务动作仍由固定SDK执行。 */
 (function () {
-  "use strict";
+  "use strict";const tr=window.gcTranslate||((source,params={})=>source.replace(/\{(p\d+)\}/g,(m,k)=>String(params[k]??m)));
   const chat = window.GoodChat, error = document.getElementById("gc-error");
   if (!chat) return;
   for (const button of document.querySelectorAll("[data-gc-action]")) {
@@ -15,7 +15,7 @@
       if (button.disabled) return;
       button.disabled = true;
       try { await chat.ready(); if (action === "evaluation") await chat.openEvaluation(); else await chat.openLeaveMessage(); }
-      catch (problem) { if (error) error.textContent = problem?.message || "操作界面暂时无法打开，请稍后重试"; }
+      catch (problem) { if (error) error.textContent = problem?.message || tr("操作界面暂时无法打开，请稍后重试"); }
       finally { button.disabled = false; }
     }
     button.addEventListener("click", openVisitorAction);
@@ -27,7 +27,7 @@
       if (button.disabled || !text.trim() || text.length > 10000) return;
       button.disabled = true;
       try { await chat.ready(); await chat.sendText(text, crypto.randomUUID()); }
-      catch (problem) { if (error) error.textContent = problem?.message || "咨询暂时无法发送，请稍后重试"; }
+      catch (problem) { if (error) error.textContent = problem?.message || tr("咨询暂时无法发送，请稍后重试"); }
       finally { button.disabled = false; }
     }
     button.addEventListener("click", sendQuestion);

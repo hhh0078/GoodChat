@@ -1,7 +1,10 @@
 /** 文件作用说明：在独立来源运行已发布装修，并用最小权限 MessageChannel 桥接真实访客聊天。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Alert, App, Button, Modal } from "antd";
+import { usePreferences } from "@/i18n/locale-provider";
+import { useTranslator } from "@/i18n/use-translator";
+import { errorMessage } from "@/lib/api";
+import { uploadAndSendAttachment, type AttachmentAttempt } from "@/lib/attachment-upload";
+import { exportFilename, startFileDownload } from "@/lib/csv-download";
 import {
   publicBridgeMessage,
   requestBridgeAttachment,
@@ -11,15 +14,20 @@ import {
   validateBridgeRequest,
   visibleBridgeAttachment,
 } from "@/lib/frame-bridge";
-import { errorMessage } from "@/lib/api";
-import { exportFilename, startFileDownload } from "@/lib/csv-download";
-import { uploadAndSendAttachment, type AttachmentAttempt } from "@/lib/attachment-upload";
-import { useChat, type ChatIdentity } from "./use-chat";
-import { UnconfirmedMessages } from "./unconfirmed-messages";
-import { useVisitorReminders } from "./use-visitor-reminders";
 import type { ChatMessage } from "@/lib/types";
-type Decoration = { render_url: string; release_id: string };
-type PendingDownload = { id: string; name: string };
+import { Alert, App, Button, Modal } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { UnconfirmedMessages } from "./unconfirmed-messages";
+import { useChat, type ChatIdentity } from "./use-chat";
+import { useVisitorReminders } from "./use-visitor-reminders";
+type Decoration = {
+  render_url: string;
+  release_id: string;
+};
+type PendingDownload = {
+  id: string;
+  name: string;
+};
 /** DecoratedVisitor 将跨源页面限制在当前访客当前咨询的白名单能力内。 */
 export function DecoratedVisitor({
   id,
@@ -36,6 +44,8 @@ export function DecoratedVisitor({
   notificationSound?: string;
   onOpenAction: (action: "openLeaveMessage" | "openEvaluation") => void;
 }) {
+  const tr = useTranslator();
+  const preferences = usePreferences();
   const chat = useChat(id, identity);
   useVisitorReminders(chat.messages, {
     enabled: true,
@@ -65,6 +75,10 @@ export function DecoratedVisitor({
   const [downloadError, setDownloadError] = useState<unknown>(null);
   const renderURL =
     typeof location === "undefined" ? null : safeRenderURL(decoration.render_url, location.origin);
+  if (renderURL) {
+    renderURL.searchParams.set("lang", preferences.locale);
+    renderURL.searchParams.set("timezone", preferences.timezone);
+  }
   const source = renderURL?.toString() || "";
   const origin = renderURL ? "null" : "";
   const frameScope = `${source}.${revision}`;
@@ -104,7 +118,7 @@ export function DecoratedVisitor({
       if (controller.signal.aborted || pending !== downloadRequest.current) return;
       startFileDownload(file.blob, exportFilename(null, file.name));
       closeDownload();
-      message.success("下载已发起，请查看浏览器下载记录。");
+      message.success(tr("下载已发起，请查看浏览器下载记录。"));
     } catch (problem) {
       if (!controller.signal.aborted) setDownloadError(problem);
     } finally {
@@ -132,7 +146,7 @@ export function DecoratedVisitor({
   async function uploadAttachment(file: unknown, name: unknown, requestID: string) {
     const current = latest.current;
     if (!current.conversation || current.conversation.status === "closed")
-      throw new Error("当前会话无法发送附件");
+      throw new Error(tr("当前会话无法发送附件"));
     let command = mutations.current.get(requestID);
     if (!command) {
       command = { clientId: crypto.randomUUID() };
@@ -170,7 +184,7 @@ export function DecoratedVisitor({
       peer_read_seq: value.readSeq,
       has_older: value.hasOlder,
       loading_older: value.loadingOlder,
-      older_error: value.olderError ? "更早消息加载失败，请重试。" : null,
+      older_error: value.olderError ? tr("更早消息加载失败，请重试。") : null,
       error: value.error ? errorMessage(value.error) : null,
     };
   }
@@ -202,7 +216,13 @@ export function DecoratedVisitor({
     let windowStart = Date.now();
     let disposed = false;
     let activeRequests = 0;
-    const commands = new Map<string, { signature: string; result: Promise<unknown> }>();
+    const commands = new Map<
+      string,
+      {
+        signature: string;
+        result: Promise<unknown>;
+      }
+    >();
     const acceptedNonces = new Set<string>();
     const scopeController = new AbortController();
     /** dispatch 严格校验方法、结构、长度及本会话边界，未知方法不转发给 API。 */
@@ -217,11 +237,11 @@ export function DecoratedVisitor({
       );
       if (method === "getState") return state();
       if (method === "openLeaveMessage" || method === "openEvaluation") {
-        if (!current.conversation) throw new Error("咨询正在连接，请稍后重试");
+        if (!current.conversation) throw new Error(tr("咨询正在连接，请稍后重试"));
         if (method === "openLeaveMessage" && current.conversation.status === "closed")
-          throw new Error("当前咨询已结束，请发起新的咨询后留言");
+          throw new Error(tr("当前咨询已结束，请发起新的咨询后留言"));
         if (method === "openEvaluation" && current.conversation.status !== "closed")
-          throw new Error("咨询结束后才可以评价本次服务");
+          throw new Error(tr("咨询结束后才可以评价本次服务"));
         openAction.current(method);
         return { opened: true };
       }
@@ -237,7 +257,7 @@ export function DecoratedVisitor({
       if (method === "sendText") {
         const text = payload.text ?? payload.content;
         if (typeof text !== "string" || !text.trim() || text.length > 10000)
-          throw new Error("请输入不超过10000字的消息");
+          throw new Error(tr("请输入不超过10000字的消息"));
         let command = mutations.current.get(requestID);
         if (!command) {
           command = { clientId: crypto.randomUUID() };
@@ -251,7 +271,7 @@ export function DecoratedVisitor({
           (typeof clientID !== "string" ||
             !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(clientID))
         )
-          throw new Error("消息编号格式无效");
+          throw new Error(tr("消息编号格式无效"));
         return publicMessage(
           await current.send({
             client_message_id: typeof clientID === "string" ? clientID : crypto.randomUUID(),
@@ -268,7 +288,7 @@ export function DecoratedVisitor({
       }
       if (method === "typing") {
         const active = payload.active ?? payload.is_typing;
-        if (typeof active !== "boolean") throw new Error("输入状态格式无效");
+        if (typeof active !== "boolean") throw new Error(tr("输入状态格式无效"));
         current.typing(active);
         return { accepted: true };
       }
@@ -290,7 +310,7 @@ export function DecoratedVisitor({
       }
       if (method === "saveAttachment") {
         const attachment = visibleBridgeAttachment(current.messages, payload.attachment_id);
-        if (downloadRequest.current) throw new Error("已有附件等待下载确认，请先完成或取消");
+        if (downloadRequest.current) throw new Error(tr("已有附件等待下载确认，请先完成或取消"));
         const pending = { id: attachment.id, name: attachment.file_name };
         downloadRequest.current = pending;
         setPendingDownload(pending);
@@ -304,7 +324,7 @@ export function DecoratedVisitor({
           !/^\d+$/.test(seq) ||
           !current.messages.some((item) => (item.seq || item.event_seq) === seq)
         )
-          throw new Error("已读位置不属于当前可见消息");
+          throw new Error(tr("已读位置不属于当前可见消息"));
         if (document.visibilityState !== "visible" || !visible.current) return { accepted: false };
         return current.request(`/conversations/${id}/read-cursor`, {
           method: "POST",
@@ -315,7 +335,7 @@ export function DecoratedVisitor({
         await current.loadOlder();
         return state();
       }
-      throw new Error("当前页面无权调用此方法");
+      throw new Error(tr("当前页面无权调用此方法"));
     }
     /** handshake 只接受指定 iframe、精确来源、版本和发布编号的一次性握手。 */
     function handshake(event: MessageEvent) {
@@ -359,13 +379,13 @@ export function DecoratedVisitor({
             calls = 0;
             windowStart = Date.now();
           }
-          if (++calls > 80 || activeRequests >= 4) throw new Error("请求过于频繁，请稍后再试");
+          if (++calls > 80 || activeRequests >= 4) throw new Error(tr("请求过于频繁，请稍后再试"));
           activeRequests++;
           counted = true;
           const signature = JSON.stringify({ method: request.method, payload: request.payload });
           let command = commands.get(request.id);
           if (command && command.signature !== signature)
-            throw new Error("相同请求编号携带了不同内容");
+            throw new Error(tr("相同请求编号携带了不同内容"));
           if (!command) {
             command = {
               signature,
@@ -428,7 +448,7 @@ export function DecoratedVisitor({
     }, 5000);
     const timeout = setTimeout(() => {
       if (!channel.current && !disposed)
-        setBridgeError("装修页面尚未连接聊天能力，请重新加载或联系商户。");
+        setBridgeError(tr("装修页面尚未连接聊天能力，请重新加载或联系商户。"));
     }, 10000);
     return () => {
       disposed = true;
@@ -459,8 +479,8 @@ export function DecoratedVisitor({
       <Alert
         type="error"
         showIcon
-        title="此入口的装修来源配置无效"
-        description="需要平台配置独立的装修运行来源后才能打开该发布版本。"
+        title={tr("此入口的装修来源配置无效")}
+        description={tr("需要平台配置独立的装修运行来源后才能打开该发布版本。")}
       />
     );
   return (
@@ -471,7 +491,7 @@ export function DecoratedVisitor({
           title={bridgeError}
           action={
             <Button size="small" onClick={() => setRevision((value) => value + 1)}>
-              重新加载
+              {tr("重新加载 ")}
             </Button>
           }
         />
@@ -488,7 +508,7 @@ export function DecoratedVisitor({
           key={`${source}.${revision}`}
           ref={frame}
           src={source}
-          title="商户客服页面"
+          title={tr("商户客服页面")}
           sandbox="allow-scripts"
           allow="camera 'none'; microphone 'none'"
           referrerPolicy="no-referrer"
@@ -496,16 +516,18 @@ export function DecoratedVisitor({
         />
       )}
       <Modal
-        title="下载聊天附件"
+        title={tr("下载聊天附件")}
         open={!!pendingDownload}
-        okText="确认下载"
-        cancelText="取消"
+        okText={tr("确认下载")}
+        cancelText={tr("取消")}
         confirmLoading={downloading}
         onOk={() => void confirmDownload()}
         onCancel={closeDownload}
       >
         <p style={{ overflowWrap: "anywhere" }}>{pendingDownload?.name}</p>
-        <p className="muted">确认后会重新检查附件权限并发起下载，请在浏览器下载记录中查看结果。</p>
+        <p className="muted">
+          {tr("确认后会重新检查附件权限并发起下载，请在浏览器下载记录中查看结果。")}
+        </p>
         {!!downloadError && <Alert type="error" showIcon title={errorMessage(downloadError)} />}
       </Modal>
     </div>

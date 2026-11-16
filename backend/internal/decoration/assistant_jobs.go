@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -227,6 +228,6 @@ func (s *Service) assistantTestConfiguration(w http.ResponseWriter, r *http.Requ
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"success": true, "message": "模型连接成功", "model": cfg.Model, "usage": usage, "billing_status": billing}, nil
+		return map[string]any{"success": true, "message": localization.RequestText(r, "模型连接成功"), "model": cfg.Model, "usage": usage, "billing_status": billing}, nil
 	})
 }

@@ -1,0 +1,52 @@
+// 文件作用说明：验证沙箱本地化只影响系统控件、默认输出语言与静态启动数据，业务正文保持原文。
+package decoration
+
+import (
+	"encoding/json"
+	"net/http/httptest"
+	"strings"
+	"supportdesk/backend/internal/localization"
+	"testing"
+)
+
+// TestLocalizedControlsKeepCustomerContent 验证客户正文和品牌名称不会被控件翻译改写。
+func TestLocalizedControlsKeepCustomerContent(t *testing.T) {
+	raw := []byte(`<html lang="zh-CN"><body><h1>系统</h1><div id="gc-messages"><span class="gc-message">系统</span></div><div id="gc-compose"><button id="gc-send">发送</button><textarea id="gc-text" placeholder="输入消息…"></textarea></div></body></html>`)
+	result := string(localizeChatControls(raw, "de"))
+	if !strings.Contains(result, `<h1>系统</h1>`) || !strings.Contains(result, `class="gc-message">系统</span>`) {
+		t.Fatal("业务正文被改写")
+	}
+	if !strings.Contains(result, localization.Text("de", "发送")) || !strings.Contains(result, `lang="de"`) {
+		t.Fatal("系统控件未本地化")
+	}
+}
+
+// TestVisitorBootUsesSelectedLocale 验证独立文档启动数据包含所选语言时区且不能闭合脚本标签。
+func TestVisitorBootUsesSelectedLocale(t *testing.T) {
+	r := httptest.NewRequest("GET", "/?lang=fr&timezone=Europe%2FParis", nil)
+	boot := visitorLocaleBoot(r)
+	var config struct {
+		Locale   string            `json:"locale"`
+		Timezone string            `json:"timezone"`
+		Messages map[string]string `json:"messages"`
+	}
+	if err := json.NewDecoder(strings.NewReader(strings.TrimPrefix(boot, "window.GoodChatI18n="))).Decode(&config); err != nil {
+		t.Fatal(err)
+	}
+	if config.Locale != "fr" || config.Timezone != "Europe/Paris" || config.Messages[localization.Key("发送")] != localization.Text("fr", "发送") {
+		t.Fatal("沙箱语言时区不一致")
+	}
+	if strings.Contains(strings.ToLower(boot), "</script") {
+		t.Fatal("启动数据可闭合脚本")
+	}
+}
+
+// TestOutputLanguageKeepsProtocol 验证九种任务语言均被明确指定，协议和业务原文保留规则仍存在。
+func TestOutputLanguageKeepsProtocol(t *testing.T) {
+	for _, locale := range localization.Locales {
+		instruction := outputLanguageInstruction(locale)
+		if !strings.Contains(instruction, "Default output locale: "+locale) || !strings.Contains(instruction, "JSON structure") || !strings.Contains(instruction, "explicitly requests") {
+			t.Fatal("输出语言约定不完整")
+		}
+	}
+}

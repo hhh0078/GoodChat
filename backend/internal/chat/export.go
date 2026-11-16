@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -82,7 +83,7 @@ func renderExportCSV(ctx context.Context, tx pgx.Tx, r *http.Request, a actor, r
 	if err != nil {
 		return nil, 0, "", platform.Fail(400, "invalid_timezone", "租户时区配置不正确")
 	}
-	headers := []string{"会话编号", "客户编号", "客户名称", "客户电话", "会话状态", "当前客服编号", "当前客服名称", "来源渠道", "会话创建时间（" + zone + "）", "会话结束时间（" + zone + "）"}
+	headers := []string{"会话编号", "客户编号", "客户名称", "客户电话", "会话状态", "当前客服编号", "当前客服名称", "来源渠道", localization.RequestText(r, "会话创建时间（%s）", zone), localization.RequestText(r, "会话结束时间（%s）", zone)}
 	columns, joins, where, order := exportMetadataColumns, conversationJoins, conversationWhere, " ORDER BY c.updated_at DESC,c.id"
 	if messages {
 		columns += exportMessageColumns
@@ -92,7 +93,7 @@ func renderExportCSV(ctx context.Context, tx pgx.Tx, r *http.Request, a actor, r
 			where += " AND msg.audience='public'"
 		}
 		order += ",msg.event_seq"
-		headers = append(headers, "消息编号", "消息序号", "发送者类型", "发送者名称", "消息类型", "可见范围", "消息正文", "附件名称", "是否已撤回", "消息发送时间（"+zone+"）")
+		headers = append(headers, "消息编号", "消息序号", "发送者类型", "发送者名称", "消息类型", "可见范围", "消息正文", "附件名称", "是否已撤回", localization.RequestText(r, "消息发送时间（%s）", zone))
 	}
 	rows, err := tx.Query(ctx, "SELECT "+columns+joins+where+order+" LIMIT "+strconv.Itoa(rowLimit+1), args...)
 	if err != nil {
@@ -102,14 +103,14 @@ func renderExportCSV(ctx context.Context, tx pgx.Tx, r *http.Request, a actor, r
 	var buffer bytes.Buffer
 	buffer.WriteString("\xef\xbb\xbf")
 	writer := csv.NewWriter(&buffer)
-	if err = writer.Write(headers); err != nil {
+	if err = writer.Write(localizedExportHeaders(r, headers)); err != nil {
 		return nil, 0, "", err
 	}
 	count := 0
 	for rows.Next() {
 		count++
 		if count > rowLimit {
-			return nil, 0, "", platform.Fail(409, "export_limit_exceeded", fmt.Sprintf("导出最多%d条数据，请缩小筛选范围；未生成截断文件", rowLimit))
+			return nil, 0, "", platform.Failf(409, "export_limit_exceeded", "导出最多%d条数据，请缩小筛选范围；未生成截断文件", rowLimit)
 		}
 		values, e := rows.Values()
 		if e != nil {
@@ -118,6 +119,15 @@ func renderExportCSV(ctx context.Context, tx pgx.Tx, r *http.Request, a actor, r
 		record := make([]string, len(values))
 		for index, value := range values {
 			record[index] = csvValue(value, location)
+			if index == 4 {
+				record[index] = exportSystemLabel(r, record[index])
+			}
+			if messages && (index == 12 || index == 14 || index == 15) {
+				record[index] = exportSystemLabel(r, record[index])
+			}
+			if messages && index == 13 && fmt.Sprint(values[12]) == "system" {
+				record[index] = localization.RequestText(r, "系统")
+			}
 		}
 		if e = writer.Write(record); e != nil {
 			return nil, 0, "", e
@@ -127,7 +137,7 @@ func renderExportCSV(ctx context.Context, tx pgx.Tx, r *http.Request, a actor, r
 			return nil, 0, "", e
 		}
 		if buffer.Len() > byteLimit {
-			return nil, 0, "", platform.Fail(409, "export_size_exceeded", fmt.Sprintf("CSV最多%dMiB，请缩小筛选范围；未生成截断文件", byteLimit>>20))
+			return nil, 0, "", platform.Failf(409, "export_size_exceeded", "CSV最多%dMiB，请缩小筛选范围；未生成截断文件", byteLimit>>20)
 		}
 		if progress != nil && count%250 == 0 {
 			if e = progress(count); e != nil {
@@ -199,4 +209,22 @@ func writeCSVDownload(w http.ResponseWriter, data []byte, count int, zone, kind 
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
+}
+
+// localizedExportHeaders 仅翻译平台表头，保留客户名称、消息正文、文件名和自定义资料。
+func localizedExportHeaders(r *http.Request, headers []string) []string {
+	result := make([]string, len(headers))
+	for index, header := range headers {
+		result[index] = localization.RequestText(r, header)
+	}
+	return result
+}
+
+// exportSystemLabel 将稳定枚举转换为人类可读标签，不修改导出筛选口径。
+func exportSystemLabel(r *http.Request, value string) string {
+	labels := map[string]string{"queued": "排队中", "assigned": "待接单", "active": "接待中", "closed": "已结束", "visitor": "访客", "agent": "客服", "system": "系统", "text": "文本", "image": "图片", "audio": "语音", "file": "文件", "public": "公开", "internal": "内部"}
+	if label, ok := labels[value]; ok {
+		return localization.RequestText(r, label)
+	}
+	return value
 }

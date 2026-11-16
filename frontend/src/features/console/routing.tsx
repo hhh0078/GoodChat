@@ -1,6 +1,11 @@
 /** 文件作用说明：分别维护业务组、真实分配池、权重与技能，展示技能和历史优先组合的实际配置。 */
 "use client";
-import { useState } from "react";
+import { ErrorNotice, PageTitle } from "@/components/page-state";
+import { localizeStatic } from "@/i18n/runtime";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, errorMessage } from "@/lib/api";
+import type { Member, Resource } from "@/lib/types";
+import { useResource } from "@/lib/use-resource";
 import {
   Alert,
   App,
@@ -12,17 +17,12 @@ import {
   Popconfirm,
   Select,
   Space,
-  Switch,
   Table,
   Tabs,
   Tag,
 } from "antd";
-import { PageTitle, ErrorNotice } from "@/components/page-state";
+import { useState } from "react";
 import { ResourcePanel } from "./resource-panel";
-import { useResource } from "@/lib/use-resource";
-import { api, errorMessage } from "@/lib/api";
-import type { Member, Resource } from "@/lib/types";
-
 type Pool = Resource & {
   service_group_id: string;
   algorithm: string;
@@ -48,9 +48,9 @@ const algorithms = [
   { label: "负载比例", value: "least_ratio" },
   { label: "随机分配", value: "random" },
 ];
-
 /** RoutingPage 将业务组、分配池和成员技能分开保存，所有分配仍由后端统一检查资格。 */
 export function RoutingPage() {
+  const tr = useTranslator();
   const groups = useResource<Resource>("/tenant/groups");
   const members = useResource<Member>("/tenant/members");
   const skills = useResource<Resource>("/tenant/routing-skills");
@@ -60,56 +60,60 @@ export function RoutingPage() {
   return (
     <section className="console-screen console-routing">
       <PageTitle
-        title="分组与分配"
-        description="业务组定义服务范围；必备技能过滤资格，可选技能与历史接待形成优先级，最后执行一个主算法。"
+        title={tr("分组与分配")}
+        description={tr(
+          "业务组定义服务范围；必备技能过滤资格，可选技能与历史接待形成优先级，最后执行一个主算法。",
+        )}
       />
       <div className="table-card">
         <Tabs
           items={[
             {
               key: "groups",
-              label: "客服业务组",
+              label: tr("客服业务组"),
               children: (
                 <ResourcePanel
-                  title="业务组"
+                  title={tr("业务组")}
                   path="/tenant/groups"
                   onChanged={groups.reload}
                   fields={[
-                    { name: "name", label: "业务组名称", required: true },
+                    { name: "name", label: tr("业务组名称"), required: true },
                     {
                       name: "member_ids",
-                      label: "组内客服",
+                      label: tr("组内客服"),
                       type: "multi",
                       options: memberOptions,
                     },
                   ]}
-                  help="客户分类和客服技能独立管理。客服加入多个池仍共享同一接待容量。"
+                  help={tr("客户分类和客服技能独立管理。客服加入多个池仍共享同一接待容量。")}
                 />
               ),
             },
             {
               key: "pools",
-              label: "分配池",
+              label: tr("分配池"),
               children: (
                 <Pools groups={groups.items} members={members.items} skills={skills.items} />
               ),
             },
             {
               key: "skills",
-              label: "技能字典",
+              label: tr("技能字典"),
               children: (
                 <ResourcePanel
-                  title="技能"
+                  title={tr("技能")}
                   path="/tenant/routing-skills"
                   onChanged={skills.reload}
-                  fields={[{ name: "name", label: "技能名称", required: true }]}
-                  help="归档的技能不能再满足必备要求，已有规则会继续阻止不合格分配；请同步调整引用规则。"
+                  fields={[{ name: "name", label: tr("技能名称"), required: true }]}
+                  help={tr(
+                    "归档的技能不能再满足必备要求，已有规则会继续阻止不合格分配；请同步调整引用规则。",
+                  )}
                 />
               ),
             },
             {
               key: "member-skills",
-              label: "客服技能",
+              label: tr("客服技能"),
               children: <MemberSkills skills={skills.items} />,
             },
           ]}
@@ -118,7 +122,6 @@ export function RoutingPage() {
     </section>
   );
 }
-
 /** Pools 使用可读的逐客服权重表单维护真实算法，不把UUID映射JSON暴露为产品配置方式。 */
 function Pools({
   groups,
@@ -129,6 +132,7 @@ function Pools({
   members: Member[];
   skills: Resource[];
 }) {
+  const tr = useTranslator();
   const pools = useResource<Pool>("/tenant/routing-pools");
   const { message } = App.useApp();
   const [editing, setEditing] = useState<Pool | null | undefined>();
@@ -186,7 +190,7 @@ function Pools({
         },
         idempotent: true,
       });
-      message.success("分配规则已保存");
+      message.success(tr("分配规则已保存"));
       pools.reload();
       setEditing(undefined);
     } catch (problem) {
@@ -200,7 +204,7 @@ function Pools({
     try {
       await api(`/tenant/routing-pools/${pool.id}`, { method: "DELETE", tenantId: pools.tenantId });
       pools.reload();
-      message.success("分配池已归档");
+      message.success(tr("分配池已归档"));
     } catch (problem) {
       message.error(errorMessage(problem));
     }
@@ -209,7 +213,7 @@ function Pools({
     <>
       <Space style={{ marginBottom: 16 }}>
         <Button type="primary" onClick={() => edit(null)}>
-          新增分配池
+          {tr("新增分配池 ")}
         </Button>
       </Space>
       <ErrorNotice error={pools.error} retry={pools.reload} />
@@ -218,48 +222,58 @@ function Pools({
         dataSource={pools.items}
         pagination={{ pageSize: 10 }}
         columns={[
-          { title: "名称", dataIndex: "name" },
+          { title: tr("名称"), dataIndex: "name" },
           {
-            title: "业务组",
+            title: tr("业务组"),
             dataIndex: "service_group_id",
-            render: (value) => groups.find((group) => group.id === value)?.name || "未找到业务组",
+            render: (value) =>
+              groups.find((group) => group.id === value)?.name || tr("未找到业务组"),
           },
           {
-            title: "主算法",
+            title: tr("主算法"),
             dataIndex: "algorithm",
             render: (value) => (
-              <Tag>{algorithms.find((item) => item.value === value)?.label || value}</Tag>
+              <Tag>
+                {localizeStatic(algorithms, tr).find((item) => item.value === value)?.label ||
+                  value}
+              </Tag>
             ),
           },
           {
-            title: "组合规则",
+            title: tr("组合规则"),
             render: (_, row) => (
               <Space wrap>
-                <Tag>历史策略随租户配置</Tag>
-                <Tag>必备 {row.required_skill_ids?.length || 0}</Tag>
-                <Tag>可选 {row.optional_skill_ids?.length || 0}</Tag>
+                <Tag>{tr("历史策略随租户配置")}</Tag>
+                <Tag>
+                  {tr("必备 ")}
+                  {row.required_skill_ids?.length || 0}
+                </Tag>
+                <Tag>
+                  {tr("可选 ")}
+                  {row.optional_skill_ids?.length || 0}
+                </Tag>
               </Space>
             ),
           },
           {
-            title: "接待方式",
+            title: tr("接待方式"),
             dataIndex: "assignment_mode",
-            render: (value) => (value === "confirm" ? "确认接单" : "自动接入"),
+            render: (value) => (value === "confirm" ? tr("确认接单") : tr("自动接入")),
           },
           {
-            title: "操作",
+            title: tr("操作"),
             render: (_, row) => (
               <Space>
                 <Button type="link" onClick={() => edit(row)}>
-                  配置
+                  {tr("配置 ")}
                 </Button>
                 <Popconfirm
-                  title="归档此分配池？"
-                  description="现有咨询保留，新的咨询将无法继续分配到此池。"
+                  title={tr("归档此分配池？")}
+                  description={tr("现有咨询保留，新的咨询将无法继续分配到此池。")}
                   onConfirm={() => archive(row)}
                 >
                   <Button type="link" danger>
-                    归档
+                    {tr("归档 ")}
                   </Button>
                 </Popconfirm>
               </Space>
@@ -269,7 +283,7 @@ function Pools({
       />
       <Drawer
         rootClassName="console-drawer"
-        title={editing ? "配置分配池" : "新增分配池"}
+        title={editing ? tr("配置分配池") : tr("新增分配池")}
         open={editing !== undefined}
         onClose={() => setEditing(undefined)}
         size="large"
@@ -279,39 +293,41 @@ function Pools({
         <Alert
           type="info"
           showIcon
-          title="规则执行顺序"
-          description="统一资格与必备技能 → 严格/优先指定客服 → 仍合格的历史客服 → 可选技能匹配数量 → 主算法。原有接待不会因规则编辑被自动转走。"
+          title={tr("规则执行顺序")}
+          description={tr(
+            "统一资格与必备技能 \u2192 严格/优先指定客服 \u2192 仍合格的历史客服 \u2192 可选技能匹配数量 \u2192 主算法。原有接待不会因规则编辑被自动转走。",
+          )}
           style={{ marginBottom: 20 }}
         />
         <Form form={form} layout="vertical" onFinish={save}>
-          <h3 className="console-form-section">基本信息</h3>
+          <h3 className="console-form-section">{tr("基本信息")}</h3>
           <Form.Item
             name="name"
-            label="分配池名称"
+            label={tr("分配池名称")}
             rules={[{ required: true, whitespace: true, max: 80 }]}
           >
             <Input maxLength={80} />
           </Form.Item>
-          <Form.Item name="service_group_id" label="所属业务组" rules={[{ required: true }]}>
+          <Form.Item name="service_group_id" label={tr("所属业务组")} rules={[{ required: true }]}>
             <Select
               options={groups.map((item) => ({ label: item.name || item.id, value: item.id }))}
             />
           </Form.Item>
-          <h3 className="console-form-section">分配方式</h3>
-          <Form.Item name="members_mode" label="候选来源">
+          <h3 className="console-form-section">{tr("分配方式")}</h3>
+          <Form.Item name="members_mode" label={tr("候选来源")}>
             <Select
               options={[
-                { label: "动态使用业务组成员", value: "group" },
-                { label: "仅固定候选客服", value: "fixed" },
+                { label: tr("动态使用业务组成员"), value: "group" },
+                { label: tr("仅固定候选客服"), value: "fixed" },
               ]}
             />
           </Form.Item>
           {mode === "fixed" && (
             <Form.Item
               name="member_ids"
-              label="固定候选客服"
+              label={tr("固定候选客服")}
               rules={[
-                { required: true, type: "array", min: 1, message: "至少选择一位业务组内客服" },
+                { required: true, type: "array", min: 1, message: tr("至少选择一位业务组内客服") },
               ]}
             >
               <Select
@@ -323,13 +339,15 @@ function Pools({
               />
             </Form.Item>
           )}
-          <Form.Item name="algorithm" label="主分配算法" rules={[{ required: true }]}>
-            <Select options={algorithms} />
+          <Form.Item name="algorithm" label={tr("主分配算法")} rules={[{ required: true }]}>
+            <Select options={localizeStatic(algorithms, tr)} />
           </Form.Item>
           {algorithm === "weighted_round_robin" && (
             <>
               <p className="form-hint">
-                权重控制长期分配比例；离线、示忙、满载或技能不符的成员不参与本轮。权重1至1000，配置保存会重置该池的轮询积分。
+                {tr(
+                  "权重控制长期分配比例；离线、示忙、满载或技能不符的成员不参与本轮。权重1至1000，配置保存会重置该池的轮询积分。 ",
+                )}
               </p>
               {weighted.map((member) => (
                 <Form.Item
@@ -344,39 +362,41 @@ function Pools({
               ))}
             </>
           )}
-          <h3 className="console-form-section">资格与优先级</h3>
-          <Form.Item name="required_skill_ids" label="全部必须具备的技能">
+          <h3 className="console-form-section">{tr("资格与优先级")}</h3>
+          <Form.Item name="required_skill_ids" label={tr("全部必须具备的技能")}>
             <Select mode="multiple" allowClear options={skillOptions} />
           </Form.Item>
           <Form.Item
             name="optional_skill_ids"
-            label="优先匹配的可选技能"
-            extra="先按可选技能匹配数量排序，再执行主算法；不能绕过必备技能。"
+            label={tr("优先匹配的可选技能")}
+            extra={tr("先按可选技能匹配数量排序，再执行主算法；不能绕过必备技能。")}
           >
             <Select mode="multiple" allowClear options={skillOptions} />
           </Form.Item>
           <p className="form-hint">
-            历史客服优先窗口在租户设置的“复访与历史”统一配置；历史客服仍须满足当前组池、技能、在线、忙闲和容量。
+            {tr(
+              "历史客服优先窗口在租户设置的\u201C复访与历史\u201D统一配置；历史客服仍须满足当前组池、技能、在线、忙闲和容量。 ",
+            )}
           </p>
-          <Form.Item name="assignment_mode" label="接待方式">
+          <Form.Item name="assignment_mode" label={tr("接待方式")}>
             <Select
               options={[
-                { label: "自动接入", value: "auto" },
-                { label: "客服确认接单", value: "confirm" },
+                { label: tr("自动接入"), value: "auto" },
+                { label: tr("客服确认接单"), value: "confirm" },
               ]}
             />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={saving}>
-            保存分配规则
+            {tr("保存分配规则 ")}
           </Button>
         </Form>
       </Drawer>
     </>
   );
 }
-
 /** MemberSkills 为租户成员保存独立技能属性，不改变其管理角色或坐席资格。 */
 function MemberSkills({ skills }: { skills: Resource[] }) {
+  const tr = useTranslator();
   const resource = useResource<SkilledMember>("/tenant/routing-members");
   const { message } = App.useApp();
   const [editing, setEditing] = useState<SkilledMember | null>(null);
@@ -394,7 +414,7 @@ function MemberSkills({ skills }: { skills: Resource[] }) {
       });
       resource.reload();
       setEditing(null);
-      message.success("客服技能已保存");
+      message.success(tr("客服技能已保存"));
     } catch (problem) {
       message.error(errorMessage(problem));
     } finally {
@@ -408,21 +428,21 @@ function MemberSkills({ skills }: { skills: Resource[] }) {
         rowKey="id"
         dataSource={resource.items}
         columns={[
-          { title: "成员", dataIndex: "display_name" },
+          { title: tr("成员"), dataIndex: "display_name" },
           {
-            title: "技能",
+            title: tr("技能"),
             render: (_, row) => (
               <Space wrap>
                 {row.skill_ids.map((id) => (
                   <Tag key={id}>
-                    {skills.find((skill) => skill.id === id)?.name || "已归档技能"}
+                    {skills.find((skill) => skill.id === id)?.name || tr("已归档技能")}
                   </Tag>
                 ))}
               </Space>
             ),
           },
           {
-            title: "操作",
+            title: tr("操作"),
             render: (_, row) => (
               <Button
                 type="link"
@@ -431,7 +451,7 @@ function MemberSkills({ skills }: { skills: Resource[] }) {
                   setIDs(row.skill_ids);
                 }}
               >
-                配置技能
+                {tr("配置技能 ")}
               </Button>
             ),
           },
@@ -440,12 +460,12 @@ function MemberSkills({ skills }: { skills: Resource[] }) {
       />
       <Drawer
         rootClassName="console-drawer"
-        title={`配置${editing?.display_name || "成员"}的技能`}
+        title={tr("配置{p0}的技能", { p0: String(editing?.display_name || tr("成员")) })}
         open={!!editing}
         onClose={() => setEditing(null)}
       >
         <Select
-          aria-label="成员技能"
+          aria-label={tr("成员技能")}
           mode="multiple"
           value={ids}
           onChange={setIDs}
@@ -458,7 +478,7 @@ function MemberSkills({ skills }: { skills: Resource[] }) {
           onClick={() => void save()}
           style={{ marginTop: 20 }}
         >
-          保存技能
+          {tr("保存技能 ")}
         </Button>
       </Drawer>
     </>

@@ -1,27 +1,27 @@
 /** 文件作用说明：用紧凑纯文字标题展示个人和公共富话术，双击成功后按真实使用次数排序。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { App, Button, Tooltip } from "antd";
-import { PlusOutlined, SettingOutlined } from "@ant-design/icons";
+import { useTranslator } from "@/i18n/use-translator";
 import { api, errorMessage } from "@/lib/api";
 import { groupQuickReplies, type QuickReply } from "@/lib/quick-replies";
-import { QuickReplyEditor } from "./quick-reply-editor";
+import { PlusOutlined, SettingOutlined } from "@ant-design/icons";
+import { App, Button, Tooltip } from "antd";
+import { useEffect, useRef, useState } from "react";
 import { PersonalReplySettings } from "./personal-reply-settings";
 import "./quick-replies.css";
+import { QuickReplyEditor } from "./quick-reply-editor";
 type QuickReplyProps = {
   tenantId: string;
   manages: boolean;
   disabled: boolean;
   onSend: (item: QuickReply) => Promise<boolean>;
 };
-
 /** QuickReplies 按租户重建内容，防止切换身份后继续维护旧话术。 */
 export function QuickReplies(props: QuickReplyProps) {
   return <QuickReplyList key={props.tenantId} {...props} />;
 }
-
 /** QuickReplyList 展示紧凑话术标题、个人新增和管理入口，维护动作集中在弹框中。 */
 function QuickReplyList({ tenantId, disabled, onSend }: QuickReplyProps) {
+  const tr = useTranslator();
   const { message } = App.useApp();
   const [items, setItems] = useState<QuickReply[]>([]);
   const [editing, setEditing] = useState<QuickReply | null | undefined>();
@@ -38,7 +38,9 @@ function QuickReplyList({ tenantId, disabled, onSend }: QuickReplyProps) {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    api<{ items: QuickReply[] }>("/tenant/quick-replies", { tenantId, signal: controller.signal })
+    api<{
+      items: QuickReply[];
+    }>("/tenant/quick-replies", { tenantId, signal: controller.signal })
       .then((data) => {
         if (!controller.signal.aborted) setItems(data.items || []);
       })
@@ -66,25 +68,25 @@ function QuickReplyList({ tenantId, disabled, onSend }: QuickReplyProps) {
   }
   const groups = groupQuickReplies(items);
   return (
-    <aside className="composer-quick-replies compact-quick-replies" aria-label="快捷回复">
+    <aside className="composer-quick-replies compact-quick-replies" aria-label={tr("快捷回复")}>
       <div className="quick-reply-toolbar">
-        <Tooltip title="添加个人快捷回复">
+        <Tooltip title={tr("添加个人快捷回复")}>
           <Button
             type="text"
             size="small"
             className="quick-reply-add"
             icon={<PlusOutlined />}
-            aria-label="添加快捷回复"
+            aria-label={tr("添加快捷回复")}
             onClick={() => setEditing(null)}
           />
         </Tooltip>
-        <Tooltip title="管理我的回复">
+        <Tooltip title={tr("管理我的回复")}>
           <Button
             type="text"
             size="small"
             className="quick-reply-settings"
             icon={<SettingOutlined />}
-            aria-label="管理我的回复"
+            aria-label={tr("管理我的回复")}
             onClick={() => setSettingsOpen(true)}
           />
         </Tooltip>

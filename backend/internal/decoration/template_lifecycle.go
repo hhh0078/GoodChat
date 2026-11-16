@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -23,7 +24,13 @@ func (s *Service) registerTemplateLifecycle(mux *http.ServeMux) {
 // templateIndustries 返回平台预置行业设计，不向租户暴露其他租户的私有资源包。
 func (s *Service) templateIndustries(w http.ResponseWriter, r *http.Request) {
 	s.tenant(w, r, func(tx pgx.Tx) (any, error) {
-		return map[string]any{"items": industryTemplateCatalog()}, nil
+		items := industryTemplateCatalog()
+		for index := range items {
+			items[index].Name = localization.RequestText(r, items[index].Name)
+			items[index].Industry = localization.RequestText(r, items[index].Industry)
+			items[index].Description = localization.RequestText(r, items[index].Description)
+		}
+		return map[string]any{"items": items}, nil
 	})
 }
 

@@ -1,13 +1,14 @@
 /** 文件作用说明：按服务端持久未读原子领取提醒，离开工作台仍重复提示，遵守成员音量和通知偏好。 */
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import type { RealtimeEvent } from "@/lib/realtime/client";
 import {
   createReminderRequests,
   reminderEventInvalidates,
   systemNotificationPreferences,
 } from "@/lib/reminder-state";
-import type { RealtimeEvent } from "@/lib/realtime/client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslator } from "../../i18n/use-translator.ts";
 import { useNotificationAudio } from "./use-notification-audio";
 export type ReminderPreferences = {
   sound_enabled: boolean;
@@ -16,16 +17,20 @@ export type ReminderPreferences = {
   muted: boolean;
   volume: number;
 };
-type ReminderItem = { conversation_id: string; reminder_key: string; preview: string };
+type ReminderItem = {
+  conversation_id: string;
+  reminder_key: string;
+  preview: string;
+};
 type Claimed = {
   items: ReminderItem[];
   pending_count: number;
   repeat_unread_seconds: number;
   notification_sound_id: string;
 };
-
 /** useReminders 由真实未读与归属决定是否提醒，多个标签通过服务端领取避免同一周期叠响。 */
 export function useReminders(tenantId: string, enabled = true, memberId = "") {
+  const tr = useTranslator();
   const prefs = useRef<ReminderPreferences | null>(null);
   const [preferences, setPreferences] = useState<ReminderPreferences | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -79,10 +84,15 @@ export function useReminders(tenantId: string, enabled = true, memberId = "") {
       if (!settings || settings.muted || !result.items.length) return;
       for (const item of result.items) pendingConversations.add(item.conversation_id);
       const preview = settings.content_preview
-        ? result.items[0].preview || "访客发送了附件消息"
-        : "有咨询尚未查看，请回到工作台处理。";
+        ? result.items[0].preview || tr("访客发送了附件消息")
+        : tr("有咨询尚未查看，请回到工作台处理。");
       const body =
-        result.items.length > 1 ? `${preview}（共${result.items.length}条待处理咨询）` : preview;
+        result.items.length > 1
+          ? tr("{p0}（共{p1}条待处理咨询）", {
+              p0: String(preview),
+              p1: String(result.items.length),
+            })
+          : preview;
       if (
         settings.system_enabled &&
         document.visibilityState !== "visible" &&
@@ -90,7 +100,7 @@ export function useReminders(tenantId: string, enabled = true, memberId = "") {
         Notification.permission === "granted"
       ) {
         try {
-          new Notification("GoodChat 接待提醒", { body, tag: "goodchat-pending-attention" });
+          new Notification(tr("GoodChat 接待提醒"), { body, tag: "goodchat-pending-attention" });
         } catch (problem) {
           // 单个通知通道故障不能阻断已可用的声音通道。
           setError(problem);
@@ -205,7 +215,14 @@ export function useReminders(tenantId: string, enabled = true, memberId = "") {
     }
     /** preferencesChanged 立即应用同页面设置更改，其他设备偏好由周期刷新收敛。 */
     function preferencesChanged(event: Event) {
-      if ((event as CustomEvent<{ tenantId: string }>).detail?.tenantId !== tenantId) return;
+      if (
+        (
+          event as CustomEvent<{
+            tenantId: string;
+          }>
+        ).detail?.tenantId !== tenantId
+      )
+        return;
       const finish = requests.preferenceChange();
       finish();
       prefs.current = null;
@@ -268,13 +285,13 @@ export function useReminders(tenantId: string, enabled = true, memberId = "") {
   /** setSystemNotifications 仅在用户主动勾选时申请系统通知权限。 */
   async function setSystemNotifications(enabled: boolean) {
     if (enabled) {
-      if (typeof Notification === "undefined") throw new Error("当前浏览器不支持系统通知");
+      if (typeof Notification === "undefined") throw new Error(tr("当前浏览器不支持系统通知"));
       const permission =
         Notification.permission === "default"
           ? await Notification.requestPermission()
           : Notification.permission;
       if (permission !== "granted")
-        throw new Error("系统通知尚未授权，请在浏览器站点设置中允许通知");
+        throw new Error(tr("系统通知尚未授权，请在浏览器站点设置中允许通知"));
     }
     await updatePreferences(systemNotificationPreferences(enabled, prefs.current?.muted));
   }

@@ -26,6 +26,7 @@ import (
 	"supportdesk/backend/internal/callbacks"
 	"supportdesk/backend/internal/chat"
 	"supportdesk/backend/internal/decoration"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/monitoring"
 	"supportdesk/backend/internal/platform"
 	"supportdesk/backend/internal/releases"
@@ -183,6 +184,6 @@ func middleware(cfg platform.Config, next http.Handler) http.Handler {
 				log.Printf("request_id=%s 请求处理异常", r.Header.Get("X-Request-ID"))
 			}
 		}()
-		next.ServeHTTP(w, r)
+		localization.Middleware(next).ServeHTTP(w, r)
 	})
 }

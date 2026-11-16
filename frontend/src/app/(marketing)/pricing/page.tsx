@@ -1,13 +1,20 @@
 /** 文件作用说明：按明亮定价设计图服务端读取平台套餐，公开展示真实价格、有效期、坐席与功能。 */
+import { ArrowRightOutlined, CheckOutlined } from "@/components/public-icons";
+import { publicMetadata } from "@/i18n/metadata";
+import { localizeStatic } from "@/i18n/runtime";
+import { getPreferences, getTranslator } from "@/i18n/server";
 import { Alert, Button, Tag } from "antd";
 import type { Metadata } from "next";
-import { ArrowRightOutlined, CheckOutlined } from "@/components/public-icons";
+import { getLocale } from "next-intl/server";
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
-  title: "免费开始与套餐价格",
-  description: "查看 GoodChat 已发布套餐、客服坐席额度、服务有效期与功能范围。",
-  alternates: { canonical: "/pricing" },
-};
+/** generateMetadata 输出当前语言的官网标题和替代地址。 */
+export async function generateMetadata(): Promise<Metadata> {
+  return publicMetadata(
+    "/pricing",
+    "免费开始与套餐价格",
+    "查看 GoodChat 已发布套餐、客服坐席额度、服务有效期与功能范围。",
+  );
+}
 type Plan = {
   id: string;
   name: string;
@@ -48,14 +55,22 @@ const featureDescriptions: Record<string, string> = {
 };
 /** PricingPage 使用后端公开配置输出价格，连接失败时明确显示配置状态。 */
 export default async function PricingPage() {
+  const preferences = await getPreferences();
+  const currentPreferences = () => preferences;
+
+  const tr = await getTranslator();
   let plans: Plan[] = [];
   let unavailable = false;
   try {
     const response = await fetch(
       `${process.env.BACKEND_URL || "http://127.0.0.1:18080"}/api/v1/public/plans`,
-      { cache: "no-store", signal: AbortSignal.timeout(4000) },
+      {
+        headers: { "X-GoodChat-Locale": await getLocale() },
+        cache: "no-store",
+        signal: AbortSignal.timeout(4000),
+      },
     );
-    if (!response.ok) throw new Error("套餐暂不可用");
+    if (!response.ok) throw new Error(tr("套餐暂不可用"));
     const payload = await response.json();
     plans = Array.isArray(payload?.data?.items) ? payload.data.items : [];
   } catch {
@@ -64,18 +79,20 @@ export default async function PricingPage() {
   return (
     <div className="public-width public-pricing" data-public-page="pricing">
       <header className="public-pricing-heading">
-        <div className="public-overline">从一个免费工作空间开始</div>
-        <h1>免费 2 个客服坐席，按需扩展团队。</h1>
+        <div className="public-overline">{tr("从一个免费工作空间开始")}</div>
+        <h1>{tr("免费 2 个客服坐席，按需扩展团队。")}</h1>
         <p className="page-lead">
-          根据团队人数选择客服坐席与服务能力，具体价格和有效期以已发布套餐为准。
+          {tr("根据团队人数选择客服坐席与服务能力，具体价格和有效期以已发布套餐为准。 ")}
         </p>
       </header>
       {unavailable || !plans.length ? (
         <Alert
           type="info"
           showIcon
-          title="套餐信息正在配置中"
-          description="当前暂时无法读取已发布套餐。你可以先创建工作空间，在控制台查看实际可用额度。"
+          title={tr("套餐信息正在配置中")}
+          description={tr(
+            "当前暂时无法读取已发布套餐。你可以先创建工作空间，在控制台查看实际可用额度。",
+          )}
         />
       ) : (
         <div className={`public-pricing-plans ${plans.length === 1 ? "is-single" : ""}`}>
@@ -83,29 +100,37 @@ export default async function PricingPage() {
             <article className="public-plan" key={plan.id}>
               <div className="public-plan-summary">
                 <Tag color={plan.price_amount === 0 ? "blue" : "default"}>
-                  {plan.price_amount === 0 ? "免费开始" : "扩展团队"}
+                  {plan.price_amount === 0 ? tr("免费开始") : tr("扩展团队")}
                 </Tag>
                 <h2>{plan.name}</h2>
                 <div className="public-plan-price">
                   {plan.currency === "CNY" ? "¥" : plan.currency}
-                  {(plan.price_amount / 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}
+                  {(plan.price_amount / 100).toLocaleString(currentPreferences().locale, {
+                    maximumFractionDigits: 2,
+                  })}
                   <span>
                     {" "}
-                    / {plan.validity_days === 0 ? "长期有效" : `${plan.validity_days} 天`}
+                    /{" "}
+                    {plan.validity_days === 0
+                      ? tr("长期有效")
+                      : tr("{p0} 天", { p0: String(plan.validity_days) })}
                   </span>
                 </div>
-                <strong className="public-plan-seats">{plan.seat_limit} 个客服坐席</strong>
+                <strong className="public-plan-seats">
+                  {plan.seat_limit}
+                  {tr(" 个客服坐席")}
+                </strong>
                 <p>{plan.description}</p>
                 <Button
                   type="primary"
                   block
                   href={plan.price_amount === 0 ? "/register" : "/console/billing"}
                 >
-                  {plan.price_amount === 0 ? "免费创建工作空间" : "查看开通方式"}
+                  {plan.price_amount === 0 ? tr("免费创建工作空间") : tr("查看开通方式")}
                 </Button>
               </div>
               <div className="public-plan-capabilities">
-                <h3>包含的核心能力</h3>
+                <h3>{tr("包含的核心能力")}</h3>
                 <ul>
                   {Object.entries(plan.features || {})
                     .filter(([, value]) => !!value)
@@ -114,10 +139,12 @@ export default async function PricingPage() {
                         <CheckOutlined />
                         <span>
                           <strong>
-                            {featureLabels[key] || key}
+                            {localizeStatic(featureLabels, tr)[key] || key}
                             {typeof value === "number" ? `：${value}` : ""}
                           </strong>
-                          {featureDescriptions[key] && <small>{featureDescriptions[key]}</small>}
+                          {localizeStatic(featureDescriptions, tr)[key] && (
+                            <small>{localizeStatic(featureDescriptions, tr)[key]}</small>
+                          )}
                         </span>
                       </li>
                     ))}
@@ -128,14 +155,17 @@ export default async function PricingPage() {
         </div>
       )}
       <section className="public-upgrade-note">
-        <h2>扩展团队时再升级</h2>
-        <p>需要更多客服坐席，可以在控制台申请升级。付费版本与价格由平台发布后展示。</p>
+        <h2>{tr("扩展团队时再升级")}</h2>
+        <p>{tr("需要更多客服坐席，可以在控制台申请升级。付费版本与价格由平台发布后展示。")}</p>
         <a href="/console/billing">
-          查看开通方式 <ArrowRightOutlined />
+          {tr("查看开通方式 ")}
+          <ArrowRightOutlined />
         </a>
       </section>
       <p className="public-price-notice">
-        基础免费版默认 0 元、长期有效，包含 2 个客服坐席。具体功能、额度与有效期以实际开通记录为准。
+        {tr(
+          "基础免费版默认 0 元、长期有效，包含 2 个客服坐席。具体功能、额度与有效期以实际开通记录为准。 ",
+        )}
       </p>
     </div>
   );

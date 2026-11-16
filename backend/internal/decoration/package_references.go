@@ -60,11 +60,11 @@ func packageReference(value, current, prefix string, files map[string]packageFil
 	}
 	file, ok := files[target]
 	if !ok {
-		return "", invalidDesign("引用资源不存在：" + target)
+		return "", invalidDesignf("引用资源不存在：%s", target)
 	}
 	valid := kind == "any" || kind == "script" && strings.HasPrefix(file.ContentType, "text/javascript") || kind == "style" && strings.HasPrefix(file.ContentType, "text/css") || kind == "html" && strings.HasPrefix(file.ContentType, "text/html") || kind == "image" && strings.HasPrefix(file.ContentType, "image/") || kind == "media" && (strings.HasPrefix(file.ContentType, "audio/") || strings.HasPrefix(file.ContentType, "video/") || file.ContentType == "application/ogg")
 	if !valid {
-		return "", invalidDesign("引用文件类型与用途不一致：" + target)
+		return "", invalidDesignf("引用文件类型与用途不一致：%s", target)
 	}
 	if prefix == "" {
 		return value, nil

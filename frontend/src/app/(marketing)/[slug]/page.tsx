@@ -1,13 +1,22 @@
 /** 文件作用说明：提供产品、场景、套餐、帮助与隐私条款的服务端公开页面。 */
+import { ProductPreview } from "@/components/product-preview";
+import { publicMetadata } from "@/i18n/metadata";
+import { localizeStatic, translate as tr } from "@/i18n/runtime";
+import { getTranslator } from "@/i18n/server";
+import { Button } from "antd";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Button } from "antd";
-import { ProductPreview } from "@/components/product-preview";
-import { brandShareImages } from "@/lib/site-brand";
-
 const pages: Record<
   string,
-  { title: string; lead: string; sections: { title: string; text: string; points?: string[] }[] }
+  {
+    title: string;
+    lead: string;
+    sections: {
+      title: string;
+      text: string;
+      points?: string[];
+    }[];
+  }
 > = {
   features: {
     title: "让服务流程完整连接",
@@ -119,33 +128,33 @@ const pages: Record<
 };
 /** generateStaticParams 只生成已定义的公开信息页面。 */
 export function generateStaticParams() {
-  return Object.keys(pages).map((slug) => ({ slug }));
+  return Object.keys(localizeStatic(pages, tr)).map((slug) => ({ slug }));
 }
 /** generateMetadata 为每个公开页面提供独立标题和规范地址。 */
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{
+    slug: string;
+  }>;
 }): Promise<Metadata> {
+  const tr = await getTranslator();
   const { slug } = await params;
-  const page = pages[slug];
+  const page = localizeStatic(pages, tr)[slug];
   if (!page) return {};
-  return {
-    title: page.title,
-    description: page.lead,
-    alternates: { canonical: `/${slug}` },
-    openGraph: {
-      title: page.title,
-      description: page.lead,
-      url: `/${slug}`,
-      images: brandShareImages,
-    },
-  };
+  return publicMetadata(`/${slug}`, pages[slug].title, pages[slug].lead);
 }
 /** PublicContentPage 输出可被搜索引擎读取的产品与服务说明。 */
-export default async function PublicContentPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PublicContentPage({
+  params,
+}: {
+  params: Promise<{
+    slug: string;
+  }>;
+}) {
+  const tr = await getTranslator();
   const { slug } = await params;
-  const page = pages[slug];
+  const page = localizeStatic(pages, tr)[slug];
   if (!page) notFound();
   const illustrated = slug === "features" || slug === "solutions";
   const legal = slug === "privacy" || slug === "terms";
@@ -155,19 +164,19 @@ export default async function PublicContentPage({ params }: { params: Promise<{ 
       <header className="public-content-heading">
         <div className="public-overline">
           {slug === "features"
-            ? "围绕每一次客户对话"
+            ? tr("围绕每一次客户对话")
             : slug === "solutions"
-              ? "适合你的业务，也适合你的团队"
+              ? tr("适合你的业务，也适合你的团队")
               : slug === "help"
-                ? "GoodChat 使用指南"
-                : "GoodChat 服务约定"}
+                ? tr("GoodChat 使用指南")
+                : tr("GoodChat 服务约定")}
         </div>
         <h1>{page.title}</h1>
         <p className="page-lead">{page.lead}</p>
       </header>
       <article className={`public-docs-layout ${legal ? "public-legal" : ""}`}>
-        <nav className="public-toc" aria-label="本页目录">
-          <strong>{slug === "help" ? "起步指南" : legal ? page.title : "内容目录"}</strong>
+        <nav className="public-toc" aria-label={tr("本页目录")}>
+          <strong>{slug === "help" ? tr("起步指南") : legal ? page.title : tr("内容目录")}</strong>
           {page.sections.map((section, index) => (
             <a href={`#section-${index + 1}`} key={section.title}>
               {section.title}
@@ -201,7 +210,7 @@ export default async function PublicContentPage({ params }: { params: Promise<{ 
           {!legal && (
             <div className="public-docs-cta">
               <Button type="primary" size="large" href="/register">
-                创建工作空间
+                {tr("创建工作空间 ")}
               </Button>
             </div>
           )}

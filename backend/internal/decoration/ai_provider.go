@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"supportdesk/backend/internal/localization"
 
 	"supportdesk/backend/internal/platform"
 )
@@ -43,7 +44,7 @@ func (s *Service) callProvider(ctx context.Context, mode, prompt, model string, 
 	if mode == "code" {
 		contract = `输出一个JSON对象{"html":"静态HTML片段","css":"静态CSS","javascript":"JavaScript"}，禁止Markdown代码围栏。HTML不包含html/head/body标签、外部脚本、外链、form、iframe、meta、base、object、embed。CSS禁止url和@import。静态代码在跨来源沙箱运行且不能访问外网。必须使用window.GoodChat.getState()/sendText(text,client_message_id?,reply_to_id?)/withdrawMessage(message_id)/typing(active)/subscribe(handler)/upload(blob,name)/download(id)/saveAttachment(id)/read(seq)绘制并操作当前授权聊天，不能获取任何令牌或指定会话路径。状态包含conversation及messages数组、is_typing和peer_read_seq；消息含is_own、sender_kind、sender_name、created_at、seq、text、reply和attachment。seq保持字符串，用BigInt比较。使用textContent显示消息，区分本人右侧气泡、客服和系统，提供引用、取消引用及本人消息撤回；撤回在气泡内确认，不使用沙箱禁止的window.confirm。提供发送输入框和真实可见的原生file input作为唯一添加附件控件，不使用hidden或代点。图片音频用download返回的Blob预览，文件保存必须saveAttachment请求可信父层确认，不能在沙箱内创建下载链接。`
 	}
-	system := "你是GoodChat访客咨询页面设计器。只处理主动提交的装修需求，不能改变鉴权、分配或业务权限。使用自然色系，不使用蓝紫渐变。不得包含任何外部请求或外部资源。" + contract
+	system := outputLanguageInstruction(localization.ContextLocale(ctx)) + "\n" + "你是GoodChat访客咨询页面设计器。只处理主动提交的装修需求，不能改变鉴权、分配或业务权限。使用自然色系，不使用蓝紫渐变。不得包含任何外部请求或外部资源。" + contract
 	user := "设计需求：" + prompt + "\n当前草稿（修改时保留未要求变更部分）：" + string(base)
 	body, err := json.Marshal(map[string]any{"model": model, "messages": []map[string]string{{"role": "system", "content": system}, {"role": "user", "content": user}}, "response_format": map[string]string{"type": "json_object"}})
 	if err != nil {
@@ -107,7 +108,7 @@ func (s *Service) callProvider(ctx context.Context, mode, prompt, model string, 
 	if err != nil {
 		var api *platform.APIError
 		if errors.As(err, &api) {
-			return result, platform.Fail(502, "ai_design_invalid", "模型设计未通过安全和结构校验："+api.Message)
+			return result, platform.Failf(502, "ai_design_invalid", "模型设计未通过安全和结构校验：%s", api.Message)
 		}
 		return result, err
 	}

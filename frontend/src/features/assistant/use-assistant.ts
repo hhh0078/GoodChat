@@ -1,7 +1,8 @@
 /** 文件作用说明：连接持久 AI 对话、图片上传和阶段任务，恢复面板时重新读取服务端真实状态。 */
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslator } from "../../i18n/use-translator.ts";
 import {
   activeAssistantJob,
   assistantAssetProblem,
@@ -11,9 +12,9 @@ import {
   type AssistantSource,
   type AssistantThread,
 } from "./state";
-
 /** useAssistant 管理当前租户的对话与文件；关闭窗口不会取消服务端已提交任务。 */
 export function useAssistant(tenantId: string, open: boolean, initial: AssistantRequest) {
+  const tr = useTranslator();
   const [threads, setThreads] = useState<AssistantThread[]>([]);
   const [thread, setThread] = useState<AssistantThread | null>(null);
   const [job, setJob] = useState<AssistantJob | null>(null);
@@ -26,13 +27,15 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
   const [uploading, setUploading] = useState(false);
   const [changing, setChanging] = useState(false);
   const epoch = useRef(0);
-  const pending = useRef<{ signature: string; id: string } | null>(null);
+  const pending = useRef<{
+    signature: string;
+    id: string;
+  } | null>(null);
   const assetList = useRef(assets);
   assetList.current = assets;
   const uploadLock = useRef(false);
   const assetCache = useRef(new Map<string, AssistantAsset>());
   const storageKey = `goodchat.assistant.thread.${tenantId}`;
-
   /** remember 仅记忆对话编号，不把模型密钥、图片或对话正文写入浏览器存储。 */
   const remember = useCallback(
     (id: string) => {
@@ -44,7 +47,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
     },
     [storageKey],
   );
-
   /** applyThread 用完整服务端对话恢复消息与最近任务，预览保持为服务端隔离地址。 */
   const applyThread = useCallback(
     (value: AssistantThread) => {
@@ -55,16 +57,16 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
     },
     [remember],
   );
-
   /** reloadThreads 刷新当前租户的历史记录，旧租户返回的数据不能覆盖新面板。 */
   const reloadThreads = useCallback(async () => {
     const current = epoch.current;
-    const result = await api<{ items: AssistantThread[] }>("/tenant/assistant/threads", {
+    const result = await api<{
+      items: AssistantThread[];
+    }>("/tenant/assistant/threads", {
       tenantId,
     });
     if (current === epoch.current) setThreads(result.items || []);
   }, [tenantId]);
-
   /** selectThread 切换持久对话并丢弃上一对话的未提交图片，失败时保留已有内容。 */
   const selectThread = useCallback(
     async (id: string) => {
@@ -86,7 +88,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
     },
     [tenantId, applyThread],
   );
-
   /** newThread 创建对话前的空白编辑态，用户首次发送时才写入持久记录。 */
   function newThread(nextSource: AssistantSource = source) {
     epoch.current++;
@@ -104,7 +105,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
       /* 无存储权限无需处理。 */
     }
   }
-
   useEffect(() => {
     if (!open || !tenantId) return;
     const current = ++epoch.current;
@@ -116,7 +116,9 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
     /** restore 重新读取历史并恢复指定或最近对话，二创只创建私有编辑草稿。 */
     async function restore() {
       try {
-        const list = await api<{ items: AssistantThread[] }>("/tenant/assistant/threads", {
+        const list = await api<{
+          items: AssistantThread[];
+        }>("/tenant/assistant/threads", {
           tenantId,
         });
         if (current !== epoch.current) return;
@@ -128,7 +130,7 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
             method: "POST",
             idempotent: true,
             bodyJSON: {
-              title: `${initial.templateName || "模板"} · AI 二创`,
+              title: tr("{p0} \u00B7 AI 二创", { p0: String(initial.templateName || tr("模板")) }),
               template_id: initial.templateId,
               source: initial.source || "tenant",
             },
@@ -169,7 +171,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
       epoch.current++;
     };
   }, [open, tenantId, initial.nonce, applyThread, storageKey]);
-
   useEffect(() => {
     if (!open || !thread?.id) return;
     const selected = thread.id;
@@ -208,7 +209,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
     if (ids.length) void restoreImages();
     return () => controller.abort();
   }, [open, tenantId, thread?.id, thread?.messages?.map((item) => item.id).join(":")]);
-
   useEffect(() => {
     if (!open || !job || !activeAssistantJob(job)) return;
     let stopped = false;
@@ -251,7 +251,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
       controller.abort();
     };
   }, [open, job?.id, activeAssistantJob(job), tenantId, thread?.id, applyThread, reloadThreads]);
-
   /** send 保留同一内容的提交编号，超时后重试由服务端去重，上传完成前不能提交。 */
   async function send() {
     if (!draft.trim() || sending || loading || uploading || activeAssistantJob(job)) return;
@@ -275,14 +274,13 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
       const signature = JSON.stringify([selected.id, content, asset_ids]);
       if (pending.current?.signature !== signature)
         pending.current = { signature, id: crypto.randomUUID() };
-      const result = await api<{ job: AssistantJob }>(
-        `/tenant/assistant/threads/${selected.id}/messages`,
-        {
-          tenantId,
-          method: "POST",
-          bodyJSON: { content, asset_ids, client_message_id: pending.current.id },
-        },
-      );
+      const result = await api<{
+        job: AssistantJob;
+      }>(`/tenant/assistant/threads/${selected.id}/messages`, {
+        tenantId,
+        method: "POST",
+        bodyJSON: { content, asset_ids, client_message_id: pending.current.id },
+      });
       if (current !== epoch.current) return;
       pending.current = null;
       setDraft("");
@@ -300,7 +298,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
       if (current === epoch.current) setSending(false);
     }
   }
-
   /** uploadFiles 顺序上传并验证引用图片，只有服务端确认的图片编号才随消息发送。 */
   async function uploadFiles(files: File[]) {
     if (uploadLock.current || sending || activeAssistantJob(job)) return;
@@ -330,7 +327,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
       if (current === epoch.current) setUploading(false);
     }
   }
-
   /** cancel 请求服务端取消当前阶段，仍以返回和后续轮询的状态为准。 */
   async function cancel() {
     if (!thread || changing) return;
@@ -353,7 +349,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
       if (current === epoch.current) setChanging(false);
     }
   }
-
   /** retry 只重试后端允许的失败阶段，供应商用量未知时由界面先提示。 */
   async function retry() {
     if (!job || changing) return;
@@ -373,7 +368,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
       if (current === epoch.current) setChanging(false);
     }
   }
-
   /** refresh 恢复失败的读取，保留用户尚未发送的文字和图片。 */
   async function refresh() {
     setError(null);
@@ -390,7 +384,6 @@ export function useAssistant(tenantId: string, open: boolean, initial: Assistant
       setError(new Error(errorMessage(problem)));
     }
   }
-
   return {
     threads,
     thread,

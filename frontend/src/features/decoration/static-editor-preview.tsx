@@ -1,14 +1,17 @@
 /** 文件作用说明：通过严格校验的隔离预览桥接实现静态元素选择，模板无法获得管理端凭证。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Alert, Empty, Segmented, Space, Tag } from "antd";
-import { DesktopOutlined, MobileOutlined } from "@ant-design/icons";
-import { safeRenderURL } from "@/lib/frame-bridge";
 import { previewScale } from "@/features/assistant/preview-scale";
+import { useTranslator } from "@/i18n/use-translator";
+import { safeRenderURL } from "@/lib/frame-bridge";
+import { DesktopOutlined, MobileOutlined } from "@ant-design/icons";
+import { Alert, Empty, Segmented, Space, Tag } from "antd";
+import { useEffect, useRef, useState } from "react";
 import { editorStyleSelectors } from "./static-editor-styles";
-
-export type EditorPreview = { preview_url: string; release_id: string; nonce: string };
-
+export type EditorPreview = {
+  preview_url: string;
+  release_id: string;
+  nonce: string;
+};
 /** StaticEditorPreview 按来源、窗口、版本和随机数校验选择消息，缩放只影响展示尺寸。 */
 export function StaticEditorPreview({
   preview,
@@ -23,6 +26,7 @@ export function StaticEditorPreview({
   styleSelector?: string;
   onSelect: (id: string, selector?: string) => void;
 }) {
+  const tr = useTranslator();
   const frame = useRef<HTMLIFrameElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const [device, setDevice] = useState("mobile");
@@ -103,19 +107,19 @@ export function StaticEditorPreview({
   const height = device === "mobile" ? 844 : 800;
   const scale = previewScale(size.width, size.height, width, height);
   return (
-    <section className="static-editor-preview" aria-label="元素编辑预览">
+    <section className="static-editor-preview" aria-label={tr("元素编辑预览")}>
       <div className="static-editor-preview-toolbar">
         <Space size={6}>
-          <strong>{mode === "select" ? "点击页面选择元素" : "交互预览"}</strong>
-          <Tag>模拟消息</Tag>
+          <strong>{mode === "select" ? tr("点击页面选择元素") : tr("交互预览")}</strong>
+          <Tag>{tr("模拟消息")}</Tag>
         </Space>
         <Segmented
-          aria-label="编辑预览设备"
+          aria-label={tr("编辑预览设备")}
           value={device}
           onChange={setDevice}
           options={[
-            { value: "mobile", label: "手机", icon: <MobileOutlined /> },
-            { value: "desktop", label: "电脑", icon: <DesktopOutlined /> },
+            { value: "mobile", label: tr("手机"), icon: <MobileOutlined /> },
+            { value: "desktop", label: tr("电脑"), icon: <DesktopOutlined /> },
           ]}
         />
       </div>
@@ -127,7 +131,7 @@ export function StaticEditorPreview({
           >
             <iframe
               ref={frame}
-              title="模板元素编辑预览"
+              title={tr("模板元素编辑预览")}
               src={source.href}
               sandbox="allow-scripts"
               referrerPolicy="no-referrer"
@@ -136,15 +140,18 @@ export function StaticEditorPreview({
             />
           </div>
         ) : preview ? (
-          <Alert type="error" title="预览来源校验失败，请重新准备预览。" />
+          <Alert type="error" title={tr("预览来源校验失败，请重新准备预览。")} />
         ) : (
-          <Empty description="正在准备可点选的模板预览" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty
+            description={tr("正在准备可点选的模板预览")}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
         )}
       </div>
       <p className="static-editor-caption">
         {mode === "select"
-          ? "选中后在右侧修改。更新预览后显示最新改动。"
-          : "可测试消息、附件与留言，所有预览消息仅在本地模拟。"}
+          ? tr("选中后在右侧修改。更新预览后显示最新改动。")
+          : tr("可测试消息、附件与留言，所有预览消息仅在本地模拟。")}
       </p>
     </section>
   );

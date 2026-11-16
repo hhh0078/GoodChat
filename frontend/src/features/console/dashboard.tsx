@@ -1,8 +1,13 @@
 /** 文件作用说明：按接待准备图稿展示真实租户指标、初始化进度和日常工作入口。 */
 "use client";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Alert, Button, Progress, Skeleton, Tag } from "antd";
+import { PageTitle } from "@/components/page-state";
+import { useSession } from "@/features/auth/session";
+import Link from "@/i18n/link";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
+import { api } from "@/lib/api";
+import type { Member, Resource } from "@/lib/types";
+import { useResource } from "@/lib/use-resource";
 import {
   ArrowRightOutlined,
   CheckOutlined,
@@ -10,26 +15,32 @@ import {
   FlagOutlined,
   IdcardOutlined,
   LinkOutlined,
+  PartitionOutlined,
   RightOutlined,
   SkinOutlined,
   TeamOutlined,
-  PartitionOutlined,
 } from "@ant-design/icons";
-import { useSession } from "@/features/auth/session";
-import { useResource } from "@/lib/use-resource";
-import type { Member, Resource } from "@/lib/types";
-import { PageTitle } from "@/components/page-state";
-import { api } from "@/lib/api";
+import { Alert, Button, Progress, Skeleton, Tag } from "antd";
+import { useEffect, useState } from "react";
 import { ConnectionAlerts } from "./connection-alerts";
-
 type DashboardSubscriptionData = {
-  plan?: { name: string };
-  subscription?: { expires_at?: string | null };
-  usage?: { seats_used: number; seats_reserved: number; seat_limit: number };
+  plan?: {
+    name: string;
+  };
+  subscription?: {
+    expires_at?: string | null;
+  };
+  usage?: {
+    seats_used: number;
+    seats_reserved: number;
+    seat_limit: number;
+  };
 };
-
 /** DashboardSubscription 读取真实订阅与坐席占用，失败时不填充免费版或示例额度。 */
 function DashboardSubscription({ tenantId }: { tenantId: string }) {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  const tr = useTranslator();
   const [data, setData] = useState<DashboardSubscriptionData | null>(null);
   const [error, setError] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -52,16 +63,17 @@ function DashboardSubscription({ tenantId }: { tenantId: string }) {
   return (
     <section className="dashboard-subscription">
       <header>
-        <h2>当前套餐</h2>
+        <h2>{tr("当前套餐")}</h2>
         <Link href="/console/billing">
-          管理套餐 <ArrowRightOutlined />
+          {tr("管理套餐 ")}
+          <ArrowRightOutlined />
         </Link>
       </header>
       {error ? (
         <div className="dashboard-subscription-error">
-          <span className="muted">套餐暂时无法读取</span>
+          <span className="muted">{tr("套餐暂时无法读取")}</span>
           <Button type="link" size="small" onClick={() => setRevision((value) => value + 1)}>
-            重试
+            {tr("重试 ")}
           </Button>
         </div>
       ) : !data ? (
@@ -69,13 +81,20 @@ function DashboardSubscription({ tenantId }: { tenantId: string }) {
       ) : (
         <>
           <div className="dashboard-plan-line">
-            <strong>{data.plan?.name || "未开通"}</strong>
+            <strong>{data.plan?.name || tr("未开通")}</strong>
             <span>
               {data.subscription?.expires_at
-                ? `有效至 ${new Date(data.subscription.expires_at).toLocaleDateString("zh-CN")}`
+                ? tr("有效至 {p0}", {
+                    p0: String(
+                      new Date(data.subscription.expires_at).toLocaleDateString(
+                        currentPreferences().locale,
+                        { timeZone: currentPreferences().timezone },
+                      ),
+                    ),
+                  })
                 : data.subscription?.expires_at === null
-                  ? "长期有效"
-                  : "以订阅记录为准"}
+                  ? tr("长期有效")
+                  : tr("以订阅记录为准")}
             </span>
           </div>
           <div className="dashboard-seat-usage">
@@ -88,16 +107,20 @@ function DashboardSubscription({ tenantId }: { tenantId: string }) {
             <span>{usage ? `${occupied} / ${usage.seat_limit}` : "—"}</span>
           </div>
           {!!usage?.seats_reserved && (
-            <p className="muted">含 {usage.seats_reserved} 个邀请预留坐席</p>
+            <p className="muted">
+              {tr("含 ")}
+              {usage.seats_reserved}
+              {tr(" 个邀请预留坐席")}
+            </p>
           )}
         </>
       )}
     </section>
   );
 }
-
 /** Dashboard 以真实配置判定接待准备状态，读取失败时不将指标或进度伪装为零。 */
 export function Dashboard() {
+  const tr = useTranslator();
   const { current, tenantId } = useSession();
   const membership = current.memberships.find((item) => item.tenant_id === tenantId);
   const manages = ["owner", "admin"].includes(membership?.role || "");
@@ -110,29 +133,29 @@ export function Dashboard() {
   const pages = useResource<Resource>(manages ? "/tenant/pages" : "");
   const metrics = [
     {
-      title: "团队成员",
-      text: "客服与协作成员",
+      title: tr("团队成员"),
+      text: tr("客服与协作成员"),
       result: members,
       icon: TeamOutlined,
       value: members.items.length,
     },
     {
-      title: "接入管理",
-      text: "网页、手机网页等",
+      title: tr("接入管理"),
+      text: tr("网页、手机网页等"),
       result: links,
       icon: LinkOutlined,
       value: links.items.length,
     },
     {
-      title: "客户档案",
-      text: "已建立的客户资料",
+      title: tr("客户档案"),
+      text: tr("已建立的客户资料"),
       result: contacts,
       icon: IdcardOutlined,
       value: contacts.items.length,
     },
     {
-      title: "进行中咨询",
-      text: "当前未结束的咨询",
+      title: tr("进行中咨询"),
+      text: tr("当前未结束的咨询"),
       result: conversations,
       icon: CustomerServiceOutlined,
       value: conversations.items.filter((record) => record.status !== "closed").length,
@@ -140,8 +163,8 @@ export function Dashboard() {
   ];
   const setup = [
     {
-      title: "建立接待团队",
-      text: "邀请成员，设置角色与接待资格。",
+      title: tr("建立接待团队"),
+      text: tr("邀请成员，设置角色与接待资格。"),
       href: "/console/members",
       icon: TeamOutlined,
       ready: members.items.some((member) => member.can_serve && !member.disabled),
@@ -150,8 +173,8 @@ export function Dashboard() {
       reload: members.reload,
     },
     {
-      title: "配置分组与分配",
-      text: "配置业务组和分配池，让咨询找到合适的人。",
+      title: tr("配置分组与分配"),
+      text: tr("配置业务组和分配池，让咨询找到合适的人。"),
       href: "/console/routing",
       icon: PartitionOutlined,
       ready: groups.items.length > 0 && pools.items.length > 0,
@@ -163,8 +186,8 @@ export function Dashboard() {
       },
     },
     {
-      title: "创建咨询入口",
-      text: "生成接入链接，分享或嵌入你的网站。",
+      title: tr("创建咨询入口"),
+      text: tr("生成接入链接，分享或嵌入你的网站。"),
       href: "/console/links",
       icon: LinkOutlined,
       ready: links.items.some((link) => link.status === "active"),
@@ -173,8 +196,8 @@ export function Dashboard() {
       reload: links.reload,
     },
     {
-      title: "设计品牌页面",
-      text: "选择模板或 AI 创作，预览后发布自己的页面。",
+      title: tr("设计品牌页面"),
+      text: tr("选择模板或 AI 创作，预览后发布自己的页面。"),
       href: "/console/templates",
       icon: SkinOutlined,
       ready: pages.items.some((page) => !!page.current_release_id),
@@ -188,63 +211,64 @@ export function Dashboard() {
         {
           href: "/workspace",
           icon: CustomerServiceOutlined,
-          title: "接待客户",
-          text: "进入工作台，处理正在进行的咨询",
+          title: tr("接待客户"),
+          text: tr("进入工作台，处理正在进行的咨询"),
         },
         {
           href: "/console/members",
           icon: TeamOutlined,
-          title: "邀请成员",
-          text: "邀请管理员与客服加入团队",
+          title: tr("邀请成员"),
+          text: tr("邀请管理员与客服加入团队"),
         },
         {
           href: "/console/records",
           icon: IdcardOutlined,
-          title: "查看聊天记录",
-          text: "查找历史沟通，了解客户详情",
+          title: tr("查看聊天记录"),
+          text: tr("查找历史沟通，了解客户详情"),
         },
         {
           href: "/console/templates",
           icon: SkinOutlined,
-          title: "装修品牌页面",
-          text: "让客户在你的品牌页面里获得服务",
+          title: tr("装修品牌页面"),
+          text: tr("让客户在你的品牌页面里获得服务"),
         },
       ]
     : [
         {
           href: "/workspace",
           icon: CustomerServiceOutlined,
-          title: "接待客户",
-          text: "查看咨询，开始今天的接待",
+          title: tr("接待客户"),
+          text: tr("查看咨询，开始今天的接待"),
         },
         {
           href: "/console/contacts",
           icon: IdcardOutlined,
-          title: "客户资料",
-          text: "整理授权范围内的客户信息",
+          title: tr("客户资料"),
+          text: tr("整理授权范围内的客户信息"),
         },
         {
           href: "/console/records",
           icon: LinkOutlined,
-          title: "聊天记录",
-          text: "查找接待记录与历史消息",
+          title: tr("聊天记录"),
+          text: tr("查找接待记录与历史消息"),
         },
         {
           href: "/console/automation",
           icon: CustomerServiceOutlined,
-          title: "快捷话术与提醒",
-          text: "管理常用回复和服务提醒",
+          title: tr("快捷话术与提醒"),
+          text: tr("管理常用回复和服务提醒"),
         },
       ];
   return (
     <section className="console-screen console-dashboard">
       <PageTitle
-        title={`你好，${current.user.display_name || "欢迎回来"}`}
-        description={membership ? "让每一次咨询，都有回应。" : "你的账号暂未加入工作空间"}
+        title={tr("你好，{p0}", { p0: String(current.user.display_name || tr("欢迎回来")) })}
+        description={membership ? tr("让每一次咨询，都有回应。") : tr("你的账号暂未加入工作空间")}
         action={
           membership && (
             <Button href="/workspace" type="primary">
-              进入客服工作台 <ArrowRightOutlined />
+              {tr("进入客服工作台 ")}
+              <ArrowRightOutlined />
             </Button>
           )
         }
@@ -255,8 +279,8 @@ export function Dashboard() {
           showIcon
           title={
             current.user.is_platform_admin
-              ? "你可以进入平台管理，维护租户和公共模板。"
-              : "请接受团队邀请，或联系租户管理员。"
+              ? tr("你可以进入平台管理，维护租户和公共模板。")
+              : tr("请接受团队邀请，或联系租户管理员。")
           }
         />
       )}
@@ -280,7 +304,7 @@ export function Dashboard() {
               </div>
               {!!item.result.error && (
                 <Button type="link" size="small" onClick={item.result.reload}>
-                  读取失败，重试
+                  {tr("读取失败，重试 ")}
                 </Button>
               )}
               {!item.result.error && <p className="console-metric-note">{item.text}</p>}
@@ -292,15 +316,15 @@ export function Dashboard() {
         {manages && (
           <section className="dashboard-setup">
             <div className="dashboard-panel-heading">
-              <h2>接待准备</h2>
-              <p>完成以下步骤，搭建你的客户接待服务。</p>
+              <h2>{tr("接待准备")}</h2>
+              <p>{tr("完成以下步骤，搭建你的客户接待服务。")}</p>
             </div>
             <ol className="dashboard-setup-list">
               {setup.map((step, index) => (
                 <li className="dashboard-setup-step" key={step.href}>
                   <span
                     className={`dashboard-step-number${step.ready && !step.error && !step.loading ? " is-ready" : ""}`}
-                    aria-label={`第 ${index + 1} 步`}
+                    aria-label={tr("第 {p0} 步", { p0: String(index + 1) })}
                   >
                     {step.ready && !step.error && !step.loading ? <CheckOutlined /> : index + 1}
                   </span>
@@ -311,16 +335,16 @@ export function Dashboard() {
                   </div>
                   <div className="dashboard-step-action">
                     {step.loading ? (
-                      <span className="muted">读取中</span>
+                      <span className="muted">{tr("读取中")}</span>
                     ) : step.error ? (
                       <Button size="small" type="link" onClick={step.reload}>
-                        重试
+                        {tr("重试 ")}
                       </Button>
                     ) : (
                       <>
-                        {step.ready && <Tag bordered={false}>已就绪</Tag>}
+                        {step.ready && <Tag bordered={false}>{tr("已就绪")}</Tag>}
                         <Link href={step.href}>
-                          {step.ready ? "查看" : "去设置"}
+                          {step.ready ? tr("查看") : tr("去设置")}
                           <ArrowRightOutlined />
                         </Link>
                       </>
@@ -334,8 +358,8 @@ export function Dashboard() {
         <div className="dashboard-side">
           <aside className="dashboard-shortcuts">
             <div className="dashboard-panel-heading">
-              <h2>日常工作</h2>
-              <p>从这里快速进入你常用的功能。</p>
+              <h2>{tr("日常工作")}</h2>
+              <p>{tr("从这里快速进入你常用的功能。")}</p>
             </div>
             <div className="dashboard-quick-list">
               {dailyWork.map((item) => (
@@ -358,11 +382,12 @@ export function Dashboard() {
               <FlagOutlined />
             </span>
             <div>
-              <strong>先跑通一次完整接待</strong>
-              <p>切换为可接待，再打开咨询入口测试回复。声音与通知需主动启用。</p>
+              <strong>{tr("先跑通一次完整接待")}</strong>
+              <p>{tr("切换为可接待，再打开咨询入口测试回复。声音与通知需主动启用。")}</p>
             </div>
             <Button href="/help">
-              操作指南 <ArrowRightOutlined />
+              {tr("操作指南 ")}
+              <ArrowRightOutlined />
             </Button>
           </aside>
         </div>

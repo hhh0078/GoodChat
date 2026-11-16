@@ -1,26 +1,33 @@
 /** 文件作用说明：以真实平台规模和可操作的管理入口展示平台概览，不补充模拟趋势。 */
 "use client";
-import { useEffect, useState } from "react";
-import { Button, Skeleton } from "antd";
+import { ErrorNotice } from "@/components/page-state";
+import { useTranslator } from "@/i18n/use-translator";
+import { api } from "@/lib/api";
 import {
   ArrowRightOutlined,
   BankOutlined,
-  TeamOutlined,
-  SkinOutlined,
   CreditCardOutlined,
   FileDoneOutlined,
+  SkinOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
-import { api } from "@/lib/api";
-import { ErrorNotice } from "@/components/page-state";
-
+import { Button, Skeleton } from "antd";
+import { useEffect, useState } from "react";
 /** PlatformOverview 展示授权接口返回的真实计数，并通过父级标签切换进入管理任务。 */
 export function PlatformOverview({ onNavigate }: { onNavigate?: (key: string) => void }) {
-  const [data, setData] = useState<{ tenants: number; users: number } | null>(null);
+  const tr = useTranslator();
+  const [data, setData] = useState<{
+    tenants: number;
+    users: number;
+  } | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    api<{ tenants: number; users: number }>("/platform/overview", { signal: controller.signal })
+    api<{
+      tenants: number;
+      users: number;
+    }>("/platform/overview", { signal: controller.signal })
       .then((value) => {
         if (!controller.signal.aborted) {
           setData(value);
@@ -35,19 +42,24 @@ export function PlatformOverview({ onNavigate }: { onNavigate?: (key: string) =>
   return (
     <section className="studio-platform-section">
       <div className="studio-panel-heading">
-        <h2>平台概览</h2>
-        <p>查看平台规模，处理日常运营事务。</p>
+        <h2>{tr("平台概览")}</h2>
+        <p>{tr("查看平台规模，处理日常运营事务。")}</p>
       </div>
       <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
       <div className="studio-platform-metrics">
         {[
           {
-            label: "注册租户",
+            label: tr("注册租户"),
             value: data?.tenants,
             icon: BankOutlined,
-            text: "平台中已建立的租户",
+            text: tr("平台中已建立的租户"),
           },
-          { label: "账号总数", value: data?.users, icon: TeamOutlined, text: "平台中已注册的账号" },
+          {
+            label: tr("账号总数"),
+            value: data?.users,
+            icon: TeamOutlined,
+            text: tr("平台中已注册的账号"),
+          },
         ].map((metric) => (
           <article className="studio-platform-metric" key={metric.label}>
             <span className="studio-platform-metric-icon" aria-hidden="true">
@@ -69,32 +81,32 @@ export function PlatformOverview({ onNavigate }: { onNavigate?: (key: string) =>
           </article>
         ))}
       </div>
-      <h3 className="studio-overview-title">运营工作</h3>
+      <h3 className="studio-overview-title">{tr("运营工作")}</h3>
       <div className="studio-overview-actions">
         {[
           {
             key: "tenants",
             icon: BankOutlined,
-            title: "租户运营",
-            text: "管理租户状态、套餐与开通邀请",
+            title: tr("租户运营"),
+            text: tr("管理租户状态、套餐与开通邀请"),
           },
           {
             key: "templates",
             icon: SkinOutlined,
-            title: "公共装修模板",
-            text: "维护可供租户选用的品牌页面",
+            title: tr("公共装修模板"),
+            text: tr("维护可供租户选用的品牌页面"),
           },
           {
             key: "plans",
             icon: CreditCardOutlined,
-            title: "套餐与定价",
-            text: "配置版本、坐席、功能和有效期",
+            title: tr("套餐与定价"),
+            text: tr("配置版本、坐席、功能和有效期"),
           },
           {
             key: "upgrades",
             icon: FileDoneOutlined,
-            title: "升级申请",
-            text: "核对申请并处理人工开通",
+            title: tr("升级申请"),
+            text: tr("核对申请并处理人工开通"),
           },
         ].map((item) => (
           <Button
@@ -115,7 +127,7 @@ export function PlatformOverview({ onNavigate }: { onNavigate?: (key: string) =>
         ))}
       </div>
       <p className="studio-overview-note">
-        以上数据来自平台实际记录。客户档案与聊天内容在各自租户的授权范围内访问。
+        {tr("以上数据来自平台实际记录。客户档案与聊天内容在各自租户的授权范围内访问。 ")}
       </p>
     </section>
   );

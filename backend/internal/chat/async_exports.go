@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -18,7 +19,7 @@ const asyncExportTenantBytes = 256 << 20
 const asyncExportDailyLimit = 20
 
 // 列表显式投影元数据，禁止先把大bytea转JSON再移除造成双倍内存。
-const exportJobView = "jsonb_build_object('id',j.id,'tenant_id',j.tenant_id,'requested_by',j.requested_by,'client_request_id',j.client_request_id,'filters',j.filters,'status',j.status,'row_count',j.row_count,'timezone',j.timezone,'size_bytes',j.size_bytes,'error_code',j.error_code,'error_message',j.error_message,'created_at',j.created_at,'started_at',j.started_at,'completed_at',j.completed_at,'expires_at',j.expires_at)"
+const exportJobView = "jsonb_build_object('id',j.id,'tenant_id',j.tenant_id,'requested_by',j.requested_by,'client_request_id',j.client_request_id,'filters',j.filters,'status',j.status,'row_count',j.row_count,'timezone',j.timezone,'locale',j.locale,'size_bytes',j.size_bytes,'error_code',j.error_code,'error_message',j.error_message,'created_at',j.created_at,'started_at',j.started_at,'completed_at',j.completed_at,'expires_at',j.expires_at)"
 
 // registerAsyncExports 为管理员注册任务与带重新授权的短期下载接口。
 func (s *Service) registerAsyncExports(mux *http.ServeMux) {
@@ -155,7 +156,7 @@ func (s *Service) exportJobs(w http.ResponseWriter, r *http.Request) {
 		}
 
 		id := newID()
-		if _, err = tx.Exec(ctx, "INSERT INTO chat_export_jobs(id,tenant_id,requested_by,client_request_id,filters) VALUES($1,$2,$3,$4,$5)", id, a.TenantID, a.MemberID, input.ClientID, input.Filters); err != nil {
+		if _, err = tx.Exec(ctx, "INSERT INTO chat_export_jobs(id,tenant_id,requested_by,client_request_id,filters,locale) VALUES($1,$2,$3,$4,$5,$6)", id, a.TenantID, a.MemberID, input.ClientID, input.Filters, localization.RequestLocale(r)); err != nil {
 			return err
 		}
 		if _, err = tx.Exec(ctx, "INSERT INTO chat_export_dispatch(job_id,tenant_id) VALUES($1,$2)", id, a.TenantID); err != nil {
@@ -172,7 +173,7 @@ func (s *Service) exportJobs(w http.ResponseWriter, r *http.Request) {
 		replyError(w, r, err)
 		return
 	}
-	platform.JSON(w, status, result)
+	platform.JSON(w, status, localization.Diagnostics(result, localization.RequestLocale(r)))
 }
 
 // cancelExportJob 可在等待和运行时取消，旧worker完成后不能写回文件。

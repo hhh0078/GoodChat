@@ -1,17 +1,24 @@
 /** 文件作用说明：管理租户成员及邀请，支持真实服务端角色调整、停用与重发。 */
 "use client";
-import { useEffect, useState } from "react";
+import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
+import { useSession } from "@/features/auth/session";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, errorMessage } from "@/lib/api";
+import type { Member, Resource } from "@/lib/types";
+import { useResource } from "@/lib/use-resource";
+import { PlusOutlined } from "@ant-design/icons";
 import {
+  Alert,
   App,
   Avatar,
   Badge,
   Button,
   Drawer,
-  Modal,
-  Alert,
   Form,
   Input,
   InputNumber,
+  Modal,
   Popconfirm,
   Select,
   Space,
@@ -20,16 +27,13 @@ import {
   Tabs,
   Tag,
 } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { api, errorMessage } from "@/lib/api";
-import { useSession } from "@/features/auth/session";
-import { useResource } from "@/lib/use-resource";
-import type { Member, Resource } from "@/lib/types";
-import { PageTitle, ErrorNotice, EmptyData } from "@/components/page-state";
-
+import { useEffect, useState } from "react";
 /** MembersPage 维护当前租户成员及指定邮箱邀请。 */
 export function MembersPage() {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  const tr = useTranslator();
   const session = useSession();
   const owns = session.current.memberships.some(
     (item) => item.tenant_id === session.tenantId && item.role === "owner",
@@ -79,7 +83,7 @@ export function MembersPage() {
           tenantId: members.tenantId,
           bodyJSON: body,
         });
-        message.success("成员设置已保存");
+        message.success(tr("成员设置已保存"));
       } else {
         await api("/tenant/invitations", {
           method: "POST",
@@ -87,7 +91,7 @@ export function MembersPage() {
           bodyJSON: values,
           idempotent: true,
         });
-        message.success("邀请已创建，邮件发送状态请在邀请列表查看");
+        message.success(tr("邀请已创建，邮件发送状态请在邀请列表查看"));
       }
       setEditing(undefined);
       members.reload();
@@ -102,7 +106,7 @@ export function MembersPage() {
   async function mutate(path: string, method: string) {
     try {
       await api(path, { method, tenantId: members.tenantId });
-      message.success("操作已完成");
+      message.success(tr("操作已完成"));
       members.reload();
       invitations.reload();
     } catch (problem) {
@@ -114,15 +118,18 @@ export function MembersPage() {
     setSaving(true);
     setError(null);
     try {
-      const result = await api<{ delivery_status: string; retry_after: number }>(
-        "/auth/send-code",
-        { method: "POST", bodyJSON: { email: session.current.user.email, purpose: "ownership" } },
-      );
+      const result = await api<{
+        delivery_status: string;
+        retry_after: number;
+      }>("/auth/send-code", {
+        method: "POST",
+        bodyJSON: { email: session.current.user.email, purpose: "ownership" },
+      });
       setTransferCodeWait(result.retry_after || 60);
       setTransferInfo(
         result.delivery_status === "accepted"
-          ? "邮件服务器已受理，请查看当前所有者邮箱。"
-          : "邮件投递结果尚未确认，请核对收件箱后再继续。",
+          ? tr("邮件服务器已受理，请查看当前所有者邮箱。")
+          : tr("邮件投递结果尚未确认，请核对收件箱后再继续。"),
       );
     } catch (problem) {
       setError(problem);
@@ -143,7 +150,7 @@ export function MembersPage() {
       setTransferOpen(false);
       members.reload();
       await session.reload();
-      message.success("租户所有者已转移");
+      message.success(tr("租户所有者已转移"));
     } catch (problem) {
       setError(problem);
     } finally {
@@ -152,7 +159,7 @@ export function MembersPage() {
   }
   const memberColumns: ColumnsType<Member> = [
     {
-      title: "成员",
+      title: tr("成员"),
       key: "name",
       render: (_, row) => (
         <Space size={12}>
@@ -161,10 +168,10 @@ export function MembersPage() {
             className="console-person-avatar"
             src={typeof row.avatar_url === "string" ? row.avatar_url || undefined : undefined}
           >
-            {(row.display_name || row.email || "成").slice(0, 1)}
+            {(row.display_name || row.email || tr("成")).slice(0, 1)}
           </Avatar>
           <div>
-            <strong>{row.display_name || "未填写称呼"}</strong>
+            <strong>{row.display_name || tr("未填写称呼")}</strong>
             <div className="muted" style={{ fontSize: 12 }}>
               {row.email}
             </div>
@@ -173,21 +180,24 @@ export function MembersPage() {
       ),
     },
     {
-      title: "在线状态",
+      title: tr("在线状态"),
       key: "online",
       width: 130,
       render: (_, row) => (
         <div>
           <Badge
             status={row.online === true ? "success" : "error"}
-            text={row.online === true ? "在线" : "离线"}
+            text={row.online === true ? tr("在线") : tr("离线")}
           />
           {typeof row.last_seen_at === "string" && (
             <div className="muted" style={{ fontSize: 11 }}>
-              最近{" "}
-              {new Date(row.last_seen_at).toLocaleTimeString("zh-CN", {
-                hour: "2-digit",
-                minute: "2-digit",
+              {tr("最近")}{" "}
+              {new Date(row.last_seen_at).toLocaleTimeString(currentPreferences().locale, {
+                timeZone: currentPreferences().timezone,
+                ...{
+                  hour: "2-digit",
+                  minute: "2-digit",
+                },
               })}
             </div>
           )}
@@ -195,39 +205,43 @@ export function MembersPage() {
       ),
     },
     {
-      title: "角色",
+      title: tr("角色"),
       dataIndex: "role",
       render: (value) => (
-        <Tag>{value === "owner" ? "所有者" : value === "admin" ? "管理员" : "客服"}</Tag>
+        <Tag>
+          {value === "owner" ? tr("所有者") : value === "admin" ? tr("管理员") : tr("客服")}
+        </Tag>
       ),
     },
     {
-      title: "接待资格",
+      title: tr("接待资格"),
       dataIndex: "can_serve",
-      render: (value) => (value ? "可参与接待" : "仅管理"),
+      render: (value) => (value ? tr("可参与接待") : tr("仅管理")),
     },
-    { title: "接待上限", dataIndex: "capacity" },
+    { title: tr("接待上限"), dataIndex: "capacity" },
     {
-      title: "账号状态",
+      title: tr("账号状态"),
       dataIndex: "disabled",
-      render: (value) => <Tag color={value ? "default" : "green"}>{value ? "已停用" : "正常"}</Tag>,
+      render: (value) => (
+        <Tag color={value ? "default" : "green"}>{value ? tr("已停用") : tr("正常")}</Tag>
+      ),
     },
     {
-      title: "操作",
+      title: tr("操作"),
       key: "actions",
       render: (_, row) => (
         <Space>
           <Button type="link" size="small" onClick={() => edit(row)}>
-            编辑
+            {tr("编辑 ")}
           </Button>
           {row.role !== "owner" && (
             <Popconfirm
-              title="将这位成员移出当前租户？"
-              description="历史记录会保留，当前接待由服务端检查。"
+              title={tr("将这位成员移出当前租户？")}
+              description={tr("历史记录会保留，当前接待由服务端检查。")}
               onConfirm={() => mutate(`/tenant/members/${row.id}`, "DELETE")}
             >
               <Button type="link" danger size="small">
-                移出
+                {tr("移出 ")}
               </Button>
             </Popconfirm>
           )}
@@ -236,26 +250,35 @@ export function MembersPage() {
     },
   ];
   const invitationColumns: ColumnsType<Resource> = [
-    { title: "邮箱", dataIndex: "email" },
-    { title: "称呼", dataIndex: "display_name" },
+    { title: tr("邮箱"), dataIndex: "email" },
+    { title: tr("称呼"), dataIndex: "display_name" },
     {
-      title: "角色",
+      title: tr("角色"),
       dataIndex: "role",
-      render: (value) => (value === "admin" ? "管理员" : "客服"),
+      render: (value) => (value === "admin" ? tr("管理员") : tr("客服")),
     },
     {
-      title: "邀请状态",
+      title: tr("邀请状态"),
       dataIndex: "status",
       render: (value) => <Tag>{String(value || "—")}</Tag>,
     },
-    { title: "发信状态", dataIndex: "delivery_status", render: (value) => String(value || "—") },
     {
-      title: "到期时间",
-      dataIndex: "expires_at",
-      render: (value) => (value ? new Date(String(value)).toLocaleString("zh-CN") : "—"),
+      title: tr("发信状态"),
+      dataIndex: "delivery_status",
+      render: (value) => String(value || "—"),
     },
     {
-      title: "操作",
+      title: tr("到期时间"),
+      dataIndex: "expires_at",
+      render: (value) =>
+        value
+          ? new Date(String(value)).toLocaleString(currentPreferences().locale, {
+              timeZone: currentPreferences().timezone,
+            })
+          : "—",
+    },
+    {
+      title: tr("操作"),
       render: (_, row) => (
         <Space>
           <Button
@@ -263,14 +286,14 @@ export function MembersPage() {
             type="link"
             onClick={() => mutate(`/tenant/invitations/${row.id}/resend`, "POST")}
           >
-            重发
+            {tr("重发 ")}
           </Button>
           <Popconfirm
-            title="撤销此邀请？"
+            title={tr("撤销此邀请？")}
             onConfirm={() => mutate(`/tenant/invitations/${row.id}`, "DELETE")}
           >
             <Button size="small" type="link" danger>
-              撤销
+              {tr("撤销 ")}
             </Button>
           </Popconfirm>
         </Space>
@@ -280,11 +303,11 @@ export function MembersPage() {
   return (
     <section className="console-screen console-members">
       <PageTitle
-        title="团队成员"
-        description="管理员与客服分别授权，邀请成员加入当前租户。"
+        title={tr("团队成员")}
+        description={tr("管理员与客服分别授权，邀请成员加入当前租户。")}
         action={
           <Space>
-            <Button href="/console/member-statistics">成员统计</Button>
+            <Button href="/console/member-statistics">{tr("成员统计")}</Button>
             {owns && (
               <Button
                 onClick={() => {
@@ -294,11 +317,11 @@ export function MembersPage() {
                   setTransferOpen(true);
                 }}
               >
-                转移所有者
+                {tr("转移所有者 ")}
               </Button>
             )}
             <Button type="primary" icon={<PlusOutlined />} onClick={() => edit(null)}>
-              邀请成员
+              {tr("邀请成员 ")}
             </Button>
           </Space>
         }
@@ -308,7 +331,7 @@ export function MembersPage() {
           items={[
             {
               key: "members",
-              label: `成员 ${members.items.length}`,
+              label: tr("成员 {p0}", { p0: String(members.items.length) }),
               children: (
                 <>
                   <ErrorNotice error={members.error} retry={members.reload} />
@@ -325,7 +348,7 @@ export function MembersPage() {
             },
             {
               key: "invitations",
-              label: "邀请记录",
+              label: tr("邀请记录"),
               children: (
                 <>
                   <ErrorNotice error={invitations.error} retry={invitations.reload} />
@@ -335,7 +358,7 @@ export function MembersPage() {
                     dataSource={invitations.items}
                     loading={invitations.loading}
                     scroll={{ x: 1000 }}
-                    locale={{ emptyText: <EmptyData text="还没有邀请记录" /> }}
+                    locale={{ emptyText: <EmptyData text={tr("还没有邀请记录")} /> }}
                   />
                 </>
               ),
@@ -345,7 +368,7 @@ export function MembersPage() {
       </div>
       <Drawer
         rootClassName="console-drawer"
-        title={editing ? "编辑成员" : "邀请团队成员"}
+        title={editing ? tr("编辑成员") : tr("邀请团队成员")}
         open={editing !== undefined}
         onClose={() => setEditing(undefined)}
         width={480}
@@ -356,57 +379,57 @@ export function MembersPage() {
           {!editing && (
             <Form.Item
               name="email"
-              label="受邀邮箱"
-              rules={[{ required: true }, { type: "email", message: "请填写有效邮箱" }]}
+              label={tr("受邀邮箱")}
+              rules={[{ required: true }, { type: "email", message: tr("请填写有效邮箱") }]}
             >
               <Input type="email" autoComplete="email" />
             </Form.Item>
           )}
           <Form.Item
             name="display_name"
-            label="显示名称"
+            label={tr("显示名称")}
             rules={[{ required: true, whitespace: true }]}
           >
             <Input maxLength={50} />
           </Form.Item>
           {editing?.role === "owner" ? (
-            <p>当前角色：租户所有者</p>
+            <p>{tr("当前角色：租户所有者")}</p>
           ) : (
-            <Form.Item name="role" label="角色" rules={[{ required: true }]}>
+            <Form.Item name="role" label={tr("角色")} rules={[{ required: true }]}>
               <Select
                 options={[
-                  { label: "客服", value: "agent" },
-                  { label: "租户管理员", value: "admin" },
+                  { label: tr("客服"), value: "agent" },
+                  { label: tr("租户管理员"), value: "admin" },
                 ]}
               />
             </Form.Item>
           )}
-          <Form.Item name="can_serve" label="允许参与接待" valuePropName="checked">
+          <Form.Item name="can_serve" label={tr("允许参与接待")} valuePropName="checked">
             <Switch />
           </Form.Item>
-          <Form.Item name="capacity" label="同时接待上限" rules={[{ required: true }]}>
+          <Form.Item name="capacity" label={tr("同时接待上限")} rules={[{ required: true }]}>
             <InputNumber min={1} max={1000} style={{ width: "100%" }} />
           </Form.Item>
           {editing && (
             <Form.Item
               name="disabled"
-              label="停用此成员"
+              label={tr("停用此成员")}
               valuePropName="checked"
-              extra="停用会影响现有登录与新增接待，最后一名管理员受服务端保护。"
+              extra={tr("停用会影响现有登录与新增接待，最后一名管理员受服务端保护。")}
             >
               <Switch />
             </Form.Item>
           )}
           <Space>
             <Button type="primary" htmlType="submit" loading={saving}>
-              {editing ? "保存设置" : "创建邀请"}
+              {editing ? tr("保存设置") : tr("创建邀请")}
             </Button>
-            <Button onClick={() => setEditing(undefined)}>取消</Button>
+            <Button onClick={() => setEditing(undefined)}>{tr("取消")}</Button>
           </Space>
         </Form>
       </Drawer>
       <Modal
-        title="转移租户所有者"
+        title={tr("转移租户所有者")}
         open={transferOpen}
         onCancel={() => setTransferOpen(false)}
         footer={null}
@@ -415,26 +438,29 @@ export function MembersPage() {
         <Alert
           type="warning"
           showIcon
-          title="此操作会把最高租户管理权限交给所选成员"
-          description="请核对接收成员；通过当前所有者邮箱验证后才能完成。"
+          title={tr("此操作会把最高租户管理权限交给所选成员")}
+          description={tr("请核对接收成员；通过当前所有者邮箱验证后才能完成。")}
           style={{ marginBottom: 20 }}
         />
         {transferInfo && <p className="muted">{transferInfo}</p>}
         <Form form={transferForm} layout="vertical" onFinish={transferOwnership}>
-          <Form.Item name="member_id" label="新的租户所有者" rules={[{ required: true }]}>
+          <Form.Item name="member_id" label={tr("新的租户所有者")} rules={[{ required: true }]}>
             <Select
               options={members.items
                 .filter((item) => !item.disabled && item.role !== "owner")
                 .map((item) => ({ label: `${item.display_name} · ${item.email}`, value: item.id }))}
             />
           </Form.Item>
-          <p className="form-hint">验证邮箱：{session.current.user.email}</p>
-          <Form.Item label="邮箱验证码" required>
+          <p className="form-hint">
+            {tr("验证邮箱：")}
+            {session.current.user.email}
+          </p>
+          <Form.Item label={tr("邮箱验证码")} required>
             <div className="code-row">
               <Form.Item
                 name="code"
                 noStyle
-                rules={[{ required: true, pattern: /^\d{6}$/, message: "请输入6位验证码" }]}
+                rules={[{ required: true, pattern: /^\d{6}$/, message: tr("请输入6位验证码") }]}
               >
                 <Input inputMode="numeric" maxLength={6} autoComplete="one-time-code" />
               </Form.Item>
@@ -443,12 +469,14 @@ export function MembersPage() {
                 disabled={transferCodeWait > 0}
                 onClick={() => void sendTransferCode()}
               >
-                {transferCodeWait ? `${transferCodeWait} 秒后重发` : "获取验证码"}
+                {transferCodeWait
+                  ? tr("{p0} 秒后重发", { p0: String(transferCodeWait) })
+                  : tr("获取验证码")}
               </Button>
             </div>
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={saving}>
-            验证并转移所有者
+            {tr("验证并转移所有者 ")}
           </Button>
         </Form>
       </Modal>

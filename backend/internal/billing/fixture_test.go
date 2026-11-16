@@ -118,7 +118,7 @@ func billingIntegration(t *testing.T) *billingFixture {
 	if _, err = admin.Exec(ctx, "SET search_path TO "+quoted+",public"); err != nil {
 		t.Fatal(err)
 	}
-	for _, file := range []string{"000_base.sql", "001_identity.sql", "005_billing.sql"} {
+	for _, file := range []string{"000_base.sql", "001_identity.sql", "005_billing.sql", "035_internationalization.sql", "036_plan_translations.sql"} {
 		body, err := os.ReadFile(filepath.Join("..", "database", "migrations", file))
 		if err != nil {
 			t.Fatal(err)

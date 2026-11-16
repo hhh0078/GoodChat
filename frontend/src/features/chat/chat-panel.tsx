@@ -1,7 +1,13 @@
 /** 文件作用说明：提供访客与客服共用的消息界面、幂等重试、附件、语音、引用与可见已读。 */
 "use client";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Alert, App, Button, Input, Popconfirm, Popover, Space, Spin } from "antd";
+import { EmptyData, ErrorNotice } from "@/components/page-state";
+import { localizeStatic } from "@/i18n/runtime";
+import { useTranslator } from "@/i18n/use-translator";
+import { errorMessage } from "@/lib/api";
+import { animateMessageFlight } from "@/lib/message-flight";
+import { acknowledgePending, readPending, stagePending } from "@/lib/pending-messages";
+import type { QuickReply } from "@/lib/quick-replies";
+import type { ChatMessage } from "@/lib/types";
 import {
   CloseOutlined,
   FileOutlined,
@@ -10,18 +16,13 @@ import {
   SendOutlined,
   VideoCameraOutlined,
 } from "@ant-design/icons";
-import { ErrorNotice, EmptyData } from "@/components/page-state";
-import { errorMessage } from "@/lib/api";
-import type { ChatMessage } from "@/lib/types";
-import { useChat, type ChatIdentity, type Outgoing } from "./use-chat";
-import { MessageHistory } from "./message-history";
-import { animateMessageFlight } from "@/lib/message-flight";
-import type { QuickReply } from "@/lib/quick-replies";
-import { acknowledgePending, readPending, stagePending } from "@/lib/pending-messages";
-import { QuickReplies } from "./quick-replies";
-import { useVisitorReminders } from "./use-visitor-reminders";
+import { Alert, App, Button, Input, Popconfirm, Popover, Spin } from "antd";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./chat-history.css";
-
+import { MessageHistory } from "./message-history";
+import { QuickReplies } from "./quick-replies";
+import { useChat, type ChatIdentity, type Outgoing } from "./use-chat";
+import { useVisitorReminders } from "./use-visitor-reminders";
 export const conversationStatus: Record<string, string> = {
   queued: "正在排队",
   assigned: "等待客服接单",
@@ -39,7 +40,13 @@ function visibleMessagePosition(node: HTMLDivElement) {
     : null;
 }
 /** restoreMessagePosition 按稳定消息编号恢复位置，不受底部同时追加新消息的高度影响。 */
-function restoreMessagePosition(node: HTMLDivElement, anchor: { id: string; offset: number }) {
+function restoreMessagePosition(
+  node: HTMLDivElement,
+  anchor: {
+    id: string;
+    offset: number;
+  },
+) {
   const row = [...node.querySelectorAll<HTMLElement>("[data-message-id]")].find(
     (item) => item.dataset.messageId === anchor.id,
   );
@@ -67,6 +74,7 @@ export function ChatPanel({
   canManageReplies?: boolean;
   notificationSound?: string;
 }) {
+  const tr = useTranslator();
   const chat = useChat(id, identity);
   useVisitorReminders(chat.messages, {
     enabled: identity.kind === "visitor",
@@ -104,10 +112,17 @@ export function ChatPanel({
   const messageContent = useRef<HTMLDivElement | null>(null);
   const previousScrollTop = useRef(0);
   const initiallyPositioned = useRef(false);
-  const olderAnchor = useRef<{ scope: string; id: string; first: string; offset: number } | null>(
-    null,
-  );
-  const readingAnchor = useRef<{ scope: string; id: string; offset: number } | null>(null);
+  const olderAnchor = useRef<{
+    scope: string;
+    id: string;
+    first: string;
+    offset: number;
+  } | null>(null);
+  const readingAnchor = useRef<{
+    scope: string;
+    id: string;
+    offset: number;
+  } | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const composing = useRef(false);
   const mounted = useRef(true);
@@ -141,7 +156,7 @@ export function ChatPanel({
       setDraft(sessionStorage.getItem(draftKey) || "");
     } catch {
       setDraft("");
-      setStorageWarning("浏览器禁止草稿暂存，刷新可能丢失输入，请允许站点存储后发送。");
+      setStorageWarning(tr("浏览器禁止草稿暂存，刷新可能丢失输入，请允许站点存储后发送。"));
     }
     try {
       setFailed(readPending(sessionStorage, `${draftKey}.pending`));
@@ -183,7 +198,9 @@ export function ChatPanel({
     try {
       sessionStorage.setItem(draftKey, draft);
     } catch {
-      setStorageWarning("浏览器无法暂存草稿，刷新可能丢失输入，请允许站点存储或释放空间后发送。");
+      setStorageWarning(
+        tr("浏览器无法暂存草稿，刷新可能丢失输入，请允许站点存储或释放空间后发送。"),
+      );
     }
   }, [draft, draftKey, draftHydrated]);
   useEffect(() => {
@@ -418,14 +435,17 @@ export function ChatPanel({
   /** uploadAndSend 上传通过后才发送引用附件的消息。 */
   async function uploadAndSend(file: File, type?: string) {
     if (file.size > 20 * 1024 * 1024) {
-      message.error("文件不能超过 20MB。");
+      message.error(tr("文件不能超过 20MB。"));
       return;
     }
     setUploading(true);
     try {
       const form = new FormData();
       form.append("file", file);
-      const attachment = await chat.request<{ id: string; content_type: string }>("/attachments", {
+      const attachment = await chat.request<{
+        id: string;
+        content_type: string;
+      }>("/attachments", {
         method: "POST",
         body: form,
       });
@@ -477,9 +497,15 @@ export function ChatPanel({
         }}
       >
         <span>
-          {chat.connected ? "实时连接已建立" : "正在恢复实时连接 · 消息仍可通过安全请求发送"}
+          {chat.connected
+            ? tr("实时连接已建立")
+            : tr("正在恢复实时连接 \u00B7 消息仍可通过安全请求发送")}
         </span>
-        <span>{current ? conversationStatus[current.status] || current.status : "读取会话中"}</span>
+        <span>
+          {current
+            ? localizeStatic(conversationStatus, tr)[current.status] || current.status
+            : tr("读取会话中")}
+        </span>
       </div>
       <div style={{ padding: "0 14px" }}>
         {storageWarning && (
@@ -513,7 +539,7 @@ export function ChatPanel({
         <div ref={messageContent}>
           {chat.hasOlder && (
             <div className="chat-history-loader">
-              {!!chat.olderError && <span role="alert">更早消息加载失败，请重试。</span>}
+              {!!chat.olderError && <span role="alert">{tr("更早消息加载失败，请重试。")}</span>}
               <Button
                 size="small"
                 type="text"
@@ -521,17 +547,17 @@ export function ChatPanel({
                 onClick={() => void loadOlderMessages()}
               >
                 {chat.olderError
-                  ? "重试加载"
+                  ? tr("重试加载")
                   : chat.loadingOlder
-                    ? "正在加载更早消息"
-                    : "上滑加载更早消息"}
+                    ? tr("正在加载更早消息")
+                    : tr("上滑加载更早消息")}
               </Button>
             </div>
           )}
           {chat.loading ? (
             <Spin />
           ) : !visibleMessages.length ? (
-            <EmptyData text="还没有消息，可以从一句问候开始。" />
+            <EmptyData text={tr("还没有消息，可以从一句问候开始。")} />
           ) : (
             <MessageHistory
               messages={visibleMessages}
@@ -553,9 +579,10 @@ export function ChatPanel({
                 key={`pending-${item.client_message_id}`}
                 data-client-message-id={item.client_message_id}
               >
-                <div className="message-bubble">{item.content || "附件消息"}</div>
+                <div className="message-bubble">{item.content || tr("附件消息")}</div>
                 <span className="message-delivery">
-                  <Spin size="small" /> 发送中
+                  <Spin size="small" />
+                  {tr(" 发送中 ")}
                 </span>
               </div>
             ))}
@@ -568,7 +595,7 @@ export function ChatPanel({
             )
             .map((item) => (
               <div className="message-row own" key={item.client_message_id}>
-                <div className="message-bubble">{item.content || "附件消息"}</div>
+                <div className="message-bubble">{item.content || tr("附件消息")}</div>
                 <Button
                   danger
                   type="link"
@@ -576,15 +603,15 @@ export function ChatPanel({
                   loading={sending}
                   onClick={() => void sendOutgoing(item)}
                 >
-                  发送未确认，点击重试
+                  {tr("发送未确认，点击重试 ")}
                 </Button>
                 <Popconfirm
-                  title="移除本机重试记录？"
-                  description="请先刷新核对。仅移除本机记录，服务端已保存的消息会保留。"
+                  title={tr("移除本机重试记录？")}
+                  description={tr("请先刷新核对。仅移除本机记录，服务端已保存的消息会保留。")}
                   onConfirm={() => removeFailed(item.client_message_id)}
                 >
                   <Button size="small" type="text">
-                    移除记录
+                    {tr("移除记录 ")}
                   </Button>
                 </Popconfirm>
               </div>
@@ -593,7 +620,7 @@ export function ChatPanel({
       </div>
       {chat.typingUntil > Date.now() && (
         <div style={{ fontSize: 12, color: "var(--muted)", padding: "0 20px 8px" }}>
-          对方正在输入…
+          {tr("对方正在输入\u2026 ")}
         </div>
       )}
       <div
@@ -609,9 +636,9 @@ export function ChatPanel({
         )}
         <div className="composer-input-area" ref={composerNode}>
           {current?.status === "closed" ? (
-            <Alert type="info" showIcon title="本次咨询已结束，历史记录会保留。" />
+            <Alert type="info" showIcon title={tr("本次咨询已结束，历史记录会保留。")} />
           ) : !canSend ? (
-            <Alert type="info" showIcon title="领取并正式接待此咨询后可以回复。" />
+            <Alert type="info" showIcon title={tr("领取并正式接待此咨询后可以回复。")} />
           ) : (
             <>
               {reply && (
@@ -623,11 +650,14 @@ export function ChatPanel({
                     justifyContent: "space-between",
                   }}
                 >
-                  <span>引用：{reply.content.slice(0, 100) || "附件消息"}</span>
+                  <span>
+                    {tr("引用：")}
+                    {reply.content.slice(0, 100) || tr("附件消息")}
+                  </span>
                   <Button
                     size="small"
                     type="text"
-                    aria-label="取消引用"
+                    aria-label={tr("取消引用")}
                     icon={<CloseOutlined />}
                     onClick={() => setReply(null)}
                   />
@@ -658,21 +688,21 @@ export function ChatPanel({
                         icon={<PictureOutlined />}
                         onClick={() => chooseAttachment("image")}
                       >
-                        图片
+                        {tr("图片 ")}
                       </Button>
                       <Button
                         type="text"
                         icon={<FileOutlined />}
                         onClick={() => chooseAttachment("file")}
                       >
-                        文件
+                        {tr("文件 ")}
                       </Button>
                       <Button
                         type="text"
                         icon={<VideoCameraOutlined />}
                         onClick={() => chooseAttachment("video")}
                       >
-                        视频
+                        {tr("视频 ")}
                       </Button>
                     </div>
                   }
@@ -681,17 +711,17 @@ export function ChatPanel({
                     type="text"
                     shape="circle"
                     icon={<PlusOutlined />}
-                    aria-label="添加附件"
+                    aria-label={tr("添加附件")}
                     loading={uploading}
                     disabled={sending || uploading}
                   />
                 </Popover>
                 <Input.TextArea
-                  aria-label="消息内容"
+                  aria-label={tr("消息内容")}
                   autoSize={{ minRows: 1, maxRows: 4 }}
                   maxLength={10000}
                   value={draft}
-                  placeholder="输入消息…"
+                  placeholder={tr("输入消息\u2026")}
                   onChange={(event) => {
                     setDraft(event.target.value);
                     chat.typing(!!event.target.value);
@@ -718,12 +748,12 @@ export function ChatPanel({
                   type="primary"
                   shape={identity.kind === "agent" ? "round" : "circle"}
                   icon={<SendOutlined />}
-                  aria-label="发送消息"
+                  aria-label={tr("发送消息")}
                   loading={sending}
                   disabled={!draft.trim() || uploading}
                   onClick={sendText}
                 >
-                  {identity.kind === "agent" ? "发送" : null}
+                  {identity.kind === "agent" ? tr("发送") : null}
                 </Button>
               </div>
             </>

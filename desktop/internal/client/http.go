@@ -43,7 +43,7 @@ func (c *Client) requestContext(ctx context.Context, s *session, method, path, t
 	r.Header.Set("Accept", "application/json")
 	r.Header.Set("User-Agent", "GoodChat-Desktop/"+c.version)
 	for _, headers := range extra {
-		for _, key := range []string{"Idempotency-Key", "If-Match", "Range"} {
+		for _, key := range []string{"Idempotency-Key", "If-Match", "Range", "Accept-Language", "X-GoodChat-Locale", "X-GoodChat-Timezone"} {
 			if value := headers.Get(key); value != "" {
 				r.Header.Set(key, value)
 			}

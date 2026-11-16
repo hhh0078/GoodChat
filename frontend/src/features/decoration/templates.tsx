@@ -1,7 +1,19 @@
 /** 文件作用说明：管理租户私有与平台模板、创建装修页面，并真实提交和查询 AI 创作任务。 */
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
+import { AssistantHistory } from "@/features/assistant/history";
+import { IndustryTemplates } from "@/features/assistant/industry-templates";
+import { useAssistantLauncher } from "@/features/assistant/launcher";
+import { TemplateActions } from "@/features/assistant/template-actions";
+import { TemplateImport } from "@/features/assistant/template-import";
+import { TemplatePreviewModal } from "@/features/assistant/template-preview-modal";
+import { useSession } from "@/features/auth/session";
+import { translate as tr } from "@/i18n/runtime";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, errorMessage } from "@/lib/api";
+import type { Resource } from "@/lib/types";
+import { useResource } from "@/lib/use-resource";
+import { ArrowRightOutlined, PlusOutlined, RobotOutlined, SkinOutlined } from "@ant-design/icons";
 import {
   Alert,
   App,
@@ -19,27 +31,31 @@ import {
   Tabs,
   Tag,
 } from "antd";
-import { ArrowRightOutlined, PlusOutlined, RobotOutlined, SkinOutlined } from "@ant-design/icons";
-import { starterCodeDesign } from "./starter-code";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { CodePackages } from "./code-packages";
+import { starterCodeDesign } from "./starter-code";
 import { TemplatePreview } from "./template-preview";
-import { api, errorMessage } from "@/lib/api";
-import { useSession } from "@/features/auth/session";
-import { useResource } from "@/lib/use-resource";
-import type { Resource } from "@/lib/types";
-import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
-import { useAssistantLauncher } from "@/features/assistant/launcher";
-import { TemplateActions } from "@/features/assistant/template-actions";
-import { TemplatePreviewModal } from "@/features/assistant/template-preview-modal";
-import { IndustryTemplates } from "@/features/assistant/industry-templates";
-import { TemplateImport } from "@/features/assistant/template-import";
-import { AssistantHistory } from "@/features/assistant/history";
-
 export type Design = {
   schema_version?: number;
-  theme?: { primary_color?: string; background?: string; text_color?: string; radius?: number };
-  brand?: { title?: string; subtitle?: string; logo_url?: string };
-  blocks?: { id: string; type: string; title?: string; content?: string; items?: unknown[] }[];
+  theme?: {
+    primary_color?: string;
+    background?: string;
+    text_color?: string;
+    radius?: number;
+  };
+  brand?: {
+    title?: string;
+    subtitle?: string;
+    logo_url?: string;
+  };
+  blocks?: {
+    id: string;
+    type: string;
+    title?: string;
+    content?: string;
+    items?: unknown[];
+  }[];
   custom_css?: string;
   html?: string;
   css?: string;
@@ -58,23 +74,23 @@ export function starterDesign(): Design {
   return {
     schema_version: 1,
     theme: { primary_color: "#23684e", background: "#f4f6f2", text_color: "#21342c", radius: 14 },
-    brand: { title: "在线客服", subtitle: "有问题，随时聊聊", logo_url: "" },
+    brand: { title: tr("在线客服"), subtitle: tr("有问题，随时聊聊"), logo_url: "" },
     blocks: [
       {
         id: "welcome",
         type: "welcome",
-        title: "欢迎咨询",
-        content: "请告诉我们你需要什么帮助。",
+        title: tr("欢迎咨询"),
+        content: tr("请告诉我们你需要什么帮助。"),
         items: [],
       },
-      { id: "chat", type: "chat", title: "在线咨询", content: "", items: [] },
+      { id: "chat", type: "chat", title: tr("在线咨询"), content: "", items: [] },
     ],
     custom_css: "",
   };
 }
-
 /** TemplatesPage 展示真实模板与页面，并管理可追踪的 AI 创建过程。 */
 export function TemplatesPage() {
+  const tr = useTranslator();
   const { tenantId, current } = useSession();
   const { openAssistant } = useAssistantLauncher();
   const member = current.memberships.find((item) => item.tenant_id === tenantId);
@@ -114,7 +130,10 @@ export function TemplatesPage() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    api<{ items: Template[]; platform_templates: Template[] }>("/tenant/templates", {
+    api<{
+      items: Template[];
+      platform_templates: Template[];
+    }>("/tenant/templates", {
       tenantId,
       signal: controller.signal,
     })
@@ -201,7 +220,7 @@ export function TemplatesPage() {
         bodyJSON: {},
         idempotent: true,
       });
-      message.success("已保存为本租户模板");
+      message.success(tr("已保存为本租户模板"));
       setRevision((value) => value + 1);
     } catch (problem) {
       message.error(errorMessage(problem));
@@ -218,7 +237,7 @@ export function TemplatesPage() {
       });
       setJob(result);
       aiJobs.reload();
-      message.success("取消请求已处理");
+      message.success(tr("取消请求已处理"));
     } catch (problem) {
       message.error(errorMessage(problem));
     }
@@ -232,13 +251,13 @@ export function TemplatesPage() {
         method: "POST",
         tenantId,
         bodyJSON: {
-          name: `${String(job.name || "AI设计").slice(0, 65)} 候选`,
+          name: tr("{p0} 候选", { p0: String(String(job.name || tr("AI设计")).slice(0, 65)) }),
           render_mode: job.render_mode,
           design: job.result,
         },
         idempotent: true,
       });
-      message.success("候选结果已另存为私有模板");
+      message.success(tr("候选结果已另存为私有模板"));
       setRevision((value) => value + 1);
       router.push(`/console/templates/${saved.id}`);
     } catch (problem) {
@@ -253,7 +272,9 @@ export function TemplatesPage() {
     if (!items.length)
       return (
         <EmptyData
-          text={isPublic ? "平台尚未发布模板" : "还没有私有模板，可以手工创建或使用 AI 设计。"}
+          text={
+            isPublic ? tr("平台尚未发布模板") : tr("还没有私有模板，可以手工创建或使用 AI 设计。")
+          }
         />
       );
     return (
@@ -263,7 +284,7 @@ export function TemplatesPage() {
             <TemplatePreview
               key={`${tenantId}:${item.id}:${item.version}`}
               path={`/tenant/templates/${item.id}/preview`}
-              name={item.name || "未命名模板"}
+              name={item.name || tr("未命名模板")}
               tenantId={tenantId}
               enabled={manages}
               onPreview={() => setPreviewTemplate(item)}
@@ -280,21 +301,23 @@ export function TemplatesPage() {
                     extraActions={[
                       {
                         key: "edit",
-                        label: "编辑模板",
+                        label: tr("编辑模板"),
                         onClick: () => router.push(`/console/templates/${item.id}`),
                       },
                       {
                         key: "duplicate",
-                        label: "复制模板",
+                        label: tr("复制模板"),
                         onClick: () => void duplicate(item, false),
                       },
                       {
                         key: "page",
-                        label: "创建页面",
+                        label: tr("创建页面"),
                         disabled: item.status !== undefined && item.status !== "ready",
                         onClick: () => {
                           pageForm.resetFields();
-                          pageForm.setFieldsValue({ name: `${item.name} 页面` });
+                          pageForm.setFieldsValue({
+                            name: tr("{p0} 页面", { p0: String(item.name) }),
+                          });
                           setSubmitError(null);
                           setPageTemplate(item);
                         },
@@ -307,7 +330,7 @@ export function TemplatesPage() {
                   />
                   {isPublic && (
                     <Button size="small" onClick={() => void duplicate(item, true)}>
-                      添加到我的模板
+                      {tr("添加到我的模板 ")}
                     </Button>
                   )}
                 </div>
@@ -323,10 +346,10 @@ export function TemplatesPage() {
     openAssistant();
   }
   return (
-    <section className="studio-page studio-templates" aria-label="装修与模板">
+    <section className="studio-page studio-templates" aria-label={tr("装修与模板")}>
       <PageTitle
-        title="装修与模板"
-        description="让客服页面，成为品牌的一部分。"
+        title={tr("装修与模板")}
+        description={tr("让客服页面，成为品牌的一部分。")}
         action={
           <Space wrap>
             {manages && (
@@ -345,12 +368,12 @@ export function TemplatesPage() {
                   setCreateOpen(true);
                 }}
               >
-                创建模板
+                {tr("创建模板 ")}
               </Button>
             )}
             {manages && (
               <Button type="primary" icon={<RobotOutlined />} onClick={openAI}>
-                AI 创建我的模板
+                {tr("AI 创建我的模板 ")}
               </Button>
             )}
           </Space>
@@ -362,7 +385,7 @@ export function TemplatesPage() {
         items={[
           {
             key: "mine",
-            label: "我的模板",
+            label: tr("我的模板"),
             destroyOnHidden: true,
             children: (
               <>
@@ -372,11 +395,14 @@ export function TemplatesPage() {
                       <SkinOutlined />
                     </span>
                     <div>
-                      <h2>描述想法，生成你的专属模板</h2>
-                      <p>上传参考图片，边聊边预览；发送、接收和附件始终使用官方聊天核心。</p>
+                      <h2>{tr("描述想法，生成你的专属模板")}</h2>
+                      <p>
+                        {tr("上传参考图片，边聊边预览；发送、接收和附件始终使用官方聊天核心。")}
+                      </p>
                     </div>
                     <Button onClick={openAI}>
-                      开始创作 <ArrowRightOutlined />
+                      {tr("开始创作 ")}
+                      <ArrowRightOutlined />
                     </Button>
                   </div>
                 )}
@@ -386,7 +412,7 @@ export function TemplatesPage() {
           },
           {
             key: "industry",
-            label: "行业模板",
+            label: tr("行业模板"),
             destroyOnHidden: true,
             children: (
               <IndustryTemplates
@@ -398,17 +424,17 @@ export function TemplatesPage() {
           },
           {
             key: "platform",
-            label: "平台模板",
+            label: tr("平台模板"),
             destroyOnHidden: true,
             children: cards(publicTemplates, true),
           },
-          { key: "resources", label: "私有资源包", children: <CodePackages key={tenantId} /> },
+          { key: "resources", label: tr("私有资源包"), children: <CodePackages key={tenantId} /> },
           ...(manages
-            ? [{ key: "conversations", label: "AI 对话记录", children: <AssistantHistory /> }]
+            ? [{ key: "conversations", label: tr("AI 对话记录"), children: <AssistantHistory /> }]
             : []),
           {
             key: "jobs",
-            label: "AI 创作记录",
+            label: tr("AI 创作记录"),
             children: (
               <div className="table-card">
                 <ErrorNotice error={aiJobs.error} retry={aiJobs.reload} />
@@ -416,27 +442,27 @@ export function TemplatesPage() {
                   rowKey="id"
                   dataSource={aiJobs.items}
                   loading={aiJobs.loading}
-                  locale={{ emptyText: <EmptyData text="还没有 AI 创作任务" /> }}
+                  locale={{ emptyText: <EmptyData text={tr("还没有 AI 创作任务")} /> }}
                   columns={[
-                    { title: "作品名称", dataIndex: "name" },
+                    { title: tr("作品名称"), dataIndex: "name" },
                     {
-                      title: "状态",
+                      title: tr("状态"),
                       dataIndex: "status",
                       render: (value) => <Tag>{String(value)}</Tag>,
                     },
                     {
-                      title: "结果说明",
+                      title: tr("结果说明"),
                       render: (_, row) =>
                         row.error_message
                           ? String(row.error_message)
                           : row.status === "succeeded"
                             ? row.applied === false
-                              ? "候选保留，未覆盖新草稿"
-                              : "已写入私有模板"
+                              ? tr("候选保留，未覆盖新草稿")
+                              : tr("已写入私有模板")
                             : "—",
                     },
                     {
-                      title: "操作",
+                      title: tr("操作"),
                       render: (_, row) => (
                         <Button
                           type="link"
@@ -446,7 +472,7 @@ export function TemplatesPage() {
                             setAiOpen(true);
                           }}
                         >
-                          查看任务
+                          {tr("查看任务 ")}
                         </Button>
                       ),
                     },
@@ -457,7 +483,7 @@ export function TemplatesPage() {
           },
           {
             key: "pages",
-            label: "装修页面与发布",
+            label: tr("装修页面与发布"),
             children: (
               <div className="table-card">
                 <ErrorNotice error={pages.error} retry={pages.reload} />
@@ -466,25 +492,27 @@ export function TemplatesPage() {
                   dataSource={pages.items}
                   loading={pages.loading}
                   locale={{
-                    emptyText: <EmptyData text="从我的模板创建页面后，便可编辑并发布到链接。" />,
+                    emptyText: (
+                      <EmptyData text={tr("从我的模板创建页面后，便可编辑并发布到链接。")} />
+                    ),
                   }}
                   columns={[
-                    { title: "页面名称", dataIndex: "name" },
-                    { title: "版本", dataIndex: "version" },
+                    { title: tr("页面名称"), dataIndex: "name" },
+                    { title: tr("版本"), dataIndex: "version" },
                     {
-                      title: "发布状态",
+                      title: tr("发布状态"),
                       dataIndex: "current_release_id",
                       render: (value) => (
                         <Tag color={value ? "blue" : "default"}>
-                          {value ? "已有发布" : "未发布"}
+                          {value ? tr("已有发布") : tr("未发布")}
                         </Tag>
                       ),
                     },
                     {
-                      title: "操作",
+                      title: tr("操作"),
                       render: (_, row) => (
                         <Button type="link" href={`/console/pages/${row.id}`}>
-                          编辑与发布
+                          {tr("编辑与发布 ")}
                         </Button>
                       ),
                     },
@@ -498,7 +526,7 @@ export function TemplatesPage() {
       {manages && previewTemplate && (
         <TemplatePreviewModal
           path={`/tenant/templates/${encodeURIComponent(previewTemplate.id)}/preview`}
-          name={previewTemplate.name || "未命名模板"}
+          name={previewTemplate.name || tr("未命名模板")}
           tenantId={tenantId}
           open
           onClose={() => setPreviewTemplate(null)}
@@ -506,50 +534,58 @@ export function TemplatesPage() {
       )}
       <Drawer
         rootClassName="studio-drawer"
-        title="创建私有模板"
+        title={tr("创建私有模板")}
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         width={470}
       >
         <ErrorNotice error={submitError} />
         <Form form={form} layout="vertical" onFinish={createTemplate}>
-          <Form.Item name="name" label="模板名称" rules={[{ required: true, whitespace: true }]}>
+          <Form.Item
+            name="name"
+            label={tr("模板名称")}
+            rules={[{ required: true, whitespace: true }]}
+          >
             <Input maxLength={100} />
           </Form.Item>
-          <Form.Item name="render_mode" label="装修方式">
+          <Form.Item name="render_mode" label={tr("装修方式")}>
             <Select
               options={[
-                { label: "基础设置与可视化组件", value: "schema" },
-                { label: "完整 HTML CSS JavaScript", value: "code" },
+                { label: tr("基础设置与可视化组件"), value: "schema" },
+                { label: tr("完整 HTML CSS JavaScript"), value: "code" },
               ]}
             />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={busy}>
-            创建并编辑
+            {tr("创建并编辑 ")}
           </Button>
         </Form>
       </Drawer>
       <Modal
         rootClassName="studio-dialog"
-        title="从模板创建独立页面"
+        title={tr("从模板创建独立页面")}
         open={!!pageTemplate}
         onCancel={() => setPageTemplate(null)}
         footer={null}
       >
         <ErrorNotice error={submitError} />
         <Form form={pageForm} layout="vertical" onFinish={createPage}>
-          <Form.Item name="name" label="页面名称" rules={[{ required: true, whitespace: true }]}>
+          <Form.Item
+            name="name"
+            label={tr("页面名称")}
+            rules={[{ required: true, whitespace: true }]}
+          >
             <Input maxLength={100} />
           </Form.Item>
-          <p className="muted">页面是模板的独立副本，后续修改不会覆盖原模板。</p>
+          <p className="muted">{tr("页面是模板的独立副本，后续修改不会覆盖原模板。")}</p>
           <Button type="primary" htmlType="submit" loading={busy}>
-            创建页面
+            {tr("创建页面 ")}
           </Button>
         </Form>
       </Modal>
       <Drawer
         rootClassName="studio-drawer"
-        title="原 AI 创作任务记录"
+        title={tr("原 AI 创作任务记录")}
         open={aiOpen}
         onClose={() => setAiOpen(false)}
         width={540}
@@ -557,8 +593,10 @@ export function TemplatesPage() {
         <Alert
           type="info"
           showIcon
-          title="原任务记录仅供查看"
-          description="新的模板创作已迁移到全局 AI 助手，使用当前租户自己的模型配置，并提供持续对话和真实模板预览。"
+          title={tr("原任务记录仅供查看")}
+          description={tr(
+            "新的模板创作已迁移到全局 AI 助手，使用当前租户自己的模型配置，并提供持续对话和真实模板预览。",
+          )}
           action={
             <Button
               onClick={() => {
@@ -566,15 +604,16 @@ export function TemplatesPage() {
                 openAssistant();
               }}
             >
-              打开 AI 助手
+              {tr("打开 AI 助手 ")}
             </Button>
           }
         />
         <ErrorNotice error={submitError} />
         {job && (
-          <Card size="small" style={{ marginTop: 24 }} title="创作任务">
+          <Card size="small" style={{ marginTop: 24 }} title={tr("创作任务")}>
             <p>
-              状态：<Tag>{String(job.status || "等待处理")}</Tag>
+              {tr("状态：")}
+              <Tag>{String(job.status || tr("等待处理"))}</Tag>
             </p>
             {!!(job.error_message || job.error) && (
               <Alert type="error" title={String(job.error_message || job.error)} />
@@ -583,26 +622,27 @@ export function TemplatesPage() {
               <Alert
                 type="warning"
                 showIcon
-                title="生成完成，但当前草稿已修改。候选结果已保留，没有覆盖你的编辑。"
+                title={tr("生成完成，但当前草稿已修改。候选结果已保留，没有覆盖你的编辑。")}
                 action={
                   <Button size="small" onClick={() => void saveCandidate()} loading={busy}>
-                    另存候选模板
+                    {tr("另存候选模板 ")}
                   </Button>
                 }
               />
             )}
             <p className="form-hint">
-              任务编号 {job.id}
-              {job.billing_status === "uncertain" ? " · 供应商用量待核对" : ""}
+              {tr("任务编号 ")}
+              {job.id}
+              {job.billing_status === "uncertain" ? tr(" \u00B7 供应商用量待核对") : ""}
             </p>
             {job.status === "succeeded" && job.template_id ? (
               <Button type="primary" href={`/console/templates/${job.template_id}`}>
-                打开生成的私有模板
+                {tr("打开生成的私有模板 ")}
               </Button>
             ) : (
               !["failed", "cancelled"].includes(String(job.status)) && (
-                <Popconfirm title="取消这次创作？" onConfirm={cancelJob}>
-                  <Button danger>取消任务</Button>
+                <Popconfirm title={tr("取消这次创作？")} onConfirm={cancelJob}>
+                  <Button danger>{tr("取消任务")}</Button>
                 </Popconfirm>
               )
             )}

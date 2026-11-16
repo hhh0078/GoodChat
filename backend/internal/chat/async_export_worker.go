@@ -49,7 +49,7 @@ func (s *Service) generateExport(parent context.Context, id, tenant, lease strin
 	ctx, done := context.WithTimeout(parent, 120*time.Second)
 	defer done()
 	var a actor
-	var filters string
+	var filters, locale string
 	running := false
 	err := platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, "SELECT id FROM tenants WHERE id=$1 FOR UPDATE", tenant); err != nil {
@@ -64,7 +64,7 @@ func (s *Service) generateExport(parent context.Context, id, tenant, lease strin
 		}
 		var state string
 		var valid bool
-		err = tx.QueryRow(ctx, "SELECT j.filters,j.status,j.expires_at>now(),m.id::text,m.user_id::text,m.role,m.can_serve FROM chat_export_jobs j JOIN tenant_memberships m ON m.id=j.requested_by AND m.tenant_id=j.tenant_id WHERE j.id=$1 FOR UPDATE OF j", id).Scan(&filters, &state, &valid, &a.MemberID, &a.UserID, &a.Role, &a.CanServe)
+		err = tx.QueryRow(ctx, "SELECT j.locale,j.filters,j.status,j.expires_at>now(),m.id::text,m.user_id::text,m.role,m.can_serve FROM chat_export_jobs j JOIN tenant_memberships m ON m.id=j.requested_by AND m.tenant_id=j.tenant_id WHERE j.id=$1 FOR UPDATE OF j", id).Scan(&locale, &filters, &state, &valid, &a.MemberID, &a.UserID, &a.Role, &a.CanServe)
 		if err != nil {
 			return err
 		}
@@ -100,7 +100,7 @@ func (s *Service) generateExport(parent context.Context, id, tenant, lease strin
 				return err
 			}
 		}
-		request := &http.Request{URL: &url.URL{RawQuery: filters}}
+		request := &http.Request{URL: &url.URL{RawQuery: filters}, Header: http.Header{"X-GoodChat-Locale": []string{locale}}}
 		request = request.WithContext(ctx)
 		var err error
 		body, rows, zone, err = renderExportCSV(ctx, tx, request, a, asyncExportRows, asyncExportBytes, func(count int) error {

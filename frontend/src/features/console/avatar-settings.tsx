@@ -1,16 +1,18 @@
 /** 文件作用说明：提供租户访客头像池与当前客服固定头像设置，复用平台库和受控上传资源。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { App, Avatar, Button, Checkbox, Select, Spin, Upload } from "antd";
-import { CheckOutlined, UploadOutlined } from "@ant-design/icons";
-import { api, errorMessage } from "@/lib/api";
-import { useSession } from "@/features/auth/session";
 import { ErrorNotice } from "@/components/page-state";
+import { useSession } from "@/features/auth/session";
+import { localizeStatic } from "@/i18n/runtime";
+import { useTranslator } from "@/i18n/use-translator";
+import { api } from "@/lib/api";
 import {
   selectedAvatarReferences,
   toggleAvatarReference,
   type AvatarAsset,
 } from "@/lib/avatar-selection";
+import { CheckOutlined, UploadOutlined } from "@ant-design/icons";
+import { App, Avatar, Button, Checkbox, Select, Spin, Upload } from "antd";
+import { useEffect, useRef, useState } from "react";
 const categories = [
   { value: "all", label: "全部头像" },
   { value: "professional", label: "职业西装" },
@@ -18,9 +20,9 @@ const categories = [
   { value: "illustration", label: "萌趣头像" },
   { value: "uploaded", label: "本租户上传" },
 ];
-
 /** AvatarSettings 保存租户头像池或个人头像，失败时保留本次选择供重试。 */
 export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
+  const tr = useTranslator();
   const { tenantId, reload } = useSession();
   const { message } = App.useApp();
   const [assets, setAssets] = useState<AvatarAsset[]>([]);
@@ -49,11 +51,17 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
     setAssets([]);
     setRefs([]);
     Promise.all([
-      api<{ items: AvatarAsset[] }>("/tenant/avatar-assets", {
+      api<{
+        items: AvatarAsset[];
+      }>("/tenant/avatar-assets", {
         tenantId,
         signal: controller.signal,
       }),
-      api<{ avatar_refs?: string[]; avatar_ref?: string; using_defaults?: boolean }>(path, {
+      api<{
+        avatar_refs?: string[];
+        avatar_ref?: string;
+        using_defaults?: boolean;
+      }>(path, {
         tenantId,
         signal: controller.signal,
       }),
@@ -98,7 +106,7 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
       });
       if (mode === "agent") await reload();
       if (!mounted.current) return;
-      message.success(mode === "pool" ? "访客头像池已保存" : "客服头像已保存");
+      message.success(mode === "pool" ? tr("访客头像池已保存") : tr("客服头像已保存"));
     } catch (problem) {
       if (mounted.current) setError(problem);
     } finally {
@@ -108,7 +116,7 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
   /** upload 只上传有界图片到头像资源接口，成功后加入选择但仍等待明确保存。 */
   async function upload(file: File) {
     if (!file.size || file.size > 5 * 1024 * 1024) {
-      message.error("请选择不超过5MiB的PNG、JPEG、GIF或WebP图片");
+      message.error(tr("请选择不超过5MiB的PNG、JPEG、GIF或WebP图片"));
       return;
     }
     setUploading(true);
@@ -126,7 +134,7 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
       setAssets((previous) => [...previous.filter((item) => item.id !== asset.id), asset]);
       setRefs(mode === "pool" ? [...new Set([...selected, asset.id])] : [asset.id]);
       setCategory("uploaded");
-      message.success("头像已上传，保存设置后生效");
+      message.success(tr("头像已上传，保存设置后生效"));
     } catch (problem) {
       if (mounted.current) setError(problem);
     } finally {
@@ -136,20 +144,22 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
   return (
     <section
       className="avatar-settings"
-      aria-label={mode === "pool" ? "访客头像池设置" : "客服头像设置"}
+      aria-label={mode === "pool" ? tr("访客头像池设置") : tr("客服头像设置")}
     >
       <header>
         <div>
-          <h2>{mode === "pool" ? "访客头像池" : "我的客服头像"}</h2>
+          <h2>{mode === "pool" ? tr("访客头像池") : tr("我的客服头像")}</h2>
           <p className="muted">
             {mode === "pool"
-              ? "从平台库选择或上传头像。无头像访客首次获得一个随机头像，保存到客户档案后保持不变。"
-              : "为当前工作空间设置固定客服头像，在账号菜单、成员列表和聊天中显示。"}
+              ? tr(
+                  "从平台库选择或上传头像。无头像访客首次获得一个随机头像，保存到客户档案后保持不变。",
+                )
+              : tr("为当前工作空间设置固定客服头像，在账号菜单、成员列表和聊天中显示。")}
           </p>
         </div>
         {mode === "agent" && (
           <Avatar size={56} src={preview?.url}>
-            我
+            {tr("我 ")}
           </Avatar>
         )}
       </header>
@@ -160,10 +170,10 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
         <>
           <div className="avatar-picker-toolbar">
             <Select
-              aria-label="头像分类"
+              aria-label={tr("头像分类")}
               value={category}
               onChange={setCategory}
-              options={categories}
+              options={localizeStatic(categories, tr)}
               style={{ width: 150 }}
             />
             <Upload
@@ -175,13 +185,16 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
               }}
             >
               <Button icon={<UploadOutlined />} loading={uploading} disabled={saving || !loaded}>
-                上传头像
+                {tr("上传头像 ")}
               </Button>
             </Upload>
             <span className="muted">
               {mode === "pool"
-                ? `已选 ${selected.length} 张${usingDefaults ? " · 平台默认库" : ""}`
-                : "点击选择一张头像"}
+                ? tr("已选 {p0} 张{p1}", {
+                    p0: String(selected.length),
+                    p1: String(usingDefaults ? tr(" \u00B7 平台默认库") : ""),
+                  })
+                : tr("点击选择一张头像")}
             </span>
           </div>
           {mode === "pool" && (
@@ -203,7 +216,7 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
                 );
               }}
             >
-              选择全部平台头像
+              {tr("选择全部平台头像 ")}
             </Checkbox>
           )}
           <div className="avatar-picker-grid">
@@ -214,7 +227,7 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
                   type="button"
                   key={asset.id}
                   className={`avatar-choice ${selected.includes(asset.id) ? "is-selected" : ""}`}
-                  aria-label={`选择头像 ${asset.name}`}
+                  aria-label={tr("选择头像 {p0}", { p0: String(asset.name) })}
                   aria-pressed={selected.includes(asset.id)}
                   title={asset.name}
                   disabled={saving || uploading}
@@ -240,7 +253,7 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
               }
               onClick={() => void save()}
             >
-              {mode === "pool" ? "保存访客头像池" : "保存客服头像"}
+              {mode === "pool" ? tr("保存访客头像池") : tr("保存客服头像")}
             </Button>
             <Button
               disabled={saving || uploading}
@@ -249,14 +262,16 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
                 setUsingDefaults(mode === "pool");
               }}
             >
-              {mode === "pool" ? "恢复平台默认库" : "清除客服头像"}
+              {mode === "pool" ? tr("恢复平台默认库") : tr("清除客服头像")}
             </Button>
           </div>
           <p className="form-hint">
-            头像用于公开展示。支持PNG、JPEG、GIF和WebP，最大5MiB。上传图片经服务端校验并转为受控PNG。
+            {tr(
+              "头像用于公开展示。支持PNG、JPEG、GIF和WebP，最大5MiB。上传图片经服务端校验并转为受控PNG。 ",
+            )}
             {mode === "pool"
-              ? "空配置使用平台默认50张；已有明确头像的客户不会被随机覆盖。"
-              : "上传后请点击保存，头像不会自动变化。"}
+              ? tr("空配置使用平台默认50张；已有明确头像的客户不会被随机覆盖。")
+              : tr("上传后请点击保存，头像不会自动变化。")}
           </p>
         </>
       )}

@@ -1,9 +1,9 @@
 /** 文件作用说明：以紧凑语音卡片播放已授权的音频，展示真实时长和进度并保持单一播放。 */
 "use client";
-import { useRef, useState } from "react";
-import { Button, Slider } from "antd";
+import { useTranslator } from "@/i18n/use-translator";
 import { AudioOutlined, PauseOutlined, PlayCircleFilled } from "@ant-design/icons";
-
+import { Button, Slider } from "antd";
+import { useRef, useState } from "react";
 /** voiceTime 将真实秒数转换为分秒，非法媒体时长不伪造显示值。 */
 function voiceTime(seconds: number): string {
   const value = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
@@ -11,6 +11,7 @@ function voiceTime(seconds: number): string {
 }
 /** VoiceCard 只使用附件授权产生的临时地址，播放器失败时给出明确提示。 */
 export function VoiceCard({ url, name }: { url: string; name: string }) {
+  const tr = useTranslator();
   const audio = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -31,7 +32,7 @@ export function VoiceCard({ url, name }: { url: string; name: string }) {
       await node.play();
       setError("");
     } catch {
-      setError("语音暂时无法播放，请重试或检查浏览器音频支持。");
+      setError(tr("语音暂时无法播放，请重试或检查浏览器音频支持。"));
     }
   }
   return (
@@ -56,27 +57,28 @@ export function VoiceCard({ url, name }: { url: string; name: string }) {
         onEnded={() => setPlaying(false)}
         onError={() => {
           setPlaying(false);
-          setError("当前浏览器无法读取此语音。");
+          setError(tr("当前浏览器无法读取此语音。"));
         }}
       />
       <Button
         type="text"
         className="voice-play"
         icon={playing ? <PauseOutlined /> : <PlayCircleFilled />}
-        aria-label={playing ? "暂停语音" : "播放语音"}
+        aria-label={playing ? tr("暂停语音") : tr("播放语音")}
         onClick={() => void toggle()}
       />
       <div className="voice-card-main">
         <div className="voice-card-label">
           <span>
-            <AudioOutlined /> 语音消息
+            <AudioOutlined />
+            {tr(" 语音消息 ")}
           </span>
           <time>
             {voiceTime(position)} / {duration ? voiceTime(duration) : "—:—"}
           </time>
         </div>
         <Slider
-          ariaLabelForHandle={`语音播放进度 ${name}`}
+          ariaLabelForHandle={tr("语音播放进度 {p0}", { p0: String(name) })}
           min={0}
           max={duration || 1}
           step={0.1}

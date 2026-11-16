@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"supportdesk/backend/internal/localization"
 
 	"github.com/jackc/pgx/v5"
 	"supportdesk/backend/internal/platform"
@@ -135,7 +136,7 @@ func (s *Service) createLegacyAIJob(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		var jobID string
-		if err := tx.QueryRow(ctx, `INSERT INTO ai_design_jobs(tenant_id,template_id,created_by,name,prompt,render_mode,model,base_version) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id::text`, p.TenantID, templateID, p.MembershipID, input.Name, input.Prompt, input.RenderMode, s.cfg.AIModel, base).Scan(&jobID); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO ai_design_jobs(tenant_id,template_id,created_by,name,prompt,render_mode,model,base_version,target_locale) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id::text`, p.TenantID, templateID, p.MembershipID, input.Name, input.Prompt, input.RenderMode, s.cfg.AIModel, base, localization.RequestLocale(r)).Scan(&jobID); err != nil {
 			return nil, err
 		}
 		if _, err := tx.Exec(ctx, "INSERT INTO ai_design_queue(job_id,tenant_id) VALUES($1,$2)", jobID, p.TenantID); err != nil {

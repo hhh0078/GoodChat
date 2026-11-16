@@ -1,18 +1,27 @@
 /** 文件作用说明：注入用户确认的银白钴蓝 Ant Design 主题、中文语言与交互反馈容器。 */
 "use client";
-import { App, ConfigProvider } from "antd";
-import zhCN from "antd/locale/zh_CN";
-import { useEffect, type ReactNode } from "react";
+import { antdLocales } from "@/i18n/antd-locales";
+import { usePreferences } from "@/i18n/locale-provider";
 import { stopBrowserSymbolCompatibility } from "@/lib/browser-symbol-compat";
+import { App, ConfigProvider } from "antd";
+import { useRouter } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
 
 /** Providers 为所有页面提供一致组件风格，保持服务端 children 可正常渲染。 */
 export function Providers({ children }: { children: ReactNode }) {
+  const preferences = usePreferences();
+  const router = useRouter();
+  useEffect(() => {
+    const refresh = () => router.refresh();
+    window.addEventListener("goodchat:preferences-changed", refresh);
+    return () => window.removeEventListener("goodchat:preferences-changed", refresh);
+  }, [router]);
   useEffect(() => {
     stopBrowserSymbolCompatibility();
   }, []);
   return (
     <ConfigProvider
-      locale={zhCN}
+      locale={antdLocales[preferences.locale]}
       theme={{
         token: {
           colorPrimary: "#1455ff",

@@ -1,22 +1,20 @@
 /** 文件作用说明：渐进加载官网双环三维动画，处理暂停、可见性、减少动态偏好及静态图回退。 */
 "use client";
-
+import { useTranslator } from "@/i18n/use-translator";
+import { CaretRightOutlined, PauseOutlined } from "@ant-design/icons";
+import { Button } from "antd";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "antd";
-import { PauseOutlined, CaretRightOutlined } from "@ant-design/icons";
-
 type RingsScene = ReturnType<typeof import("./hero-rings-scene").createHeroRingsScene>;
 type SceneState = "loading" | "ready" | "static" | "fallback";
-
 /** HeroRings 用独立三维环体替换静态主视觉，保留原图作为服务端和设备能力回退。 */
 export function HeroRings() {
+  const tr = useTranslator();
   const hostRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(false);
   const reconcileRef = useRef<(() => void) | null>(null);
   const [paused, setPaused] = useState(false);
   const [state, setState] = useState<SceneState>("loading");
-
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -30,7 +28,6 @@ export function HeroRings() {
     let elapsed = 0;
     let lastTimestamp = 0;
     let lastRendered = 0;
-
     /** stop 停止预约帧并重置时间基准，恢复时不跳过暂停期间。 */
     function stop() {
       cancelAnimationFrame(frame);
@@ -38,7 +35,6 @@ export function HeroRings() {
       lastTimestamp = 0;
       lastRendered = 0;
     }
-
     /** fallback 在设备不支持或上下文丢失时恢复原图，避免空白主视觉。 */
     function fallback() {
       if (disposed || failed) return;
@@ -50,7 +46,6 @@ export function HeroRings() {
       host?.replaceChildren();
       setState("fallback");
     }
-
     /** resize 使用真实容器比例与受限像素密度，不改变文档布局。 */
     function resize() {
       if (!scene || !host || host.clientWidth === 0 || host.clientHeight === 0) return;
@@ -62,7 +57,6 @@ export function HeroRings() {
       );
       scene.render(elapsed);
     }
-
     /** animate 最多每秒绘制三十帧，只有可见且未暂停时继续预约。 */
     function animate(timestamp: number) {
       frame = 0;
@@ -88,7 +82,6 @@ export function HeroRings() {
       }
       frame = requestAnimationFrame(animate);
     }
-
     /** initialize 仅在首屏可见时加载三维模块，首帧成功前保持静态原图。 */
     async function initialize() {
       if (loading || scene || disposed || failed || !host?.clientWidth || !host.clientHeight)
@@ -109,7 +102,6 @@ export function HeroRings() {
         loading = false;
       }
     }
-
     /** reconcile 同步系统偏好、用户暂停与可见性，不在后台持续消耗绘制资源。 */
     function reconcile() {
       if (disposed || failed) return;
@@ -131,7 +123,6 @@ export function HeroRings() {
         frame = requestAnimationFrame(animate);
       }
     }
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         inView = entry?.isIntersecting ?? false;
@@ -153,7 +144,6 @@ export function HeroRings() {
     document.addEventListener("visibilitychange", reconcile);
     reconcileRef.current = reconcile;
     reconcile();
-
     return () => {
       disposed = true;
       reconcileRef.current = null;
@@ -166,7 +156,6 @@ export function HeroRings() {
       scene?.dispose();
     };
   }, []);
-
   /** togglePaused 在点击当下停止预约帧，避免等待界面状态提交期间又绘制一帧。 */
   function togglePaused() {
     const next = !pausedRef.current;
@@ -174,7 +163,6 @@ export function HeroRings() {
     reconcileRef.current?.();
     setPaused(next);
   }
-
   return (
     <>
       <div className="cobalt-hero-rings" data-scene-state={state} aria-hidden="true">
@@ -193,11 +181,11 @@ export function HeroRings() {
         <Button
           className="cobalt-hero-motion-control"
           icon={paused ? <CaretRightOutlined /> : <PauseOutlined />}
-          aria-label={paused ? "播放3D动画" : "暂停3D动画"}
+          aria-label={paused ? tr("播放3D动画") : tr("暂停3D动画")}
           aria-pressed={paused}
           onClick={togglePaused}
         >
-          {paused ? "播放动画" : "暂停动画"}
+          {paused ? tr("播放动画") : tr("暂停动画")}
         </Button>
       )}
     </>

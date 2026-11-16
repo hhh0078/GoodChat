@@ -6,8 +6,12 @@ export const notificationSounds = [
   { id: "bell", name: "柔和风铃", url: "/sounds/bell.wav", duration: 1 },
   { id: "bubble", name: "轻快气泡", url: "/sounds/bubble.wav", duration: 1 },
 ] as const;
-
 /** notificationSound 将已保存编号映射到固定本地音频，旧配置使用默认和弦。 */
 export function notificationSound(id?: string) {
-  return notificationSounds.find((item) => item.id === id) || notificationSounds[0];
+  return (
+    localizeStatic(notificationSounds, tr).find((item) => item.id === id) ||
+    localizeStatic(notificationSounds, tr)[0]
+  );
 }
+
+import { localizeStatic, translate as tr } from "../i18n/runtime.ts";
