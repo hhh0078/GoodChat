@@ -27,6 +27,7 @@ type Subscription = {
 /** BillingPage 读取当前订阅，以明确的申请方式支持人工开通流程。 */
 export function BillingPage() {
   const { currentPreferences, numberFormatter } = useFormats();
+  const locale = currentPreferences().locale;
 
   const tr = useTranslator();
   const { tenantId } = useSession();
@@ -40,12 +41,14 @@ export function BillingPage() {
     setData(null);
     setError(null);
     api<Subscription>("/tenant/subscription", { tenantId, signal: controller.signal })
-      .then(setData)
+      .then((result) => {
+        if (!controller.signal.aborted) setData(result);
+      })
       .catch((problem) => {
         if (!controller.signal.aborted) setError(problem);
       });
     return () => controller.abort();
-  }, [tenantId, revision]);
+  }, [tenantId, revision, locale]);
   /** requestUpgrade 创建真实升级申请，后续收费及开通由平台确认。 */
   async function requestUpgrade(plan: Plan) {
     setBusy(plan.id);

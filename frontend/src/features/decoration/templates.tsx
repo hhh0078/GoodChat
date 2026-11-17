@@ -10,6 +10,7 @@ import { TemplatePreviewModal } from "@/features/assistant/template-preview-moda
 import { useSession } from "@/features/auth/session";
 import { translate as tr } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
+import { useLocale } from "next-intl";
 import { api, errorMessage } from "@/lib/api";
 import type { Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
@@ -91,6 +92,7 @@ export function starterDesign(): Design {
 /** TemplatesPage 展示真实模板与页面，并管理可追踪的 AI 创建过程。 */
 export function TemplatesPage() {
   const tr = useTranslator();
+  const locale = useLocale();
   const { tenantId, current } = useSession();
   const { openAssistant } = useAssistantLauncher();
   const member = current.memberships.find((item) => item.tenant_id === tenantId);
@@ -138,6 +140,7 @@ export function TemplatesPage() {
       signal: controller.signal,
     })
       .then((data) => {
+        if (controller.signal.aborted) return;
         setTemplates(data.items || []);
         setPublicTemplates(data.platform_templates || []);
       })
@@ -148,7 +151,7 @@ export function TemplatesPage() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [tenantId, revision]);
+  }, [tenantId, revision, locale]);
   useEffect(() => {
     if (!job?.id || ["succeeded", "failed", "cancelled"].includes(String(job.status))) return;
     let stopped = false;

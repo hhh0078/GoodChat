@@ -92,6 +92,7 @@ function ResourceCurve({
 /** ServerMonitorPage 每五秒刷新平台监控，采样失败保留上次读数并显示错误与时间。 */
 export function ServerMonitorPage() {
   const { currentPreferences, numberFormatter } = useFormats();
+  const locale = currentPreferences().locale;
   const metricNumber = numberFormatter({ maximumFractionDigits: 1 });
 
   /** bytesText 按真实字节换算可读大小，未知资源与零用量明确区分。 */
@@ -136,7 +137,7 @@ export function ServerMonitorPage() {
       controller.abort();
       clearInterval(timer);
     };
-  }, [allowed, revision]);
+  }, [allowed, revision, locale]);
   if (!allowed) return <Alert type="error" showIcon title={tr("仅总管理员可以查看服务器监控")} />;
   const resources = data?.resources;
   const cgroup = resources?.scope === "application_cgroup";

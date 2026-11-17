@@ -39,6 +39,7 @@ type DashboardSubscriptionData = {
 /** DashboardSubscription 读取真实订阅与坐席占用，失败时不填充免费版或示例额度。 */
 function DashboardSubscription({ tenantId }: { tenantId: string }) {
   const { currentPreferences, numberFormatter } = useFormats();
+  const locale = currentPreferences().locale;
 
   const tr = useTranslator();
   const [data, setData] = useState<DashboardSubscriptionData | null>(null);
@@ -56,7 +57,7 @@ function DashboardSubscription({ tenantId }: { tenantId: string }) {
         if (!controller.signal.aborted) setError(true);
       });
     return () => controller.abort();
-  }, [tenantId, revision]);
+  }, [tenantId, revision, locale]);
   const usage = data?.usage;
   const occupied = usage ? usage.seats_used + usage.seats_reserved : 0;
   const percent = usage?.seat_limit ? Math.min(100, (occupied / usage.seat_limit) * 100) : 0;
