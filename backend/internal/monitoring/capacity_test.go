@@ -1,7 +1,30 @@
 // 文件作用说明：验证压测基线按安全系数向下取整、在线余量封底及资源规格变化失效，不伪造未测容量。
 package monitoring
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"supportdesk/backend/internal/localization"
+)
+
+// TestResourceTranslationPreservesKernelData 验证九语采样说明不会修改控制组原路径、读数或共享采样。
+func TestResourceTranslationPreservesKernelData(t *testing.T) {
+	for _, locale := range localization.Locales {
+		original := Resources{Scope: "application_cgroup", CgroupPath: "/services/客户进程", CPUCores: 2}
+		original.ScopeDetail = "当前进程控制组：" + original.CgroupPath + "，计量包含同组进程"
+		translated := localizedResources(locale, original)
+		if translated.CgroupPath != original.CgroupPath || translated.CPUCores != 2 || translated.Scope != original.Scope || !strings.Contains(translated.ScopeDetail, original.CgroupPath) {
+			t.Fatalf("%s 翻译修改了原始资源数据", locale)
+		}
+		if locale != "zh-CN" && translated.ScopeDetail == original.ScopeDetail {
+			t.Fatalf("%s 未翻译系统说明", locale)
+		}
+		if original.ScopeDetail != "当前进程控制组：/services/客户进程，计量包含同组进程" {
+			t.Fatal("翻译污染了共享原始采样")
+		}
+	}
+}
 
 // TestCapacityUsesMeasuredCeilingAndResourceFingerprint 验证人工实测边界、去重在线扣除和规格变化。
 func TestCapacityUsesMeasuredCeilingAndResourceFingerprint(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -106,10 +107,14 @@ func (s *Service) readBaseline(ctx context.Context) (*baseline, error) {
 // capacityState 返回当前规格对应的基线估计，查询失败时不降格为“未配置”。
 func (s *Service) capacityState(ctx context.Context, resources Resources, current int64) capacityReport {
 	stored, err := s.readBaseline(ctx)
+	var report capacityReport
 	if err != nil {
-		return capacityReport{Status: "unavailable", Reason: "压测基线暂时无法读取，请稍后重试", CurrentOnline: current}
+		report = capacityReport{Status: "unavailable", Reason: "压测基线暂时无法读取，请稍后重试", CurrentOnline: current}
+	} else {
+		report = evaluateCapacity(resources, stored, current)
 	}
-	return evaluateCapacity(resources, stored, current)
+	report.Reason = localization.Text(localization.ContextLocale(ctx), report.Reason)
+	return report
 }
 
 // capacity 仅接受总管理员记录或清除人工基线，当前资源指纹始终由服务端获取。

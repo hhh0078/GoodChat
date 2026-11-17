@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -58,7 +59,7 @@ func (s *Service) personalWelcomeRules(w http.ResponseWriter, r *http.Request) {
 			}
 			text, _ := settings["welcome_text"].(string)
 			if enabled && text != "" {
-				items = append(items, map[string]any{"id": "legacy", "name": "系统默认欢迎语", "scope_type": "tenant", "source_scope": "legacy", "editable": false, "enabled": true, "scenario": "all", "stop_on_agent": true, "contents": []map[string]any{{"type": "text", "content": text, "delay_seconds": settings["welcome_delay_seconds"]}}})
+				items = append(items, map[string]any{"id": "legacy", "name": localization.RequestText(r, "系统默认欢迎语"), "scope_type": "tenant", "source_scope": "legacy", "editable": false, "enabled": true, "scenario": "all", "stop_on_agent": true, "contents": []map[string]any{{"type": "text", "content": text, "delay_seconds": settings["welcome_delay_seconds"]}}})
 			}
 			result = map[string]any{"items": items}
 			return nil

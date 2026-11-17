@@ -17,6 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -168,7 +169,7 @@ func (s *Service) rotateSecret(w http.ResponseWriter, r *http.Request) {
 		platform.ErrorJSON(w, r, err)
 		return
 	}
-	platform.JSON(w, 200, map[string]any{"signing_secret": secret, "message": "请保存密钥，离开后将不再显示"})
+	platform.JSON(w, 200, map[string]any{"signing_secret": secret, "message": localization.RequestText(r, "请保存密钥，离开后将不再显示")})
 }
 
 // Enqueue 在创建访客访问的同一事务中保存经筛选的回调，重复访问编号不重复排队。
