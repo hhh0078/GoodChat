@@ -46,7 +46,7 @@ func reserveAIWallet(ctx context.Context, tx pgx.Tx, j *aiJobData) error {
 		return e
 	}
 	var available int64
-	if e = tx.QueryRow(ctx, "SELECT balance_micro-reserved_micro FROM ai_wallets FOR UPDATE").Scan(&available); e != nil {
+	if e = tx.QueryRow(ctx, "SELECT balance_micro-reserved_micro,now() FROM ai_wallets FOR UPDATE").Scan(&available, &j.Snapshot.BudgetAt); e != nil {
 		return e
 	}
 	if reserve > available {
@@ -55,7 +55,7 @@ func reserveAIWallet(ctx context.Context, tx pgx.Tx, j *aiJobData) error {
 	if j.BotID != "" {
 		var used int64
 		var count int
-		e = tx.QueryRow(ctx, `SELECT coalesce(sum(CASE WHEN status IN('running','uncertain') THEN reserved_micro WHEN status IN('succeeded','draft') THEN sale_micro ELSE 0 END),0),count(*) FROM ai_jobs WHERE bot_id=$1 AND id<>$2 AND created_at>=(date_trunc('day',now() AT TIME ZONE (SELECT timezone FROM tenants WHERE id=$3)) AT TIME ZONE (SELECT timezone FROM tenants WHERE id=$3))`, j.BotID, j.ID, j.Tenant).Scan(&used, &count)
+		e = tx.QueryRow(ctx, `SELECT coalesce(sum(CASE WHEN status IN('running','uncertain') THEN reserved_micro WHEN status IN('succeeded','draft') THEN sale_micro ELSE 0 END),0),count(*) FROM ai_jobs WHERE bot_id=$1 AND id<>$2 AND coalesce((snapshot->>'budget_at')::timestamptz,created_at)>=(date_trunc('day',now() AT TIME ZONE (SELECT timezone FROM tenants WHERE id=$3)) AT TIME ZONE (SELECT timezone FROM tenants WHERE id=$3))`, j.BotID, j.ID, j.Tenant).Scan(&used, &count)
 		if e != nil {
 			return e
 		}

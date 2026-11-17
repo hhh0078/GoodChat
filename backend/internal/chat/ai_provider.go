@@ -41,6 +41,8 @@ type aiScript struct {
 
 // aiSnapshot 保存不含明文密钥的任务价格、机器人、授权及接待版本。
 type aiSnapshot struct {
+	// BudgetAt 使用数据库预占时刻归属租户业务日，避免跨午夜排队任务绕过日预算。
+	BudgetAt         time.Time          `json:"budget_at,omitempty"`
 	Body             string             `json:"body,omitempty"`
 	KnowledgeVersion int64              `json:"knowledge_version,omitempty"`
 	Locale           string             `json:"locale"`

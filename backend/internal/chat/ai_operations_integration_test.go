@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -374,5 +375,34 @@ func TestAIBudgetLockAllowsNewMessages(t *testing.T) {
 	}
 	if _, e = f.admin.Exec(ctx, `INSERT INTO ai_jobs(tenant_id,kind,bot_id,owner_membership_id,snapshot) VALUES($1,'test',$2,$3,'{}')`, f.tenant, bot, f.owner); e != nil {
 		t.Fatalf("预算锁阻塞了新任务的外键: %v", e)
+	}
+}
+
+// TestAIBudgetUsesReservationDay 验证昨天排队但今天才调用的任务也占用今天业务时区的日预算。
+func TestAIBudgetUsesReservationDay(t *testing.T) {
+	f := newFixture(t)
+	model := setupAITest(t, f, func(w http.ResponseWriter, r *http.Request) {
+		aiFixtureResponse(w, "submit_reply", aiPlan{Items: []aiReplyItem{{Type: "text", Text: "测试"}}}, "", true)
+	})
+	b := defaultAIBot()
+	b.Mode = "auto"
+	b.ModelID = model
+	b.Settings.DailyBudget = 1000
+	status, data := f.request("PUT", "/api/v1/me/ai/bot", f.owner, "", b)
+	bot := mustData(t, status, data)["id"].(string)
+	ctx := context.Background()
+	if _, e := f.admin.Exec(ctx, `INSERT INTO ai_jobs(tenant_id,kind,bot_id,owner_membership_id,snapshot,status,sale_micro,created_at) VALUES($1,'test',$2,$3,jsonb_build_object('budget_at',now()),'succeeded',700,now()-interval '1 day')`, f.tenant, bot, f.owner); e != nil {
+		t.Fatal(e)
+	}
+	e := platform.TenantTx(ctx, f.pool, f.tenant, func(tx pgx.Tx) error {
+		j := aiJobData{ID: newID(), Tenant: f.tenant, Kind: "test", BotID: bot, Snapshot: aiSnapshot{Model: aiModel{MaxInput: 100, MaxOutput: 25, SaleInput: 1000000, SaleOutput: 1000000}}}
+		if _, e := tx.Exec(ctx, `INSERT INTO ai_jobs(id,tenant_id,kind,bot_id,owner_membership_id,snapshot,status) VALUES($1,$2,'test',$3,$4,'{}','running')`, j.ID, f.tenant, bot, f.owner); e != nil {
+			return e
+		}
+		return reserveAIWallet(ctx, tx, &j)
+	})
+	var typed *platform.APIError
+	if !errors.As(e, &typed) || typed.Code != "ai_daily_limit" {
+		t.Fatalf("跨午夜任务绕过当日预算: %v", e)
 	}
 }
