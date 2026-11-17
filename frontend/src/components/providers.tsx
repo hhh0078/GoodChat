@@ -12,7 +12,16 @@ export function Providers({ children }: { children: ReactNode }) {
   const preferences = usePreferences();
   const router = useRouter();
   useEffect(() => {
-    const refresh = () => router.refresh();
+    /** refresh 对主动设置执行真实路由切换，避免刷新旧路由后恢复原语言。 */
+    const refresh = (event: Event) => {
+      const url = (event as CustomEvent<{ url?: string }>).detail?.url;
+      if (url) {
+        event.preventDefault();
+        router.replace(url);
+      } else {
+        router.refresh();
+      }
+    };
     window.addEventListener("goodchat:preferences-changed", refresh);
     return () => window.removeEventListener("goodchat:preferences-changed", refresh);
   }, [router]);

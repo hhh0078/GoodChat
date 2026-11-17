@@ -142,8 +142,13 @@ export function LocaleProvider({
     if (!initialized.current) return;
     const query = new URLSearchParams(location.search);
     const locale =
-      normalizeLocale(query.get("lang")) || normalizeLocale(location.pathname.split("/")[1]);
-    const timezone = validTimezone(query.get("timezone"));
+      query.getAll("lang").length === 1
+        ? normalizeLocale(query.get("lang"))
+        : !query.has("lang")
+          ? normalizeLocale(location.pathname.split("/")[1])
+          : undefined;
+    const timezone =
+      query.getAll("timezone").length === 1 ? validTimezone(query.get("timezone")) : undefined;
     if (
       (locale && locale !== preferences.locale) ||
       (timezone && timezone !== preferences.timezone)
@@ -191,11 +196,12 @@ export function LocaleProvider({
         /* 禁用存储不阻止当前窗口确认。 */
       }
       setOpen(false);
+      let targetURL: string | undefined;
       if (manual) {
         const url = new URL(location.href);
         url.searchParams.set("lang", draft.locale);
         url.searchParams.set("timezone", draft.timezone);
-        history.replaceState(history.state, "", url);
+        targetURL = url.pathname + url.search + url.hash;
       }
       // URL 自动应用不写账号；只有用户主动确认的字段才进入个人设置。
       const body: SavedPreferences = {};
@@ -208,8 +214,16 @@ export function LocaleProvider({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         }).catch(() => {});
-      if (typeof window !== "undefined")
+      if (targetURL) {
+        // 网页由 Next 路由处理并取消默认操作；桌面端仅同步地址，不重新启动工作台。
+        const changed = new CustomEvent("goodchat:preferences-changed", {
+          detail: { url: targetURL },
+          cancelable: true,
+        });
+        if (window.dispatchEvent(changed)) history.replaceState(history.state, "", targetURL);
+      } else {
         window.dispatchEvent(new Event("goodchat:preferences-changed"));
+      }
     } finally {
       setBusy(false);
     }
