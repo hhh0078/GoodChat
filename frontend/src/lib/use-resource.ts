@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { useSession } from "@/features/auth/session";
+import { useLocale } from "next-intl";
 /** useResource 加载资源列表，更新触发真实重新查询。 */
 export function useResource<T>(path: string, platform = false) {
   const { tenantId } = useSession();
+  const locale = useLocale();
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
@@ -38,7 +40,7 @@ export function useResource<T>(path: string, platform = false) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [path, tenantId, platform, revision]);
+  }, [path, tenantId, platform, revision, locale]);
   const reload = useCallback(() => setRevision((value) => value + 1), []);
   return { items, loading, error, reload, tenantId };
 }

@@ -111,7 +111,7 @@ func savePlatformPackageTemplate(ctx context.Context, tx pgx.Tx, name, status, i
 	if err := tx.QueryRow(ctx, "INSERT INTO platform_templates(name,render_mode,design,status,industry_key) VALUES($1,'code',$2,$3,NULLIF($4,'')) RETURNING id::text", name, design, status, industry).Scan(&id); err != nil {
 		return nil, err
 	}
-	if _, err := tx.Exec(ctx, "INSERT INTO platform_template_versions(template_id,version,name,render_mode,design) SELECT id,version,name,render_mode,design FROM platform_templates WHERE id=$1", id); err != nil {
+	if _, err := tx.Exec(ctx, "INSERT INTO platform_template_versions(template_id,version,name,render_mode,design,translations) SELECT id,version,name,render_mode,design,translations FROM platform_templates WHERE id=$1", id); err != nil {
 		return nil, err
 	}
 	return record(ctx, tx, "SELECT to_jsonb(t) FROM platform_templates t WHERE id=$1", id)

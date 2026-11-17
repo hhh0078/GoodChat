@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -44,10 +45,18 @@ func (s *Service) registerAccount(w http.ResponseWriter, r *http.Request) error 
 		Code        string `json:"code"`
 		Password    string `json:"password"`
 		TenantName  string `json:"tenant_name"`
+		Timezone    string `json:"timezone"`
 		DisplayName string `json:"display_name"`
 	}
 	if err := platform.Decode(w, r, &input); err != nil {
 		return err
+	}
+	tenantTimezone := registrationTimezone(r)
+	if input.Timezone != "" {
+		if !localization.ValidTimezone(input.Timezone) {
+			return platform.Fail(400, "invalid_timezone", "请使用明确的IANA时区，例如Asia/Shanghai")
+		}
+		tenantTimezone = input.Timezone
 	}
 	email, err := normalizeEmail(input.Email)
 	if err != nil {
@@ -90,7 +99,7 @@ func (s *Service) registerAccount(w http.ResponseWriter, r *http.Request) error 
 		if err != nil {
 			return err
 		}
-		if err := tx.QueryRow(r.Context(), "INSERT INTO tenants(name,slug) VALUES($1,$2) RETURNING id::text", input.TenantName, "tenant-"+id).Scan(&tenantID); err != nil {
+		if err := tx.QueryRow(r.Context(), "INSERT INTO tenants(name,slug,timezone,default_locale) VALUES($1,$2,$3,$4) RETURNING id::text", input.TenantName, "tenant-"+id, tenantTimezone, localization.RequestLocale(r)).Scan(&tenantID); err != nil {
 			return err
 		}
 		var memberID string

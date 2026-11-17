@@ -1,16 +1,20 @@
 /** 文件作用说明：以音量控制代替工作台提醒启停，保存真实偏好并独立申请系统通知。 */
 "use client";
-import { useState } from "react";
-import { App, Button, Checkbox, Popover, Slider } from "antd";
-import { AudioMutedOutlined, SoundOutlined } from "@ant-design/icons";
+import { useTranslator } from "@/i18n/use-translator";
 import { errorMessage } from "@/lib/api";
+import { AudioMutedOutlined, SoundOutlined } from "@ant-design/icons";
+import { App, Button, Checkbox, Popover, Slider } from "antd";
+import { useState } from "react";
 import type { useReminders } from "./reminders";
 /** ReminderVolume 仅在用户操作时保存音量或申请通知权限，失败保持原偏好。 */
 export function ReminderVolume({
   reminders,
 }: {
-  reminders: ReturnType<typeof useReminders> & { native?: boolean };
+  reminders: ReturnType<typeof useReminders> & {
+    native?: boolean;
+  };
 }) {
+  const tr = useTranslator();
   const { message } = App.useApp();
   const [preferenceBusy, setPreferenceBusy] = useState(false);
   const [volumeDraft, setVolumeDraft] = useState<number | null>(null);
@@ -46,16 +50,16 @@ export function ReminderVolume({
     <Popover
       trigger="click"
       placement="bottomRight"
-      title="消息音量"
+      title={tr("消息音量")}
       content={
         <div className="reminder-volume-panel">
           <div className="reminder-volume-label">
-            <span>{volume === 0 ? "静音" : "提示音音量"}</span>
+            <span>{volume === 0 ? tr("静音") : tr("提示音音量")}</span>
             <strong>{Math.round(volume * 100)}%</strong>
           </div>
-          <p className="muted">仅设置你自己的账号。音量调至 0 即静音，图标会变红。</p>
+          <p className="muted">{tr("仅设置你自己的账号。音量调至 0 即静音，图标会变红。")}</p>
           <Slider
-            ariaLabelForHandle="消息提示音音量"
+            ariaLabelForHandle={tr("消息提示音音量")}
             min={0}
             max={1}
             step={0.05}
@@ -71,15 +75,20 @@ export function ReminderVolume({
             disabled={!reminders.preferences || preferenceBusy}
             onChange={(event) => void changeSystemNotifications(event.target.checked)}
           >
-            {reminders.native ? "系统通知" : "浏览器系统通知"}
+            {reminders.native ? tr("系统通知") : tr("浏览器系统通知")}
           </Checkbox>
           <p className="muted">
             {reminders.native
-              ? "工作台处于后台时由程序发送系统通知，首次开启需允许通知权限；音量为 0 时仍可显示通知。"
-              : "浏览器通知会在页面处于后台时弹出，首次开启需允许通知权限；音量为 0 时仍可显示通知。"}
+              ? tr(
+                  "工作台处于后台时由程序发送系统通知，首次开启需允许通知权限；音量为 0 时仍可显示通知。",
+                )
+              : tr(
+                  "浏览器通知会在页面处于后台时弹出，首次开启需允许通知权限；音量为 0 时仍可显示通知。",
+                )}
           </p>
           <p className="muted">
-            {reminders.audioReady ? "提示音已就绪" : "点击或输入后，浏览器才允许播放提示音"}。
+            {reminders.audioReady ? tr("提示音已就绪") : tr("点击或输入后，浏览器才允许播放提示音")}
+            。
           </p>
           {!!reminders.error && <p className="preference-error">{errorMessage(reminders.error)}</p>}
         </div>
@@ -89,10 +98,10 @@ export function ReminderVolume({
         type="text"
         className={`reminder-volume-button ${volume === 0 ? "is-muted" : ""}`}
         icon={volume === 0 ? <AudioMutedOutlined /> : <SoundOutlined />}
-        aria-label={`消息音量${Math.round(volume * 100)}%`}
+        aria-label={tr("消息音量{p0}%", { p0: String(Math.round(volume * 100)) })}
       >
         <span className="agent-reminder-label">
-          {volume === 0 ? "静音" : `${Math.round(volume * 100)}%`}
+          {volume === 0 ? tr("静音") : `${Math.round(volume * 100)}%`}
         </span>
       </Button>
     </Popover>

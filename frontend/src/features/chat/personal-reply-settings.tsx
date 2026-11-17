@@ -1,11 +1,9 @@
 /** 文件作用说明：在客服工作台统一维护个人快捷回复、欢迎语和关键词，并展示已启用的公共只读内容。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { App, Button, Drawer, Empty, Popconfirm, Space, Spin, Switch, Tabs, Tag } from "antd";
-import { LockOutlined, PlusOutlined } from "@ant-design/icons";
-import { api, errorMessage } from "@/lib/api";
 import { ErrorNotice } from "@/components/page-state";
-import type { QuickReply } from "@/lib/quick-replies";
+import { localizeStatic } from "@/i18n/runtime";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, errorMessage } from "@/lib/api";
 import {
   replySourceNames,
   welcomeScenarioNames,
@@ -13,11 +11,14 @@ import {
   type PersonalRule,
   type PersonalWelcome,
 } from "@/lib/personal-replies";
-import { QuickReplyEditor } from "./quick-reply-editor";
-import { PersonalAutomationEditor } from "./personal-automation-editor";
+import type { QuickReply } from "@/lib/quick-replies";
+import { LockOutlined, PlusOutlined } from "@ant-design/icons";
+import { App, Button, Drawer, Empty, Popconfirm, Space, Spin, Switch, Tabs, Tag } from "antd";
+import { useEffect, useRef, useState } from "react";
 import { AttachmentView } from "./attachment";
+import { PersonalAutomationEditor } from "./personal-automation-editor";
 import "./personal-reply-settings.css";
-
+import { QuickReplyEditor } from "./quick-reply-editor";
 type SettingsProps = {
   tenantId: string;
   items: QuickReply[];
@@ -25,9 +26,14 @@ type SettingsProps = {
   onClose: () => void;
 };
 type EditingRule =
-  | { kind: "welcome"; item: PersonalWelcome | null }
-  | { kind: "keyword"; item: PersonalKeyword | null };
-
+  | {
+      kind: "welcome";
+      item: PersonalWelcome | null;
+    }
+  | {
+      kind: "keyword";
+      item: PersonalKeyword | null;
+    };
 /** usePersonalRules 读取当前身份的规则，切换身份或卸载时废止旧请求。 */
 function usePersonalRules<T extends PersonalRule>(
   tenantId: string,
@@ -41,7 +47,9 @@ function usePersonalRules<T extends PersonalRule>(
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    api<{ items: T[] }>(path, { tenantId, signal: controller.signal })
+    api<{
+      items: T[];
+    }>(path, { tenantId, signal: controller.signal })
       .then((data) => {
         if (!controller.signal.aborted) setItems(data?.items || []);
       })
@@ -55,14 +63,13 @@ function usePersonalRules<T extends PersonalRule>(
   }, [tenantId, path, revision]);
   return { items, loading, error };
 }
-
 /** PersonalReplySettings 按租户重新挂载，阻止上个身份的表单和请求残留。 */
 export function PersonalReplySettings(props: SettingsProps) {
   return <ReplySettings key={props.tenantId} {...props} />;
 }
-
 /** ReplySettings 将管理动作限定在本人规则，公共项只展示完整内容与来源。 */
 function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
+  const tr = useTranslator();
   const { message } = App.useApp();
   const [revision, setRevision] = useState(0);
   const welcomes = usePersonalRules<PersonalWelcome>(tenantId, "/me/welcome-rules", revision);
@@ -115,7 +122,7 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
         },
       });
       if (mounted.current) {
-        message.success(remove ? "个人规则已删除" : "个人规则已更新");
+        message.success(remove ? tr("个人规则已删除") : tr("个人规则已更新"));
         reload();
       }
     } catch (problem) {
@@ -132,8 +139,8 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
         color={item.editable ? "blue" : undefined}
         icon={item.editable ? undefined : <LockOutlined />}
       >
-        {replySourceNames[item.source_scope] || "公共"}
-        {item.editable ? "" : " · 只读"}
+        {localizeStatic(replySourceNames, tr)[item.source_scope] || tr("公共")}
+        {item.editable ? "" : tr(" \u00B7 只读")}
       </Tag>
     );
   }
@@ -143,7 +150,7 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
     item: PersonalWelcome | PersonalKeyword,
     loading: boolean,
   ) {
-    if (!item.editable) return <Tag>已启用</Tag>;
+    if (!item.editable) return <Tag>{tr("已启用")}</Tag>;
     return (
       <Space wrap size={4}>
         <Switch
@@ -151,9 +158,9 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
           checked={item.enabled}
           loading={busyId === item.id}
           disabled={!!busyId || loading}
-          checkedChildren="开"
-          unCheckedChildren="关"
-          aria-label={`${item.enabled ? "停用" : "启用"}${item.name}`}
+          checkedChildren={tr("开")}
+          unCheckedChildren={tr("关")}
+          aria-label={`${item.enabled ? tr("停用") : tr("启用")}${item.name}`}
           onChange={(enabled) => void changeRule(kind, item, false, enabled)}
         />
         <Button
@@ -168,16 +175,16 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
             )
           }
         >
-          编辑
+          {tr("编辑 ")}
         </Button>
         <Popconfirm
-          title="删除这条个人规则？"
-          description="已发送的消息会保留。"
+          title={tr("删除这条个人规则？")}
+          description={tr("已发送的消息会保留。")}
           onConfirm={() => changeRule(kind, item, true)}
           disabled={!!busyId || loading}
         >
           <Button size="small" type="link" danger disabled={!!busyId || loading}>
-            删除
+            {tr("删除 ")}
           </Button>
         </Popconfirm>
       </Space>
@@ -186,32 +193,32 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
   return (
     <Drawer
       rootClassName="personal-reply-settings"
-      title="我的回复设置"
+      title={tr("我的回复设置")}
       open
       width="min(760px, 100vw)"
       onClose={busyId || editing || reply !== undefined ? undefined : onClose}
       destroyOnHidden
     >
       <p className="personal-reply-intro">
-        管理自己的常用回复和自动回复。团队已启用的内容在这里显示为只读。
+        {tr("管理自己的常用回复和自动回复。团队已启用的内容在这里显示为只读。 ")}
       </p>
       <Tabs
         items={[
           {
             key: "replies",
-            label: "快捷回复",
+            label: tr("快捷回复"),
             children: (
-              <section aria-label="快捷回复管理">
+              <section aria-label={tr("快捷回复管理")}>
                 <div className="personal-reply-heading">
-                  <p>双击快捷栏中的标题，向当前客户发送。</p>
+                  <p>{tr("双击快捷栏中的标题，向当前客户发送。")}</p>
                   <Button type="primary" icon={<PlusOutlined />} onClick={() => setReply(null)}>
-                    新增快捷回复
+                    {tr("新增快捷回复 ")}
                   </Button>
                 </div>
                 {!visibleReplies.length && (
                   <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="还没有快捷回复，先添加一条常用话术。"
+                    description={tr("还没有快捷回复，先添加一条常用话术。")}
                   />
                 )}
                 <div className="personal-rule-list">
@@ -223,13 +230,13 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
                             color={item.scope === "personal" ? "blue" : undefined}
                             icon={item.scope === "personal" ? undefined : <LockOutlined />}
                           >
-                            {item.scope === "personal" ? "我的" : "团队 · 只读"}
+                            {item.scope === "personal" ? tr("我的") : tr("团队 \u00B7 只读")}
                           </Tag>
                           <strong>{item.title}</strong>
                         </div>
                         {item.scope === "personal" && (
                           <Button type="link" size="small" onClick={() => setReply(item)}>
-                            编辑
+                            {tr("编辑 ")}
                           </Button>
                         )}
                       </div>
@@ -261,17 +268,17 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
           },
           {
             key: "welcome",
-            label: "欢迎语",
+            label: tr("欢迎语"),
             children: (
-              <section aria-label="欢迎语管理">
+              <section aria-label={tr("欢迎语管理")}>
                 <div className="personal-reply-heading">
-                  <p>首次接单时追加个人欢迎，每个会话只触发一次。</p>
+                  <p>{tr("首次接单时追加个人欢迎，每个会话只触发一次。")}</p>
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={() => setEditing({ kind: "welcome", item: null })}
                   >
-                    新增个人欢迎语
+                    {tr("新增个人欢迎语 ")}
                   </Button>
                 </div>
                 <ErrorNotice error={welcomes.error} retry={reload} />
@@ -283,7 +290,7 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
                 {!welcomes.loading && !welcomes.error && !welcomes.items.length && (
                   <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="还没有个人欢迎语或已启用的团队欢迎内容。"
+                    description={tr("还没有个人欢迎语或已启用的团队欢迎内容。")}
                   />
                 )}
                 <div className="personal-rule-list">
@@ -297,17 +304,19 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
                         {ruleActions("welcome", item, welcomes.loading)}
                       </div>
                       <p className="personal-rule-meta">
-                        {welcomeScenarioNames[item.scenario] || "全部时段"}
+                        {localizeStatic(welcomeScenarioNames, tr)[item.scenario] || tr("全部时段")}
                       </p>
                       {(item.contents || []).map((content, index) => (
                         <div className="personal-welcome-preview" key={index}>
                           <span className="personal-rule-meta">
-                            {item.editable ? "接单后" : "创建咨询后"} {content.delay_seconds} 秒 ·{" "}
+                            {item.editable ? tr("接单后") : tr("创建咨询后")}{" "}
+                            {content.delay_seconds}
+                            {tr(" 秒 \u00B7")}{" "}
                             {content.type === "image"
-                              ? "图片"
+                              ? tr("图片")
                               : content.type === "options"
-                                ? "选项"
-                                : "文字"}
+                                ? tr("选项")
+                                : tr("文字")}
                           </span>
                           {content.content && (
                             <p className="personal-rule-content">{content.content}</p>
@@ -317,7 +326,7 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
                               <AttachmentView
                                 attachment={{
                                   id: content.attachment_id,
-                                  file_name: "欢迎图片",
+                                  file_name: tr("欢迎图片"),
                                   content_type: "image/png",
                                 }}
                                 identity={{ tenantId, kind: "agent", actorId: "" }}
@@ -345,17 +354,17 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
           },
           {
             key: "keywords",
-            label: "关键词回复",
+            label: tr("关键词回复"),
             children: (
-              <section aria-label="关键词回复管理">
+              <section aria-label={tr("关键词回复管理")}>
                 <div className="personal-reply-heading">
-                  <p>个人规则仅在你当前接待的会话中匹配。</p>
+                  <p>{tr("个人规则仅在你当前接待的会话中匹配。")}</p>
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={() => setEditing({ kind: "keyword", item: null })}
                   >
-                    新增个人关键词
+                    {tr("新增个人关键词 ")}
                   </Button>
                 </div>
                 <ErrorNotice error={keywords.error} retry={reload} />
@@ -367,7 +376,7 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
                 {!keywords.loading && !keywords.error && !keywords.items.length && (
                   <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="还没有个人关键词或已启用的团队关键词。"
+                    description={tr("还没有个人关键词或已启用的团队关键词。")}
                   />
                 )}
                 <div className="personal-rule-list">
@@ -381,10 +390,16 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
                         {ruleActions("keyword", item, keywords.loading)}
                       </div>
                       <p className="personal-rule-meta">
-                        {item.match_mode === "exact" ? "完全匹配" : "包含匹配"} · 优先级{" "}
-                        {item.priority} · 同会话冷却 {item.cooldown_seconds} 秒
+                        {item.match_mode === "exact" ? tr("完全匹配") : tr("包含匹配")}
+                        {tr(" \u00B7 优先级")} {item.priority}
+                        {tr(" \u00B7 同会话冷却 ")}
+                        {item.cooldown_seconds}
+                        {tr(" 秒 ")}
                       </p>
-                      <p className="personal-rule-pattern">关键词：{item.pattern}</p>
+                      <p className="personal-rule-pattern">
+                        {tr("关键词：")}
+                        {item.pattern}
+                      </p>
                       <p className="personal-rule-content">{item.reply}</p>
                     </article>
                   ))}

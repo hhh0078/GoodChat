@@ -1,10 +1,12 @@
 /** 文件作用说明：前台复用网页提醒，后台由原生层领取，通知授权交给操作系统。 */
+import { useTranslator } from "@/i18n/use-translator";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useReminders } from "../../../frontend/src/features/chat/reminders";
 import { invoke } from "./native";
-type Value = ReturnType<typeof useReminders> & { native: boolean };
+type Value = ReturnType<typeof useReminders> & {
+  native: boolean;
+};
 const Context = createContext<Value | null>(null);
-
 /** WorkspaceRemindersProvider 随原生窗口焦点交接提醒职责，避免网页冻结后停止提醒。 */
 export function WorkspaceRemindersProvider({
   tenantId,
@@ -17,6 +19,7 @@ export function WorkspaceRemindersProvider({
   canServe: boolean;
   children: React.ReactNode;
 }) {
+  const tr = useTranslator();
   const [foreground, setForeground] = useState(document.hasFocus());
   useEffect(() => {
     /** focus 由真实窗口事件启用前台音频，不接管后台网络任务。 */
@@ -41,7 +44,7 @@ export function WorkspaceRemindersProvider({
     /** setSystemNotifications 经原生系统权限授权后保存服务端偏好。 */
     async setSystemNotifications(enabled: boolean) {
       if (enabled && !(await invoke<boolean>("EnableNotifications")))
-        throw new Error("系统未允许GoodChat通知，请在系统设置中开启。");
+        throw new Error(tr("系统未允许GoodChat通知，请在系统设置中开启。"));
       await reminders.updatePreferences({ system_enabled: enabled });
     },
   };
@@ -49,7 +52,8 @@ export function WorkspaceRemindersProvider({
 }
 /** useWorkspaceReminders 读取当前工作台的提醒偏好。 */
 export function useWorkspaceReminders() {
+  const tr = useTranslator();
   const value = useContext(Context);
-  if (!value) throw new Error("提醒偏好尚未初始化");
+  if (!value) throw new Error(tr("提醒偏好尚未初始化"));
   return value;
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -188,7 +189,7 @@ func (s *Service) visitorSession(w http.ResponseWriter, r *http.Request) {
 			}
 			name := strings.TrimSpace(in.Profile.DisplayName)
 			if name == "" {
-				name = "访客"
+				name = localization.RequestText(r, "访客")
 			}
 			_, err = tx.Exec(ctx, "INSERT INTO contacts(id,tenant_id,display_name,phone,avatar_url,attributes,first_source,last_source,field_sources) VALUES($1,$2,$3,$4,$5,$6,$7,$7,'{\"display_name\":\"unverified_visitor\",\"phone\":\"unverified_visitor\"}')", a.ContactID, tenant, name, in.Profile.Phone, in.Profile.AvatarURL, jsonValue(in.Attributes), jsonValue(tracking))
 			if err != nil {

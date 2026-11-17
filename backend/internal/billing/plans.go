@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -21,6 +22,9 @@ func validID(id string) bool { return uuidPattern.MatchString(id) }
 
 // validatePlan 校验整数价格和布尔权益，保留免费两席位长期可用的商业约定。
 func validatePlan(p *Plan) error {
+	if err := validatePlanTranslations(p); err != nil {
+		return err
+	}
 	p.Name = strings.TrimSpace(p.Name)
 	p.Description = strings.TrimSpace(p.Description)
 	if !codePattern.MatchString(p.Code) || utf8.RuneCountInString(p.Name) < 1 || utf8.RuneCountInString(p.Name) > 80 || utf8.RuneCountInString(p.Description) > 2000 {
@@ -52,6 +56,9 @@ func (s *Service) publicPlans(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	for index := range items {
+		items[index] = localizePlan(items[index], localization.RequestLocale(r))
+	}
 	platform.JSON(w, 200, map[string]any{"items": items})
 	return nil
 }
@@ -70,27 +77,28 @@ func (s *Service) platformPlans(w http.ResponseWriter, r *http.Request) error {
 // createPlan 创建真实版本但不创建虚构订阅或支付记录，公开接口没有此能力。
 func (s *Service) createPlan(w http.ResponseWriter, r *http.Request) error {
 	var input struct {
-		Code         string          `json:"code"`
-		Name         string          `json:"name"`
-		Description  string          `json:"description"`
-		PriceAmount  int64           `json:"price_amount"`
-		Currency     string          `json:"currency"`
-		ValidityDays int             `json:"validity_days"`
-		SeatLimit    int             `json:"seat_limit"`
-		Features     map[string]bool `json:"features"`
-		IsPublic     bool            `json:"is_public"`
-		IsActive     bool            `json:"is_active"`
-		SortOrder    int             `json:"sort_order"`
+		Code         string                     `json:"code"`
+		Name         string                     `json:"name"`
+		Description  string                     `json:"description"`
+		PriceAmount  int64                      `json:"price_amount"`
+		Currency     string                     `json:"currency"`
+		ValidityDays int                        `json:"validity_days"`
+		SeatLimit    int                        `json:"seat_limit"`
+		Features     map[string]bool            `json:"features"`
+		IsPublic     bool                       `json:"is_public"`
+		IsActive     bool                       `json:"is_active"`
+		SortOrder    int                        `json:"sort_order"`
+		Translations map[string]PlanTranslation `json:"translations"`
 	}
 	if err := platform.Decode(w, r, &input); err != nil {
 		return err
 	}
-	p := Plan{Code: input.Code, Name: input.Name, Description: input.Description, PriceAmount: input.PriceAmount, Currency: input.Currency, ValidityDays: input.ValidityDays, SeatLimit: input.SeatLimit, Features: input.Features, IsPublic: input.IsPublic, IsActive: input.IsActive, SortOrder: input.SortOrder}
+	p := Plan{Code: input.Code, Name: input.Name, Description: input.Description, PriceAmount: input.PriceAmount, Currency: input.Currency, ValidityDays: input.ValidityDays, SeatLimit: input.SeatLimit, Features: input.Features, IsPublic: input.IsPublic, IsActive: input.IsActive, SortOrder: input.SortOrder, Translations: input.Translations}
 	if err := validatePlan(&p); err != nil {
 		return err
 	}
 	err := s.platformTx(r, func(tx pgx.Tx) error {
-		err := tx.QueryRow(r.Context(), `INSERT INTO plans(code,name,description,price_amount,currency,validity_days,seat_limit,features,is_public,is_active,sort_order) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id::text`, p.Code, p.Name, p.Description, p.PriceAmount, p.Currency, p.ValidityDays, p.SeatLimit, p.Features, p.IsPublic, p.IsActive, p.SortOrder).Scan(&p.ID)
+		err := tx.QueryRow(r.Context(), `INSERT INTO plans(code,name,description,price_amount,currency,validity_days,seat_limit,features,is_public,is_active,sort_order,translations) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id::text`, p.Code, p.Name, p.Description, p.PriceAmount, p.Currency, p.ValidityDays, p.SeatLimit, p.Features, p.IsPublic, p.IsActive, p.SortOrder, p.Translations).Scan(&p.ID)
 		if err != nil {
 			var db *pgconn.PgError
 			if errors.As(err, &db) && db.Code == "23505" {
@@ -113,17 +121,18 @@ func (s *Service) updatePlan(w http.ResponseWriter, r *http.Request) error {
 		return platform.Fail(400, "invalid_plan", "套餐标识无效")
 	}
 	var input struct {
-		Code         *string          `json:"code"`
-		Name         *string          `json:"name"`
-		Description  *string          `json:"description"`
-		PriceAmount  *int64           `json:"price_amount"`
-		Currency     *string          `json:"currency"`
-		ValidityDays *int             `json:"validity_days"`
-		SeatLimit    *int             `json:"seat_limit"`
-		Features     *map[string]bool `json:"features"`
-		IsPublic     *bool            `json:"is_public"`
-		IsActive     *bool            `json:"is_active"`
-		SortOrder    *int             `json:"sort_order"`
+		Code         *string                     `json:"code"`
+		Name         *string                     `json:"name"`
+		Description  *string                     `json:"description"`
+		PriceAmount  *int64                      `json:"price_amount"`
+		Currency     *string                     `json:"currency"`
+		ValidityDays *int                        `json:"validity_days"`
+		SeatLimit    *int                        `json:"seat_limit"`
+		Features     *map[string]bool            `json:"features"`
+		IsPublic     *bool                       `json:"is_public"`
+		IsActive     *bool                       `json:"is_active"`
+		SortOrder    *int                        `json:"sort_order"`
+		Translations *map[string]PlanTranslation `json:"translations"`
 	}
 	if err := platform.Decode(w, r, &input); err != nil {
 		return err
@@ -168,13 +177,16 @@ func (s *Service) updatePlan(w http.ResponseWriter, r *http.Request) error {
 		if input.IsActive != nil {
 			p.IsActive = *input.IsActive
 		}
+		if input.Translations != nil {
+			p.Translations = *input.Translations
+		}
 		if input.SortOrder != nil {
 			p.SortOrder = *input.SortOrder
 		}
 		if err := validatePlan(&p); err != nil {
 			return err
 		}
-		if _, err = tx.Exec(r.Context(), `UPDATE plans SET name=$1,description=$2,price_amount=$3,currency=$4,validity_days=$5,seat_limit=$6,features=$7,is_public=$8,is_active=$9,sort_order=$10,updated_at=now() WHERE id=$11`, p.Name, p.Description, p.PriceAmount, p.Currency, p.ValidityDays, p.SeatLimit, p.Features, p.IsPublic, p.IsActive, p.SortOrder, p.ID); err != nil {
+		if _, err = tx.Exec(r.Context(), `UPDATE plans SET name=$1,description=$2,price_amount=$3,currency=$4,validity_days=$5,seat_limit=$6,features=$7,is_public=$8,is_active=$9,sort_order=$10,translations=$12,updated_at=now() WHERE id=$11`, p.Name, p.Description, p.PriceAmount, p.Currency, p.ValidityDays, p.SeatLimit, p.Features, p.IsPublic, p.IsActive, p.SortOrder, p.ID, p.Translations); err != nil {
 			return err
 		}
 		return billingAudit(r.Context(), tx, "", platform.Current(r).UserID, "plan_updated", p.ID, p)

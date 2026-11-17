@@ -7,8 +7,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"supportdesk/backend/internal/localization"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -75,9 +77,11 @@ func Current(r *http.Request) Principal {
 
 // APIError 保存可以安全展示给用户的业务错误。
 type APIError struct {
-	Status  int
-	Code    string
-	Message string
+	Status   int
+	Code     string
+	Message  string
+	Template string
+	Args     []any
 }
 
 // Error 返回业务错误文本。
@@ -85,7 +89,12 @@ func (e *APIError) Error() string { return e.Message }
 
 // Fail 创建携带HTTP状态的业务错误。
 func Fail(status int, code, message string) error {
-	return &APIError{Status: status, Code: code, Message: message}
+	return &APIError{Status: status, Code: code, Message: message, Template: message}
+}
+
+// Failf 为含变量的安全错误保存原始模板和参数，保证语言切换不会丢失具体诊断。
+func Failf(status int, code, source string, args ...any) error {
+	return &APIError{Status: status, Code: code, Message: fmt.Sprintf(source, args...), Template: source, Args: args}
 }
 
 // JSON 返回统一成功结构；data为可序列化业务结果。
@@ -105,8 +114,30 @@ func ErrorJSON(w http.ResponseWriter, r *http.Request, err error) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
+	locale := localization.RequestLocale(r)
+	source := apiError.Template
+	if source == "" {
+		source = apiError.Message
+	}
+	params := map[string]any{}
+	for index, value := range apiError.Args {
+		params[fmt.Sprintf("p%d", index)] = value
+	}
+	message := localization.Format(locale, source, apiError.Args...)
+	key := localization.Key(source)
+	if len(apiError.Args) == 0 {
+		translated, recoveredKey, recovered := localization.Diagnostic(locale, source)
+		message = translated
+		if recoveredKey != "" {
+			key = recoveredKey
+			for name, value := range recovered {
+				params[name] = value
+			}
+		}
+	}
+	w.Header().Set("Content-Language", locale)
 	w.WriteHeader(apiError.Status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"code": apiError.Code, "message": apiError.Message, "request_id": r.Header.Get("X-Request-ID")})
+	_ = json.NewEncoder(w).Encode(map[string]any{"code": apiError.Code, "message": message, "message_key": key, "message_params": params, "locale": locale, "request_id": r.Header.Get("X-Request-ID")})
 }
 
 // Decode 严格读取最大1MiB的JSON请求，拒绝未知字段及多份JSON。
@@ -129,7 +160,7 @@ func TenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID string, action f
 		return Fail(403, "tenant_required", "请先选择工作租户")
 	}
 	return pgx.BeginTxFunc(ctx, pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", tenantID); err != nil {
+		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true),set_config('app.system_name',$2,true)", tenantID, localization.Format(localization.ContextLocale(ctx), "系统")); err != nil {
 			return err
 		}
 		return action(tx)

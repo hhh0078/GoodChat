@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -37,6 +38,11 @@ func (s *Service) Register(mux *http.ServeMux) {
 // monitor 返回当前实例计量和纯汇总容量；没有压测基线时不伪造预计在线人数。
 func (s *Service) monitor(w http.ResponseWriter, r *http.Request) {
 	resources, history, uptime := s.sampler.Snapshot()
+	locale := localization.ContextLocale(r.Context())
+	resources = localizedResources(locale, resources)
+	for index := range history {
+		history[index] = localizedResources(locale, history[index])
+	}
 	connections := map[string]int64{}
 	if s.connections != nil {
 		connections = s.connections()
@@ -53,5 +59,15 @@ func (s *Service) monitor(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		reception["available_agents"], reception["total_capacity"], reception["current_load"], reception["remaining"] = available, total, load, remaining
 	}
-	platform.JSON(w, 200, map[string]any{"sampled_at": resources.At, "resources": resources, "history": history, "uptime_seconds": uptime, "realtime": connections, "database": database, "reception": reception, "capacity": s.capacityState(ctx, resources, connections["online_people"]), "scope_note": "资源来自当前进程所属控制组（包含同组进程）或Go进程；实时人数按当前单实例聊天连接去重，不等于全部登录账号。物理宿主机未接入时不推断宿主机负载。"})
+	platform.JSON(w, 200, map[string]any{"sampled_at": resources.At, "resources": resources, "history": history, "uptime_seconds": uptime, "realtime": connections, "database": database, "reception": reception, "capacity": s.capacityState(ctx, resources, connections["online_people"]), "scope_note": localization.RequestText(r, "资源来自当前进程所属控制组（包含同组进程）或Go进程；实时人数按当前单实例聊天连接去重，不等于全部登录账号。物理宿主机未接入时不推断宿主机负载。")})
+}
+
+// localizedResources 只翻译系统采样说明，保留资源代码、控制组路径和所有原始读数。
+func localizedResources(locale string, value Resources) Resources {
+	if value.CgroupPath != "" && value.ScopeDetail == "当前进程控制组："+value.CgroupPath+"，计量包含同组进程" {
+		value.ScopeDetail = localization.Text(locale, "当前进程控制组：") + value.CgroupPath + localization.Text(locale, "，计量包含同组进程")
+	} else {
+		value.ScopeDetail = localization.Text(locale, value.ScopeDetail)
+	}
+	return value
 }

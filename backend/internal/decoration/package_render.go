@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"supportdesk/backend/internal/localization"
 )
 
 // renderSnapshot 只包含公开或短期授权的静态设计元数据，不含任何客户或管理员凭证。
@@ -132,6 +133,8 @@ func (s *Service) renderPackageAsset(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		sdk = visitorLocaleBoot(r) + sdk
+		raw = localizeChatControls(raw, localization.RequestLocale(r))
 		raw, err = packageHTML(raw, name, prefix, nonce, sdk, files, code)
 	} else if strings.HasPrefix(mime, "text/css") {
 		var css string

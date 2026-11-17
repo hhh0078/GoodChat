@@ -1,13 +1,14 @@
 /** 文件作用说明：在独立页面加载真实服务统计，按时间筛选并展示统一口径。 */
 "use client";
-import { useEffect, useState, type ComponentProps } from "react";
-import { Button, Card, DatePicker, Space, Spin, Table } from "antd";
-import { InfoCircleOutlined } from "@ant-design/icons";
-import { api } from "@/lib/api";
+import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
-import { ErrorNotice, PageTitle, EmptyData } from "@/components/page-state";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
+import { api } from "@/lib/api";
+import { InfoCircleOutlined } from "@ant-design/icons";
+import { Button, Card, DatePicker, Space, Spin, Table } from "antd";
+import { useEffect, useState, type ComponentProps } from "react";
 import { ReportTrend, type TrendPoint } from "./report-trend";
-const metricNumber = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 });
 type Statistics = {
   overview: Record<string, number>;
   by_agent: {
@@ -17,7 +18,11 @@ type Statistics = {
     active: number;
     closed: number;
   }[];
-  by_channel: { channel_code: string; conversations: number; visitors: number }[];
+  by_channel: {
+    channel_code: string;
+    conversations: number;
+    visitors: number;
+  }[];
   daily: TrendPoint[];
   trend: TrendPoint[];
   trend_interval: "hour" | "day";
@@ -30,6 +35,10 @@ type PickerRange = Parameters<
 >[0];
 /** ReportsPage 将统计与聊天记录分开，所有指标来自服务端。 */
 export function ReportsPage() {
+  const { currentPreferences, numberFormatter, dateTimeFormatter: dateFormatter } = useFormats();
+  const metricNumber = numberFormatter({ maximumFractionDigits: 2 });
+
+  const tr = useTranslator();
   const { tenantId } = useSession();
   const [data, setData] = useState<Statistics | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -55,23 +64,23 @@ export function ReportsPage() {
     return () => controller.abort();
   }, [tenantId, range, revision]);
   const metrics = [
-    ["访客数", "visitors"],
-    ["客户数", "contacts"],
-    ["咨询会话", "conversations"],
-    ["消息数", "messages"],
-    ["排队中", "queued"],
-    ["接待中", "active"],
-    ["已结束", "closed"],
-    ["平均首次回复秒数", "avg_first_response_seconds"],
+    [tr("访客数"), "visitors"],
+    [tr("客户数"), "contacts"],
+    [tr("咨询会话"), "conversations"],
+    [tr("消息数"), "messages"],
+    [tr("排队中"), "queued"],
+    [tr("接待中"), "active"],
+    [tr("已结束"), "closed"],
+    [tr("平均首次回复秒数"), "avg_first_response_seconds"],
   ];
   return (
     <section className="console-screen console-reports">
       <PageTitle
-        title="服务统计"
-        description="访问、客户、咨询和消息分别统计；转接不额外增加咨询会话数。"
+        title={tr("服务统计")}
+        description={tr("访问、客户、咨询和消息分别统计；转接不额外增加咨询会话数。")}
         action={
           <Space wrap>
-            <span className="muted">统计时间</span>
+            <span className="muted">{tr("统计时间")}</span>
             <Button
               type={range ? "default" : "primary"}
               onClick={() => {
@@ -79,12 +88,12 @@ export function ReportsPage() {
                 setRevision((value) => value + 1);
               }}
             >
-              今天
+              {tr("今天 ")}
             </Button>
             <DatePicker.RangePicker
-              aria-label="统计日期"
+              aria-label={tr("统计日期")}
               value={range}
-              placeholder={["开始", "结束"]}
+              placeholder={[tr("开始"), tr("结束")]}
               style={{ width: 240 }}
               onChange={setRange}
             />
@@ -94,13 +103,13 @@ export function ReportsPage() {
       <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
       {data && (
         <p className="console-report-period">
-          {range ? "所选日期" : "今天"} ·{" "}
-          {new Intl.DateTimeFormat("zh-CN", {
+          {range ? tr("所选日期") : tr("今天")} ·{" "}
+          {dateFormatter({
             timeZone: data.timezone,
             dateStyle: "medium",
           }).format(new Date(data.from))}{" "}
           —{" "}
-          {new Intl.DateTimeFormat("zh-CN", {
+          {dateFormatter({
             timeZone: data.timezone,
             dateStyle: "medium",
           }).format(new Date(new Date(data.to).getTime() - 1))}{" "}
@@ -127,7 +136,7 @@ export function ReportsPage() {
       </div>
       {loading ? (
         <div className="report-trend-loading">
-          <Spin description="正在读取服务趋势" />
+          <Spin description={tr("正在读取服务趋势")} />
         </div>
       ) : (
         data && (
@@ -139,7 +148,7 @@ export function ReportsPage() {
       )}
       <div className="two-columns console-report-tables">
         <section className="console-report-section">
-          <h2>按客服统计</h2>
+          <h2>{tr("按客服统计")}</h2>
           <Table
             rowKey="agent_id"
             loading={loading}
@@ -148,15 +157,15 @@ export function ReportsPage() {
             scroll={{ x: 480 }}
             locale={{ emptyText: <EmptyData /> }}
             columns={[
-              { title: "客服", dataIndex: "agent_name" },
-              { title: "咨询", dataIndex: "conversations" },
-              { title: "接待中", dataIndex: "active" },
-              { title: "已结束", dataIndex: "closed" },
+              { title: tr("客服"), dataIndex: "agent_name" },
+              { title: tr("咨询"), dataIndex: "conversations" },
+              { title: tr("接待中"), dataIndex: "active" },
+              { title: tr("已结束"), dataIndex: "closed" },
             ]}
           />
         </section>
         <section className="console-report-section">
-          <h2>按入口来源统计</h2>
+          <h2>{tr("按入口来源统计")}</h2>
           <Table
             rowKey="channel_code"
             loading={loading}
@@ -164,15 +173,19 @@ export function ReportsPage() {
             pagination={{ pageSize: 8 }}
             locale={{ emptyText: <EmptyData /> }}
             columns={[
-              { title: "来源", dataIndex: "channel_code", render: (value) => value || "未知来源" },
-              { title: "访客", dataIndex: "visitors" },
-              { title: "咨询", dataIndex: "conversations" },
+              {
+                title: tr("来源"),
+                dataIndex: "channel_code",
+                render: (value) => value || tr("未知来源"),
+              },
+              { title: tr("访客"), dataIndex: "visitors" },
+              { title: tr("咨询"), dataIndex: "conversations" },
             ]}
           />
         </section>
       </div>
       <section className="console-report-section console-report-daily">
-        <h2>{data?.trend_interval === "hour" ? "时段明细" : "每日明细"}</h2>
+        <h2>{data?.trend_interval === "hour" ? tr("时段明细") : tr("每日明细")}</h2>
         <Table
           rowKey={(item) => item.timestamp || item.date}
           loading={loading}
@@ -180,15 +193,16 @@ export function ReportsPage() {
           pagination={{ pageSize: 14 }}
           locale={{ emptyText: <EmptyData /> }}
           columns={[
-            { title: data?.trend_interval === "hour" ? "时段" : "日期", dataIndex: "date" },
-            { title: "访客数", dataIndex: "visitors" },
-            { title: "咨询数", dataIndex: "conversations" },
-            { title: "消息数", dataIndex: "messages" },
+            { title: data?.trend_interval === "hour" ? tr("时段") : tr("日期"), dataIndex: "date" },
+            { title: tr("访客数"), dataIndex: "visitors" },
+            { title: tr("咨询数"), dataIndex: "conversations" },
+            { title: tr("消息数"), dataIndex: "messages" },
           ]}
         />
       </section>
       <p className="console-report-note">
-        <InfoCircleOutlined /> 系统欢迎语与自动回复不计入人工首响；无有效样本时以服务端返回值为准。
+        <InfoCircleOutlined />
+        {tr(" 系统欢迎语与自动回复不计入人工首响；无有效样本时以服务端返回值为准。 ")}
       </p>
     </section>
   );

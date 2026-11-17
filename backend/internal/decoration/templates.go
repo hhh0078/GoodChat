@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"supportdesk/backend/internal/localization"
 
 	"github.com/jackc/pgx/v5"
 	"supportdesk/backend/internal/platform"
@@ -30,7 +31,7 @@ func (s *Service) listTemplates(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil, err
 		}
-		rows, err = tx.Query(r.Context(), "SELECT to_jsonb(t) FROM platform_templates t WHERE status='published' AND archived_at IS NULL ORDER BY created_at,id LIMIT 100")
+		rows, err = tx.Query(r.Context(), "SELECT to_jsonb(t)||jsonb_build_object('source_name',t.name,'name',coalesce(nullif(t.translations->$1->>'name',''),t.name)) FROM platform_templates t WHERE status='published' AND archived_at IS NULL ORDER BY created_at,id LIMIT 100", localization.RequestLocale(r))
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +127,7 @@ func (s *Service) copyTemplate(ctx context.Context, tx pgx.Tx, p platform.Princi
 	var publicDesign json.RawMessage
 	var name string
 	var publicVersion int64
-	if err := tx.QueryRow(ctx, "SELECT render_mode,design,name,version FROM platform_templates WHERE id=$1 AND status='published' AND archived_at IS NULL FOR SHARE", id).Scan(&mode, &publicDesign, &name, &publicVersion); err != nil {
+	if err := tx.QueryRow(ctx, "SELECT render_mode,design,coalesce(nullif(translations->$2->>'name',''),name),version FROM platform_templates WHERE id=$1 AND status='published' AND archived_at IS NULL FOR SHARE", id, localization.ContextLocale(ctx)).Scan(&mode, &publicDesign, &name, &publicVersion); err != nil {
 		return nil, err
 	}
 	if err := s.checkFeature(ctx, tx, p.TenantID, decorationFeature(mode)); err != nil {
@@ -138,7 +139,7 @@ func (s *Service) copyTemplate(ctx context.Context, tx pgx.Tx, p platform.Princi
 		if err != nil {
 			return nil, err
 		}
-		stored, err := s.storePackage(ctx, tx, p, name+" 副本", pkg)
+		stored, err := s.storePackage(ctx, tx, p, name+localization.Text(localization.ContextLocale(ctx), " 副本"), pkg)
 		if err != nil {
 			return nil, err
 		}
@@ -147,15 +148,15 @@ func (s *Service) copyTemplate(ctx context.Context, tx pgx.Tx, p platform.Princi
 			return nil, err
 		}
 		design, _ := json.Marshal(CodeDesign{PackageID: privateID})
-		return record(ctx, tx, "INSERT INTO tenant_templates(tenant_id,owner_membership_id,name,render_mode,design,source_platform_template_id,source_platform_version) VALUES($1,$2,$3,'code',$4,$5,$6) RETURNING to_jsonb(tenant_templates)", p.TenantID, p.MembershipID, name+" 副本", design, id, publicVersion)
+		return record(ctx, tx, "INSERT INTO tenant_templates(tenant_id,owner_membership_id,name,render_mode,design,source_platform_template_id,source_platform_version) VALUES($1,$2,$3,'code',$4,$5,$6) RETURNING to_jsonb(tenant_templates)", p.TenantID, p.MembershipID, name+localization.Text(localization.ContextLocale(ctx), " 副本"), design, id, publicVersion)
 	}
-	return record(ctx, tx, `INSERT INTO tenant_templates(tenant_id,owner_membership_id,name,render_mode,design,source_platform_template_id,source_platform_version) SELECT $2,$3,name||' 副本',render_mode,design,id,version FROM platform_templates WHERE id=$1 AND status='published' RETURNING to_jsonb(tenant_templates)`, id, p.TenantID, p.MembershipID)
+	return record(ctx, tx, `INSERT INTO tenant_templates(tenant_id,owner_membership_id,name,render_mode,design,source_platform_template_id,source_platform_version) SELECT $2,$3,$4,render_mode,design,id,version FROM platform_templates WHERE id=$1 AND status='published' RETURNING to_jsonb(tenant_templates)`, id, p.TenantID, p.MembershipID, name+localization.Text(localization.ContextLocale(ctx), " 副本"))
 }
 
 // platformTemplates 维护平台模板当前指针，每次编辑创建不可变历史版本。
 func (s *Service) platformTemplates(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		rows, err := s.pool.Query(r.Context(), "SELECT to_jsonb(t) FROM platform_templates t WHERE archived_at IS NULL ORDER BY created_at,id LIMIT 500")
+		rows, err := s.pool.Query(r.Context(), "SELECT to_jsonb(t)||jsonb_build_object('localized_name',coalesce(nullif(t.translations->$1->>'name',''),t.name)) FROM platform_templates t WHERE archived_at IS NULL ORDER BY created_at,id LIMIT 500", localization.RequestLocale(r))
 		if err != nil {
 			respond(w, r, nil, err)
 			return
@@ -164,10 +165,22 @@ func (s *Service) platformTemplates(w http.ResponseWriter, r *http.Request) {
 		respond(w, r, map[string]any{"items": items}, err)
 		return
 	}
-	var input templateInput
+	var input struct {
+		templateInput
+		Translations map[string]templateTranslation `json:"translations"`
+	}
 	if err := platform.Decode(w, r, &input); err != nil {
 		respond(w, r, nil, err)
 		return
+	}
+	if err := validateTemplateTranslations(input.Translations); err != nil {
+		respond(w, r, nil, err)
+		return
+	}
+	var translations any
+	if input.Translations != nil {
+		encoded, _ := json.Marshal(input.Translations)
+		translations = encoded
 	}
 	if err := validName(input.Name); err != nil {
 		respond(w, r, nil, err)
@@ -205,12 +218,12 @@ func (s *Service) platformTemplates(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if id == "" {
-			err := tx.QueryRow(r.Context(), `INSERT INTO platform_templates(name,render_mode,design,status) VALUES($1,$2,$3,$4) RETURNING id::text`, input.Name, input.RenderMode, design, input.Status).Scan(&id)
+			err := tx.QueryRow(r.Context(), `INSERT INTO platform_templates(name,render_mode,design,status,translations) VALUES($1,$2,$3,$4,coalesce($5::jsonb,'{}'::jsonb)) RETURNING id::text`, input.Name, input.RenderMode, design, input.Status, translations).Scan(&id)
 			if err != nil {
 				return err
 			}
 		} else {
-			tag, err := tx.Exec(r.Context(), "UPDATE platform_templates SET name=$2,render_mode=$3,design=$4,status=$5,version=version+1,updated_at=now() WHERE id=$1 AND version=$6 AND archived_at IS NULL", id, input.Name, input.RenderMode, design, input.Status, input.Version)
+			tag, err := tx.Exec(r.Context(), "UPDATE platform_templates SET name=$2,render_mode=$3,design=$4,status=$5,translations=coalesce($7::jsonb,translations),version=version+1,updated_at=now() WHERE id=$1 AND version=$6 AND archived_at IS NULL", id, input.Name, input.RenderMode, design, input.Status, input.Version, translations)
 			if err != nil {
 				return err
 			}
@@ -218,7 +231,7 @@ func (s *Service) platformTemplates(w http.ResponseWriter, r *http.Request) {
 				return conflict()
 			}
 		}
-		if _, err := tx.Exec(r.Context(), `INSERT INTO platform_template_versions(template_id,version,name,render_mode,design) SELECT id,version,name,render_mode,design FROM platform_templates WHERE id=$1`, id); err != nil {
+		if _, err := tx.Exec(r.Context(), `INSERT INTO platform_template_versions(template_id,version,name,render_mode,design,translations) SELECT id,version,name,render_mode,design,translations FROM platform_templates WHERE id=$1`, id); err != nil {
 			return err
 		}
 		var err error

@@ -29,6 +29,9 @@ const trackingFields = [
   "utm_term",
 ];
 const reservedFields = new Set([
+  "lang",
+  "locale",
+  "timezone",
   "visitor_token",
   "token",
   "tenant_id",

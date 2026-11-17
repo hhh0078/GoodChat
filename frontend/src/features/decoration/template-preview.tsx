@@ -1,10 +1,10 @@
 /** 文件作用说明：在模板卡片中延迟加载真实隔离页面，按手机视口缩放并通过覆盖按钮打开完整预览。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Button, Spin } from "antd";
+import { useTranslator } from "@/i18n/use-translator";
 import { api, errorMessage } from "@/lib/api";
 import { safeRenderURL } from "@/lib/frame-bridge";
-
+import { Button, Spin } from "antd";
+import { useEffect, useRef, useState } from "react";
 /** TemplatePreview 只为进入可视范围的卡片申请短期预览，不允许缩略页面接收指针或键盘操作。 */
 export function TemplatePreview({
   path,
@@ -19,6 +19,7 @@ export function TemplatePreview({
   enabled: boolean;
   onPreview: () => void;
 }) {
+  const tr = useTranslator();
   const host = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -52,11 +53,13 @@ export function TemplatePreview({
     setError(null);
     if (!visible || !enabled) return;
     const controller = new AbortController();
-    api<{ preview_url: string }>(path, { method: "POST", tenantId, signal: controller.signal })
+    api<{
+      preview_url: string;
+    }>(path, { method: "POST", tenantId, signal: controller.signal })
       .then((result) => {
         if (controller.signal.aborted) return;
         const url = safeRenderURL(result?.preview_url || "", window.location.origin);
-        if (!url) throw new Error("预览地址未通过来源检查");
+        if (!url) throw new Error(tr("预览地址未通过来源检查"));
         setSource(url.href);
       })
       .catch((problem) => {
@@ -69,7 +72,7 @@ export function TemplatePreview({
     <div className="studio-template-live" ref={host}>
       {source ? (
         <iframe
-          title={`${name}页面缩略预览`}
+          title={tr("{p0}页面缩略预览", { p0: String(name) })}
           src={source}
           sandbox="allow-scripts"
           referrerPolicy="no-referrer"
@@ -81,19 +84,19 @@ export function TemplatePreview({
         <div className="studio-template-preview-state" role="status">
           <span>{errorMessage(error)}</span>
           <Button size="small" onClick={() => setRevision((value) => value + 1)}>
-            重试预览
+            {tr("重试预览 ")}
           </Button>
         </div>
       ) : (
         <div className="studio-template-preview-state">
-          {enabled ? <Spin size="small" /> : <span>预览仅管理员可用</span>}
+          {enabled ? <Spin size="small" /> : <span>{tr("预览仅管理员可用")}</span>}
         </div>
       )}
       {enabled && !error && (
         <button
           type="button"
           className="studio-template-preview-open"
-          aria-label={`${name}，预览完整页面`}
+          aria-label={tr("{p0}，预览完整页面", { p0: String(name) })}
           onClick={onPreview}
         />
       )}

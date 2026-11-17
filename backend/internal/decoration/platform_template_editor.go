@@ -141,7 +141,7 @@ func (s *Service) revisePlatformTemplate(w http.ResponseWriter, r *http.Request)
 		if _, err := tx.Exec(r.Context(), "UPDATE platform_templates SET name=$2,status=$3,render_mode='code',design=$4,version=version+1,updated_at=now() WHERE id=$1", id, name, status, design); err != nil {
 			return nil, err
 		}
-		if _, err := tx.Exec(r.Context(), "INSERT INTO platform_template_versions(template_id,version,name,render_mode,design) SELECT id,version,name,render_mode,design FROM platform_templates WHERE id=$1", id); err != nil {
+		if _, err := tx.Exec(r.Context(), "INSERT INTO platform_template_versions(template_id,version,name,render_mode,design,translations) SELECT id,version,name,render_mode,design,translations FROM platform_templates WHERE id=$1", id); err != nil {
 			return nil, err
 		}
 		return record(r.Context(), tx, "SELECT to_jsonb(t) FROM platform_templates t WHERE id=$1", id)

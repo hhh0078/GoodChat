@@ -1,6 +1,11 @@
 /** 文件作用说明：提交访客离线留言与已结束会话评价，复用独立访客授权且保持请求幂等。 */
 "use client";
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { ErrorNotice } from "@/components/page-state";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
+import { api } from "@/lib/api";
+import { assertVisitorActionAvailable } from "@/lib/visitor-action-guard";
+import { MessageOutlined, PaperClipOutlined, StarOutlined } from "@ant-design/icons";
 import {
   Alert,
   App,
@@ -16,10 +21,7 @@ import {
   Tag,
   Upload,
 } from "antd";
-import { MessageOutlined, StarOutlined, PaperClipOutlined } from "@ant-design/icons";
-import { api } from "@/lib/api";
-import { ErrorNotice } from "@/components/page-state";
-import { assertVisitorActionAvailable } from "@/lib/visitor-action-guard";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 type EvaluationState = {
   enabled: boolean;
   can_submit: boolean;
@@ -28,9 +30,19 @@ type EvaluationState = {
   edit_deadline?: string;
   timezone: string;
   allowed_tags: string[];
-  evaluation?: { score: number; comment: string; tags: string[]; version: number } | null;
+  evaluation?: {
+    score: number;
+    comment: string;
+    tags: string[];
+    version: number;
+  } | null;
 };
-type LeadAttachment = { id: string; file_name: string; size_bytes: number; content_type: string };
+type LeadAttachment = {
+  id: string;
+  file_name: string;
+  size_bytes: number;
+  content_type: string;
+};
 export type VisitorActionsHandle = {
   openLeaveMessage: () => void;
   openEvaluation: () => void;
@@ -51,6 +63,9 @@ export function VisitorActions({
   hideButtons?: boolean;
   ref?: Ref<VisitorActionsHandle>;
 }) {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  const tr = useTranslator();
   const [mode, setMode] = useState<"lead" | "evaluation" | null>(null);
   const screens = Grid.useBreakpoint();
   const mobile = screens.xs === true;
@@ -102,7 +117,7 @@ export function VisitorActions({
     if (uploading || busy) return;
     setError(null);
     if (!file.size || file.size > 20 * 1024 * 1024 || attachments.length >= 3) {
-      setError(new Error("留言最多3个附件，每个不超过20MB，图片最大10MB"));
+      setError(new Error(tr("留言最多3个附件，每个不超过20MB，图片最大10MB")));
       return;
     }
     const controller = new AbortController();
@@ -179,10 +194,10 @@ export function VisitorActions({
         });
         requestID.current = "";
         setAttachments([]);
-        message.success("留言已提交");
+        message.success(tr("留言已提交"));
       } else {
         if (!canEvaluate || evaluationLoading)
-          throw new Error("当前不可提交或修改评价，请重新读取状态");
+          throw new Error(tr("当前不可提交或修改评价，请重新读取状态"));
         await api(`/conversations/${conversationId}/evaluation`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -193,7 +208,7 @@ export function VisitorActions({
           },
         });
         setEvaluationRevision((value) => value + 1);
-        message.success("感谢你的真实反馈");
+        message.success(tr("感谢你的真实反馈"));
       }
       setMode(null);
       form.resetFields();
@@ -209,18 +224,18 @@ export function VisitorActions({
         <Space className="visitor-actions-bar">
           {status !== "closed" && (
             <Button icon={<MessageOutlined />} onClick={openLeaveMessage}>
-              留下留言
+              {tr("留下留言 ")}
             </Button>
           )}
           {status === "closed" && (
             <Button icon={<StarOutlined />} onClick={openEvaluation}>
-              {evaluation?.evaluation ? "查看或修改评价" : "评价本次服务"}
+              {evaluation?.evaluation ? tr("查看或修改评价") : tr("评价本次服务")}
             </Button>
           )}
         </Space>
       )}
       <Drawer
-        title={mode === "lead" ? "留下你的问题" : "服务评价"}
+        title={mode === "lead" ? tr("留下你的问题") : tr("服务评价")}
         rootClassName="visitor-action-drawer"
         closable={{ placement: "end" }}
         open={!!mode}
@@ -236,8 +251,8 @@ export function VisitorActions({
       >
         <p className="visitor-action-intro">
           {mode === "lead"
-            ? "可以先留下联系方式和问题，方便接待团队跟进。"
-            : "这次服务体验怎么样？请按真实感受选择评分。"}
+            ? tr("可以先留下联系方式和问题，方便接待团队跟进。")
+            : tr("这次服务体验怎么样？请按真实感受选择评分。")}
         </p>
         <ErrorNotice
           error={error}
@@ -256,36 +271,45 @@ export function VisitorActions({
                 title={
                   evaluation.evaluation ? (
                     <>
-                      已保存评价 <Tag>v{evaluation.evaluation.version}</Tag>
-                      {evaluation.can_edit ? "当前可修改" : "当前不可修改"}
+                      {tr("已保存评价 ")}
+                      <Tag>v{evaluation.evaluation.version}</Tag>
+                      {evaluation.can_edit ? tr("当前可修改") : tr("当前不可修改")}
                     </>
                   ) : !evaluation.enabled ? (
-                    "商户暂未开放评价"
+                    tr("商户暂未开放评价")
                   ) : evaluation.can_submit ? (
-                    "请主动选择评分，没有预设满意分"
+                    tr("请主动选择评分，没有预设满意分")
                   ) : (
-                    "本次咨询的评价期限已结束"
+                    tr("本次咨询的评价期限已结束")
                   )
                 }
                 description={
                   <>
                     {evaluation.submission_deadline && (
                       <div>
-                        初评截止：
-                        {new Date(evaluation.submission_deadline).toLocaleString("zh-CN", {
-                          timeZone: evaluation.timezone,
-                        })}
+                        {tr("初评截止： ")}
+                        {new Date(evaluation.submission_deadline).toLocaleString(
+                          currentPreferences().locale,
+                          {
+                            timeZone: evaluation.timezone,
+                          },
+                        )}
                       </div>
                     )}
                     {evaluation.evaluation && evaluation.edit_deadline && (
                       <div>
-                        改评截止：
-                        {new Date(evaluation.edit_deadline).toLocaleString("zh-CN", {
-                          timeZone: evaluation.timezone,
-                        })}
+                        {tr("改评截止： ")}
+                        {new Date(evaluation.edit_deadline).toLocaleString(
+                          currentPreferences().locale,
+                          {
+                            timeZone: evaluation.timezone,
+                          },
+                        )}
                       </div>
                     )}
-                    时区 {evaluation.timezone}。每次修改都会保留原始版本。
+                    {tr("时区 ")}
+                    {evaluation.timezone}
+                    {tr("。每次修改都会保留原始版本。 ")}
                   </>
                 }
               />
@@ -302,26 +326,29 @@ export function VisitorActions({
             <>
               <Form.Item
                 name="display_name"
-                label="你的称呼"
+                label={tr("你的称呼")}
                 rules={[{ required: true, whitespace: true }]}
               >
-                <Input maxLength={80} placeholder="请输入你的称呼" autoComplete="nickname" />
+                <Input maxLength={80} placeholder={tr("请输入你的称呼")} autoComplete="nickname" />
               </Form.Item>
               <Form.Item
                 name="phone"
-                label="联系电话"
+                label={tr("联系电话")}
                 rules={[{ required: true, whitespace: true }]}
               >
-                <Input maxLength={32} placeholder="方便联系你的电话号码" autoComplete="tel" />
+                <Input maxLength={32} placeholder={tr("方便联系你的电话号码")} autoComplete="tel" />
               </Form.Item>
               <Form.Item
                 name="content"
-                label="需要什么帮助"
+                label={tr("需要什么帮助")}
                 rules={[{ required: true, whitespace: true }]}
               >
-                <Input.TextArea rows={5} maxLength={5000} placeholder="请详细描述你的问题" />
+                <Input.TextArea rows={5} maxLength={5000} placeholder={tr("请详细描述你的问题")} />
               </Form.Item>
-              <Form.Item label="附件（选填）" extra="最多3个，每个20MB以内，图片最大10MB。">
+              <Form.Item
+                label={tr("附件（选填）")}
+                extra={tr("最多3个，每个20MB以内，图片最大10MB。")}
+              >
                 <Space direction="vertical" style={{ width: "100%" }}>
                   {attachments.map((item) => (
                     <Space key={item.id}>
@@ -336,7 +363,7 @@ export function VisitorActions({
                           )
                         }
                       >
-                        移除
+                        {tr("移除 ")}
                       </Button>
                     </Space>
                   ))}
@@ -352,33 +379,33 @@ export function VisitorActions({
                       loading={uploading}
                       disabled={busy || uploading || attachments.length >= 3}
                     >
-                      添加留言附件
+                      {tr("添加留言附件 ")}
                     </Button>
                   </Upload>
                 </Space>
               </Form.Item>
               <p className="form-hint">
-                主动提交的留言附件会独立共享给处理团队；之后撤回聊天消息不会撤销这次共享。
+                {tr("主动提交的留言附件会独立共享给处理团队；之后撤回聊天消息不会撤销这次共享。 ")}
               </p>
             </>
           ) : (
             <>
               <Form.Item
                 name="score"
-                label="服务评分"
+                label={tr("服务评分")}
                 rules={[
                   {
                     required: true,
                     type: "number",
                     min: 1,
                     max: 5,
-                    message: "请主动选择一至五星评分",
+                    message: tr("请主动选择一至五星评分"),
                   },
                 ]}
               >
                 <Rate />
               </Form.Item>
-              <Form.Item name="tags" label="评价标签（选填）">
+              <Form.Item name="tags" label={tr("评价标签（选填）")}>
                 <Select
                   mode="multiple"
                   options={(evaluation?.allowed_tags || []).map((value) => ({
@@ -387,8 +414,8 @@ export function VisitorActions({
                   }))}
                 />
               </Form.Item>
-              <Form.Item name="comment" label="想对我们说的话（选填）">
-                <Input.TextArea rows={4} maxLength={2000} placeholder="分享你的服务体验" />
+              <Form.Item name="comment" label={tr("想对我们说的话（选填）")}>
+                <Input.TextArea rows={4} maxLength={2000} placeholder={tr("分享你的服务体验")} />
               </Form.Item>
             </>
           )}
@@ -406,7 +433,8 @@ export function VisitorActions({
                   selectedScore < 1))
             }
           >
-            提交{mode === "lead" ? "留言" : "评价"}
+            {tr("提交")}
+            {mode === "lead" ? tr("留言") : tr("评价")}
           </Button>
         </Form>
       </Drawer>

@@ -1,9 +1,11 @@
 /** 文件作用说明：提供平台、租户和客服工作端统一导航、租户选择与退出操作。 */
 "use client";
-import { useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Avatar, Button, Drawer, Dropdown, Menu, Space, Tag, App, Tooltip } from "antd";
+import { AssistantLauncher, AssistantProvider } from "@/features/assistant/launcher";
+import { SessionProvider, useSession } from "@/features/auth/session";
+import { WorkspaceRemindersProvider } from "@/features/chat/workspace-reminders";
+import Link from "@/i18n/link";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, errorMessage } from "@/lib/api";
 import {
   AppstoreOutlined,
   BarChartOutlined,
@@ -11,22 +13,21 @@ import {
   LinkOutlined,
   MenuOutlined,
   PartitionOutlined,
+  QuestionCircleOutlined,
+  RobotOutlined,
+  SafetyOutlined,
   SettingOutlined,
   SkinOutlined,
   TeamOutlined,
   UserOutlined,
-  RobotOutlined,
-  SafetyOutlined,
-  QuestionCircleOutlined,
 } from "@ant-design/icons";
+import { App, Avatar, Button, Drawer, Dropdown, Menu, Space, Tag, Tooltip } from "antd";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { Brand } from "./brand";
-import { SessionProvider, useSession } from "@/features/auth/session";
-import { api, errorMessage } from "@/lib/api";
-import { WorkspaceRemindersProvider } from "@/features/chat/workspace-reminders";
-import { AssistantLauncher, AssistantProvider } from "@/features/assistant/launcher";
-
 /** WorkspaceChrome 根据身份呈现工作端导航与租户切换。 */
 function WorkspaceChrome({ children }: { children: React.ReactNode }) {
+  const tr = useTranslator();
   const { current, tenantId } = useSession();
   const pathname = usePathname();
   const router = useRouter();
@@ -35,36 +36,36 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
   const member = current.memberships.find((item) => item.tenant_id === tenantId);
   const manages = member?.role === "owner" || member?.role === "admin";
   const entries = [
-    { key: "/console", icon: <AppstoreOutlined />, label: "工作空间" },
-    { key: "/workspace", icon: <CustomerServiceOutlined />, label: "客服工作台" },
+    { key: "/console", icon: <AppstoreOutlined />, label: tr("工作空间") },
+    { key: "/workspace", icon: <CustomerServiceOutlined />, label: tr("客服工作台") },
     ...(!manages
       ? [
-          { key: "/console/records", icon: <CustomerServiceOutlined />, label: "我的聊天记录" },
-          { key: "/console/automation", icon: <RobotOutlined />, label: "话术与留言" },
+          { key: "/console/records", icon: <CustomerServiceOutlined />, label: tr("我的聊天记录") },
+          { key: "/console/automation", icon: <RobotOutlined />, label: tr("话术与留言") },
         ]
       : []),
     ...(manages
       ? [
-          { key: "/console/members", icon: <TeamOutlined />, label: "团队成员" },
-          { key: "/console/links", icon: <LinkOutlined />, label: "接入管理" },
-          { key: "/console/routing", icon: <PartitionOutlined />, label: "分组与分配" },
-          { key: "/console/contacts", icon: <UserOutlined />, label: "客户资料" },
-          { key: "/console/templates", icon: <SkinOutlined />, label: "装修与模板" },
-          { key: "/console/automation", icon: <RobotOutlined />, label: "回复与运营" },
-          { key: "/console/records", icon: <CustomerServiceOutlined />, label: "聊天记录" },
-          { key: "/console/reports", icon: <BarChartOutlined />, label: "服务统计" },
-          { key: "/console/member-statistics", icon: <BarChartOutlined />, label: "成员统计" },
-          { key: "/console/billing", icon: <TeamOutlined />, label: "套餐与坐席" },
-          { key: "/console/settings", icon: <SettingOutlined />, label: "租户设置" },
+          { key: "/console/members", icon: <TeamOutlined />, label: tr("团队成员") },
+          { key: "/console/links", icon: <LinkOutlined />, label: tr("接入管理") },
+          { key: "/console/routing", icon: <PartitionOutlined />, label: tr("分组与分配") },
+          { key: "/console/contacts", icon: <UserOutlined />, label: tr("客户资料") },
+          { key: "/console/templates", icon: <SkinOutlined />, label: tr("装修与模板") },
+          { key: "/console/automation", icon: <RobotOutlined />, label: tr("回复与运营") },
+          { key: "/console/records", icon: <CustomerServiceOutlined />, label: tr("聊天记录") },
+          { key: "/console/reports", icon: <BarChartOutlined />, label: tr("服务统计") },
+          { key: "/console/member-statistics", icon: <BarChartOutlined />, label: tr("成员统计") },
+          { key: "/console/billing", icon: <TeamOutlined />, label: tr("套餐与坐席") },
+          { key: "/console/settings", icon: <SettingOutlined />, label: tr("租户设置") },
         ]
       : []),
     ...(!manages
-      ? [{ key: "/console/settings", icon: <SettingOutlined />, label: "我的账号与头像" }]
+      ? [{ key: "/console/settings", icon: <SettingOutlined />, label: tr("我的账号与头像") }]
       : []),
     ...(current.user.is_platform_admin
       ? [
-          { key: "/platform", icon: <SafetyOutlined />, label: "平台管理" },
-          { key: "/platform/monitoring", icon: <BarChartOutlined />, label: "服务器监控" },
+          { key: "/platform", icon: <SafetyOutlined />, label: tr("平台管理") },
+          { key: "/platform/monitoring", icon: <BarChartOutlined />, label: tr("服务器监控") },
         ]
       : []),
   ];
@@ -91,12 +92,12 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
     }
   }
   const groups = [
-    { label: "概览", icon: <AppstoreOutlined />, paths: ["/console"] },
-    { label: "客服", icon: <CustomerServiceOutlined />, paths: ["/workspace"] },
-    { label: "客户", icon: <UserOutlined />, paths: ["/console/contacts", "/console/records"] },
-    { label: "运营", icon: <RobotOutlined />, paths: manages ? [] : ["/console/automation"] },
+    { label: tr("概览"), icon: <AppstoreOutlined />, paths: ["/console"] },
+    { label: tr("客服"), icon: <CustomerServiceOutlined />, paths: ["/workspace"] },
+    { label: tr("客户"), icon: <UserOutlined />, paths: ["/console/contacts", "/console/records"] },
+    { label: tr("运营"), icon: <RobotOutlined />, paths: manages ? [] : ["/console/automation"] },
     {
-      label: manages ? "管理" : "账号",
+      label: manages ? tr("管理") : tr("账号"),
       icon: <SettingOutlined />,
       paths: manages
         ? [
@@ -112,7 +113,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
           ]
         : ["/console/settings"],
     },
-    { label: "平台", icon: <SafetyOutlined />, paths: ["/platform", "/platform/monitoring"] },
+    { label: tr("平台"), icon: <SafetyOutlined />, paths: ["/platform", "/platform/monitoring"] },
   ]
     .map((group) => ({
       ...group,
@@ -120,11 +121,11 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
     }))
     .filter((group) => group.items.length > 0);
   const serving = pathname === "/workspace";
-  const pageLabel = entries.find((entry) => entry.key === selected)?.label || "工作空间";
+  const pageLabel = entries.find((entry) => entry.key === selected)?.label || tr("工作空间");
   const sections = [
-    { label: "工作空间", paths: ["/console", "/workspace"] },
+    { label: tr("工作空间"), paths: ["/console", "/workspace"] },
     {
-      label: "客户服务",
+      label: tr("客户服务"),
       paths: [
         "/console/contacts",
         "/console/records",
@@ -132,7 +133,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
       ],
     },
     {
-      label: "租户管理",
+      label: tr("租户管理"),
       paths: manages
         ? [
             "/console/members",
@@ -147,7 +148,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
           ]
         : [],
     },
-    { label: "平台管理员", paths: ["/platform", "/platform/monitoring"] },
+    { label: tr("平台管理员"), paths: ["/platform", "/platform/monitoring"] },
   ]
     .map((section) => ({
       type: "group" as const,
@@ -162,7 +163,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
         <Brand />
       </div>
       <div className="sidebar-workspace">
-        <span className="shell-tenant-name">{member?.tenant_name || "工作空间"}</span>
+        <span className="shell-tenant-name">{member?.tenant_name || tr("工作空间")}</span>
       </div>
       <Menu
         mode="inline"
@@ -178,10 +179,10 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
           <strong>{current.user.display_name || current.user.email}</strong>
           <span>
             {member?.role === "owner"
-              ? "工作空间所有者"
+              ? tr("工作空间所有者")
               : member?.role === "admin"
-                ? "租户管理员"
-                : "客服成员"}
+                ? tr("租户管理员")
+                : tr("客服成员")}
           </span>
         </div>
       </div>
@@ -196,7 +197,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
       <div className={`workspace workbench-shell ${serving ? "is-serving" : ""}`}>
         <aside
           className={`workspace-sidebar ${serving ? "workspace-rail" : "workspace-full-nav"}`}
-          aria-label="工作端主导航"
+          aria-label={tr("工作端主导航")}
         >
           {serving ? (
             <>
@@ -236,7 +237,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
                     >
                       <button
                         className={`rail-link ${active ? "active" : ""}`}
-                        aria-label={`${group.label}导航`}
+                        aria-label={tr("{p0}导航", { p0: String(group.label) })}
                       >
                         {content}
                       </button>
@@ -244,11 +245,11 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
                   );
                 })}
               </nav>
-              <Tooltip title="账号与工作空间" placement="right">
+              <Tooltip title={tr("账号与工作空间")} placement="right">
                 <Button
                   className="rail-account"
                   type="text"
-                  aria-label="账号与工作空间"
+                  aria-label={tr("账号与工作空间")}
                   onClick={() => navigate("/console/settings?tab=account")}
                 >
                   <Avatar size={30} src={member?.avatar_url || undefined}>
@@ -266,7 +267,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
             <Space className="shell-identity" size={14}>
               <Button
                 className="mobile-menu"
-                aria-label="打开导航"
+                aria-label={tr("打开导航")}
                 icon={<MenuOutlined />}
                 onClick={() => setMobileOpen(true)}
               />
@@ -274,19 +275,24 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
                 <span className="shell-wordmark">GoodChat</span>
               ) : (
                 <span className="shell-breadcrumb">
-                  工作空间 <span aria-hidden="true">/</span>
+                  {tr("工作空间 ")}
+                  <span aria-hidden="true">/</span>
                 </span>
               )}
               {!serving && (
                 <span className="shell-page-label">
-                  {selected === "/console" ? "概览" : pageLabel}
+                  {selected === "/console" ? tr("概览") : pageLabel}
                 </span>
               )}
               {serving && <span className="shell-tenant-name">{member?.tenant_name}</span>}
               {serving && <span className="shell-page-label">{pageLabel}</span>}
               {member && !serving && (
                 <Tag className="shell-role">
-                  {member.role === "owner" ? "所有者" : member.role === "admin" ? "管理员" : "客服"}
+                  {member.role === "owner"
+                    ? tr("所有者")
+                    : member.role === "admin"
+                      ? tr("管理员")
+                      : tr("客服")}
                 </Tag>
               )}
             </Space>
@@ -296,21 +302,21 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
               {!serving && (
                 <Link href="/help" className="shell-help">
                   <QuestionCircleOutlined aria-hidden="true" />
-                  使用帮助
+                  {tr("使用帮助 ")}
                 </Link>
               )}
               <Dropdown
                 menu={{
                   items: [
-                    { key: "settings", label: "我的账号与头像" },
-                    { key: "logout", label: "退出当前设备", danger: true },
+                    { key: "settings", label: tr("我的账号与头像") },
+                    { key: "logout", label: tr("退出当前设备"), danger: true },
                   ],
                   onClick: ({ key }) =>
                     key === "logout" ? void logout() : router.push("/console/settings?tab=account"),
                 }}
                 trigger={["click"]}
               >
-                <Button type="text" className="shell-account" aria-label="账号菜单">
+                <Button type="text" className="shell-account" aria-label={tr("账号菜单")}>
                   <Avatar size="small" src={member?.avatar_url || undefined}>
                     {(current.user.display_name || current.user.email).slice(0, 1)}
                   </Avatar>
@@ -331,7 +337,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
           onClose={() => setMobileOpen(false)}
           placement="left"
           width={260}
-          title="工作空间导航"
+          title={tr("工作空间导航")}
         >
           {nav}
         </Drawer>

@@ -1,6 +1,21 @@
 /** 文件作用说明：编辑结构化或代码装修，处理版本保存、组件排序及真实隔离预览发布回滚。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { ErrorNotice, PageTitle } from "@/components/page-state";
+import { TemplatePreviewModal } from "@/features/assistant/template-preview-modal";
+import { useSession } from "@/features/auth/session";
+import { localizeStatic } from "@/i18n/runtime";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, errorMessage } from "@/lib/api";
+import type { AccessLink, Resource } from "@/lib/types";
+import { useResource } from "@/lib/use-resource";
+import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  SaveOutlined,
+} from "@ant-design/icons";
 import {
   Alert,
   App,
@@ -17,25 +32,12 @@ import {
   Tabs,
   Tag,
 } from "antd";
-import {
-  ArrowDownOutlined,
-  ArrowUpOutlined,
-  DeleteOutlined,
-  EyeOutlined,
-  PlusOutlined,
-  SaveOutlined,
-} from "@ant-design/icons";
-import { api, errorMessage } from "@/lib/api";
-import { useSession } from "@/features/auth/session";
-import { useResource } from "@/lib/use-resource";
-import type { AccessLink, Resource } from "@/lib/types";
-import type { Design, Template } from "./templates";
-import { starterDesign } from "./templates";
+import { useEffect, useRef, useState } from "react";
 import { BrandLogo } from "./brand-logo";
 import { CodePackages } from "./code-packages";
-import { ErrorNotice, PageTitle } from "@/components/page-state";
-import { TemplatePreviewModal } from "@/features/assistant/template-preview-modal";
 import { StaticTemplateEditor } from "./static-template-editor";
+import type { Design, Template } from "./templates";
+import { starterDesign } from "./templates";
 type Editable = {
   id: string;
   name: string;
@@ -51,9 +53,11 @@ const blockNames: Record<string, string> = {
   contact: "联系方式",
   chat: "聊天区域",
 };
-
 /** DecorationEditor 维护可回溯的装修草稿，只有明确发布才影响访客链接。 */
 export function DecorationEditor({ id, kind }: { id: string; kind: "templates" | "pages" }) {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  const tr = useTranslator();
   const { tenantId } = useSession();
   const { message } = App.useApp();
   const [item, setItem] = useState<Editable | null>(null);
@@ -82,9 +86,11 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
     try {
       let result: Editable;
       if (kind === "templates") {
-        const data = await api<{ items: Template[] }>("/tenant/templates", { tenantId });
+        const data = await api<{
+          items: Template[];
+        }>("/tenant/templates", { tenantId });
         const template = data.items.find((record) => record.id === id);
-        if (!template) throw new Error("模板不存在或你没有访问权限。");
+        if (!template) throw new Error(tr("模板不存在或你没有访问权限。"));
         result = { ...template, name: template.name || "", draft: template.design };
       } else result = await api<Editable>(`/tenant/pages/${id}`, { tenantId });
       if (serial !== loadSerial.current) return;
@@ -145,7 +151,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         ...(kind === "templates" ? { design } : { draft: design }),
       };
       await api(`/tenant/${kind}/${id}`, { method: "PATCH", tenantId, bodyJSON: body });
-      message.success("草稿已保存");
+      message.success(tr("草稿已保存"));
       await load();
     } catch (problem) {
       setError(problem);
@@ -156,7 +162,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
   /** preview 预览已保存快照，模板与页面均不创建额外的业务副本。 */
   function preview() {
     if (dirty) {
-      message.warning("请先保存草稿，再预览服务端校验后的版本。");
+      message.warning(tr("请先保存草稿，再预览服务端校验后的版本。"));
       return;
     }
     setPreviewOpen(true);
@@ -177,7 +183,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         },
         idempotent: true,
       });
-      message.success("页面已发布");
+      message.success(tr("页面已发布"));
       setPublishOpen(false);
       await load();
     } catch (problem) {
@@ -189,7 +195,9 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
   /** showHistory 读取真实不可变发布记录。 */
   async function showHistory() {
     try {
-      const data = await api<{ items: Resource[] }>(`/tenant/pages/${id}/releases`, { tenantId });
+      const data = await api<{
+        items: Resource[];
+      }>(`/tenant/pages/${id}/releases`, { tenantId });
       setReleases(data.items || []);
       setHistoryOpen(true);
     } catch (problem) {
@@ -205,7 +213,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         bodyJSON: { release_id: release.id, expected_release_id: item?.current_release_id || "" },
         idempotent: true,
       });
-      message.success("已回滚到选定版本");
+      message.success(tr("已回滚到选定版本"));
       setHistoryOpen(false);
       await load();
     } catch (problem) {
@@ -220,17 +228,17 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
       </>
     );
   return (
-    <section className="studio-page studio-editor" aria-label="页面设计编辑器">
+    <section className="studio-page studio-editor" aria-label={tr("页面设计编辑器")}>
       <PageTitle
-        title={kind === "templates" ? "编辑私有模板" : "页面装修与发布"}
+        title={kind === "templates" ? tr("编辑私有模板") : tr("页面装修与发布")}
         description={
           kind === "templates"
-            ? "模板可创建多个独立页面，保存不会改变已有页面。"
-            : "草稿与线上版本分开，预览校验通过后再发布到接入链接。"
+            ? tr("模板可创建多个独立页面，保存不会改变已有页面。")
+            : tr("草稿与线上版本分开，预览校验通过后再发布到接入链接。")
         }
         action={
           <Space wrap>
-            {dirty && <Tag color="gold">有未保存修改</Tag>}
+            {dirty && <Tag color="gold">{tr("有未保存修改")}</Tag>}
             {!packagedEditor && (
               <Button
                 icon={<SaveOutlined />}
@@ -238,15 +246,15 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                 loading={saving}
                 disabled={!dirty}
               >
-                保存草稿
+                {tr("保存草稿 ")}
               </Button>
             )}
             <Button icon={<EyeOutlined />} onClick={preview}>
-              隔离预览
+              {tr("隔离预览 ")}
             </Button>
             {kind === "pages" && (
               <>
-                <Button onClick={() => void showHistory()}>发布记录</Button>
+                <Button onClick={() => void showHistory()}>{tr("发布记录")}</Button>
                 <Button
                   type="primary"
                   disabled={dirty}
@@ -255,7 +263,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                     setPublishOpen(true);
                   }}
                 >
-                  发布到入口
+                  {tr("发布到入口 ")}
                 </Button>
               </>
             )}
@@ -279,30 +287,33 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         />
       ) : (
         <div className="editor-grid">
-          <Card className="studio-settings-pane" title="设计设置">
+          <Card className="studio-settings-pane" title={tr("设计设置")}>
             <div className="studio-design-name">
-              <label htmlFor="goodchat-design-name">设计名称</label>
+              <label htmlFor="goodchat-design-name">{tr("设计名称")}</label>
               <Input
                 id="goodchat-design-name"
-                aria-label="设计名称"
+                aria-label={tr("设计名称")}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 maxLength={100}
               />
             </div>
             <div className="studio-editor-meta">
-              <Tag>{item.render_mode === "code" ? "代码装修" : "可视化装修"}</Tag>
-              <span>草稿 v{item.version}</span>
+              <Tag>{item.render_mode === "code" ? tr("代码装修") : tr("可视化装修")}</Tag>
+              <span>
+                {tr("草稿 v")}
+                {item.version}
+              </span>
             </div>
             {item.render_mode === "schema" ? (
               <Tabs
                 items={[
                   {
                     key: "brand",
-                    label: "基础设置",
+                    label: tr("基础设置"),
                     children: (
                       <Form layout="vertical">
-                        <Form.Item label="客服页面标题">
+                        <Form.Item label={tr("客服页面标题")}>
                           <Input
                             value={design.brand?.title}
                             onChange={(event) =>
@@ -312,7 +323,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                             }
                           />
                         </Form.Item>
-                        <Form.Item label="副标题与服务说明">
+                        <Form.Item label={tr("副标题与服务说明")}>
                           <Input
                             value={design.brand?.subtitle}
                             onChange={(event) =>
@@ -322,7 +333,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                             }
                           />
                         </Form.Item>
-                        <Form.Item label="品牌Logo">
+                        <Form.Item label={tr("品牌Logo")}>
                           <BrandLogo
                             value={design.brand?.logo_url}
                             disabled={saving}
@@ -332,7 +343,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                           />
                         </Form.Item>
                         <div className="two-columns">
-                          <Form.Item label="主色">
+                          <Form.Item label={tr("主色")}>
                             <Input
                               value={design.theme?.primary_color}
                               onChange={(event) =>
@@ -343,7 +354,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                               placeholder="#23684e"
                             />
                           </Form.Item>
-                          <Form.Item label="背景色">
+                          <Form.Item label={tr("背景色")}>
                             <Input
                               value={design.theme?.background}
                               onChange={(event) =>
@@ -354,7 +365,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                             />
                           </Form.Item>
                         </div>
-                        <Form.Item label="圆角">
+                        <Form.Item label={tr("圆角")}>
                           <InputNumber
                             min={0}
                             max={40}
@@ -369,10 +380,10 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                   },
                   {
                     key: "blocks",
-                    label: "组件布局",
+                    label: tr("组件布局"),
                     children: (
                       <>
-                        <p className="form-hint">拖拽卡片调整顺序，也可使用上下按钮。</p>
+                        <p className="form-hint">{tr("拖拽卡片调整顺序，也可使用上下按钮。")}</p>
                         <Space orientation="vertical" style={{ width: "100%" }}>
                           {design.blocks?.map((block, index) => (
                             <div
@@ -396,20 +407,20 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                               >
                                 <Space style={{ justifyContent: "space-between", width: "100%" }}>
                                   <Button type="text" onClick={() => setActiveBlock(block.id)}>
-                                    {blockNames[block.type] || block.type}
+                                    {localizeStatic(blockNames, tr)[block.type] || block.type}
                                   </Button>
                                   <Space size={2}>
                                     <Button
                                       size="small"
                                       icon={<ArrowUpOutlined />}
-                                      aria-label="上移组件"
+                                      aria-label={tr("上移组件")}
                                       disabled={index === 0}
                                       onClick={() => moveBlock(block.id, index - 1)}
                                     />
                                     <Button
                                       size="small"
                                       icon={<ArrowDownOutlined />}
-                                      aria-label="下移组件"
+                                      aria-label={tr("下移组件")}
                                       disabled={index === (design.blocks?.length || 0) - 1}
                                       onClick={() => moveBlock(block.id, index + 1)}
                                     />
@@ -417,7 +428,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                                       size="small"
                                       danger
                                       icon={<DeleteOutlined />}
-                                      aria-label="删除组件"
+                                      aria-label={tr("删除组件")}
                                       disabled={block.type === "chat"}
                                       onClick={() =>
                                         updateDesign({
@@ -436,15 +447,15 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                         <Select<string>
                           style={{ width: "100%", margin: "16px 0" }}
                           value={undefined}
-                          placeholder="添加组件"
-                          options={Object.entries(blockNames)
+                          placeholder={tr("添加组件")}
+                          options={Object.entries(localizeStatic(blockNames, tr))
                             .filter(([value]) => value !== "chat")
                             .map(([value, label]) => ({ value, label }))}
                           onChange={(value) => {
                             const newBlock = {
                               id: crypto.randomUUID(),
                               type: value,
-                              title: blockNames[value],
+                              title: localizeStatic(blockNames, tr)[value],
                               content: "",
                               items: [],
                             };
@@ -454,13 +465,13 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                         />
                         {selected && (
                           <Form layout="vertical">
-                            <Form.Item label="组件标题">
+                            <Form.Item label={tr("组件标题")}>
                               <Input
                                 value={selected.title}
                                 onChange={(event) => updateBlock({ title: event.target.value })}
                               />
                             </Form.Item>
-                            <Form.Item label="文字内容">
+                            <Form.Item label={tr("文字内容")}>
                               <Input.TextArea
                                 rows={4}
                                 value={selected.content}
@@ -474,13 +485,13 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                   },
                   {
                     key: "css",
-                    label: "自定义 CSS",
+                    label: tr("自定义 CSS"),
                     children: (
                       <>
                         <Alert
                           type="info"
                           showIcon
-                          title="样式只会在隔离装修页面内生效，不注入管理端。"
+                          title={tr("样式只会在隔离装修页面内生效，不注入管理端。")}
                         />
                         <Input.TextArea
                           className="code-editor"
@@ -502,14 +513,14 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                     label: "HTML",
                     children: (
                       <Input.TextArea
-                        aria-label="HTML 源码"
+                        aria-label={tr("HTML 源码")}
                         className="code-editor"
                         rows={22}
                         value={design.html || ""}
                         placeholder={
                           design.package_id
-                            ? "留空时使用静态资源包的HTML入口；这里填写内容可覆盖入口。"
-                            : "HTML片段"
+                            ? tr("留空时使用静态资源包的HTML入口；这里填写内容可覆盖入口。")
+                            : tr("HTML片段")
                         }
                         onChange={(event) => updateDesign({ html: event.target.value })}
                       />
@@ -520,12 +531,14 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                     label: "CSS",
                     children: (
                       <Input.TextArea
-                        aria-label="CSS 源码"
+                        aria-label={tr("CSS 源码")}
                         className="code-editor"
                         rows={22}
                         value={design.css || ""}
                         placeholder={
-                          design.package_id ? "可选附加样式；资源包自身CSS会保留。" : "页面样式"
+                          design.package_id
+                            ? tr("可选附加样式；资源包自身CSS会保留。")
+                            : tr("页面样式")
                         }
                         onChange={(event) => updateDesign({ css: event.target.value })}
                       />
@@ -536,14 +549,14 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                     label: "JavaScript",
                     children: (
                       <Input.TextArea
-                        aria-label="JavaScript 源码"
+                        aria-label={tr("JavaScript 源码")}
                         className="code-editor"
                         rows={22}
                         value={design.javascript || ""}
                         placeholder={
                           design.package_id
-                            ? "可选附加代码；当前资源包已通过GoodChat SDK接入。"
-                            : "通过GoodChat SDK接入的页面代码"
+                            ? tr("可选附加代码；当前资源包已通过GoodChat SDK接入。")
+                            : tr("通过GoodChat SDK接入的页面代码")
                         }
                         onChange={(event) => updateDesign({ javascript: event.target.value })}
                       />
@@ -551,7 +564,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                   },
                   {
                     key: "resources",
-                    label: "静态资源包",
+                    label: tr("静态资源包"),
                     children: (
                       <CodePackages
                         key={tenantId}
@@ -567,7 +580,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
             )}
           </Card>
           <div className="studio-preview-column">
-            <Card title="页面布局预览" className="studio-preview-pane">
+            <Card title={tr("页面布局预览")} className="studio-preview-pane">
               <div
                 className="design-preview"
                 style={{
@@ -580,7 +593,9 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                   <Alert
                     type="info"
                     showIcon
-                    title="完整代码不会在管理页面直接执行。保存草稿后，通过独立来源预览实际界面。"
+                    title={tr(
+                      "完整代码不会在管理页面直接执行。保存草稿后，通过独立来源预览实际界面。",
+                    )}
                   />
                 ) : (
                   <div
@@ -604,19 +619,21 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                       }}
                     >
                       <h3 style={{ marginBottom: 6, color: "inherit" }}>
-                        {design.brand?.title || "在线客服"}
+                        {design.brand?.title || tr("在线客服")}
                       </h3>
                       <small>{design.brand?.subtitle}</small>
                     </div>
                     <div className="studio-preview-blocks" style={{ padding: 20 }}>
                       {design.blocks?.map((block) => (
                         <div key={block.id} style={{ marginBottom: 20 }}>
-                          <strong>{block.title || blockNames[block.type]}</strong>
+                          <strong>
+                            {block.title || localizeStatic(blockNames, tr)[block.type]}
+                          </strong>
                           {block.type === "chat" ? (
-                            <div className="preview-composer">消息输入区域 · 示意</div>
+                            <div className="preview-composer">{tr("消息输入区域 \u00B7 示意")}</div>
                           ) : (
                             <p className="muted" style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>
-                              {block.content || "尚未填写内容"}
+                              {block.content || tr("尚未填写内容")}
                             </p>
                           )}
                         </div>
@@ -626,15 +643,15 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
                 )}
               </div>
               <p className="form-hint">
-                此处为布局示意，不使用真实聊天数据；自定义样式与代码以隔离预览结果为准。
+                {tr("此处为布局示意，不使用真实聊天数据；自定义样式与代码以隔离预览结果为准。 ")}
               </p>
             </Card>
             <Alert
               type="info"
               title={
                 kind === "templates"
-                  ? "保存后可反复创建多个页面。平台模板更新不会覆盖本租户作品。"
-                  : "发布之前请确认电脑与手机、排队和离线场景。回滚不会删除聊天记录。"
+                  ? tr("保存后可反复创建多个页面。平台模板更新不会覆盖本租户作品。")
+                  : tr("发布之前请确认电脑与手机、排队和离线场景。回滚不会删除聊天记录。")
               }
               showIcon
               style={{ marginTop: 20 }}
@@ -651,20 +668,23 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
       />
       <Drawer
         rootClassName="studio-drawer"
-        title="发布页面到接入链接"
+        title={tr("发布页面到接入链接")}
         open={publishOpen}
         onClose={() => setPublishOpen(false)}
         width={480}
       >
         <ErrorNotice error={error} />
-        <p>页面：{name}</p>
+        <p>
+          {tr("页面：")}
+          {name}
+        </p>
         <p className="muted">
-          发布将创建不可变版本。选中链接随后使用此页面，正在咨询的访客仍保留原运行版本。
+          {tr("发布将创建不可变版本。选中链接随后使用此页面，正在咨询的访客仍保留原运行版本。 ")}
         </p>
         <Select
           mode="multiple"
           style={{ width: "100%", marginBottom: 20 }}
-          placeholder="选择要绑定的入口"
+          placeholder={tr("选择要绑定的入口")}
           value={linkIds}
           onChange={setLinkIds}
           options={links.items.map((link) => ({
@@ -673,12 +693,12 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
           }))}
         />
         <Button type="primary" loading={saving} onClick={() => void publish()}>
-          确认发布
+          {tr("确认发布 ")}
         </Button>
       </Drawer>
       <Drawer
         rootClassName="studio-drawer"
-        title="发布与回滚记录"
+        title={tr("发布与回滚记录")}
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
         width={500}
@@ -686,19 +706,24 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
         <Space orientation="vertical" style={{ width: "100%" }}>
           {releases.map((release) => (
             <Card size="small" key={release.id}>
-              <strong>发布版本 {String(release.version || release.id.slice(0, 8))}</strong>
+              <strong>
+                {tr("发布版本 ")}
+                {String(release.version || release.id.slice(0, 8))}
+              </strong>
               <p className="form-hint">
                 {release.created_at
-                  ? new Date(release.created_at).toLocaleString("zh-CN")
+                  ? new Date(release.created_at).toLocaleString(currentPreferences().locale, {
+                      timeZone: currentPreferences().timezone,
+                    })
                   : release.id}
               </p>
               <Popconfirm
-                title="将页面回滚到此版本？"
-                description="会影响当前跟随此页面的入口，不删除消息。"
+                title={tr("将页面回滚到此版本？")}
+                description={tr("会影响当前跟随此页面的入口，不删除消息。")}
                 onConfirm={() => rollback(release)}
               >
                 <Button size="small" disabled={release.id === item.current_release_id}>
-                  回滚到此版本
+                  {tr("回滚到此版本 ")}
                 </Button>
               </Popconfirm>
             </Card>

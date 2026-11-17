@@ -1,22 +1,13 @@
 /** 文件作用说明：渲染访客可见消息、日期分组、附件、引用和已读状态，内部备注不进入对话流。 */
 "use client";
-import { Fragment, useState } from "react";
-import { Avatar, Button, Popconfirm, Space } from "antd";
-import type { ChatMessage } from "@/lib/types";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
 import { messageDisplay, type MessageDisplayContext } from "@/lib/message-display";
-import type { ChatIdentity, Outgoing } from "./use-chat";
+import type { ChatMessage } from "@/lib/types";
+import { Avatar, Button, Popconfirm, Space } from "antd";
+import { Fragment, useState } from "react";
 import { AttachmentView } from "./attachment";
-/** messageDateLabel 将真实消息时间转换为本地日期标题，异常时间不生成虚构分隔日期。 */
-function messageDateLabel(value?: string): string {
-  if (!value) return "";
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "";
-  return date.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
+import type { ChatIdentity, Outgoing } from "./use-chat";
 /** MessageHistory 只呈现已确认消息，所有发送与撤回动作仍由当前会话控制。 */
 export function MessageHistory({
   messages,
@@ -39,6 +30,24 @@ export function MessageHistory({
   onWithdraw: (message: ChatMessage) => Promise<void>;
   onSend: (body: Outgoing) => Promise<unknown>;
 }) {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  /** messageDateLabel 将真实消息时间转换为本地日期标题，异常时间不生成虚构分隔日期。 */
+  function messageDateLabel(value?: string): string {
+    if (!value) return "";
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return "";
+    return date.toLocaleDateString(currentPreferences().locale, {
+      timeZone: currentPreferences().timezone,
+      ...{
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      },
+    });
+  }
+
+  const tr = useTranslator();
   const [selectedMessage, setSelectedMessage] = useState("");
   return (
     <>
@@ -60,19 +69,22 @@ export function MessageHistory({
                 {display.senderName.slice(0, 1)}
               </Avatar>
               <div className="message-meta">
-                {item.audience === "internal" ? "内部备注 · " : ""}
+                {item.audience === "internal" ? tr("内部备注 \u00B7 ") : ""}
                 {display.senderName} · {display.sourceLabel && <>{display.sourceLabel} · </>}
                 {item.created_at
-                  ? new Date(item.created_at).toLocaleTimeString("zh-CN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
+                  ? new Date(item.created_at).toLocaleTimeString(currentPreferences().locale, {
+                      timeZone: currentPreferences().timezone,
+                      ...{
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      },
                     })
                   : ""}
               </div>
               <div
                 className={`message-bubble ${identity.kind === "visitor" ? "is-selectable" : ""}`}
                 tabIndex={identity.kind === "visitor" && !item.withdrawn_at ? 0 : undefined}
-                aria-label={identity.kind === "visitor" ? "选择消息以引用或撤回" : undefined}
+                aria-label={identity.kind === "visitor" ? tr("选择消息以引用或撤回") : undefined}
                 onClick={() =>
                   identity.kind === "visitor" &&
                   setSelectedMessage((previous) => (previous === item.id ? "" : item.id))
@@ -89,7 +101,7 @@ export function MessageHistory({
                 }}
               >
                 {item.withdrawn_at ? (
-                  <span className="muted">消息已撤回</span>
+                  <span className="muted">{tr("消息已撤回")}</span>
                 ) : (
                   <>
                     {item.reply && (
@@ -102,7 +114,8 @@ export function MessageHistory({
                           color: "var(--muted)",
                         }}
                       >
-                        引用：{item.reply.withdrawn ? "消息已撤回" : item.reply.content}
+                        {tr("引用：")}
+                        {item.reply.withdrawn ? tr("消息已撤回") : item.reply.content}
                       </div>
                     )}
                     {item.content}
@@ -165,18 +178,18 @@ export function MessageHistory({
                         onReply(item);
                       }}
                     >
-                      引用
+                      {tr("引用 ")}
                     </Button>
                   )}
                   {own && canSend && (identity.kind === "agent" || selectedMessage === item.id) && (
-                    <Popconfirm title="撤回这条消息？" onConfirm={() => onWithdraw(item)}>
+                    <Popconfirm title={tr("撤回这条消息？")} onConfirm={() => onWithdraw(item)}>
                       <Button type="link" size="small">
-                        撤回
+                        {tr("撤回 ")}
                       </Button>
                     </Popconfirm>
                   )}
                   {own && BigInt(readSeq) >= BigInt(item.seq || item.event_seq || 0) && (
-                    <span className="muted">对方已读</span>
+                    <span className="muted">{tr("对方已读")}</span>
                   )}
                 </Space>
               )}

@@ -1,25 +1,26 @@
 /** 文件作用说明：读取多链接入口，建立隔离访客身份并连接真实会话，支持安全恢复与重新咨询。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Alert, Avatar, Button, Form, Input, Result, Spin } from "antd";
-import { useSearchParams } from "next/navigation";
-import { canRestartVisit } from "@/lib/visitor-params";
-import { parseVisitorParameters } from "@/lib/visitor-params";
+import { ErrorNotice } from "@/components/page-state";
+import { localizeStatic } from "@/i18n/runtime";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, ApiError } from "@/lib/api";
+import type { Conversation, Resource } from "@/lib/types";
+import { canRestartVisit, parseVisitorParameters } from "@/lib/visitor-params";
 import {
   forgetVisitorSessionCache,
   mergeVisitorParameters,
   readVisitorSessionCache,
   safeVisitorParameters,
-  writeVisitorSessionCache,
   withVisitorIdentityLock,
+  writeVisitorSessionCache,
   type VisitorSessionCache,
 } from "@/lib/visitor-session-cache";
-import { api, ApiError } from "@/lib/api";
-import type { Conversation, Resource } from "@/lib/types";
-import { ErrorNotice } from "@/components/page-state";
+import { Alert, Avatar, Button, Form, Input, Result, Spin } from "antd";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { ChatPanel, conversationStatus } from "./chat-panel";
 import { DecoratedVisitor } from "./decorated-visitor";
 import { VisitorActions, type VisitorActionsHandle } from "./visitor-actions";
-import { ChatPanel, conversationStatus } from "./chat-panel";
 type Entry = Resource & {
   entry_key: string;
   tenant_name: string;
@@ -40,6 +41,7 @@ type VisitorSession = {
 };
 /** VisitorChat 只使用独立随机凭证恢复访客，展示资料不会成为身份凭证。 */
 export function VisitorChat({ entryKey }: { entryKey: string }) {
+  const tr = useTranslator();
   const search = useSearchParams();
   const queryText = search.toString();
   const [entry, setEntry] = useState<Entry | null>(null);
@@ -83,7 +85,10 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
     navigationGeneration.current++;
   }
   const remembered = useRef<VisitorSessionCache | null>(null);
-  const memoryToken = useRef<{ space: string; value: string } | null>(null);
+  const memoryToken = useRef<{
+    space: string;
+    value: string;
+  } | null>(null);
   const startingGeneration = useRef<number | null>(null);
   const visitID = useRef("");
   const initialized = useRef(false);
@@ -116,7 +121,9 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
             });
         } catch {
           setStorageWarning(
-            "浏览器未允许保存访客会话；当前页面可继续咨询，刷新后可能无法恢复，请允许站点存储。",
+            tr(
+              "浏览器未允许保存访客会话；当前页面可继续咨询，刷新后可能无法恢复，请允许站点存储。",
+            ),
           );
           token =
             memoryToken.current?.space === data.service_space_id ? memoryToken.current.value : null;
@@ -211,14 +218,14 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
             /* 当前页面仍可显式咨询，存储限制已提示。 */
           }
         }
-        if (!isCurrent()) throw new Error("访问范围已变化");
+        if (!isCurrent()) throw new Error(tr("访问范围已变化"));
         pending.visitor_token = token;
         remembered.current = pending;
         try {
           writeVisitorSessionCache(localStorage, pending);
         } catch {
           setStorageWarning(
-            "浏览器未能保存会话资料。当前页面仍可咨询，请允许站点存储以便下次恢复。",
+            tr("浏览器未能保存会话资料。当前页面仍可咨询，请允许站点存储以便下次恢复。"),
           );
         }
         const response = await api<VisitorSession>("/visitor/session", {
@@ -279,7 +286,7 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
         localStorage.setItem(`goodchat.visitor.${selected.service_space_id}`, result.token);
         setStorageWarning("");
       } catch {
-        setStorageWarning("会话已建立，但浏览器未能保存恢复资料；关闭或刷新前请允许站点存储。");
+        setStorageWarning(tr("会话已建立，但浏览器未能保存恢复资料；关闭或刷新前请允许站点存储。"));
       }
       remembered.current = snapshot;
       setEntry((previous) =>
@@ -318,7 +325,7 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
   if (loading)
     return (
       <div className="console-loading">
-        <Spin description="正在连接咨询入口" />
+        <Spin description={tr("正在连接咨询入口")} />
       </div>
     );
   if (!entry)
@@ -326,9 +333,9 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
       <div className="visitor-shell">
         <Result
           status="warning"
-          title="咨询入口暂时无法打开"
+          title={tr("咨询入口暂时无法打开")}
           subTitle={<ErrorNotice error={error} />}
-          extra={<Button onClick={() => location.reload()}>重新加载</Button>}
+          extra={<Button onClick={() => location.reload()}>{tr("重新加载")}</Button>}
         />
       </div>
     );
@@ -345,16 +352,20 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
           <header className="visitor-header">
             <div className="visitor-brand">
               <Avatar size={42}>
-                {(entry.tenant_name || entry.name || "在线客服").slice(0, 1)}
+                {(entry.tenant_name || entry.name || tr("在线客服")).slice(0, 1)}
               </Avatar>
               <div>
-                <h1>{entry.tenant_name || entry.name || "在线客服"}</h1>
+                <h1>{entry.tenant_name || entry.name || tr("在线客服")}</h1>
                 <p>
                   {session
-                    ? `在线咨询 · ${conversationStatus[status] || "正在连接"}`
+                    ? tr("在线咨询 \u00B7 {p0}", {
+                        p0: String(
+                          localizeStatic(conversationStatus, tr)[status] || tr("正在连接"),
+                        ),
+                      })
                     : specifiedOffline
-                      ? "无客服在线，暂时无法访问"
-                      : "欢迎咨询，请留下称呼后开始沟通"}
+                      ? tr("无客服在线，暂时无法访问")
+                      : tr("欢迎咨询，请留下称呼后开始沟通")}
                 </p>
               </div>
             </div>
@@ -377,11 +388,13 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
             <Alert
               type="warning"
               showIcon
-              title="上一次访问身份未确认"
-              description="不能通过旧访问编号取回身份。你可以重新开始一次新访问，原记录会保留。"
+              title={tr("上一次访问身份未确认")}
+              description={tr(
+                "不能通过旧访问编号取回身份。你可以重新开始一次新访问，原记录会保留。",
+              )}
               action={
                 <Button loading={starting} onClick={restartVisit}>
-                  重新开始新访问
+                  {tr("重新开始新访问 ")}
                 </Button>
               }
               style={{ marginBottom: 16 }}
@@ -400,7 +413,7 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                 notificationSound={entry.notification_sound_id}
                 onOpenAction={(action) => {
                   const actions = visitorActions.current;
-                  if (!actions) throw new Error("表单正在准备，请稍后重试");
+                  if (!actions) throw new Error(tr("表单正在准备，请稍后重试"));
                   actions[action]();
                 }}
               />
@@ -434,7 +447,7 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                     void start({});
                   }}
                 >
-                  发起新的咨询
+                  {tr("发起新的咨询 ")}
                 </Button>
               </div>
             )}
@@ -442,18 +455,18 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
         ) : specifiedOffline ? (
           <Result
             status="warning"
-            title="无客服在线，暂时无法访问"
-            subTitle="指定客服当前不在线，请稍后重新检查。"
+            title={tr("无客服在线，暂时无法访问")}
+            subTitle={tr("指定客服当前不在线，请稍后重新检查。")}
             extra={
               <Button loading={starting} onClick={() => void start({})}>
-                重新检查
+                {tr("重新检查 ")}
               </Button>
             }
           />
         ) : (
           <div className="visitor-start">
-            <h2>我们可以为你做些什么？</h2>
-            <p className="muted">请填写方便交流的称呼，联系电话选填。</p>
+            <h2>{tr("我们可以为你做些什么？")}</h2>
+            <p className="muted">{tr("请填写方便交流的称呼，联系电话选填。")}</p>
             <Form
               form={form}
               layout="vertical"
@@ -461,10 +474,10 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                 if (!canRestartVisit(error)) void start(values);
               }}
             >
-              <Form.Item name="display_name" label="你的称呼（选填）">
+              <Form.Item name="display_name" label={tr("你的称呼（选填）")}>
                 <Input maxLength={80} autoComplete="nickname" />
               </Form.Item>
-              <Form.Item name="phone" label="联系电话（选填）">
+              <Form.Item name="phone" label={tr("联系电话（选填）")}>
                 <Input maxLength={32} autoComplete="tel" />
               </Form.Item>
               <Button
@@ -475,7 +488,7 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                 loading={starting}
                 disabled={canRestartVisit(error)}
               >
-                开始咨询
+                {tr("开始咨询 ")}
               </Button>
             </Form>
             <Alert
@@ -483,14 +496,14 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
               showIcon
               title={
                 storageWarning
-                  ? "浏览器尚未保存恢复资料，当前页面仍可继续咨询。"
-                  : "访客身份保存在当前浏览器。请勿把当前浏览器交给他人使用。"
+                  ? tr("浏览器尚未保存恢复资料，当前页面仍可继续咨询。")
+                  : tr("访客身份保存在当前浏览器。请勿把当前浏览器交给他人使用。")
               }
               style={{ marginTop: 24 }}
             />
           </div>
         )}
-        <footer className="visitor-footer">由 GoodChat 提供在线客服服务</footer>
+        <footer className="visitor-footer">{tr("由 GoodChat 提供在线客服服务")}</footer>
       </div>
     </div>
   );

@@ -1,10 +1,11 @@
 /** 文件作用说明：在工作空间汇总上班却失去实时探活的客服，定期刷新并可展开多个异常详情。 */
 "use client";
-import { useEffect, useState } from "react";
-import { Alert, Button } from "antd";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
 import { api, errorMessage } from "@/lib/api";
+import { Alert, Button } from "antd";
+import { useEffect, useState } from "react";
 import "./connection-alerts.css";
-
 type ConnectionAlert = {
   id: string;
   display_name: string;
@@ -18,24 +19,29 @@ type ConnectionAlertData = {
   probe_timeout_seconds: number;
   observed_at: string;
 };
-
-/** connectionTime 显示服务端真实探活时间，缺失或异常时间不会伪装为当前时刻。 */
-function connectionTime(value: string | null): string {
-  if (!value) return "暂无探活记录";
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "时间暂不可用";
-  return date.toLocaleString("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-}
-
 /** ConnectionAlerts 独立读取异常，不依赖团队指标成功；普通客服的接口结果仅含自身。 */
 export function ConnectionAlerts({ tenantId }: { tenantId: string }) {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  /** connectionTime 显示服务端真实探活时间，缺失或异常时间不会伪装为当前时刻。 */
+  function connectionTime(value: string | null): string {
+    if (!value) return tr("暂无探活记录");
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return tr("时间暂不可用");
+    return date.toLocaleString(currentPreferences().locale, {
+      timeZone: currentPreferences().timezone,
+      ...{
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      },
+    });
+  }
+
+  const tr = useTranslator();
   const [data, setData] = useState<ConnectionAlertData | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [revision, setRevision] = useState(0);
@@ -72,18 +78,17 @@ export function ConnectionAlerts({ tenantId }: { tenantId: string }) {
       document.removeEventListener("visibilitychange", visible);
     };
   }, [tenantId, revision]);
-
   if (error)
     return (
       <Alert
         className="dashboard-connection-alert"
         type="error"
         showIcon
-        title="客服实时连接检查失败"
+        title={tr("客服实时连接检查失败")}
         description={errorMessage(error)}
         action={
           <Button size="small" onClick={() => setRevision((value) => value + 1)}>
-            重新检查
+            {tr("重新检查 ")}
           </Button>
         }
       />
@@ -96,27 +101,34 @@ export function ConnectionAlerts({ tenantId }: { tenantId: string }) {
       showIcon
       title={
         data.scope === "team"
-          ? `${data.items.length} 位客服处于上班状态，但实时连接离线`
-          : "你处于上班状态，但实时连接离线"
+          ? tr("{p0} 位客服处于上班状态，但实时连接离线", { p0: String(data.items.length) })
+          : tr("你处于上班状态，但实时连接离线")
       }
       description={
         <div>
           <p className="connection-alert-explanation">
-            尚未建立实时连接，或最近 {data.probe_timeout_seconds}{" "}
-            秒内未完成探活。请检查客服页面及网络。
+            {tr("尚未建立实时连接，或最近 ")}
+            {data.probe_timeout_seconds} {tr("秒内未完成探活。请检查客服页面及网络。 ")}
           </p>
           <details className="connection-alert-details">
-            <summary>查看异常详情（{data.items.length}）</summary>
+            <summary>
+              {tr("查看异常详情（")}
+              {data.items.length}）
+            </summary>
             <ul>
               {data.items.map((item) => (
                 <li key={item.id}>
                   <div className="connection-alert-member">
-                    <strong>{item.display_name || "未命名客服"}</strong>
-                    <span>{item.busy ? "上班 · 忙碌" : "上班 · 可接待"}</span>
+                    <strong>{item.display_name || tr("未命名客服")}</strong>
+                    <span>{item.busy ? tr("上班 \u00B7 忙碌") : tr("上班 \u00B7 可接待")}</span>
                   </div>
                   <span className="connection-alert-time">
-                    最后探活：{connectionTime(item.last_seen_at)}
-                    {item.offline_since && ` · 离线起始：${connectionTime(item.offline_since)}`}
+                    {tr("最后探活：")}
+                    {connectionTime(item.last_seen_at)}
+                    {item.offline_since &&
+                      tr(" \u00B7 离线起始：{p0}", {
+                        p0: String(connectionTime(item.offline_since)),
+                      })}
                   </span>
                 </li>
               ))}
@@ -126,7 +138,7 @@ export function ConnectionAlerts({ tenantId }: { tenantId: string }) {
       }
       action={
         <Button size="small" href={data.scope === "team" ? "/console/members" : "/workspace"}>
-          {data.scope === "team" ? "团队成员" : "检查连接"}
+          {data.scope === "team" ? tr("团队成员") : tr("检查连接")}
         </Button>
       }
     />

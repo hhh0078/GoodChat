@@ -940,3 +940,34 @@ h3 {
     padding-inline: 12px;
   }
 }
+
+/* 语言时区入口保持足够点击区域，长译文允许换行。 */
+.ant-btn.locale-settings-button {
+  position: fixed;
+  inset-inline-end: 20px;
+  bottom: 20px;
+  z-index: 999;
+  min-height: 44px;
+  box-shadow: 0 2px 12px #111a2c18;
+}
+.public-nav {
+  flex-wrap: wrap;
+}
+.public-nav a,
+.footer-links a {
+  white-space: normal;
+}
+@media (max-width: 720px) {
+  .locale-settings-button {
+    inset-inline-end: 12px;
+    bottom: 12px;
+  }
+  .public-header {
+    flex-wrap: wrap;
+  }
+}
+
+/* 访客页为发送控件与受控装修预留空间，避免语言入口覆盖输入区。 */
+body:has(.visitor-shell) .locale-settings-button {
+  bottom: 96px;
+}

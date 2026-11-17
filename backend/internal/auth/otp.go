@@ -6,7 +6,6 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -118,7 +118,7 @@ func (s *Service) sendCode(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	result := s.mailer.send(r.Context(), email, "GoodChat "+label+"验证码", fmt.Sprintf("您的GoodChat%s验证码为：%s\n\n验证码5分钟内有效，仅限本次用途。重新申请后旧码失效。请勿转告他人。\n如果不是您本人操作，请忽略本邮件。", label, code))
+	result := s.mailer.send(r.Context(), email, localization.RequestText(r, "GoodChat 验证码"), localization.RequestText(r, "您的GoodChat%s验证码为：%s\n\n验证码5分钟内有效，仅限本次用途。重新申请后旧码失效。请勿转告他人。\n如果不是您本人操作，请忽略本邮件。", localization.RequestText(r, label), code))
 	if err := s.recordDelivery(r.Context(), "challenge", id, deliveryID, result); err != nil {
 		return err
 	}

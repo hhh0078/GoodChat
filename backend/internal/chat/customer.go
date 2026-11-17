@@ -4,7 +4,6 @@ package chat
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -54,7 +53,7 @@ func validateAttributes(ctx context.Context, tx pgx.Tx, attributes map[string]an
 		var raw []byte
 		if err := tx.QueryRow(ctx, "SELECT field_type,options FROM contact_field_definitions WHERE field_key=$1 AND NOT archived", key).Scan(&kind, &raw); err != nil {
 			if err == pgx.ErrNoRows {
-				return platform.Fail(400, "unknown_attribute", "尚未登记客户字段："+key)
+				return platform.Failf(400, "unknown_attribute", "尚未登记客户字段：%s", key)
 			}
 			return err
 		}
@@ -90,7 +89,7 @@ func validateAttributes(ctx context.Context, tx pgx.Tx, attributes map[string]an
 			}
 		}
 		if !valid {
-			return platform.Fail(400, "invalid_attribute", "客户字段类型或选项不正确："+key)
+			return platform.Failf(400, "invalid_attribute", "客户字段类型或选项不正确：%s", key)
 		}
 	}
 	return nil
@@ -333,7 +332,7 @@ func walkContext(value any, depth int, keys *int) error {
 		}
 	case nil, bool, float64:
 	default:
-		return platform.Fail(400, "invalid_context", fmt.Sprintf("不支持的业务字段类型：%T", value))
+		return platform.Failf(400, "invalid_context", "不支持的业务字段类型：%T", value)
 	}
 	return nil
 }

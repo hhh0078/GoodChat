@@ -1,7 +1,10 @@
 /** 文件作用说明：隔离并保留当前窗口中各服务器的未发送草稿。 */
-
-/** switchDraftServer 归档旧服务器的草稿，再恢复目标服务器自己的草稿。 */
-export function switchDraftServer(storage: Storage, server: string) {
+/** switchDraftServer 归档旧服务器草稿并恢复目标草稿；错误文案由界面按当前语言传入。 */
+export function switchDraftServer(
+  storage: Storage,
+  server: string,
+  invalidDraftMessage = "目标服务器的窗口草稿记录损坏，已保留当前草稿。",
+) {
   const activeKey = "goodchat.desktop.server";
   const previous = storage.getItem(activeKey);
   if (previous === server) return;
@@ -19,7 +22,7 @@ export function switchDraftServer(storage: Storage, server: string) {
           !key.startsWith("goodchat.draft.") || typeof item !== "string",
       )
     )
-      throw new Error("目标服务器的窗口草稿记录损坏，已保留当前草稿。");
+      throw new Error(invalidDraftMessage);
     restored = value as Record<string, string>;
   }
   const keys = Array.from({ length: storage.length }, (_, index) =>

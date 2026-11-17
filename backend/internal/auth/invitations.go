@@ -3,13 +3,13 @@ package auth
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -147,8 +147,16 @@ func (s *Service) issueInvitation(w http.ResponseWriter, r *http.Request, input 
 	if err != nil {
 		return err
 	}
-	link := strings.TrimRight(s.cfg.PublicURL, "/") + "/accept-invitation?token=" + url.QueryEscape(token)
-	result := s.mailer.send(r.Context(), email, "GoodChat 租户成员邀请", fmt.Sprintf("您受邀加入GoodChat租户「%s」。\n\n请打开以下链接，验证受邀邮箱后加入：\n%s\n\n邀请7天有效；注册受邀账号不会创建其他租户。邀请邮件不包含初始密码。如果并非您期待的邀请，请忽略。", principal.TenantName, link))
+	locale := localization.RequestLocale(r)
+	var recipientLocale string
+	if err := s.pool.QueryRow(r.Context(), "SELECT coalesce(nullif((SELECT preferred_locale FROM users WHERE email=$1),''),default_locale) FROM tenants WHERE id=$2", email, principal.TenantID).Scan(&recipientLocale); err != nil {
+		return err
+	}
+	if value := localization.Normalize(recipientLocale); value != "" {
+		locale = value
+	}
+	link := strings.TrimRight(s.cfg.PublicURL, "/") + "/accept-invitation?token=" + url.QueryEscape(token) + "&lang=" + url.QueryEscape(locale)
+	result := s.mailer.send(r.Context(), email, localization.Format(locale, "GoodChat 租户成员邀请"), localization.Format(locale, "您受邀加入GoodChat租户「%s」。\n\n请打开以下链接，验证受邀邮箱后加入：\n%s\n\n邀请7天有效；注册受邀账号不会创建其他租户。邀请邮件不包含初始密码。如果并非您期待的邀请，请忽略。", principal.TenantName, link))
 	if err := s.recordDelivery(r.Context(), "invitation", invite.ID, deliveryID, result); err != nil {
 		return err
 	}

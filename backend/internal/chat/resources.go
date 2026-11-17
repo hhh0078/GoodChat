@@ -118,7 +118,7 @@ func (s *Service) resources(name string) http.HandlerFunc {
 			}
 			for k := range values {
 				if !spec.fields[k] {
-					return platform.Fail(400, "unsupported_field", "当前资源不接受字段："+k)
+					return platform.Failf(400, "unsupported_field", "当前资源不接受字段：%s", k)
 				}
 			}
 			if _, hasTags := values["tag_ids"]; name == "contacts" && hasTags {
@@ -130,7 +130,7 @@ func (s *Service) resources(name string) http.HandlerFunc {
 				if strings.HasSuffix(k, "_id") && value != nil {
 					v, ok := value.(string)
 					if !ok || (v != "" && !uuidPattern.MatchString(v)) {
-						return platform.Fail(400, "invalid_id", "关联资源编号格式不正确："+k)
+						return platform.Failf(400, "invalid_id", "关联资源编号格式不正确：%s", k)
 					}
 				}
 			}

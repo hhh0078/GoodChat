@@ -1,9 +1,11 @@
 /** 文件作用说明：用真实小时或日统计绘制可聚焦查看数值的平滑趋势图，同时保留表格供精确阅读。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
 import { EmptyData } from "@/components/page-state";
+import { localizeStatic } from "@/i18n/runtime";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
 import { smoothTrendPath } from "@/lib/trend-curve";
-
+import { useEffect, useRef, useState } from "react";
 export type TrendPoint = {
   date: string;
   timestamp?: string;
@@ -16,9 +18,11 @@ const series = [
   { key: "conversations", label: "咨询", className: "conversations" },
   { key: "messages", label: "消息", className: "messages" },
 ] as const;
-
 /** ReportTrend 用有限区间贝塞尔曲线连接计数点，悬停或键盘聚焦均可读取原始数值。 */
 export function ReportTrend({ items, hourly }: { items: TrendPoint[]; hourly: boolean }) {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  const tr = useTranslator();
   const [focus, setFocus] = useState<number | null>(null);
   const plot = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(900);
@@ -38,20 +42,21 @@ export function ReportTrend({ items, hourly }: { items: TrendPoint[]; hourly: bo
   const height = 200;
   const maximum = Math.max(
     1,
-    ...items.flatMap((item) => series.map(({ key }) => Number(item[key]) || 0)),
+    ...items.flatMap((item) => localizeStatic(series, tr).map(({ key }) => Number(item[key]) || 0)),
   );
   const current = items[focus === null ? items.length - 1 : Math.min(focus, items.length - 1)];
   return (
     <div className="report-trend">
       <div className="report-trend-heading">
         <div>
-          <h2>{hourly ? "时段趋势" : "服务趋势"}</h2>
+          <h2>{hourly ? tr("时段趋势") : tr("服务趋势")}</h2>
           <span className="muted">
-            {hourly ? "按小时汇总" : "按天汇总"} · 曲线连接真实样本，具体数值以数据点为准
+            {hourly ? tr("按小时汇总") : tr("按天汇总")}
+            {tr(" \u00B7 曲线连接真实样本，具体数值以数据点为准 ")}
           </span>
         </div>
         <div className="report-trend-legend">
-          {series.map((item) => (
+          {localizeStatic(series, tr).map((item) => (
             <span key={item.key} className={item.className}>
               <i />
               {item.label}
@@ -61,7 +66,7 @@ export function ReportTrend({ items, hourly }: { items: TrendPoint[]; hourly: bo
       </div>
       <div className="report-trend-reading" aria-live="polite">
         <strong>{current.date}</strong>
-        {series.map(({ key, label }) => (
+        {localizeStatic(series, tr).map(({ key, label }) => (
           <span key={key}>
             {label} <b>{current[key]}</b>
           </span>
@@ -71,7 +76,9 @@ export function ReportTrend({ items, hourly }: { items: TrendPoint[]; hourly: bo
         <svg
           viewBox={`-42 -12 ${width + 84} 250`}
           role="img"
-          aria-label={`${hourly ? "小时" : "每日"}服务量平滑曲线，可在下方查看明细数据`}
+          aria-label={tr("{p0}服务量平滑曲线，可在下方查看明细数据", {
+            p0: String(hourly ? tr("小时") : tr("每日")),
+          })}
         >
           {[0, 0.5, 1].map((ratio) => (
             <g key={ratio}>
@@ -83,13 +90,11 @@ export function ReportTrend({ items, hourly }: { items: TrendPoint[]; hourly: bo
                 y2={height * ratio}
               />
               <text x="-12" y={height * ratio + 4} textAnchor="end">
-                {new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 1 }).format(
-                  maximum * (1 - ratio),
-                )}
+                {numberFormatter({ maximumFractionDigits: 1 }).format(maximum * (1 - ratio))}
               </text>
             </g>
           ))}
-          {series.map(({ key, className }) => (
+          {localizeStatic(series, tr).map(({ key, className }) => (
             <path
               key={key}
               className={`report-trend-line ${className}`}
@@ -113,7 +118,12 @@ export function ReportTrend({ items, hourly }: { items: TrendPoint[]; hourly: bo
                   height={height}
                   tabIndex={0}
                   role="img"
-                  aria-label={`${item.date}：访客${item.visitors}，咨询${item.conversations}，消息${item.messages}`}
+                  aria-label={tr("{p0}：访客{p1}，咨询{p2}，消息{p3}", {
+                    p0: String(item.date),
+                    p1: String(item.visitors),
+                    p2: String(item.conversations),
+                    p3: String(item.messages),
+                  })}
                   onFocus={() => setFocus(index)}
                   onMouseEnter={() => setFocus(index)}
                   onBlur={() => setFocus(null)}

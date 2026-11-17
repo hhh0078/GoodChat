@@ -1,7 +1,8 @@
 /** 文件作用说明：呈现管理员的持续 AI 对话、图片参考、生成进度与隔离用户端预览。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Input, Modal, Select, Space, Spin, Tag, Tooltip } from "antd";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
+import { errorMessage } from "@/lib/api";
 import {
   CloseOutlined,
   PictureOutlined,
@@ -10,13 +11,13 @@ import {
   SendOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
-import { errorMessage } from "@/lib/api";
-import { activeAssistantJob, type AssistantRequest } from "./state";
-import { useAssistant } from "./use-assistant";
+import { Alert, Button, Input, Modal, Select, Space, Spin, Tag, Tooltip } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { AssistantJobCard } from "./job-card";
 import { AssistantPreview } from "./preview";
 import { AssistantSettings } from "./settings";
-import { AssistantJobCard } from "./job-card";
-
+import { activeAssistantJob, type AssistantRequest } from "./state";
+import { useAssistant } from "./use-assistant";
 /** AssistantPanel 使用持久对话接口，不把模型返回文本当成可执行页面注入后台。 */
 export default function AssistantPanel({
   open,
@@ -33,6 +34,9 @@ export default function AssistantPanel({
   platformAdmin: boolean;
   tenantAdmin: boolean;
 }) {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  const tr = useTranslator();
   const state = useAssistant(tenantId, open && tenantAdmin, initial);
   const [settingsOpen, setSettingsOpen] = useState(initial.view === "configuration");
   const [mobileTab, setMobileTab] = useState("conversation");
@@ -54,11 +58,10 @@ export default function AssistantPanel({
   const templateId = candidateId || state.job?.template_id || state.thread?.template_id;
   const busy = state.sending || state.loading || active;
   const examples = [
-    "为金融咨询设计可信、克制的客服页，顶部展示风险提醒，提供分期选项。",
-    "设计电商售后客服页，温暖橙色，突出订单咨询和售后进度入口。",
-    "请根据参考图片调整布局与配色，保留完整的发送、接收和附件功能。",
+    tr("为金融咨询设计可信、克制的客服页，顶部展示风险提醒，提供分期选项。"),
+    tr("设计电商售后客服页，温暖橙色，突出订单咨询和售后进度入口。"),
+    tr("请根据参考图片调整布局与配色，保留完整的发送、接收和附件功能。"),
   ];
-
   return (
     <>
       <Modal
@@ -69,8 +72,8 @@ export default function AssistantPanel({
               <RobotOutlined />
             </span>
             <div>
-              <strong>AI 模板助手</strong>
-              <span>描述需求，边聊边预览你的用户端</span>
+              <strong>{tr("AI 模板助手")}</strong>
+              <span>{tr("描述需求，边聊边预览你的用户端")}</span>
             </div>
           </div>
         }
@@ -89,11 +92,11 @@ export default function AssistantPanel({
               disabled={active || state.sending || state.uploading || state.loading}
               onClick={() => state.newThread()}
             >
-              新对话
+              {tr("新对话 ")}
             </Button>
             <Select
-              aria-label="对话历史"
-              placeholder="恢复历史对话"
+              aria-label={tr("对话历史")}
+              placeholder={tr("恢复历史对话")}
               value={state.thread?.id || undefined}
               className="assistant-history-select"
               loading={state.loading}
@@ -101,55 +104,55 @@ export default function AssistantPanel({
               onChange={(value) => void state.selectThread(value)}
               options={state.threads.map((thread) => ({
                 value: thread.id,
-                label: thread.title || "未命名对话",
+                label: thread.title || tr("未命名对话"),
               }))}
-              notFoundContent="暂无历史对话"
+              notFoundContent={tr("暂无历史对话")}
             />
             {platformAdmin && (
               <Select
-                aria-label="AI 配置来源"
+                aria-label={tr("AI 配置来源")}
                 value={state.source}
                 disabled={!!state.thread || busy || state.uploading}
                 onChange={(value) => state.newThread(value)}
                 options={[
-                  { value: "tenant", label: "本租户 AI" },
-                  { value: "platform", label: "平台 AI" },
+                  { value: "tenant", label: tr("本租户 AI") },
+                  { value: "platform", label: tr("平台 AI") },
                 ]}
               />
             )}
           </Space>
           <Button icon={<SettingOutlined />} onClick={() => setSettingsOpen(true)}>
-            AI 配置
+            {tr("AI 配置 ")}
           </Button>
         </div>
-        <div className="assistant-mobile-switch" role="tablist" aria-label="助手面板">
+        <div className="assistant-mobile-switch" role="tablist" aria-label={tr("助手面板")}>
           <button
             role="tab"
             aria-selected={mobileTab === "conversation"}
             onClick={() => setMobileTab("conversation")}
           >
-            对话
+            {tr("对话 ")}
           </button>
           <button
             role="tab"
             aria-selected={mobileTab === "preview"}
             onClick={() => setMobileTab("preview")}
           >
-            用户端预览
+            {tr("用户端预览 ")}
           </button>
         </div>
         {!tenantAdmin && (
           <Alert
             type="info"
             showIcon
-            title="请切换到你管理的租户后创建模板"
-            description="平台 AI 与官方 JS 配置仍可在右上角管理。"
+            title={tr("请切换到你管理的租户后创建模板")}
+            description={tr("平台 AI 与官方 JS 配置仍可在右上角管理。")}
           />
         )}
         <div className={`assistant-workspace show-${mobileTab}`}>
           <section
             className={`assistant-conversation${dragging ? " is-dragging" : ""}`}
-            aria-label="AI 模板对话"
+            aria-label={tr("AI 模板对话")}
             onDragOver={(event) => {
               if (event.dataTransfer.types.includes("Files")) {
                 event.preventDefault();
@@ -168,7 +171,7 @@ export default function AssistantPanel({
             <div className="assistant-dialogue" aria-busy={state.loading}>
               {state.loading ? (
                 <div className="assistant-loading">
-                  <Spin description="正在恢复对话" />
+                  <Spin description={tr("正在恢复对话")} />
                 </div>
               ) : !state.thread?.messages?.length ? (
                 <div className="assistant-welcome">
@@ -177,10 +180,12 @@ export default function AssistantPanel({
                   </div>
                   <h2>
                     {initial.templateName
-                      ? `一起完善「${initial.templateName}」`
-                      : "你的客服页面，可以更有品牌感"}
+                      ? tr("一起完善「{p0}」", { p0: String(initial.templateName) })
+                      : tr("你的客服页面，可以更有品牌感")}
                   </h2>
-                  <p>说说行业、配色与页面内容，也可以上传参考图片。聊天核心功能由平台提供。</p>
+                  <p>
+                    {tr("说说行业、配色与页面内容，也可以上传参考图片。聊天核心功能由平台提供。")}
+                  </p>
                   <div className="assistant-examples">
                     {examples.map((example) => (
                       <button
@@ -195,7 +200,7 @@ export default function AssistantPanel({
                   </div>
                 </div>
               ) : (
-                <div className="assistant-message-list" role="log" aria-label="AI 对话记录">
+                <div className="assistant-message-list" role="log" aria-label={tr("AI 对话记录")}>
                   {state.thread.messages.map((item) => (
                     <article
                       key={item.id}
@@ -203,10 +208,10 @@ export default function AssistantPanel({
                     >
                       <strong>
                         {item.role === "user"
-                          ? "你"
+                          ? tr("你")
                           : item.role === "system"
-                            ? "生成记录"
-                            : "AI 模板助手"}
+                            ? tr("生成记录")
+                            : tr("AI 模板助手")}
                       </strong>
                       {item.content && (
                         <div className="assistant-message-content">{item.content}</div>
@@ -214,20 +219,30 @@ export default function AssistantPanel({
                       {!!item.assets?.length && (
                         <div className="assistant-reference-strip">
                           {item.assets.map((asset) => (
-                            <img key={asset.id} src={asset.data_url} alt="此条消息的参考图片" />
+                            <img
+                              key={asset.id}
+                              src={asset.data_url}
+                              alt={tr("此条消息的参考图片")}
+                            />
                           ))}
                         </div>
                       )}
                       {!item.assets?.length && !!item.asset_ids?.length && (
-                        <Tag>{item.asset_ids.length} 张参考图片</Tag>
+                        <Tag>
+                          {item.asset_ids.length}
+                          {tr(" 张参考图片")}
+                        </Tag>
                       )}
                       {item.created_at && (
                         <time dateTime={item.created_at}>
-                          {new Date(item.created_at).toLocaleString("zh-CN", {
-                            month: "numeric",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
+                          {new Date(item.created_at).toLocaleString(currentPreferences().locale, {
+                            timeZone: currentPreferences().timezone,
+                            ...{
+                              month: "numeric",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
                           })}
                         </time>
                       )}
@@ -255,7 +270,7 @@ export default function AssistantPanel({
                   title={errorMessage(state.error)}
                   action={
                     <Button size="small" onClick={() => void state.refresh()}>
-                      刷新状态
+                      {tr("刷新状态 ")}
                     </Button>
                   }
                 />
@@ -267,10 +282,13 @@ export default function AssistantPanel({
                 <div className="assistant-reference-strip">
                   {state.assets.map((asset, index) => (
                     <div key={asset.id} className="assistant-reference">
-                      <img src={asset.data_url} alt={`待发送参考图片 ${index + 1}`} />
-                      <Tooltip title="移除参考图片">
+                      <img
+                        src={asset.data_url}
+                        alt={tr("待发送参考图片 {p0}", { p0: String(index + 1) })}
+                      />
+                      <Tooltip title={tr("移除参考图片")}>
                         <button
-                          aria-label={`移除参考图片 ${index + 1}`}
+                          aria-label={tr("移除参考图片 {p0}", { p0: String(index + 1) })}
                           disabled={state.sending}
                           onClick={() =>
                             state.setAssets((items) => items.filter((item) => item.id !== asset.id))
@@ -284,10 +302,10 @@ export default function AssistantPanel({
                 </div>
               )}
               <Input.TextArea
-                aria-label="描述用户端模板需求"
+                aria-label={tr("描述用户端模板需求")}
                 value={state.draft}
                 onChange={(event) => state.setDraft(event.target.value)}
-                placeholder="描述你想要的用户端，也可以粘贴或拖入参考图片…"
+                placeholder={tr("描述你想要的用户端，也可以粘贴或拖入参考图片\u2026")}
                 autoSize={{ minRows: 3, maxRows: 7 }}
                 maxLength={12000}
                 disabled={!tenantAdmin || state.loading || state.sending || active}
@@ -314,12 +332,12 @@ export default function AssistantPanel({
                   <Button
                     type="text"
                     icon={<PictureOutlined />}
-                    aria-label="上传参考图片"
+                    aria-label={tr("上传参考图片")}
                     loading={state.uploading}
                     disabled={!tenantAdmin || busy || state.assets.length >= 4}
                     onClick={() => fileInput.current?.click()}
                   >
-                    参考图片
+                    {tr("参考图片 ")}
                   </Button>
                   <span>{state.assets.length}/4</span>
                 </Space>
@@ -336,7 +354,7 @@ export default function AssistantPanel({
                   loading={state.sending}
                   onClick={() => void state.send()}
                 >
-                  发送
+                  {tr("发送 ")}
                 </Button>
               </div>
               <input
@@ -345,17 +363,19 @@ export default function AssistantPanel({
                 accept="image/png,image/jpeg,image/webp,image/gif"
                 multiple
                 hidden
-                aria-label="选择参考图片"
+                aria-label={tr("选择参考图片")}
                 onChange={(event) => {
                   void state.uploadFiles(Array.from(event.target.files || []));
                   event.target.value = "";
                 }}
               />
               <p className="assistant-composer-hint">
-                支持粘贴、拖入图片 · ⌘ / Ctrl + Enter 发送 · 关闭窗口后可从历史恢复
+                {tr(
+                  "支持粘贴、拖入图片 \u00B7 \u2318 / Ctrl + Enter 发送 \u00B7 关闭窗口后可从历史恢复 ",
+                )}
               </p>
             </div>
-            {dragging && <div className="assistant-drop-indicator">松开添加参考图片</div>}
+            {dragging && <div className="assistant-drop-indicator">{tr("松开添加参考图片")}</div>}
           </section>
           <AssistantPreview
             url={previewURL}

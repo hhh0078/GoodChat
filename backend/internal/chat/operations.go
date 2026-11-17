@@ -93,7 +93,7 @@ func (s *Service) chatSettings(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			default:
-				returnError(w, r, "unsupported_setting", "不支持该接待设置："+key)
+				returnErrorf(w, r, "unsupported_setting", "不支持该接待设置：%s", key)
 				return
 			}
 		}
@@ -146,7 +146,7 @@ func (s *Service) preferences(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			} else {
-				returnError(w, r, "unsupported_preference", "不支持该提醒设置："+key)
+				returnErrorf(w, r, "unsupported_preference", "不支持该提醒设置：%s", key)
 				return
 			}
 		}
@@ -189,7 +189,7 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 			}
 			for key := range values {
 				if !allowed[key] {
-					returnError(w, r, "unsupported_field", "不支持该字段："+key)
+					returnErrorf(w, r, "unsupported_field", "不支持该字段：%s", key)
 					return
 				}
 			}

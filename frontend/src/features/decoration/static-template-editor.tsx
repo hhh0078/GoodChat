@@ -1,7 +1,8 @@
 /** 文件作用说明：以原始静态资源包为基础提供元素点选、源码和图片编辑，并保存为独立版本草稿。 */
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { App, Button, Input, Segmented, Select, Space, Spin, Tag } from "antd";
+import { ErrorNotice } from "@/components/page-state";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, errorMessage } from "@/lib/api";
 import {
   CodeOutlined,
   PlusOutlined,
@@ -9,18 +10,18 @@ import {
   SaveOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
-import { api, errorMessage } from "@/lib/api";
-import { ErrorNotice } from "@/components/page-state";
-import { StaticEditorPreview, type EditorPreview } from "./static-editor-preview";
-import { StaticEditorInspector } from "./static-editor-inspector";
+import { App, Button, Input, Segmented, Select, Space, Spin, Tag } from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  StaticEditorHTMLDialog,
   StaticEditorSidebar,
   StaticEditorSource,
-  StaticEditorHTMLDialog,
 } from "./static-editor-files";
+import { prepareEditorImage } from "./static-editor-image";
+import { StaticEditorInspector } from "./static-editor-inspector";
 import {
-  editorFileChanges,
   editorAssetReference,
+  editorFileChanges,
   editorNodes,
   insertEditorHTML,
   replaceEditorFile,
@@ -30,10 +31,9 @@ import {
   type EditorNode,
   type EditorSource,
 } from "./static-editor-model";
-import { prepareEditorImage } from "./static-editor-image";
+import { StaticEditorPreview, type EditorPreview } from "./static-editor-preview";
 import { editorRuleDeclarations, updateEditorRule } from "./static-editor-styles";
 import "./static-template-editor.css";
-
 export type StaticEditorTarget = {
   scope: "tenant" | "platform";
   kind?: "templates" | "pages";
@@ -43,7 +43,6 @@ export type StaticEditorTarget = {
   packageId?: string;
   status?: string;
 };
-
 /** StaticTemplateEditor 维护本次编辑草稿；保存静态包后再以版本号更新模板，发布仍由原页面完成。 */
 export function StaticTemplateEditor({
   target,
@@ -56,6 +55,7 @@ export function StaticTemplateEditor({
   onSaved: () => void | Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const tr = useTranslator();
   const { message, modal } = App.useApp();
   const [source, setSource] = useState<EditorSource>();
   const [files, setFiles] = useState<EditorFile[]>([]);
@@ -75,7 +75,13 @@ export function StaticTemplateEditor({
   const upload = useRef<HTMLInputElement>(null);
   const requestSerial = useRef(0);
   const activeRequest = useRef<AbortController | undefined>(undefined);
-  const pendingPackage = useRef<{ signature: string; id: string } | undefined>(undefined);
+  const pendingPackage = useRef<
+    | {
+        signature: string;
+        id: string;
+      }
+    | undefined
+  >(undefined);
   const signature = JSON.stringify({ name, status, files });
   const dirty = !!source && signature !== initial;
   const entrypoint = source?.entrypoint || "index.html";
@@ -235,7 +241,11 @@ export function StaticTemplateEditor({
           if (pendingPackage.current?.signature === currentSignature)
             packageId = pendingPackage.current.id;
           else {
-            const result = await api<{ package: { id: string } }>(`${base}/revisions`, {
+            const result = await api<{
+              package: {
+                id: string;
+              };
+            }>(`${base}/revisions`, {
               method: "POST",
               tenantId,
               signal,
@@ -268,8 +278,8 @@ export function StaticTemplateEditor({
       setFiles(prepared);
       message.success(
         target.scope === "platform"
-          ? "平台模板新版本已保存"
-          : "模板草稿已保存，线上页面需发布后更新",
+          ? tr("平台模板新版本已保存")
+          : tr("模板草稿已保存，线上页面需发布后更新"),
       );
       await onSaved();
       if (serial === requestSerial.current) setReload((value) => value + 1);
@@ -302,8 +312,8 @@ export function StaticTemplateEditor({
       );
       message.success(
         result.compressed
-          ? "图片已压缩并加入草稿，保存后写入模板"
-          : "图片已加入草稿，保存后写入模板",
+          ? tr("图片已压缩并加入草稿，保存后写入模板")
+          : tr("图片已加入草稿，保存后写入模板"),
       );
     } catch (problem) {
       if (serial === requestSerial.current) setError(problem);
@@ -320,9 +330,9 @@ export function StaticTemplateEditor({
       return;
     }
     modal.confirm({
-      title: "放弃当前未保存的改动？",
-      okText: "重新读取",
-      cancelText: "继续编辑",
+      title: tr("放弃当前未保存的改动？"),
+      okText: tr("重新读取"),
+      cancelText: tr("继续编辑"),
       onOk: () => {
         if (serial === requestSerial.current) setReload((value) => value + 1);
       },
@@ -335,7 +345,9 @@ export function StaticTemplateEditor({
       next = replaceEditorFile(
         next,
         "static/custom.js",
-        "/** 文件作用说明：仅处理当前模板的附加界面交互；消息与业务动作调用官方 GoodChat SDK。 */\n",
+        tr(
+          "/** 文件作用说明：仅处理当前模板的附加界面交互；消息与业务动作调用官方 GoodChat SDK。 */\n",
+        ),
       );
       const document = new DOMParser().parseFromString(entry, "text/html");
       const script = document.createElement("script");
@@ -357,36 +369,36 @@ export function StaticTemplateEditor({
         {!error && (
           <>
             <Spin />
-            <p>正在读取模板源文件</p>
+            <p>{tr("正在读取模板源文件")}</p>
           </>
         )}
       </div>
     );
   return (
-    <section className="static-template-editor" aria-label="静态模板可视化编辑器">
+    <section className="static-template-editor" aria-label={tr("静态模板可视化编辑器")}>
       <div className="static-editor-topbar">
         <div>
           <Input
-            aria-label="模板编辑名称"
+            aria-label={tr("模板编辑名称")}
             value={name}
             maxLength={100}
             onChange={(event) => setName(event.target.value)}
             disabled={!!busy}
           />
           <span className="static-editor-help">
-            {target.scope === "platform" ? "平台设计" : "独立草稿"} · v
+            {target.scope === "platform" ? tr("平台设计") : tr("独立草稿")} · v
             {source.version || target.version}
-            {dirty && <Tag color="gold">未保存</Tag>}
+            {dirty && <Tag color="gold">{tr("未保存")}</Tag>}
           </span>
         </div>
         <Space wrap>
           <Segmented
-            aria-label="模板编辑模式"
+            aria-label={tr("模板编辑模式")}
             value={mode}
             onChange={(value) => setMode(value as "select" | "interact")}
             options={[
-              { label: "选择编辑", value: "select" },
-              { label: "交互预览", value: "interact" },
+              { label: tr("选择编辑"), value: "select" },
+              { label: tr("交互预览"), value: "interact" },
             ]}
           />
           <Button
@@ -395,7 +407,7 @@ export function StaticTemplateEditor({
             loading={busy === "preview"}
             disabled={!!busy && busy !== "preview"}
           >
-            更新预览
+            {tr("更新预览 ")}
           </Button>
           <Button
             type="primary"
@@ -404,7 +416,8 @@ export function StaticTemplateEditor({
             loading={busy === "save"}
             disabled={!dirty || !name.trim() || (!!busy && busy !== "save")}
           >
-            保存{target.scope === "platform" ? "新版本" : "草稿"}
+            {tr("保存")}
+            {target.scope === "platform" ? tr("新版本") : tr("草稿")}
           </Button>
         </Space>
       </div>
@@ -418,10 +431,10 @@ export function StaticTemplateEditor({
             }}
             disabled={!!busy}
           >
-            增加 HTML
+            {tr("增加 HTML ")}
           </Button>
           <Button icon={<CodeOutlined />} onClick={openExtension} disabled={!!busy}>
-            额外 JavaScript
+            {tr("额外 JavaScript ")}
           </Button>
           <Button
             icon={<UploadOutlined />}
@@ -429,31 +442,33 @@ export function StaticTemplateEditor({
             loading={busy === "image"}
             disabled={!!busy && busy !== "image"}
           >
-            上传图片
+            {tr("上传图片 ")}
           </Button>
           <Button onClick={discard} disabled={!!busy}>
-            重新读取
+            {tr("重新读取 ")}
           </Button>
         </Space>
         {target.scope === "platform" && (
           <Select
-            aria-label="平台模板可见范围"
+            aria-label={tr("平台模板可见范围")}
             value={status}
             onChange={setStatus}
             disabled={!!busy}
             options={[
-              { label: "上架", value: "published" },
-              { label: "隐藏", value: "hidden" },
+              { label: tr("上架"), value: "published" },
+              { label: tr("隐藏"), value: "hidden" },
             ]}
           />
         )}
-        {previewSignature !== JSON.stringify(files) && <Tag color="gold">有改动待更新预览</Tag>}
+        {previewSignature !== JSON.stringify(files) && (
+          <Tag color="gold">{tr("有改动待更新预览")}</Tag>
+        )}
       </div>
       <input
         ref={upload}
         type="file"
         accept="image/png,image/jpeg,image/webp,image/gif"
-        aria-label="上传模板图片"
+        aria-label={tr("上传模板图片")}
         hidden
         onChange={(event) => void selectImage(event.target.files?.[0])}
       />
@@ -482,7 +497,7 @@ export function StaticTemplateEditor({
           onSelect={chooseElement}
         />
         <aside className="static-editor-properties">
-          <div className="static-editor-panel-title">元素属性</div>
+          <div className="static-editor-panel-title">{tr("元素属性")}</div>
           <StaticEditorInspector
             node={
               selected && styleSelector

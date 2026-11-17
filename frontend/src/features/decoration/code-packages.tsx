@@ -1,7 +1,12 @@
 /** 文件作用说明：导入私有静态ZIP、浏览文件树、修订文本为新资源包并应用到真实装修草稿。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { EmptyData, ErrorNotice } from "@/components/page-state";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, ApiError } from "@/lib/api";
+import { exportFilename, startFileDownload } from "@/lib/csv-download";
+import { buildPackageTree } from "@/lib/package-tree";
+import type { Resource } from "@/lib/types";
+import { useResource } from "@/lib/use-resource";
 import {
   Alert,
   App,
@@ -19,19 +24,26 @@ import {
   Tag,
   Tree,
 } from "antd";
-import { api, ApiError } from "@/lib/api";
-import { exportFilename, startFileDownload } from "@/lib/csv-download";
-import { buildPackageTree } from "@/lib/package-tree";
-import { useResource } from "@/lib/use-resource";
-import { EmptyData, ErrorNotice } from "@/components/page-state";
-import type { Resource } from "@/lib/types";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { preferenceHeaders } from "../../i18n/runtime.ts";
 type CodePackage = Resource & {
   entrypoint: string;
   file_count: number;
   total_bytes: number;
-  manifest: { path: string; content_type: string; size: number; sha256: string }[];
+  manifest: {
+    path: string;
+    content_type: string;
+    size: number;
+    sha256: string;
+  }[];
 };
-type PackageResult = { package: CodePackage; design: { package_id: string } };
+type PackageResult = {
+  package: CodePackage;
+  design: {
+    package_id: string;
+  };
+};
 type PackageFile = {
   path: string;
   content_type: string;
@@ -47,6 +59,7 @@ export function CodePackages({
   activeId?: string;
   onUse?: (id: string) => void;
 }) {
+  const tr = useTranslator();
   const data = useResource<CodePackage>("/tenant/code-packages");
   const activeTenant = useRef(data.tenantId);
   activeTenant.current = data.tenantId;
@@ -117,7 +130,7 @@ export function CodePackages({
     const tenant = data.tenantId;
     if (dirty)
       modal.confirm({
-        title: "当前文本尚未另存为新资源包，确认放弃改动？",
+        title: tr("当前文本尚未另存为新资源包，确认放弃改动？"),
         onOk: () => {
           if (activeTenant.current === tenant) action();
         },
@@ -129,7 +142,7 @@ export function CodePackages({
     discardGuard(() => {
       setSelected(item);
       setSelectedPath(item.entrypoint);
-      setPackageName(`${item.name || "资源包"} 修订`);
+      setPackageName(tr("{p0} 修订", { p0: String(item.name || tr("资源包")) }));
     });
   }
   /** importPackage 上传实际ZIP，只有完整校验通过后才显示导入成功。 */
@@ -139,7 +152,7 @@ export function CodePackages({
     setError(null);
     try {
       if (!zip || !zip.size || zip.size > 10 * 1024 * 1024)
-        throw new Error("请选择不超过10MiB的静态ZIP资源包");
+        throw new Error(tr("请选择不超过10MiB的静态ZIP资源包"));
       const body = new FormData();
       body.append("file", zip);
       body.append("name", values.name);
@@ -154,7 +167,7 @@ export function CodePackages({
       setImportOpen(false);
       setZIP(null);
       choosePackage(result.package);
-      message.success("私有资源包已导入，尚未发布");
+      message.success(tr("私有资源包已导入，尚未发布"));
     } catch (problem) {
       if (activeTenant.current === tenant) setError(problem);
     } finally {
@@ -169,21 +182,21 @@ export function CodePackages({
     setFileError(null);
     try {
       if (new TextEncoder().encode(text).byteLength > 5 * 1024 * 1024)
-        throw new Error("单个文本文件不能超过5MiB，请精简后重试");
+        throw new Error(tr("单个文本文件不能超过5MiB，请精简后重试"));
       const result = await api<PackageResult>(`/tenant/code-packages/${selected.id}/revisions`, {
         method: "POST",
         tenantId: data.tenantId,
         bodyJSON: {
-          name: packageName || `${selected.name} 修订`,
+          name: packageName || tr("{p0} 修订", { p0: String(selected.name) }),
           entrypoint: selected.entrypoint,
           files: [{ path: file.path, content: text }],
         },
       });
       if (activeTenant.current !== tenant) return;
       setSelected(result.package);
-      setPackageName(`${result.package.name} 修订`);
+      setPackageName(tr("{p0} 修订", { p0: String(result.package.name) }));
       data.reload();
-      message.success("文本改动已另存为新资源包，请明确应用后保存装修草稿");
+      message.success(tr("文本改动已另存为新资源包，请明确应用后保存装修草稿"));
     } catch (problem) {
       if (activeTenant.current === tenant) setFileError(problem);
     } finally {
@@ -223,14 +236,14 @@ export function CodePackages({
     try {
       const response = await fetch("/api/v1/tenant/code-packages/example", {
         credentials: "same-origin",
-        headers: { "X-Tenant-ID": data.tenantId },
+        headers: { ...preferenceHeaders(), "X-Tenant-ID": data.tenantId },
         cache: "no-store",
         signal: AbortSignal.timeout(30000),
       });
       if (!response.ok) {
         const result = await response.json().catch(() => null);
         throw new ApiError(
-          result?.message || "示例资源包下载失败",
+          result?.message || tr("示例资源包下载失败"),
           response.status,
           result?.code || "PACKAGE_DOWNLOAD_FAILED",
           result?.request_id,
@@ -239,12 +252,12 @@ export function CodePackages({
       const blob = await response.blob();
       if (activeTenant.current !== tenant) return;
       if (!response.headers.get("Content-Type")?.includes("application/zip") || !blob.size)
-        throw new Error("示例资源包没有返回有效ZIP文件");
+        throw new Error(tr("示例资源包没有返回有效ZIP文件"));
       startFileDownload(
         blob,
         exportFilename(response.headers.get("Content-Disposition"), "goodchat-static-example.zip"),
       );
-      message.success("示例ZIP下载已发起，请查看浏览器下载记录");
+      message.success(tr("示例ZIP下载已发起，请查看浏览器下载记录"));
     } catch (problem) {
       if (activeTenant.current === tenant) setError(problem);
     } finally {
@@ -253,12 +266,14 @@ export function CodePackages({
   }
   return (
     <div className="studio-code-packages">
-      <h2 className="studio-panel-title">私有资源包</h2>
+      <h2 className="studio-panel-title">{tr("私有资源包")}</h2>
       <Alert
         type="info"
         showIcon
-        title="导入已构建的静态网站，资源包仅本租户可用。"
-        description="ZIP最大10MiB，展开20MiB，最多200项，单文件5MiB。支持本包HTML/CSS/JS、相对模块、图片及字体；导入不执行构建命令，不加载外部CDN或裸包依赖。"
+        title={tr("导入已构建的静态网站，资源包仅本租户可用。")}
+        description={tr(
+          "ZIP最大10MiB，展开20MiB，最多200项，单文件5MiB。支持本包HTML/CSS/JS、相对模块、图片及字体；导入不执行构建命令，不加载外部CDN或裸包依赖。",
+        )}
         style={{ marginBottom: 16 }}
       />
       <Space wrap style={{ marginBottom: 16 }}>
@@ -272,12 +287,12 @@ export function CodePackages({
             setImportOpen(true);
           }}
         >
-          导入ZIP资源包
+          {tr("导入ZIP资源包 ")}
         </Button>
         <Button loading={busy} onClick={() => void downloadExample()}>
-          下载多文件SDK示例
+          {tr("下载多文件SDK示例 ")}
         </Button>
-        {activeId && <Tag>当前草稿已引用资源包</Tag>}
+        {activeId && <Tag>{tr("当前草稿已引用资源包")}</Tag>}
       </Space>
       <ErrorNotice error={error} />
       <ErrorNotice error={data.error} retry={data.reload} />
@@ -286,21 +301,23 @@ export function CodePackages({
         rowKey="id"
         dataSource={data.items}
         loading={data.loading}
-        locale={{ emptyText: <EmptyData text="尚未导入私有资源包，可先下载示例查看目录组织。" /> }}
+        locale={{
+          emptyText: <EmptyData text={tr("尚未导入私有资源包，可先下载示例查看目录组织。")} />,
+        }}
         columns={[
-          { title: "名称", dataIndex: "name" },
-          { title: "入口", dataIndex: "entrypoint" },
-          { title: "文件数", dataIndex: "file_count" },
+          { title: tr("名称"), dataIndex: "name" },
+          { title: tr("入口"), dataIndex: "entrypoint" },
+          { title: tr("文件数"), dataIndex: "file_count" },
           {
-            title: "大小",
+            title: tr("大小"),
             dataIndex: "total_bytes",
             render: (value) => `${(Number(value) / 1024).toFixed(1)} KiB`,
           },
           {
-            title: "操作",
+            title: tr("操作"),
             render: (_, item) => (
               <Button type="link" onClick={() => choosePackage(item)}>
-                {selected?.id === item.id ? "正在查看" : "查看文件"}
+                {selected?.id === item.id ? tr("正在查看") : tr("查看文件")}
               </Button>
             ),
           },
@@ -311,22 +328,23 @@ export function CodePackages({
           size="small"
           title={
             <>
-              资源包 {selected.name} {activeId === selected.id && <Tag color="blue">当前草稿</Tag>}
+              {tr("资源包 ")}
+              {selected.name} {activeId === selected.id && <Tag color="blue">{tr("当前草稿")}</Tag>}
             </>
           }
           style={{ marginTop: 16 }}
           extra={
             onUse ? (
               <Popconfirm
-                title="应用此包并清空当前HTML/CSS/JS入口覆盖？"
-                description="只修改当前装修草稿，保存和发布仍需分别确认。"
+                title={tr("应用此包并清空当前HTML/CSS/JS入口覆盖？")}
+                description={tr("只修改当前装修草稿，保存和发布仍需分别确认。")}
                 onConfirm={() => {
                   onUse(selected.id);
-                  message.success("资源包已应用到当前草稿，请保存后预览");
+                  message.success(tr("资源包已应用到当前草稿，请保存后预览"));
                 }}
               >
                 <Button type="primary" disabled={dirty}>
-                  应用到当前草稿
+                  {tr("应用到当前草稿 ")}
                 </Button>
               </Popconfirm>
             ) : (
@@ -338,7 +356,7 @@ export function CodePackages({
                   setCreateOpen(true);
                 }}
               >
-                创建私有代码模板
+                {tr("创建私有代码模板 ")}
               </Button>
             )
           }
@@ -362,12 +380,13 @@ export function CodePackages({
                 file && (
                   <>
                     <p>
-                      <strong>{file.path}</strong> · {file.size} 字节
+                      <strong>{file.path}</strong> · {file.size}
+                      {tr(" 字节 ")}
                     </p>
                     {typeof file.content === "string" ? (
                       <>
                         <Input.TextArea
-                          aria-label="资源包文件源码"
+                          aria-label={tr("资源包文件源码")}
                           className="code-editor"
                           value={text}
                           onChange={(event) => setText(event.target.value)}
@@ -375,7 +394,7 @@ export function CodePackages({
                         />
                         <Space wrap style={{ marginTop: 12 }}>
                           <Input
-                            aria-label="修订资源包名称"
+                            aria-label={tr("修订资源包名称")}
                             value={packageName}
                             onChange={(event) => setPackageName(event.target.value)}
                             maxLength={100}
@@ -387,17 +406,19 @@ export function CodePackages({
                             disabled={!dirty}
                             onClick={() => void reviseFile()}
                           >
-                            另存为新资源包
+                            {tr("另存为新资源包 ")}
                           </Button>
                           <Button
                             disabled={!dirty || busy}
                             onClick={() => setText(file.content || "")}
                           >
-                            放弃当前文件改动
+                            {tr("放弃当前文件改动 ")}
                           </Button>
                         </Space>
                         <p className="form-hint">
-                          只保存当前文本文件的修改为新包。替换二进制素材请重新导入ZIP；旧包和旧发布不会被覆盖。
+                          {tr(
+                            "只保存当前文本文件的修改为新包。替换二进制素材请重新导入ZIP；旧包和旧发布不会被覆盖。 ",
+                          )}
                         </p>
                       </>
                     ) : (
@@ -411,7 +432,7 @@ export function CodePackages({
                             />
                           )}
                         <p className="muted">
-                          此文件按二进制保存，可查看元数据；替换请重新导入ZIP。
+                          {tr("此文件按二进制保存，可查看元数据；替换请重新导入ZIP。 ")}
                         </p>
                       </>
                     )}
@@ -424,7 +445,7 @@ export function CodePackages({
       )}
       <Drawer
         rootClassName="studio-drawer"
-        title="导入私有静态资源包"
+        title={tr("导入私有静态资源包")}
         open={importOpen}
         onClose={() => setImportOpen(false)}
         width={500}
@@ -432,32 +453,36 @@ export function CodePackages({
       >
         <ErrorNotice error={error} />
         <Form form={form} layout="vertical" onFinish={importPackage}>
-          <Form.Item name="name" label="资源包名称" rules={[{ required: true, whitespace: true }]}>
+          <Form.Item
+            name="name"
+            label={tr("资源包名称")}
+            rules={[{ required: true, whitespace: true }]}
+          >
             <Input maxLength={100} />
           </Form.Item>
           <Form.Item
             name="entrypoint"
-            label="HTML入口路径"
-            extra="相对资源包根目录，默认index.html。"
+            label={tr("HTML入口路径")}
+            extra={tr("相对资源包根目录，默认index.html。")}
           >
             <Input placeholder="index.html" maxLength={240} />
           </Form.Item>
-          <Form.Item label="ZIP文件" required>
+          <Form.Item label={tr("ZIP文件")} required>
             <input
               type="file"
-              aria-label="选择静态资源ZIP"
+              aria-label={tr("选择静态资源ZIP")}
               accept=".zip,application/zip"
               onChange={(event) => setZIP(event.target.files?.[0] || null)}
             />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={busy} disabled={!zip}>
-            校验并导入
+            {tr("校验并导入 ")}
           </Button>
         </Form>
       </Drawer>
       <Modal
         rootClassName="studio-dialog"
-        title="从资源包创建私有模板"
+        title={tr("从资源包创建私有模板")}
         open={createOpen}
         onCancel={() => setCreateOpen(false)}
         footer={null}
@@ -465,11 +490,15 @@ export function CodePackages({
       >
         <ErrorNotice error={error} />
         <Form layout="vertical" onFinish={createTemplate} initialValues={{ name: selected?.name }}>
-          <Form.Item name="name" label="模板名称" rules={[{ required: true, whitespace: true }]}>
+          <Form.Item
+            name="name"
+            label={tr("模板名称")}
+            rules={[{ required: true, whitespace: true }]}
+          >
             <Input maxLength={100} />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={busy}>
-            创建并编辑
+            {tr("创建并编辑 ")}
           </Button>
         </Form>
       </Modal>

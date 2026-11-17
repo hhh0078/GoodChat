@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"supportdesk/backend/internal/localization"
 )
 
 // CodeHandler 提供隔离静态站点处理器，不注册认证、客户、消息或附件接口。
@@ -51,7 +52,7 @@ func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 	}
 	// 模板专用预览的静态字节已在创建时完整校验，不伪造永久package_id来绕过设计外键。
 	if snapshot.Ephemeral && snapshot.Entrypoint != "" && token != "" {
-		http.Redirect(w, r, packagePrefix(id, token)+escapePackagePath(snapshot.Entrypoint), http.StatusFound)
+		http.Redirect(w, r, localizedRenderTarget(r, packagePrefix(id, token)+escapePackagePath(snapshot.Entrypoint)), http.StatusFound)
 		return
 	}
 	design, err := validateDesign(snapshot.RenderMode, snapshot.Design)
@@ -60,7 +61,7 @@ func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if snapshot.Entrypoint != "" {
-		http.Redirect(w, r, packagePrefix(id, token)+escapePackagePath(snapshot.Entrypoint), http.StatusFound)
+		http.Redirect(w, r, localizedRenderTarget(r, packagePrefix(id, token)+escapePackagePath(snapshot.Entrypoint)), http.StatusFound)
 		return
 	}
 	nonce, err := newID()
@@ -80,8 +81,9 @@ func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 	} else {
 		_ = json.Unmarshal(design, &code)
 	}
-	sdk := sdkScript(parentOrigin, id, token != "")
-	_, _ = fmt.Fprintf(w, "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\"><title>GoodChat 在线咨询</title><style>%s</style></head><body>%s<script nonce=\"%s\">%s</script><script nonce=\"%s\">%s</script></body></html>", code.CSS, code.HTML, nonce, sdk, nonce, code.Javascript)
+	code.HTML = string(localizeChatControls([]byte(code.HTML), localization.RequestLocale(r)))
+	sdk := visitorLocaleBoot(r) + sdkScript(parentOrigin, id, token != "")
+	_, _ = fmt.Fprintf(w, "<!doctype html><html lang=\"%s\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\"><title>GoodChat 在线咨询</title><style>%s</style></head><body>%s<script nonce=\"%s\">%s</script><script nonce=\"%s\">%s</script></body></html>", localization.RequestLocale(r), code.CSS, code.HTML, nonce, sdk, nonce, code.Javascript)
 }
 
 // setRenderPolicy 叠加两条CSP，使脚本同时满足随机nonce与仅内联要求，阻止脚本复用nonce加载外链。

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -64,12 +65,12 @@ func (s *Service) claimAIJob(ctx context.Context) (string, string, error) {
 
 // processAIJob 获取租户载荷后调用模型，租约失效的已调用任务失败并标记费用待核对。
 func (s *Service) processAIJob(ctx context.Context, tenant, id string) error {
-	var mode, prompt, model, status string
+	var mode, prompt, model, status, locale string
 	var base json.RawMessage
 	run := false
 	err := platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error {
 		var expired bool
-		err := tx.QueryRow(ctx, `SELECT j.status,j.render_mode,j.prompt,j.model,t.design,coalesce(j.lease_until<now(),false) FROM ai_design_jobs j JOIN tenant_templates t ON t.id=j.template_id AND t.tenant_id=j.tenant_id WHERE j.id=$1 FOR UPDATE OF j`, id).Scan(&status, &mode, &prompt, &model, &base, &expired)
+		err := tx.QueryRow(ctx, `SELECT j.target_locale,j.status,j.render_mode,j.prompt,j.model,t.design,coalesce(j.lease_until<now(),false) FROM ai_design_jobs j JOIN tenant_templates t ON t.id=j.template_id AND t.tenant_id=j.tenant_id WHERE j.id=$1 FOR UPDATE OF j`, id).Scan(&locale, &status, &mode, &prompt, &model, &base, &expired)
 		if err != nil {
 			return err
 		}
@@ -103,7 +104,7 @@ func (s *Service) processAIJob(ctx context.Context, tenant, id string) error {
 	}
 	callCtx, cancel := context.WithTimeout(ctx, 100*time.Second)
 	defer cancel()
-	result, callErr := s.callProvider(callCtx, mode, prompt, model, base)
+	result, callErr := s.callProvider(localization.WithLocale(callCtx, locale), mode, prompt, model, base)
 	return platform.TenantTx(ctx, s.pool, tenant, func(tx pgx.Tx) error {
 		var current, templateID string
 		var version int64

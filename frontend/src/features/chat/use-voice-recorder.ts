@@ -1,11 +1,12 @@
 /** 文件作用说明：隔离浏览器录音生命周期，限制时长并在离开会话时释放麦克风。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { App } from "antd";
 import { errorMessage } from "@/lib/api";
-
+import { App } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { useTranslator } from "../../i18n/use-translator.ts";
 /** useVoiceRecorder 仅在用户点击后请求录音，异步授权与卸载交错时不发送旧会话语音。 */
 export function useVoiceRecorder(onRecorded: (file: File) => Promise<void>) {
+  const tr = useTranslator();
   const { message } = App.useApp();
   const [recording, setRecording] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
@@ -35,7 +36,7 @@ export function useVoiceRecorder(onRecorded: (file: File) => Promise<void>) {
     }
     if (starting.current) return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      message.warning("当前浏览器不支持录音，请上传音频文件。");
+      message.warning(tr("当前浏览器不支持录音，请上传音频文件。"));
       return;
     }
     starting.current = true;
@@ -65,7 +66,10 @@ export function useVoiceRecorder(onRecorded: (file: File) => Promise<void>) {
           void callback.current(
             new File(
               [blob],
-              `语音-${Date.now()}.${instance.mimeType.includes("mp4") ? "m4a" : "webm"}`,
+              tr("语音-{p0}.{p1}", {
+                p0: String(Date.now()),
+                p1: String(instance.mimeType.includes("mp4") ? "m4a" : "webm"),
+              }),
               { type: instance.mimeType },
             ),
           );

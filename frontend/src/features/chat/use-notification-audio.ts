@@ -1,10 +1,11 @@
 /** 文件作用说明：由用户交互解锁浏览器声音，缓存1秒受控提示音并在卸载时释放播放资源。 */
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { notificationSound } from "@/lib/notification-sounds";
-
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslator } from "../../i18n/use-translator.ts";
 /** useNotificationAudio 只在音频上下文已解锁或主动试听时播放，异步加载后仍核对当前挂载状态。 */
 export function useNotificationAudio(enabled = true) {
+  const tr = useTranslator();
   const context = useRef<AudioContext | null>(null);
   const buffers = useRef(new Map<string, Promise<AudioBuffer>>());
   const active = useRef<AudioBufferSourceNode | null>(null);
@@ -75,12 +76,12 @@ export function useNotificationAudio(enabled = true) {
           const loading = fetch(sound.url, { credentials: "omit", redirect: "error" }).then(
             async (response) => {
               if (!response.ok || Number(response.headers.get("content-length")) > 128 * 1024)
-                throw new Error("提示音读取失败");
+                throw new Error(tr("提示音读取失败"));
               const data = await response.arrayBuffer();
-              if (data.byteLength > 128 * 1024) throw new Error("提示音资源超出限制");
+              if (data.byteLength > 128 * 1024) throw new Error(tr("提示音资源超出限制"));
               const buffer = await audio.decodeAudioData(data);
               if (buffer.duration < 0.8 || buffer.duration > 1.2)
-                throw new Error("提示音时长不正确");
+                throw new Error(tr("提示音时长不正确"));
               return buffer;
             },
           );

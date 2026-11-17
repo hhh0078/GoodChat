@@ -1,4 +1,5 @@
 /** 文件作用说明：按服务空间与入口持久缓存访客恢复资料，缓存编号只作提示，访问权限仍由服务端凭证验证。 */
+import { translate as tr } from "../i18n/runtime.ts";
 import type { VisitorParameters } from "./visitor-params";
 type CacheStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 export type VisitorSessionCache = {
@@ -7,26 +8,28 @@ export type VisitorSessionCache = {
   entry_key: string;
   visitor_token?: string;
   conversation_id?: string;
-  contact: { id?: string; display_name?: string; phone?: string; avatar_url?: string };
+  contact: {
+    id?: string;
+    display_name?: string;
+    phone?: string;
+    avatar_url?: string;
+  };
   parameters: Omit<VisitorParameters, "handoff_code">;
   pending_visit_id?: string;
   pending_started_at?: string;
   updated_at: string;
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /** visitorCacheKey 让不同入口与服务空间各自保存参数，不把一个入口的指定客服带到其他入口。 */
 export function visitorCacheKey(space: string, entry: string) {
   return `goodchat.visitor-session.v1.${encodeURIComponent(space)}.${encodeURIComponent(entry)}`;
 }
-
 /** objectValue 拒绝损坏缓存中的数组和非对象，返回可安全展开的键值数据。 */
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
 }
-
 /** stringValues 只保留字段的字符串值，缓存不能把对象注入路由或基本资料。 */
 function stringValues(value: unknown, allowed?: string[]): Record<string, string> {
   return Object.fromEntries(
@@ -36,7 +39,6 @@ function stringValues(value: unknown, allowed?: string[]): Record<string, string
     ),
   );
 }
-
 /** safeVisitorParameters 只缓存公开接入资料，不持久保存一次性handoff或原始带凭证网址。 */
 export function safeVisitorParameters(
   value: Partial<VisitorParameters>,
@@ -66,7 +68,6 @@ export function safeVisitorParameters(
     ]),
   };
 }
-
 /** readVisitorSessionCache 校验缓存版本、所属入口与字段形态，损坏缓存不作可信身份。 */
 export function readVisitorSessionCache(
   storage: CacheStorage,
@@ -117,14 +118,12 @@ export function readVisitorSessionCache(
     return null;
   }
 }
-
 /** writeVisitorSessionCache 有界保存资料与待确认访问编号，不因缓存失败丢弃已成功建立的页面会话。 */
 export function writeVisitorSessionCache(storage: CacheStorage, value: VisitorSessionCache) {
   const raw = JSON.stringify({ ...value, parameters: safeVisitorParameters(value.parameters) });
-  if (raw.length > 262144) throw new Error("访客资料超过本地缓存限制");
+  if (raw.length > 262144) throw new Error(tr("访客资料超过本地缓存限制"));
   storage.setItem(visitorCacheKey(value.service_space_id, value.entry_key), raw);
 }
-
 /** mergeVisitorParameters 当前链接显式参数覆盖同入口缓存，保留未重新提供的业务值与零和false。 */
 export function mergeVisitorParameters(
   previous: VisitorSessionCache | null,
@@ -140,12 +139,10 @@ export function mergeVisitorParameters(
     ...(current.handoff_code ? { handoff_code: current.handoff_code } : {}),
   };
 }
-
 /** forgetVisitorSessionCache 只删除本入口的恢复资料，不能拿过期身份继续打开旧会话。 */
 export function forgetVisitorSessionCache(storage: CacheStorage, space: string, entry: string) {
   storage.removeItem(visitorCacheKey(space, entry));
 }
-
 /** withVisitorIdentityLock 在浏览器支持时串行首次身份初始化，跨标签共享空间凭证，异常会自动释放锁。 */
 export async function withVisitorIdentityLock<T>(
   space: string,

@@ -5,7 +5,7 @@
 
 GoodChat is a self-hosted, multi-tenant live chat and customer support platform for teams that want to manage conversations and control their visitor-facing pages. Its Go backend and React workspace connect reception, customer profiles, service automation, reporting and customizable HTML chat templates in one application.
 
-This guide describes features implemented in the repository. The screenshots show the actual **Chinese-language interface with demonstration and acceptance data**; English documentation does not imply that the application interface is fully translated. Screenshots are compressed WebP files. The industry-template gallery uses rendered application pages rather than design mockups.
+This guide describes features implemented in the repository. The screenshots show the actual **Chinese-language interface with demonstration and acceptance data**. The application now supports nine languages with separate language and personal time-zone preferences. Screenshots are compressed WebP files. The industry-template gallery uses rendered application pages rather than design mockups.
 
 ## Who uses GoodChat?
 

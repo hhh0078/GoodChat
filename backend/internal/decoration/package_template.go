@@ -191,7 +191,7 @@ func validateTemplatePackage(entry string, files map[string]packageFile, require
 	for name, expected := range contract.Files {
 		core, ok := files[name]
 		if !ok || digest(core.Content) != expected || core.SHA256 != expected {
-			return contract, invalidDesign("固定SDK原始字节或摘要已被修改：" + name)
+			return contract, invalidDesignf("固定SDK原始字节或摘要已被修改：%s", name)
 		}
 	}
 	for name, source := range files {
@@ -233,16 +233,16 @@ func validateTemplateDOM(raw []byte, contract templateContract) error {
 			}
 			if id := attrs["id"]; id != "" {
 				if ids[id] {
-					return invalidDesign("模板节点ID不能重复：" + id)
+					return invalidDesignf("模板节点ID不能重复：%s", id)
 				}
 				ids[id] = true
 				if tag, required := templateRequiredNodes[id]; required {
 					lastControl = position
 					if tag != "" && node.Data != tag {
-						return invalidDesign("固定控件标签不正确：" + id)
+						return invalidDesignf("固定控件标签不正确：%s", id)
 					}
 					if _, exists := attrs["disabled"]; exists {
-						return invalidDesign("不能永久禁用固定聊天控件：" + id)
+						return invalidDesignf("不能永久禁用固定聊天控件：%s", id)
 					}
 					if _, exists := attrs["readonly"]; exists {
 						return invalidDesign("不能把聊天输入设为只读")
@@ -309,7 +309,7 @@ func validateTemplateDOM(raw []byte, contract templateContract) error {
 	}
 	for id := range templateRequiredNodes {
 		if !ids[id] {
-			return invalidDesign("模板缺少固定聊天节点：" + id)
+			return invalidDesignf("模板缺少固定聊天节点：%s", id)
 		}
 	}
 	if len(scripts) < 2 || len(scripts) > 3 || scripts[0] != templateSDKPath || scripts[1] != templateUIPath || len(scripts) == 3 && scripts[2] != "static/custom.js" || firstScript <= lastControl {

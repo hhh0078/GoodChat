@@ -74,12 +74,12 @@ func validateTemplateScripts(scripts TemplateScripts) error {
 	}
 	for _, marker := range []string{"GoodChat", "__GoodChatBoot", "goodchat:init", "sendText", "getState", "loadOlder", "upload", "getAvatar", "subscribe", "openLeaveMessage", "openEvaluation"} {
 		if !strings.Contains(scripts.SDK, marker) {
-			return invalidDesign("固定SDK缺少既有桥接方法：" + marker)
+			return invalidDesignf("固定SDK缺少既有桥接方法：%s", marker)
 		}
 	}
 	for _, marker := range []string{"GoodChat", "gc-messages", "gc-text", "gc-send", "sendText", "subscribe", "upload", "openLeaveMessage", "openEvaluation", "data-gc-action"} {
 		if !strings.Contains(scripts.ChatUI, marker) {
-			return invalidDesign("固定聊天脚本缺少必需界面合约：" + marker)
+			return invalidDesignf("固定聊天脚本缺少必需界面合约：%s", marker)
 		}
 	}
 	return nil

@@ -83,7 +83,7 @@ func mergePackageFiles(base *staticPackage, entry string, changes []packageFileP
 			return nil, err
 		}
 		if protectedEditorPath(change.Path) {
-			return nil, invalidDesign("编辑器不能修改固定SDK、聊天脚本或合约：" + change.Path)
+			return nil, invalidDesignf("编辑器不能修改固定SDK、聊天脚本或合约：%s", change.Path)
 		}
 		if changed[change.Path] || (change.Content == nil) == (change.DataBase64 == nil) {
 			return nil, invalidDesign("文件路径不能重复，每个变更须且只能提供content或data_base64")

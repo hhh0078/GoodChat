@@ -1,14 +1,20 @@
 /** 文件作用说明：维护真实套餐版本、功能、价格、有效期和公开状态，以发布配置驱动官网。 */
 "use client";
-import { useState } from "react";
-import { App, Button, Drawer, Form, Input, InputNumber, Space, Switch, Table, Tag } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { EmptyData, ErrorNotice } from "@/components/page-state";
+import { ContentTranslations } from "@/i18n/content-translations";
+import { useFormats } from "@/i18n/use-formats";
+import { useTranslator } from "@/i18n/use-translator";
 import { api } from "@/lib/api";
-import { useResource } from "@/lib/use-resource";
-import { ErrorNotice, EmptyData } from "@/components/page-state";
 import type { Resource } from "@/lib/types";
+import { useResource } from "@/lib/use-resource";
+import { PlusOutlined } from "@ant-design/icons";
+import { App, Button, Drawer, Form, Input, InputNumber, Space, Switch, Table, Tag } from "antd";
+import { useState } from "react";
 /** PlatformPlans 让平台管理员创建和调整真正公开可售的套餐。 */
 export function PlatformPlans() {
+  const { currentPreferences, numberFormatter } = useFormats();
+
+  const tr = useTranslator();
   const plans = useResource<Resource>("/platform/plans", true);
   const [editing, setEditing] = useState<Resource | null | undefined>();
   const [error, setError] = useState<unknown>(null);
@@ -45,7 +51,7 @@ export function PlatformPlans() {
       try {
         features = JSON.parse(String(features_json || "{}"));
       } catch {
-        throw new Error("功能配置必须是合法 JSON 对象。");
+        throw new Error(tr("功能配置必须是合法 JSON 对象。"));
       }
       if (
         !features ||
@@ -53,13 +59,13 @@ export function PlatformPlans() {
         Array.isArray(features) ||
         Object.values(features).some((value) => typeof value !== "boolean")
       )
-        throw new Error("功能配置必须是值为 true 或 false 的对象。");
+        throw new Error(tr("功能配置必须是值为 true 或 false 的对象。"));
       await api(`/platform/plans${editing?.id ? `/${editing.id}` : ""}`, {
         method: editing?.id ? "PATCH" : "POST",
         bodyJSON: { ...rest, features },
         idempotent: true,
       });
-      message.success("套餐配置已保存");
+      message.success(tr("套餐配置已保存"));
       setEditing(undefined);
       plans.reload();
     } catch (problem) {
@@ -71,13 +77,15 @@ export function PlatformPlans() {
   return (
     <section className="studio-platform-section">
       <div className="studio-panel-heading">
-        <h2>套餐版本与官网价格</h2>
-        <p>维护版本价格、坐席、功能与有效期。</p>
+        <h2>{tr("套餐版本与官网价格")}</h2>
+        <p>{tr("维护版本价格、坐席、功能与有效期。")}</p>
       </div>
       <div className="resource-tools">
-        <p className="muted">官网仅展示已启用并公开的套餐；修改价格与功能前请核对现有订阅政策。</p>
+        <p className="muted">
+          {tr("官网仅展示已启用并公开的套餐；修改价格与功能前请核对现有订阅政策。")}
+        </p>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => edit(null)}>
-          新增版本
+          {tr("新增版本 ")}
         </Button>
       </div>
       <ErrorNotice error={plans.error} retry={plans.reload} />
@@ -86,10 +94,10 @@ export function PlatformPlans() {
         dataSource={plans.items}
         loading={plans.loading}
         scroll={{ x: 900 }}
-        locale={{ emptyText: <EmptyData text="暂时没有套餐配置" /> }}
+        locale={{ emptyText: <EmptyData text={tr("暂时没有套餐配置")} /> }}
         columns={[
           {
-            title: "版本",
+            title: tr("版本"),
             render: (_, row) => (
               <>
                 <strong>{row.name}</strong>
@@ -98,32 +106,34 @@ export function PlatformPlans() {
             ),
           },
           {
-            title: "价格",
+            title: tr("价格"),
             dataIndex: "price_amount",
-            render: (value) => `¥${(Number(value) / 100).toLocaleString("zh-CN")}`,
+            render: (value) =>
+              `¥${(Number(value) / 100).toLocaleString(currentPreferences().locale)}`,
           },
-          { title: "客服坐席", dataIndex: "seat_limit" },
+          { title: tr("客服坐席"), dataIndex: "seat_limit" },
           {
-            title: "有效期",
+            title: tr("有效期"),
             dataIndex: "validity_days",
-            render: (value) => (value === 0 ? "长期有效" : `${value} 天`),
+            render: (value) =>
+              value === 0 ? tr("长期有效") : tr("{p0} 天", { p0: String(value) }),
           },
           {
-            title: "公开状态",
+            title: tr("公开状态"),
             render: (_, row) => (
               <Space>
                 <Tag color={row.is_active ? "blue" : "default"}>
-                  {row.is_active ? "启用" : "停用"}
+                  {row.is_active ? tr("启用") : tr("停用")}
                 </Tag>
-                <Tag>{row.is_public ? "官网公开" : "内部"}</Tag>
+                <Tag>{row.is_public ? tr("官网公开") : tr("内部")}</Tag>
               </Space>
             ),
           },
           {
-            title: "操作",
+            title: tr("操作"),
             render: (_, row) => (
               <Button type="link" onClick={() => edit(row)}>
-                编辑版本
+                {tr("编辑版本 ")}
               </Button>
             ),
           },
@@ -131,7 +141,7 @@ export function PlatformPlans() {
       />
       <Drawer
         rootClassName="studio-drawer"
-        title={editing ? "编辑套餐版本" : "新增套餐版本"}
+        title={editing ? tr("编辑套餐版本") : tr("新增套餐版本")}
         open={editing !== undefined}
         onClose={() => setEditing(undefined)}
         width={530}
@@ -139,31 +149,36 @@ export function PlatformPlans() {
       >
         <ErrorNotice error={error} />
         <Form layout="vertical" form={form} onFinish={save}>
-          <Form.Item label="版本名称" name="name" rules={[{ required: true, whitespace: true }]}>
+          <Form.Item
+            label={tr("版本名称")}
+            name="name"
+            rules={[{ required: true, whitespace: true }]}
+          >
             <Input maxLength={80} />
           </Form.Item>
           <Form.Item
-            label="版本编码"
+            label={tr("版本编码")}
             name="code"
             rules={[
               {
                 required: true,
                 pattern: /^[a-z][a-z0-9_-]{1,40}$/,
-                message: "使用小写字母开头的2-41位字母、数字、横线或下划线",
+                message: tr("使用小写字母开头的2-41位字母、数字、横线或下划线"),
               },
             ]}
           >
             <Input disabled={!!editing} />
           </Form.Item>
-          <Form.Item label="说明" name="description">
+          <Form.Item label={tr("说明")} name="description">
             <Input.TextArea rows={3} maxLength={2000} />
           </Form.Item>
+          <ContentTranslations />
           <div className="two-columns">
             <Form.Item
-              label="价格（分）"
+              label={tr("价格（分）")}
               name="price_amount"
               rules={[{ required: true }]}
-              extra="100 分 = 1 元，0 表示免费。"
+              extra={tr("100 分 = 1 元，0 表示免费。")}
             >
               <InputNumber
                 min={0}
@@ -172,7 +187,7 @@ export function PlatformPlans() {
                 style={{ width: "100%" }}
               />
             </Form.Item>
-            <Form.Item label="客服坐席上限" name="seat_limit" rules={[{ required: true }]}>
+            <Form.Item label={tr("客服坐席上限")} name="seat_limit" rules={[{ required: true }]}>
               <InputNumber
                 min={1}
                 precision={0}
@@ -181,10 +196,10 @@ export function PlatformPlans() {
               />
             </Form.Item>
             <Form.Item
-              label="有效天数"
+              label={tr("有效天数")}
               name="validity_days"
               rules={[{ required: true }]}
-              extra="0 表示长期有效。"
+              extra={tr("0 表示长期有效。")}
             >
               <InputNumber
                 min={0}
@@ -193,31 +208,31 @@ export function PlatformPlans() {
                 style={{ width: "100%" }}
               />
             </Form.Item>
-            <Form.Item label="展示顺序" name="sort_order">
+            <Form.Item label={tr("展示顺序")} name="sort_order">
               <InputNumber min={0} precision={0} style={{ width: "100%" }} />
             </Form.Item>
           </div>
-          <Form.Item label="币种" name="currency">
+          <Form.Item label={tr("币种")} name="currency">
             <Input readOnly />
           </Form.Item>
           <Form.Item
-            label="功能配置 JSON"
+            label={tr("功能配置 JSON")}
             name="features_json"
-            extra='例如 {"chat":true,"templates":true,"ai_design":false}'
+            extra={tr('例如 {"chat":true,"templates":true,"ai_design":false}')}
           >
             <Input.TextArea className="code-editor" rows={8} />
           </Form.Item>
           <Space size={30}>
-            <Form.Item label="启用版本" name="is_active" valuePropName="checked">
+            <Form.Item label={tr("启用版本")} name="is_active" valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item label="官网公开" name="is_public" valuePropName="checked">
+            <Form.Item label={tr("官网公开")} name="is_public" valuePropName="checked">
               <Switch />
             </Form.Item>
           </Space>
           <div>
             <Button type="primary" htmlType="submit" loading={busy}>
-              保存版本
+              {tr("保存版本 ")}
             </Button>
           </div>
         </Form>

@@ -1,9 +1,11 @@
 /** 文件作用说明：下载兼容旧内部备注的私有附件，权限由客户备注专用接口实时核验。 */
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { App, Button } from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
+import { useTranslator } from "@/i18n/use-translator";
 import { errorMessage } from "@/lib/api";
+import { DownloadOutlined } from "@ant-design/icons";
+import { App, Button } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { preferenceHeaders } from "../../i18n/runtime.ts";
 type NoteFile = {
   file_name: string;
   content_type: string;
@@ -22,6 +24,7 @@ export function NoteAttachment({
   noteId: string;
   tenantId: string;
 }) {
+  const tr = useTranslator();
   const { message } = App.useApp();
   const [busy, setBusy] = useState(false);
   const controller = useRef<AbortController | null>(null);
@@ -31,7 +34,7 @@ export function NoteAttachment({
     if (busy) return;
     const expected = `/tenant/contacts/${contactId}/notes/${noteId}/attachment`;
     if (attachment.download_path !== expected) {
-      message.error("备注附件下载地址无效，请刷新客户资料。");
+      message.error(tr("备注附件下载地址无效，请刷新客户资料。"));
       return;
     }
     setBusy(true);
@@ -41,20 +44,20 @@ export function NoteAttachment({
     try {
       const response = await fetch(`/api/v1${expected}`, {
         credentials: "same-origin",
-        headers: { "X-Tenant-ID": tenantId },
+        headers: { ...preferenceHeaders(), "X-Tenant-ID": tenantId },
         cache: "no-store",
         signal: AbortSignal.any([active.signal, AbortSignal.timeout(30000)]),
       });
       if (!response.ok) {
         const error = await response.json().catch(() => null);
-        throw new Error(error?.message || "无权读取此附件，附件可能已撤回。");
+        throw new Error(error?.message || tr("无权读取此附件，附件可能已撤回。"));
       }
       const blob = await response.blob();
       if (active.signal.aborted) return;
       url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = attachment.file_name || "备注附件";
+      link.download = attachment.file_name || tr("备注附件");
       document.body.append(link);
       link.click();
       link.remove();
@@ -77,7 +80,7 @@ export function NoteAttachment({
       onClick={() => void download()}
       title={attachment.file_name}
     >
-      {attachment.file_name || "备注附件"}
+      {attachment.file_name || tr("备注附件")}
     </Button>
   );
 }

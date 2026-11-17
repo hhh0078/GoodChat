@@ -1,6 +1,6 @@
 /** 文件作用说明：将现有客服组件打包为桌面本地资源，替换Next路由与浏览器实时连接入口。 */
-import { defineConfig } from "vite";
 import { fileURLToPath, URL } from "node:url";
+import { defineConfig } from "vite";
 
 /** path 将配置相对路径转换为跨平台构建路径。 */
 function path(value: string) {
@@ -21,6 +21,7 @@ export default defineConfig({
         find: /^(?:@\/features\/chat\/|\.\/)workspace-reminders$/,
         replacement: path("../desktop/frontend/src/reminders.tsx"),
       },
+      { find: "@/i18n/link", replacement: path("../desktop/frontend/src/link.tsx") },
       { find: /^next\/link$/, replacement: path("../desktop/frontend/src/link.tsx") },
       { find: "@", replacement: path("./src") },
       { find: /^react$/, replacement: path("./node_modules/react") },

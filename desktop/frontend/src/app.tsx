@@ -1,5 +1,15 @@
 /** 文件作用说明：提供桌面服务器选择、账号登录、工作空间切换、发送队列与复用客服工作台。 */
-import { useEffect, useState } from "react";
+import { AgentWorkspace } from "@/features/chat/workspace";
+import { localizeStatic } from "@/i18n/runtime";
+import { useTranslator } from "@/i18n/use-translator";
+import { api, ApiError, errorMessage } from "@/lib/api";
+import type { CurrentUser } from "@/lib/types";
+import {
+  CloudServerOutlined,
+  LogoutOutlined,
+  ReloadOutlined,
+  SettingOutlined,
+} from "@ant-design/icons";
 import {
   Alert,
   App as AntApp,
@@ -8,35 +18,25 @@ import {
   Empty,
   Form,
   Input,
-  Modal,
   Select,
   Space,
   Spin,
   Tag,
   Typography,
 } from "antd";
-import {
-  CloudServerOutlined,
-  LogoutOutlined,
-  ReloadOutlined,
-  SettingOutlined,
-} from "@ant-design/icons";
-import { AgentWorkspace } from "@/features/chat/workspace";
-import { api, ApiError, errorMessage } from "@/lib/api";
-import type { CurrentUser } from "@/lib/types";
-import { DesktopSessionProvider } from "./session";
-import { WorkspaceRemindersProvider } from "./reminders";
+import { useEffect, useState } from "react";
+import { switchDraftServer } from "./drafts";
+import { Login } from "./login";
 import {
   invoke,
-  on,
   message,
+  on,
+  type Pending,
   type Startup,
   type State,
-  type Pending,
 } from "./native";
-
-import { Login } from "./login";
-import { switchDraftServer } from "./drafts";
+import { WorkspaceRemindersProvider } from "./reminders";
+import { DesktopSessionProvider } from "./session";
 import { UpdateRequired, type Update } from "./update-required";
 import { DeviceSettings } from "./device-settings";
 
@@ -49,9 +49,9 @@ const labels: Record<string, string> = {
   denied: "身份失效",
   offline: "网络断开",
 };
-
 /** DesktopApp 将服务器确认置于登录之前，每次启动都保留用户选择权。 */
 export default function DesktopApp() {
+  const tr = useTranslator();
   const [serverForm] = Form.useForm();
   const [update, setUpdate] = useState<Update | null>(null);
   const [startup, setStartup] = useState<Startup | null>(null);
@@ -129,12 +129,13 @@ export default function DesktopApp() {
       dispose();
     };
   }, [queueOpen]);
-
   /** loadSession 重新从服务端读取有效成员关系，不信任旧缓存中的租户。 */
   async function loadSession() {
     const user = await api<CurrentUser>("/auth/me");
     if (!user?.user?.id || !Array.isArray(user.memberships))
-      throw new Error("此地址未返回有效的GoodChat账号信息，请检查服务器地址。");
+      throw new Error(
+        tr("此地址未返回有效的GoodChat账号信息，请检查服务器地址。"),
+      );
     setCurrent(user);
     setTenant((previous) =>
       user.memberships.some((item) => item.tenant_id === previous)
@@ -152,7 +153,11 @@ export default function DesktopApp() {
     try {
       await invoke("SelectServer", values.server);
       const selected = await invoke<Startup>("Startup");
-      switchDraftServer(sessionStorage, selected.server);
+      switchDraftServer(
+        sessionStorage,
+        selected.server,
+        tr("目标服务器的窗口草稿记录损坏，已保留当前草稿。"),
+      );
       document.documentElement.dataset.server = selected.server;
       setServer(selected.server);
       setTenant("");
@@ -188,11 +193,12 @@ export default function DesktopApp() {
       (state.pending || state.failed)
     ) {
       modal.confirm({
-        title: "切换服务器",
-        content:
+        title: tr("切换服务器"),
+        content: tr(
           "未确认消息将保留在原服务器的账号分区。切换后不会转发到新服务器，重新连接原服务器并登录后才能继续处理。",
-        okText: "切换",
-        cancelText: "返回",
+        ),
+        okText: tr("切换"),
+        cancelText: tr("返回"),
         onOk: () => connect(values),
       });
     } else void connect(values);
@@ -226,7 +232,7 @@ export default function DesktopApp() {
             height={28}
           />
           <strong>GoodChat</strong>
-          <span>客服工作台</span>
+          <span>{tr("客服工作台")}</span>
         </div>
         <div className="desktop-header-center">
           {!choosing && (
@@ -234,7 +240,9 @@ export default function DesktopApp() {
               <span
                 className={`desktop-dot ${state.status === "connected" ? "connected" : ""}`}
               />
-              <span>{labels[state.status] || state.status}</span>
+              <span>
+                {localizeStatic(labels, tr)[state.status] || state.status}
+              </span>
               <span className="desktop-server" title={server}>
                 {server}
               </span>
@@ -251,7 +259,8 @@ export default function DesktopApp() {
           </Button>
           {!!current && (
             <Button type="text" onClick={() => setQueueOpen(true)}>
-              发送队列 {state.pending + state.failed || ""}
+              {tr("发送队列 ")}
+              {state.pending + state.failed || ""}
             </Button>
           )}
           <Button
@@ -259,7 +268,7 @@ export default function DesktopApp() {
             icon={<CloudServerOutlined />}
             onClick={requestServer}
           >
-            服务器
+            {tr("服务器 ")}
           </Button>
           {!!current && (
             <Button
@@ -268,7 +277,7 @@ export default function DesktopApp() {
               loading={busy}
               onClick={() => void logout()}
             >
-              退出登录
+              {tr("退出登录 ")}
             </Button>
           )}
         </Space>
@@ -293,13 +302,13 @@ export default function DesktopApp() {
             <div className="desktop-entry-icon">
               <CloudServerOutlined />
             </div>
-            <span className="desktop-eyebrow">连接你的工作空间</span>
-            <h1>选择服务器</h1>
+            <span className="desktop-eyebrow">{tr("连接你的工作空间")}</span>
+            <h1>{tr("选择服务器")}</h1>
             <p className="desktop-description">
-              使用默认服务器，或填写你所在企业的 GoodChat 服务器地址。
+              {tr("使用默认服务器，或填写你所在企业的 GoodChat 服务器地址。 ")}
             </p>
             {!startup && !error ? (
-              <Spin description="正在读取配置" />
+              <Spin description={tr("正在读取配置")} />
             ) : (
               <Form
                 form={serverForm}
@@ -310,10 +319,10 @@ export default function DesktopApp() {
                 requiredMark={false}
               >
                 <Form.Item
-                  label="服务器地址"
+                  label={tr("服务器地址")}
                   name="server"
                   rules={[
-                    { required: true, message: "请填写服务器地址" },
+                    { required: true, message: tr("请填写服务器地址") },
                     {
                       validator: async (_, value: string) => {
                         let url: URL;
@@ -321,7 +330,7 @@ export default function DesktopApp() {
                           url = new URL(value.trim());
                         } catch {
                           throw new Error(
-                            "请输入完整地址，例如 https://goodchat.58it.cn",
+                            tr("请输入完整地址，例如 https://goodchat.58it.cn"),
                           );
                         }
                         if (
@@ -332,7 +341,9 @@ export default function DesktopApp() {
                           !["", "/"].includes(url.pathname)
                         )
                           throw new Error(
-                            "只填写服务器根地址，不包含账号、页面路径或查询参数",
+                            tr(
+                              "只填写服务器根地址，不包含账号、页面路径或查询参数",
+                            ),
                           );
                         if (
                           url.protocol !== "https:" &&
@@ -343,7 +354,9 @@ export default function DesktopApp() {
                             )
                           )
                         )
-                          throw new Error("请使用 HTTPS；HTTP 仅供本机调试");
+                          throw new Error(
+                            tr("请使用 HTTPS；HTTP 仅供本机调试"),
+                          );
                       },
                     },
                   ]}
@@ -357,7 +370,7 @@ export default function DesktopApp() {
                   />
                 </Form.Item>
                 <div className="desktop-server-help">
-                  <span>下次启动会记住你的选择</span>
+                  <span>{tr("下次启动会记住你的选择")}</span>
                   <Button
                     type="link"
                     onClick={() =>
@@ -366,7 +379,7 @@ export default function DesktopApp() {
                       })
                     }
                   >
-                    恢复安装包默认值
+                    {tr("恢复安装包默认值 ")}
                   </Button>
                 </div>
                 <Button
@@ -376,7 +389,7 @@ export default function DesktopApp() {
                   block
                   loading={busy}
                 >
-                  连接服务器
+                  {tr("连接服务器 ")}
                 </Button>
                 {!!current && (
                   <Button
@@ -385,18 +398,23 @@ export default function DesktopApp() {
                     type="text"
                     onClick={() => setChoosing(false)}
                   >
-                    返回当前工作台
+                    {tr("返回当前工作台 ")}
                   </Button>
                 )}
               </Form>
             )}
             <div className="desktop-entry-meta">
               <span>Mac · Windows</span>
-              <span>版本 {startup?.version || "—"}</span>
+              <span>
+                {tr("版本 ")}
+                {startup?.version || "—"}
+              </span>
             </div>
           </section>
           <p className="desktop-entry-note">
-            关闭窗口后，GoodChat 将留在系统托盘或菜单栏。彻底退出后停止接收。
+            {tr(
+              "关闭窗口后，GoodChat 将留在系统托盘或菜单栏。彻底退出后停止接收。 ",
+            )}
           </p>
         </main>
       ) : update?.required ? (
@@ -415,13 +433,15 @@ export default function DesktopApp() {
           onChangeServer={requestServer}
         />
       ) : !current.memberships.length ? (
-        <Empty description="当前账号没有可用工作空间，请联系管理员邀请加入。" />
+        <Empty
+          description={tr("当前账号没有可用工作空间，请联系管理员邀请加入。")}
+        />
       ) : (
         <>
           <div className="desktop-toolbar">
             <Space>
               <Select
-                aria-label="工作空间"
+                aria-label={tr("工作空间")}
                 value={tenant}
                 onChange={setTenant}
                 options={current.memberships.map((item) => ({
@@ -440,7 +460,7 @@ export default function DesktopApp() {
                 icon={<ReloadOutlined />}
                 onClick={() => void invoke("Reconnect")}
               >
-                重新连接
+                {tr("重新连接 ")}
               </Button>
               <div id="workspace-header-actions" />
             </Space>
@@ -469,44 +489,47 @@ export default function DesktopApp() {
             </DesktopSessionProvider>
           ) : (
             <div className="console-loading">
-              <Spin description="正在核验工作空间并启动消息模块" />
+              <Spin description={tr("正在核验工作空间并启动消息模块")} />
             </div>
           )}
         </>
       )}
       <Drawer
-        title="本机发送队列"
+        title={tr("本机发送队列")}
         open={queueOpen}
         onClose={() => setQueueOpen(false)}
         size={460}
       >
         <Alert
           type="info"
-          title="只有服务器确认保存后才会移出队列。网络失败会自动重试；服务器拒绝的消息需核对后手动重试。"
+          title={tr(
+            "只有服务器确认保存后才会移出队列。网络失败会自动重试；服务器拒绝的消息需核对后手动重试。",
+          )}
         />
         {!pending.length ? (
-          <Empty description="没有未确认消息" />
+          <Empty description={tr("没有未确认消息")} />
         ) : (
           pending.map((item) => (
             <article className="desktop-pending" key={item.id}>
               <Tag color={item.state === "failed" ? "error" : "processing"}>
-                {item.state === "failed" ? "需要处理" : "待服务器确认"}
+                {item.state === "failed" ? tr("需要处理") : tr("待服务器确认")}
               </Tag>
               <p>
-                {item.body.content || `[${item.body.message_type || "附件"}]`}
+                {item.body.content ||
+                  `[${item.body.message_type || tr("附件")}]`}
               </p>
               <Typography.Text type="secondary">
-                {item.error || "保留原消息编号，连接恢复后自动核对。"}
+                {item.error || tr("保留原消息编号，连接恢复后自动核对。")}
               </Typography.Text>
               {item.state === "failed" && (
                 <Button
                   onClick={() =>
                     void invoke("Retry", item.id)
-                      .then(() => toast.success("已加入原消息重试队列"))
+                      .then(() => toast.success(tr("已加入原消息重试队列")))
                       .catch((problem) => toast.error(message(problem)))
                   }
                 >
-                  重试原消息
+                  {tr("重试原消息 ")}
                 </Button>
               )}
             </article>

@@ -14,13 +14,13 @@ import (
 
 // assistantWork 保存一个已认领任务的固定输入和当前进度，不把凭据写入任务表。
 type assistantWork struct {
-	ID, Tenant, Thread, Member, Source, Phase, BaseTemplate string
-	ConfigVersion, ContractVersion, BaseVersion             int64
-	BaseDesign                                              json.RawMessage
-	Output                                                  assistantOutput
-	Configuration                                           assistantConfiguration
-	Foundation                                              assistantFoundation
-	Principal                                               platform.Principal
+	ID, Tenant, Thread, Member, Source, Phase, BaseTemplate, Locale string
+	ConfigVersion, ContractVersion, BaseVersion                     int64
+	BaseDesign                                                      json.RawMessage
+	Output                                                          assistantOutput
+	Configuration                                                   assistantConfiguration
+	Foundation                                                      assistantFoundation
+	Principal                                                       platform.Principal
 }
 
 // startAssistant 启动两路持久任务处理，过期的已调用任务只标记失败，不静默重试计费阶段。
@@ -106,7 +106,7 @@ func (s *Service) processAssistantJob(ctx context.Context, tenant, id string) er
 		var status string
 		var expired bool
 		var output json.RawMessage
-		if err := tx.QueryRow(ctx, `SELECT thread_id::text,created_by::text,source,phase,config_version,contract_version,coalesce(base_template_id::text,''),base_version,base_design,source_result,status,coalesce(lease_until<now(),false) FROM assistant_jobs WHERE id=$1 FOR UPDATE`, id).Scan(&work.Thread, &work.Member, &work.Source, &work.Phase, &work.ConfigVersion, &work.ContractVersion, &work.BaseTemplate, &work.BaseVersion, &work.BaseDesign, &output, &status, &expired); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT target_locale,thread_id::text,created_by::text,source,phase,config_version,contract_version,coalesce(base_template_id::text,''),base_version,base_design,source_result,status,coalesce(lease_until<now(),false) FROM assistant_jobs WHERE id=$1 FOR UPDATE`, id).Scan(&work.Locale, &work.Thread, &work.Member, &work.Source, &work.Phase, &work.ConfigVersion, &work.ContractVersion, &work.BaseTemplate, &work.BaseVersion, &work.BaseDesign, &output, &status, &expired); err != nil {
 			return err
 		}
 		if status == "running" || status == "validating" {

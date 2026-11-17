@@ -1,9 +1,9 @@
 /** 文件作用说明：提供桌面密码与邮箱验证码登录，不存储密码。 */
-import { useEffect, useState } from "react";
-import { Alert, Button, Form, Input } from "antd";
-import { CustomerServiceOutlined } from "@ant-design/icons";
+import { useTranslator } from "@/i18n/use-translator";
 import { api, errorMessage } from "@/lib/api";
-
+import { CustomerServiceOutlined } from "@ant-design/icons";
+import { Alert, Button, Form, Input } from "antd";
+import { useEffect, useState } from "react";
 /** Login 使用现有密码及邮箱验证码接口，不保存密码、不内置万能码。 */
 export function Login({
   server,
@@ -16,6 +16,7 @@ export function Login({
   onLogin: () => Promise<void>;
   onChangeServer: () => void;
 }) {
+  const tr = useTranslator();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"password" | "code">("password");
@@ -65,8 +66,8 @@ export function Login({
         <div className="desktop-entry-icon">
           <CustomerServiceOutlined />
         </div>
-        <span className="desktop-eyebrow">欢迎回到工作台</span>
-        <h1>登录 GoodChat</h1>
+        <span className="desktop-eyebrow">{tr("欢迎回到工作台")}</span>
+        <h1>{tr("登录 GoodChat")}</h1>
         <p className="desktop-description desktop-login-server" title={server}>
           {server}
         </p>
@@ -78,31 +79,31 @@ export function Login({
           requiredMark={false}
         >
           <Form.Item
-            label="邮箱"
+            label={tr("邮箱")}
             name="email"
             rules={[
-              { required: true, type: "email", message: "请输入有效邮箱" },
+              { required: true, type: "email", message: tr("请输入有效邮箱") },
             ]}
           >
             <Input size="large" autoComplete="username" autoFocus />
           </Form.Item>
           {mode === "password" ? (
             <Form.Item
-              label="密码"
+              label={tr("密码")}
               name="password"
-              rules={[{ required: true, message: "请输入密码" }]}
+              rules={[{ required: true, message: tr("请输入密码") }]}
             >
               <Input.Password size="large" autoComplete="current-password" />
             </Form.Item>
           ) : (
             <Form.Item
-              label="邮箱验证码"
+              label={tr("邮箱验证码")}
               name="code"
               rules={[
                 {
                   required: true,
                   pattern: /^\d{6}$/,
-                  message: "请输入六位验证码",
+                  message: tr("请输入六位验证码"),
                 },
               ]}
             >
@@ -117,7 +118,9 @@ export function Login({
                     disabled={!!seconds || busy}
                     onClick={() => void sendCode()}
                   >
-                    {seconds ? `${seconds} 秒后重发` : "获取验证码"}
+                    {seconds
+                      ? tr("{p0} 秒后重发", { p0: String(seconds) })
+                      : tr("获取验证码")}
                   </Button>
                 }
               />
@@ -130,7 +133,7 @@ export function Login({
             htmlType="submit"
             loading={busy || parentBusy}
           >
-            登录工作台
+            {tr("登录工作台 ")}
           </Button>
         </Form>
         <div className="desktop-login-links">
@@ -141,10 +144,10 @@ export function Login({
               setError("");
             }}
           >
-            {mode === "password" ? "使用验证码登录" : "使用密码登录"}
+            {mode === "password" ? tr("使用验证码登录") : tr("使用密码登录")}
           </Button>
           <Button type="link" onClick={onChangeServer}>
-            切换服务器
+            {tr("切换服务器 ")}
           </Button>
         </div>
       </section>
