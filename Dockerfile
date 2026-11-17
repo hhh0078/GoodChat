@@ -29,6 +29,8 @@ COPY --from=frontend-build /build/.next/standalone /app/frontend/
 COPY --from=frontend-build /build/.next/static /app/frontend/.next/static/
 COPY --from=frontend-build /build/public /app/frontend/public/
 COPY deploy/ /app/deploy/
+# 在实际生产镜像构建中验证偏好转发与凭据隔离边界。
+RUN node --test /app/deploy/gateway.test.mjs
 # 图片优化缓存供运行时非特权用户写入，避免只读源码目录导致Next.js图片请求失败。
 RUN mkdir -p /app/frontend/.next/cache && chmod 1777 /app/frontend/.next/cache
 EXPOSE 3000 18081

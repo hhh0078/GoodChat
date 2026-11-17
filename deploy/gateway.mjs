@@ -24,7 +24,8 @@ function headers(request, destination) {
     delete value.cookie;
     delete value.authorization;
   }
-  for (const key of Object.keys(value)) if (key.startsWith("x-forwarded-") || key.startsWith("x-goodchat-") || key === "forwarded" || key === "x-real-ip") delete value[key];
+  // 语言时区是公开偏好，交由后端验证；其他内部网关头仍全部覆盖或清除。
+  for (const key of Object.keys(value)) if (key.startsWith("x-forwarded-") || (key.startsWith("x-goodchat-") && !["x-goodchat-locale", "x-goodchat-timezone"].includes(key)) || key === "forwarded" || key === "x-real-ip") delete value[key];
   value["x-goodchat-client-ip"] = trusted && isIP(edgeIP) ? edgeIP : request.socket.remoteAddress || "";
   value["x-goodchat-gateway-token"] = secret;
   return value;
