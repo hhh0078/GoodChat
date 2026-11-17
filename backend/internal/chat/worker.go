@@ -12,6 +12,7 @@ import (
 
 // Start 启动可取消的持久任务调度器，不依赖内存定时器保存任务事实。
 func (s *Service) Start(ctx context.Context) {
+	s.startAIWorkers(ctx)
 	s.startExportWorker(ctx)
 	go func() {
 		ticker := time.NewTicker(500 * time.Millisecond)

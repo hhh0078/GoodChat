@@ -1,5 +1,6 @@
 /** 文件作用说明：为平台管理员提供独立平台管理页与真实套餐配置入口。 */
 "use client";
+import { PlatformCustomerAI } from "@/features/ai/platform";
 import { PageTitle } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { useTranslator } from "@/i18n/use-translator";
@@ -40,6 +41,7 @@ export function PlatformConsole() {
             { key: "templates", label: tr("公共装修模板"), children: <PlatformTemplates /> },
             { key: "plans", label: tr("套餐版本与官网价格"), children: <PlatformPlans /> },
             { key: "upgrades", label: tr("升级申请与人工开通"), children: <PlatformUpgrades /> },
+            { key: "customer-ai", label: tr("客服AI与计费"), children: <PlatformCustomerAI /> },
             { key: "clients", label: tr("客户端下载与版本"), children: <ClientReleases /> },
           ]}
         />

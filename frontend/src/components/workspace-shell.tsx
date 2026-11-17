@@ -38,6 +38,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
   const entries = [
     { key: "/console", icon: <AppstoreOutlined />, label: tr("工作空间") },
     { key: "/workspace", icon: <CustomerServiceOutlined />, label: tr("客服工作台") },
+    { key: "/console/ai", icon: <RobotOutlined />, label: tr("AI客服") },
     ...(!manages
       ? [
           { key: "/console/records", icon: <CustomerServiceOutlined />, label: tr("我的聊天记录") },
@@ -93,7 +94,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
   }
   const groups = [
     { label: tr("概览"), icon: <AppstoreOutlined />, paths: ["/console"] },
-    { label: tr("客服"), icon: <CustomerServiceOutlined />, paths: ["/workspace"] },
+    { label: tr("客服"), icon: <CustomerServiceOutlined />, paths: ["/workspace", "/console/ai"] },
     { label: tr("客户"), icon: <UserOutlined />, paths: ["/console/contacts", "/console/records"] },
     { label: tr("运营"), icon: <RobotOutlined />, paths: manages ? [] : ["/console/automation"] },
     {
@@ -123,7 +124,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
   const serving = pathname === "/workspace";
   const pageLabel = entries.find((entry) => entry.key === selected)?.label || tr("工作空间");
   const sections = [
-    { label: tr("工作空间"), paths: ["/console", "/workspace"] },
+    { label: tr("工作空间"), paths: ["/console", "/workspace", "/console/ai"] },
     {
       label: tr("客户服务"),
       paths: [

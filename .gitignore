@@ -24,3 +24,6 @@ __pycache__/
 *.tsbuildinfo
 # 本地便捷下载包由已入库的Logo素材压缩生成，避免仓库重复保存二进制。
 /logo/GoodChat-Logo.zip
+
+# AI浏览器验收截图和可播放夹具仅用于本地证据，不随业务源码发布。
+/output/playwright/ai/

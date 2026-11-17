@@ -39,7 +39,7 @@ func (s *Service) enqueueWelcome(ctx context.Context, tx pgx.Tx, tenant, convers
 }
 
 // enqueueKeyword 只为访客新文字选择一条最高优先级规则并检查冷却。
-func (s *Service) enqueueKeyword(ctx context.Context, tx pgx.Tx, tenant, conversation, message, content string) error {
+func (s *Service) enqueueKeyword(ctx context.Context, tx pgx.Tx, tenant, conversation, message, content string, locales ...string) error {
 	settings, err := ensureSettings(ctx, tx, tenant)
 	if err != nil {
 		return err
@@ -88,7 +88,11 @@ func (s *Service) enqueueKeyword(ctx context.Context, tx pgx.Tx, tenant, convers
 		_, err := tx.Exec(ctx, "INSERT INTO chat_operation_jobs(tenant_id,conversation_id,job_type,trigger_key,rule_id,payload) VALUES($1,$2,'keyword',$3,$4,$5) ON CONFLICT(tenant_id,trigger_key) DO NOTHING", tenant, conversation, "keyword:"+message, rule.id, jsonValue(payload))
 		return err
 	}
-	return nil
+	locale := "zh-CN"
+	if len(locales) > 0 {
+		locale = locales[0]
+	}
+	return s.enqueueAIReply(ctx, tx, tenant, conversation, message, locale)
 }
 
 // runAutomatic 在同一数据库事务中保存系统消息并完成任务，崩溃不会形成半份回复。

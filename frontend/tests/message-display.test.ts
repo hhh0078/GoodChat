@@ -39,7 +39,7 @@ const transferredContext = {
 };
 
 test("欢迎和关键词消息仅改变视觉阵营，客服右侧保留自动来源，访客左侧显示客服姓名头像", () => {
-  for (const source of ["welcome", "keyword"]) {
+  for (const source of ["welcome", "keyword", "ai"]) {
     const item = automaticMessage(source);
     const agent = messageDisplay(item, { kind: "agent", actorId: "agent-a" }, transferredContext);
     const visitor = messageDisplay(

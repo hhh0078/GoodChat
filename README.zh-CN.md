@@ -257,3 +257,7 @@ curl --fail http://127.0.0.1:13000/healthz
 问题反馈与功能建议可以提交到仓库的 [Issues](https://github.com/hhh0078/GoodChat/issues)。部署、商务合作与定制需求，请通过上方方式联系作者。
 
 [开始使用](docs/zh-CN/getting-started.md) · [完整功能导览](docs/zh-CN/features.md) · [用户端模板](docs/zh-CN/templates.md) · [English](README.md)
+
+### AI客服
+
+客服AI采用Eino与原生工具调用，不使用向量。配置与验收顺序见 [AI客服方案](docs/2026-11-17AI客服方案与开发顺序.md)，包括知识库、媒体话术、个人机器人、图片输入计费及平台账本。

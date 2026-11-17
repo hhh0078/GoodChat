@@ -84,6 +84,16 @@ func (s *Service) assignLocked(ctx context.Context, tx pgx.Tx, tenant, id, reque
 		}
 		return nil
 	}
+	if !manual {
+		var aiFirst bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ai_tenant_settings t JOIN ai_bots b ON b.id=t.default_bot_id JOIN tenant_memberships m ON m.id=b.owner_membership_id JOIN conversations c ON c.id=$1 WHERE t.reception_mode='ai_first' AND b.mode='auto' AND `+aiDefaultBotScopeSQL+` AND NOT c.ai_paused AND NOT m.disabled AND m.removed_at IS NULL AND m.can_serve)`, id).Scan(&aiFirst); err != nil {
+			return err
+		}
+		if aiFirst {
+			_, err := tx.Exec(ctx, "UPDATE conversations SET context=context||'{\"ai_receiving\":true}'::jsonb WHERE id=$1", id)
+			return err
+		}
+	}
 	items, err := routingCandidates(ctx, tx, v)
 	if err != nil {
 		return err
@@ -345,6 +355,9 @@ func (s *Service) assignmentAction(action string) http.HandlerFunc {
 				err = s.closeLocked(ctx, tx, a, id, strings.TrimSpace(in.Reason))
 			}
 			if err != nil {
+				return err
+			}
+			if _, err = tx.Exec(ctx, "UPDATE conversations SET ai_epoch=ai_epoch+1,ai_paused=CASE WHEN $2 OR context->>'ai_receiving'='true' THEN true ELSE ai_paused END,context=context-'ai_receiving' WHERE id=$1", id, action == "transfer" || action == "close"); err != nil {
 				return err
 			}
 			result, err = conversationJSONForActor(ctx, tx, id, a)

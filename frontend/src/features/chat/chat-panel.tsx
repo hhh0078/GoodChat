@@ -20,6 +20,7 @@ import { Alert, App, Button, Input, Popconfirm, Popover, Spin } from "antd";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./chat-history.css";
 import { MessageHistory } from "./message-history";
+import { AIConversationPanel } from "@/features/ai/conversation";
 import { QuickReplies } from "./quick-replies";
 import { useChat, type ChatIdentity, type Outgoing } from "./use-chat";
 import { useVisitorReminders } from "./use-visitor-reminders";
@@ -503,10 +504,21 @@ export function ChatPanel({
         </span>
         <span>
           {current
-            ? localizeStatic(conversationStatus, tr)[current.status] || current.status
+            ? current.context?.ai_receiving
+              ? tr("AI正在接待")
+              : localizeStatic(conversationStatus, tr)[current.status] || current.status
             : tr("读取会话中")}
         </span>
       </div>
+      {identity.kind === "agent" && (
+        <AIConversationPanel
+          key={id}
+          id={id}
+          identity={identity}
+          onSent={chat.reload}
+          onEdit={setDraft}
+        />
+      )}
       <div style={{ padding: "0 14px" }}>
         {storageWarning && (
           <Alert

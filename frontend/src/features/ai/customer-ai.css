@@ -1,0 +1,139 @@
+/* 文件作用说明：以现有银白钴蓝工作端样式呈现AI资源、媒体与机器人表单，并适配窄屏。 */
+.ai-console {
+  min-width: 0;
+}
+.ai-resource {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.ai-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.ai-toolbar > .ant-input-affix-wrapper {
+  max-width: 300px;
+}
+.ai-help {
+  color: #526176;
+  font-size: 13px;
+  margin: 8px 0;
+  line-height: 1.65;
+}
+.ai-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+  gap: 16px;
+}
+.ai-media-grid .ant-card-head-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ai-media-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 165px;
+  max-height: 230px;
+  overflow: auto;
+  margin-bottom: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+.ai-media-preview img,
+.ai-media-preview video,
+.ai-block video,
+.ai-plan video {
+  max-width: 100%;
+  max-height: 220px;
+}
+.ai-editor-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin: 12px 0;
+}
+.ai-editor-tools .ant-select {
+  min-width: 220px;
+}
+.ai-bot-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.ai-bot-grid > div > .ant-card + .ant-card {
+  margin-top: 20px;
+}
+.ai-bot-grid .ant-input-number {
+  width: 100%;
+}
+.ai-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+.ai-blocks {
+  display: grid;
+  gap: 12px;
+}
+.ai-block {
+  padding: 12px;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  background: #fafbfd;
+}
+.ai-block .ai-toolbar {
+  margin-bottom: 8px;
+}
+.ai-plan p,
+.ai-preview-block p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ai-test-result {
+  border-top: 1px solid #e3e8ef;
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.ai-wallet {
+  width: 100%;
+}
+.ai-wallet .ant-card {
+  min-width: 180px;
+}
+.ai-chat-controls {
+  padding: 8px 14px;
+  background: #f5f8fc;
+  border-bottom: 1px solid #e3e8ef;
+}
+.ai-chat-controls .ai-help {
+  font-size: 12px;
+}
+.ai-chat-controls .ant-collapse {
+  margin-top: 8px;
+  max-height: 260px;
+  overflow: auto;
+}
+@media (max-width: 800px) {
+  .ai-bot-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ai-media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .ai-form-grid,
+  .ai-media-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ai-console .ant-tabs-tab {
+    padding: 12px 0;
+  }
+  .ai-console .ant-card-body {
+    padding: 14px;
+  }
+}

@@ -128,6 +128,13 @@ func (s *Service) download(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if a.ContactID == "" {
+			var aiVisible bool
+			if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM ai_media WHERE id=$1 AND enabled)", id).Scan(&aiVisible); err != nil {
+				return err
+			}
+			if aiVisible {
+				return nil
+			}
 			var visibleReply bool
 			if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM quick_replies WHERE attachment_id=$1 AND enabled AND (owner_membership_id IS NULL OR owner_membership_id=$2))", id, a.MemberID).Scan(&visibleReply); err != nil {
 				return err

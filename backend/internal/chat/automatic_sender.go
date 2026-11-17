@@ -15,6 +15,9 @@ var automaticAgentObjectSQL = `jsonb_build_object('id',tm.id,'name',coalesce(nul
 // automaticAgentForMessageSQL 优先读取发送时冻结的身份，旧消息按发送时接待记录回补，接单前消息关联首位正式接待客服。
 var automaticAgentForMessageSQL = `CASE WHEN m.sender_kind='system' AND m.source IN('welcome','keyword') THEN coalesce((SELECT nullif(e.payload->'automation_agent','null'::jsonb) FROM conversation_events e WHERE e.conversation_id=m.conversation_id AND e.tenant_id=m.tenant_id AND e.seq=m.event_seq),(SELECT ` + automaticAgentObjectSQL + ` FROM conversation_assignments ca JOIN tenant_memberships tm ON tm.id=ca.membership_id AND tm.tenant_id=ca.tenant_id JOIN users u ON u.id=tm.user_id WHERE ca.conversation_id=m.conversation_id AND ca.tenant_id=m.tenant_id AND ca.accepted_at IS NOT NULL ORDER BY (ca.accepted_at<=m.created_at) DESC,CASE WHEN ca.accepted_at<=m.created_at THEN ca.accepted_at END DESC,ca.accepted_at,ca.id LIMIT 1)) ELSE NULL END`
 
+// aiAgentForMessageSQL 从任务快照冻结AI身份，并沿用原自动回复展示协议。
+var aiAgentForMessageSQL = `CASE WHEN m.source='ai' AND m.ai_job_id IS NOT NULL THEN jsonb_build_object('id',m.ai_bot_id,'name',coalesce((SELECT snapshot#>>'{bot,name}' FROM ai_jobs WHERE id=m.ai_job_id),'AI')||' · AI','avatar_url','/images/avatars/'||coalesce((SELECT snapshot#>>'{bot,avatar_ref}' FROM ai_jobs WHERE id=m.ai_job_id),'default-01')||'.png') ELSE ` + automaticAgentForMessageSQL + ` END`
+
 // firstConversationAgentSQL 为尚未接单就已显示的自动消息提供稳定首接身份，之后转接不将这些消息改标为其他客服。
 var firstConversationAgentSQL = `(SELECT ` + automaticAgentObjectSQL + ` FROM conversation_assignments ca JOIN tenant_memberships tm ON tm.id=ca.membership_id AND tm.tenant_id=ca.tenant_id JOIN users u ON u.id=tm.user_id WHERE ca.conversation_id=c.id AND ca.tenant_id=c.tenant_id AND ca.accepted_at IS NOT NULL ORDER BY ca.accepted_at,ca.id LIMIT 1)`
 

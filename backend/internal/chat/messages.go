@@ -7,10 +7,11 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/platform"
 )
 
-var messageProjection = "to_jsonb(m)||jsonb_build_object('seq',m.event_seq::text,'event_seq',m.event_seq::text,'quick_reply_version',m.quick_reply_version::text,'options',CASE WHEN m.withdrawn_at IS NULL THEN m.options ELSE '[]'::jsonb END,'content',CASE WHEN m.withdrawn_at IS NULL THEN m.content ELSE '' END,'attachment',CASE WHEN m.withdrawn_at IS NULL THEN (SELECT to_jsonb(f)-'storage_key'-'sha256' FROM attachments f WHERE f.id=m.attachment_id AND f.tenant_id=m.tenant_id) ELSE NULL END,'sender_name',CASE WHEN m.sender_kind='system' THEN COALESCE(NULLIF(current_setting('app.system_name',true),''),'系统') WHEN m.sender_kind='visitor' THEN (SELECT display_name FROM contacts WHERE id=m.sender_id) ELSE (SELECT u.display_name FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id) END,'sender_avatar_url',CASE WHEN m.sender_kind='visitor' THEN coalesce((SELECT avatar_url FROM contacts WHERE id=m.sender_id),'') WHEN m.sender_kind='agent' THEN coalesce((SELECT " + platform.AvatarURLSQL("tm") + " FROM tenant_memberships tm WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id),'') ELSE '' END,'reply',CASE WHEN m.reply_to_id IS NULL THEN NULL ELSE (SELECT jsonb_build_object('id',q.id,'content',CASE WHEN q.withdrawn_at IS NULL THEN left(q.content,200) ELSE '' END,'withdrawn',q.withdrawn_at IS NOT NULL) FROM messages q WHERE q.id=m.reply_to_id AND q.tenant_id=m.tenant_id) END)" + "||jsonb_build_object('automation_agent'," + automaticAgentForMessageSQL + ")"
+var messageProjection = "to_jsonb(m)||jsonb_build_object('seq',m.event_seq::text,'event_seq',m.event_seq::text,'quick_reply_version',m.quick_reply_version::text,'options',CASE WHEN m.withdrawn_at IS NULL THEN m.options ELSE '[]'::jsonb END,'content',CASE WHEN m.withdrawn_at IS NULL THEN m.content ELSE '' END,'attachment',CASE WHEN m.withdrawn_at IS NULL THEN (SELECT to_jsonb(f)-'storage_key'-'sha256' FROM attachments f WHERE f.id=m.attachment_id AND f.tenant_id=m.tenant_id) ELSE NULL END,'sender_name',CASE WHEN m.sender_kind='system' THEN COALESCE(NULLIF(current_setting('app.system_name',true),''),'系统') WHEN m.sender_kind='visitor' THEN (SELECT display_name FROM contacts WHERE id=m.sender_id) ELSE (SELECT u.display_name FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id) END,'sender_avatar_url',CASE WHEN m.sender_kind='visitor' THEN coalesce((SELECT avatar_url FROM contacts WHERE id=m.sender_id),'') WHEN m.sender_kind='agent' THEN coalesce((SELECT " + platform.AvatarURLSQL("tm") + " FROM tenant_memberships tm WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id),'') ELSE '' END,'reply',CASE WHEN m.reply_to_id IS NULL THEN NULL ELSE (SELECT jsonb_build_object('id',q.id,'content',CASE WHEN q.withdrawn_at IS NULL THEN left(q.content,200) ELSE '' END,'withdrawn',q.withdrawn_at IS NOT NULL) FROM messages q WHERE q.id=m.reply_to_id AND q.tenant_id=m.tenant_id) END)" + "||jsonb_build_object('automation_agent'," + aiAgentForMessageSQL + ")"
 
 // messages 读取历史或提交新消息，接收成功只在事务提交之后返回。
 func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
@@ -142,6 +143,11 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		if a.ContactID == "" && in.Audience == "public" {
+			if _, err := tx.Exec(ctx, "UPDATE conversations SET ai_paused=true,ai_epoch=ai_epoch+1,context=context-'ai_receiving' WHERE id=$1", id); err != nil {
+				return err
+			}
+		}
 		if err := recordQuickReplyUse(ctx, tx, a, in.QuickReplyID); err != nil {
 			return err
 		}
@@ -151,7 +157,10 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		}
 		_, err = tx.Exec(ctx, "UPDATE conversation_events SET payload=$2 WHERE conversation_id=$1 AND seq=$3", id, jsonValue(result), seq)
 		if err == nil && a.ContactID != "" && in.Type == "text" {
-			err = s.enqueueKeyword(ctx, tx, a.TenantID, id, messageID, in.Content)
+			err = s.enqueueKeyword(ctx, tx, a.TenantID, id, messageID, in.Content, localization.RequestLocale(r))
+		}
+		if err == nil && a.ContactID != "" && in.Type != "text" {
+			err = s.enqueueAIReply(ctx, tx, a.TenantID, id, messageID, localization.RequestLocale(r))
 		}
 		if err != nil {
 			return err

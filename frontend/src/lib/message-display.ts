@@ -14,7 +14,7 @@ export function isAutomaticReply(message: ChatMessage): boolean {
   return (
     message.sender_kind === "system" &&
     message.audience !== "internal" &&
-    (message.source === "welcome" || message.source === "keyword")
+    (message.source === "welcome" || message.source === "keyword" || message.source === "ai")
   );
 }
 /** messageDisplay 根据观看身份生成展示信息，自动回复的右侧排布不会赋予本人撤回或人工已读权限。 */
@@ -50,7 +50,13 @@ export function messageDisplay(
     sourceLabel: automatic
       ? viewer.kind === "agent"
         ? tr("系统自动 \u00B7 {p0}", {
-            p0: String(message.source === "welcome" ? tr("欢迎语") : tr("关键词回复")),
+            p0: String(
+              message.source === "ai"
+                ? tr("AI回复")
+                : message.source === "welcome"
+                  ? tr("欢迎语")
+                  : tr("关键词回复"),
+            ),
           })
         : ""
       : message.sender_kind === "system" && message.source
