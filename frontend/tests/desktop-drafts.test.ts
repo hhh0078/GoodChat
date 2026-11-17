@@ -53,3 +53,16 @@ test("目标草稿损坏时停止切换并保留当前服务器草稿", () => {
   assert.equal(storage.getItem("goodchat.draft.same-id"), "保留正文");
   assert.equal(storage.getItem("goodchat.desktop.server"), "https://a.example");
 });
+
+test("草稿校验使用界面传入的译文且失败时保留原草稿", () => {
+  const storage = memoryStorage();
+  switchDraftServer(storage, "https://a.example");
+  storage.setItem("goodchat.draft.same-id", "保留正文");
+  storage.setItem(`goodchat.desktop.savedDrafts:${encodeURIComponent("https://b.example")}`, "[]");
+  assert.throws(
+    () => switchDraftServer(storage, "https://b.example", "Saved drafts are invalid."),
+    { message: "Saved drafts are invalid." },
+  );
+  assert.equal(storage.getItem("goodchat.draft.same-id"), "保留正文");
+  assert.equal(storage.getItem("goodchat.desktop.server"), "https://a.example");
+});

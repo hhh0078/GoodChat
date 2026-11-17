@@ -151,7 +151,11 @@ export default function DesktopApp() {
     try {
       await invoke("SelectServer", values.server);
       const selected = await invoke<Startup>("Startup");
-      switchDraftServer(sessionStorage, selected.server);
+      switchDraftServer(
+        sessionStorage,
+        selected.server,
+        tr("目标服务器的窗口草稿记录损坏，已保留当前草稿。"),
+      );
       document.documentElement.dataset.server = selected.server;
       setServer(selected.server);
       setTenant("");
