@@ -17,7 +17,6 @@ import {
 } from "antd";
 import {
   CloudServerOutlined,
-  CustomerServiceOutlined,
   LogoutOutlined,
   ReloadOutlined,
   SettingOutlined,
@@ -39,6 +38,7 @@ import {
 import { Login } from "./login";
 import { switchDraftServer } from "./drafts";
 import { UpdateRequired, type Update } from "./update-required";
+import { DeviceSettings } from "./device-settings";
 
 const labels: Record<string, string> = {
   idle: "尚未连接",
@@ -70,6 +70,7 @@ export default function DesktopApp() {
   });
   const [pending, setPending] = useState<Pending[]>([]);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const { modal, message: toast } = AntApp.useApp();
   useEffect(() => {
     void invoke<Startup>("Startup")
@@ -217,7 +218,13 @@ export default function DesktopApp() {
     <div className="desktop-root">
       <header className="desktop-header">
         <div className="desktop-brand">
-          <CustomerServiceOutlined />
+          <img
+            className="desktop-logo"
+            src="/logo/goodchat-mark.svg"
+            alt=""
+            width={28}
+            height={28}
+          />
           <strong>GoodChat</strong>
           <span>客服工作台</span>
         </div>
@@ -235,6 +242,13 @@ export default function DesktopApp() {
           )}
         </div>
         <Space size={8}>
+          <Button
+            type="text"
+            icon={<SettingOutlined />}
+            onClick={() => setSettingsOpen(true)}
+          >
+            客户端设置
+          </Button>
           {!!current && (
             <Button type="text" onClick={() => setQueueOpen(true)}>
               发送队列 {state.pending + state.failed || ""}
@@ -242,7 +256,7 @@ export default function DesktopApp() {
           )}
           <Button
             type="text"
-            icon={<SettingOutlined />}
+            icon={<CloudServerOutlined />}
             onClick={requestServer}
           >
             服务器
@@ -259,6 +273,10 @@ export default function DesktopApp() {
           )}
         </Space>
       </header>
+      <DeviceSettings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
       {error && (
         <Alert
           className="desktop-error"

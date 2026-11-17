@@ -62,7 +62,8 @@ def build_frontend():
     run([npm, "run", "desktop:build"], cwd=WEB)
     public = WEB / "public"
     for source, destination in [(public / "sounds", DESKTOP / "frontend/dist/sounds"),
-                                (public / "images/avatars", DESKTOP / "frontend/dist/images/avatars")]:
+                                (public / "images/avatars", DESKTOP / "frontend/dist/images/avatars"),
+                                (public / "logo", DESKTOP / "frontend/dist/logo")]:
         shutil.copytree(source, destination, dirs_exist_ok=True)
     shutil.copy2(public / "favicon.svg", DESKTOP / "frontend/dist/favicon.svg")
 
@@ -102,14 +103,7 @@ def mac_package(target, output, version, server, signing_identity, notary_profil
         shutil.copy2(binaries[0], executable)
     for binary in binaries:
         binary.unlink()
-    iconset = output / "GoodChat.iconset"
-    iconset.mkdir()
-    for size in (16, 32, 128, 256, 512):
-        for scale in (1, 2):
-            suffix = "@2x" if scale == 2 else ""
-            run(["sips", "-s", "format", "png", "-z", str(size * scale), str(size * scale), WEB / "public/favicon.svg", "--out", iconset / f"icon_{size}x{size}{suffix}.png"])
-    run(["iconutil", "-c", "icns", iconset, "-o", contents / "Resources/GoodChat.icns"])
-    shutil.rmtree(iconset)
+    shutil.copy2(ROOT / "logo/icons/GoodChat.icns", contents / "Resources/GoodChat.icns")
     info = {"CFBundleName": "GoodChat", "CFBundleDisplayName": "GoodChat", "CFBundleExecutable": "GoodChat",
             "CFBundleIdentifier": "cn.58it.goodchat.desktop", "CFBundlePackageType": "APPL", "CFBundleIconFile": "GoodChat.icns",
             "CFBundleShortVersionString": version, "CFBundleVersion": version, "LSMinimumSystemVersion": "12.0",
@@ -133,9 +127,8 @@ def mac_package(target, output, version, server, signing_identity, notary_profil
 def windows_package(target, output, version, server):
     """生成带系统版本信息的Windows免安装包，WebView2运行时按系统共享使用。"""
     arch = target.removeprefix("win-")
-    icon_data = (DESKTOP / "icon.png").read_bytes()
     icon = output / "GoodChat.ico"
-    icon.write_bytes(struct.pack("<HHH", 0, 1, 1) + struct.pack("<BBBBHHII", 64, 64, 0, 0, 1, 32, len(icon_data), 22) + icon_data)
+    shutil.copy2(ROOT / "logo/icons/GoodChat.ico", icon)
     resource = DESKTOP / f"rsrc_windows_{arch}.syso"
     try:
         run(["go", "run", "./cmd/resources", "-arch", arch, "-version", version, "-icon", icon, "-out", resource])

@@ -31,6 +31,10 @@ body,
   color: var(--brand);
   font-size: 25px;
 }
+.desktop-logo {
+  display: block;
+  flex-shrink: 0;
+}
 .desktop-brand strong {
   font-size: 20px;
   letter-spacing: -0.6px;

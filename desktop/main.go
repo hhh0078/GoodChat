@@ -16,11 +16,12 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 	"supportdesk/desktop/internal/client"
+	"supportdesk/desktop/internal/device"
 	"supportdesk/desktop/internal/sound"
 )
 
 // version 和 defaultServer 由打包脚本通过链接参数注入，不保存任何密钥。
-var version = "0.1.1"
+var version = "0.1.2"
 var defaultServer = "https://goodchat.58it.cn"
 
 //go:embed all:frontend/dist
@@ -35,6 +36,7 @@ type Desktop struct {
 	app           *application.App
 	window        *application.WebviewWindow
 	notifications *notifications.NotificationService
+	power         *device.Power
 }
 
 // Startup 读取版本、打包默认服务器和本机记住的服务器。
@@ -68,7 +70,53 @@ func (d *Desktop) SendFrame(conversation string, typing bool) bool {
 
 // EnableNotifications 在用户主动操作时申请操作系统通知权限。
 func (d *Desktop) EnableNotifications() (bool, error) {
-	return d.notifications.RequestNotificationAuthorization()
+	if runtime.GOOS != "windows" {
+		return d.notifications.RequestNotificationAuthorization()
+	}
+	state, err := d.NotificationStatus()
+	return state.Allowed, err
+}
+
+// DeviceState 只返回本机能力与系统授权，不包含聊天账号或设备凭证。
+type DeviceState struct {
+	KeepAwake     bool                `json:"keep_awake"`
+	PowerError    string              `json:"power_error"`
+	Notifications device.Notification `json:"notifications"`
+}
+
+// DeviceStatus 返回真实电源请求与系统通知状态，查询本身不弹权限窗口。
+func (d *Desktop) DeviceStatus() DeviceState {
+	active, powerError := d.power.State()
+	n, err := d.NotificationStatus()
+	if err != nil {
+		n = device.Notification{Status: "unknown", Description: "读取系统通知状态失败，请刷新或打开系统设置"}
+	}
+	return DeviceState{active, powerError, n}
+}
+
+// SetKeepAwake 在用户明确操作后改变当前进程的空闲电源保护并保存偏好。
+func (d *Desktop) SetKeepAwake(enabled bool) error { return d.power.Set(enabled) }
+
+// NotificationStatus 在Windows绕过SDK空实现，在Mac读取真实通知中心授权。
+func (d *Desktop) NotificationStatus() (device.Notification, error) {
+	return device.CheckNotifications(d.notifications.CheckNotificationAuthorization)
+}
+
+// OpenNotificationSettings 只打开固定系统通知页，不接受网页传入系统协议。
+func (d *Desktop) OpenNotificationSettings() error {
+	return d.app.Browser.OpenURL(device.NotificationSettingsURL())
+}
+
+// TestNotification 仅在用户点击时发送明确标记的测试通知，不读取或发送聊天正文。
+func (d *Desktop) TestNotification() error {
+	n, err := d.NotificationStatus()
+	if err != nil {
+		return err
+	}
+	if !n.Allowed {
+		return errors.New("请先在系统中允许GoodChat通知")
+	}
+	return d.notifications.SendNotification(notifications.NotificationOptions{ID: "goodchat-permission-test", Title: "GoodChat 测试通知", Body: "系统通知通道已就绪；业务提醒请在工作台消息音量中开启。"})
 }
 
 // OpenExternal 仅在系统浏览器打开HTTP或HTTPS链接，不执行本地协议。
@@ -86,7 +134,8 @@ func main() {
 	if err != nil {
 		log.Fatal("无法读取本机配置目录")
 	}
-	d := &Desktop{notifications: notifications.New()}
+	d := &Desktop{notifications: notifications.New(), power: device.NewPower(filepath.Join(dir, "GoodChat"))}
+	defer d.power.Close()
 	native, err := client.New(filepath.Join(dir, "GoodChat"), version, defaultServer, nil, func(name string, value any) {
 		if d.app != nil {
 			d.app.Event.Emit(name, value)
@@ -104,7 +153,7 @@ func main() {
 		Name: "GoodChat", Description: "GoodChat 客服工作台", Icon: icon,
 		Services:   []application.Service{application.NewService(d), application.NewService(d.notifications)},
 		Assets:     application.AssetOptions{Handler: application.AssetFileServerFS(frontend), Middleware: native.Middleware},
-		OnShutdown: native.Close,
+		OnShutdown: func() { _ = d.power.Close(); native.Close() },
 		Mac:        application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: false},
 		SingleInstance: &application.SingleInstanceOptions{UniqueID: "cn.58it.goodchat.desktop", OnSecondInstanceLaunch: func(application.SecondInstanceData) {
 			if d.window != nil {
@@ -138,8 +187,8 @@ func main() {
 	tray.SetMenu(menu)
 	player := sound.New(filepath.Join(dir, "GoodChat"), frontend)
 	native.SetNotifier(func() bool {
-		allowed, err := d.notifications.CheckNotificationAuthorization()
-		return err == nil && allowed
+		state, err := d.NotificationStatus()
+		return err == nil && state.Allowed
 	}, func(body string, system bool, soundID string, volume float64) error {
 		var audioError error
 		if volume > 0 {
