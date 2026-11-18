@@ -3,11 +3,15 @@ import Link from "@/i18n/link";
 import { useTranslator } from "@/i18n/use-translator";
 import { Button } from "antd";
 import { Brand } from "./brand";
+import { PublicMotion } from "./public-motion";
+import "@/styles/public-motion.css";
+import "@/styles/public-ai-demo.css";
 /** PublicLayout 渲染无需客户端 JavaScript 即可读取的官网导航和内容。 */
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const tr = useTranslator();
   return (
     <div className="public-site">
+      <PublicMotion />
       <div className="public-width">
         <header className="public-header">
           <Brand />
