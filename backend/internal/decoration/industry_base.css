@@ -163,3 +163,14 @@ body:is([data-gc-preview-industry="medical"], [data-gc-preview-industry="propert
 #gc-typing:empty {
   display: none;
 }
+
+/* 临时输入气泡参与正常消息布局，不写入记录或参与已读。 */
+#gc-typing.gc-typing-message { margin: 12px 0; font-size: 13px; min-height: 0; }
+#gc-typing[hidden] { display: none; }
+#gc-typing .gc-message { display: inline-flex; gap: 12px; align-items: center; }
+.gc-typing-dots { display: inline-flex; gap: 4px; }
+.gc-typing-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--gc-primary, #2459db); animation: gc-typing-dot 1.2s ease-in-out infinite; }
+.gc-typing-dots i:nth-child(2) { animation-delay: .16s; }
+.gc-typing-dots i:nth-child(3) { animation-delay: .32s; }
+@keyframes gc-typing-dot { 0%,60%,100% { opacity: .35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-5px); } }
+@media(prefers-reduced-motion:reduce) { .gc-typing-dots i { animation: none; } }

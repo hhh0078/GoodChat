@@ -95,7 +95,7 @@ test("创建时尚未接单的欢迎使用首次接待身份兜底，转接不�
   const noAvatar = { ...item, automation_agent: { id: "agent-a", name: "客服甲" } };
   assert.equal(
     messageDisplay(noAvatar, { kind: "visitor", actorId: "v" }, transferredContext).avatarURL,
-    undefined,
+    "/logo/icon-192.png",
   );
   const human = {
     ...automaticMessage(),
@@ -170,30 +170,28 @@ test("装修自动消息头像仍绑定当前公开消息及受控图片，撤�
   }
 });
 
-test("客服没有头像时自动回复沿用姓名首字展示，装修桥不授权不存在的头像", () => {
+test("客服没有头像时自动回复展示GoodChat品牌图片，装修桥仅授权固定品牌PNG", () => {
   const item = { ...automaticMessage(), automation_agent: { id: "agent-a", name: "客服甲" } };
   const display = messageDisplay(item, { kind: "visitor", actorId: "visitor" }, transferredContext);
   assert.equal(display.senderName, "客服甲");
-  assert.equal(display.avatarURL, undefined);
+  assert.equal(display.avatarURL, "/logo/icon-192.png");
   assert.equal(
     publicBridgeMessage(item, "visitor", transferredContext).sender_avatar_url,
-    undefined,
+    "/logo/icon-192.png",
   );
-  assert.throws(() => visibleBridgeAvatar([item], item.id, transferredContext), /头像不属于/);
-  assert.throws(
-    () =>
-      validateBridgeRequest(
-        "getAvatar",
-        { message_id: item.id },
-        [item],
-        "visitor",
-        transferredContext,
-      ),
-    /头像不属于/,
+  assert.equal(visibleBridgeAvatar([item], item.id, transferredContext), "/logo/icon-192.png");
+  assert.doesNotThrow(() =>
+    validateBridgeRequest(
+      "getAvatar",
+      { message_id: item.id },
+      [item],
+      "visitor",
+      transferredContext,
+    ),
   );
   const unassigned = { ...automaticMessage(), automation_agent: null };
   assert.equal(
     messageDisplay(unassigned, { kind: "visitor", actorId: "visitor" }).avatarURL,
-    undefined,
+    "/logo/icon-192.png",
   );
 });

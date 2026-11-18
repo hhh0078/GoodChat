@@ -106,7 +106,7 @@ func (s *Service) aiConversation(w http.ResponseWriter, r *http.Request) {
 			if status == "closed" || !isAdmin(a) && (agent != a.MemberID || !a.CanServe) {
 				return platform.Fail(403, "not_current_agent", "只有正式接待客服可以发送消息")
 			}
-			if _, e := tx.Exec(ctx, "UPDATE conversations SET ai_paused=$2,ai_epoch=ai_epoch+1,context=context-'ai_receiving' WHERE id=$1", id, in.Action == "pause"); e != nil {
+			if _, e := tx.Exec(ctx, "UPDATE conversations SET ai_paused=$2,ai_epoch=ai_epoch+1,context=context-'ai_receiving'-'ai_thinking' WHERE id=$1", id, in.Action == "pause"); e != nil {
 				return e
 			}
 			if _, e := s.emit(ctx, tx, a.TenantID, id, "conversation.updated", "public", map[string]any{"id": id, "ai_paused": in.Action == "pause"}); e != nil {

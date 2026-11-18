@@ -2,6 +2,7 @@
 import Link from "@/i18n/link";
 import { useTranslator } from "@/i18n/use-translator";
 import { Button } from "antd";
+import { LocaleSettingsButton } from "@/i18n/locale-provider";
 import { Brand } from "./brand";
 import { OfficialSupportWidget } from "./official-support-widget";
 import { officialSupportEntry } from "@/lib/official-support-entry";
@@ -25,6 +26,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <Link href="/help">{tr("接入帮助")}</Link>
           </nav>
           <div className="public-actions">
+            <LocaleSettingsButton />
             <Link href="/login">{tr("登录")}</Link>
             <Button type="primary" href="/register">
               {tr("免费开始 ")}

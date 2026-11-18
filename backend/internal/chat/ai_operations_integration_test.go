@@ -452,11 +452,11 @@ func TestAIKnowledgeReadLimitRepair(t *testing.T) {
 		}
 		reads++
 		if reads == 1 {
-			aiFixtureResponse(w, "read_knowledge_bases", map[string]any{"ids": ids}, "", true)
+			aiFixtureResponse(w, "", nil, "<function_call>\n"+string(jsonValue(map[string]any{"name": "read_knowledge_bases", "arguments": map[string]any{"ids": ids}}))+"\n</function>\n</tool_call>", true)
 		} else if reads == 2 {
 			aiFixtureResponse(w, "read_knowledge_bases", map[string]any{"ids": ids[:3]}, "", true)
 		} else {
-			aiFixtureResponse(w, "submit_reply", aiPlan{Items: []aiReplyItem{{Type: "text", Text: "已根据相关知识回答"}}}, "", true)
+			aiFixtureResponse(w, "", nil, "<tool_call>"+string(jsonValue(map[string]any{"name": "submit_reply", "arguments": aiPlan{Items: []aiReplyItem{{Type: "text", Text: "已根据相关知识回答"}}}}))+"</tool_call>", true)
 		}
 	})
 	for i := 0; i < 4; i++ {
@@ -489,5 +489,57 @@ func TestAIKnowledgeReadLimitRepair(t *testing.T) {
 	var plan aiPlan
 	if json.Unmarshal(raw, &plan) != nil || len(plan.ReadIDs) != 3 {
 		t.Fatal("超量读取不应产生知识读取副作用")
+	}
+}
+
+// TestAIThinkingLifecycle 验证入队立即发布固定200秒输入态，完成和失败清除，旧任务不能清除新提示。
+func TestAIThinkingLifecycle(t *testing.T) {
+	f := newFixture(t)
+	broken := false
+	model := setupAITest(t, f, func(w http.ResponseWriter, r *http.Request) {
+		if broken {
+			aiFixtureResponse(w, "", nil, "不符合工具协议的模拟响应", true)
+			return
+		}
+		aiFixtureResponse(w, "submit_reply", aiPlan{Items: []aiReplyItem{{Type: "text", Text: "您好，可以帮助您配置客服。"}}}, "", true)
+	})
+	bot := defaultAIBot()
+	bot.Mode = "auto"
+	bot.ModelID = model
+	status, data := f.request("PUT", "/api/v1/me/ai/bot", f.owner, "", bot)
+	botID := mustData(t, status, data)["id"].(string)
+	status, data = f.request("PUT", "/api/v1/tenant/ai/settings", f.owner, "", map[string]any{"default_bot_id": botID, "reception_mode": "ai_first"})
+	mustData(t, status, data)
+	token, _, conversation := f.visitor("")
+	status, data = f.request("POST", "/api/v1/conversations/"+conversation+"/messages", "", token, map[string]any{"client_message_id": newID(), "content": "你好"})
+	mustData(t, status, data)
+	if f.countRows(`SELECT count(*) FROM conversations WHERE id=$1 AND context#>>'{ai_thinking,mode}'='auto' AND (context#>>'{ai_thinking,expires_at}')::timestamptz BETWEEN now()+interval '195 seconds' AND now()+interval '201 seconds'`, conversation) != 1 {
+		t.Fatal("入队未建立固定200秒输入态")
+	}
+	var oldID string
+	if e := f.admin.QueryRow(context.Background(), "SELECT context#>>'{ai_thinking,job_id}' FROM conversations WHERE id=$1", conversation).Scan(&oldID); e != nil {
+		t.Fatal(e)
+	}
+	runAITestJob(t, f)
+	if f.countRows("SELECT count(*) FROM conversations WHERE id=$1 AND NOT(context ? 'ai_thinking') AND NOT ai_paused", conversation) != 1 {
+		t.Fatal("成功回复后未结束输入态")
+	}
+	broken = true
+	status, data = f.request("POST", "/api/v1/conversations/"+conversation+"/messages", "", token, map[string]any{"client_message_id": newID(), "content": "再问一个问题"})
+	mustData(t, status, data)
+	if e := platform.TenantTx(context.Background(), f.s.pool, f.tenant, func(tx pgx.Tx) error {
+		return f.s.aiThinking(context.Background(), tx, &aiJobData{ID: oldID, Tenant: f.tenant, Kind: "reply", Conversation: conversation}, false)
+	}); e != nil {
+		t.Fatal(e)
+	}
+	if f.countRows("SELECT count(*) FROM conversations WHERE id=$1 AND context ? 'ai_thinking'", conversation) != 1 {
+		t.Fatal("旧任务清除了更新的输入态")
+	}
+	runAITestJob(t, f)
+	if f.countRows("SELECT count(*) FROM conversations WHERE id=$1 AND NOT(context ? 'ai_thinking') AND ai_paused", conversation) != 1 {
+		t.Fatal("失败转人工后输入态未结束")
+	}
+	if f.countRows("SELECT count(*) FROM messages WHERE conversation_id=$1 AND source='ai' AND content LIKE '请稍等%'", conversation) != 1 {
+		t.Fatal("转人工未发送面向客户的等待话术")
 	}
 }

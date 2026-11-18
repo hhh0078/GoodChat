@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import type { ChatMessage, Conversation } from "@/lib/types";
 import { useRealtime } from "@/lib/realtime/use-realtime";
+import { peerTypingState } from "@/lib/typing-state";
 import { createSyncPump } from "@/lib/realtime/sync-pump";
 import { acknowledgePending, readPending, stagePending } from "@/lib/pending-messages";
 
@@ -39,6 +40,7 @@ export function useChat(id: string, identity: ChatIdentity) {
   const [loading, setLoading] = useState(true);
   const [synced, setSynced] = useState(false);
   const [typingUntil, setTypingUntil] = useState(0);
+  const [typingClock, setTypingClock] = useState(Date.now());
   const [hasOlder, setHasOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [olderError, setOlderError] = useState<unknown>(null);
@@ -106,7 +108,11 @@ export function useChat(id: string, identity: ChatIdentity) {
         data?.conversation_id === id &&
         data.participant_id !== identity.actorId
       )
-        setTypingUntil(data.is_typing ? new Date(String(data.expires_at)).getTime() : 0);
+        setTypingUntil(
+          data.is_typing
+            ? Math.min(new Date(String(data.expires_at)).getTime() || 0, Date.now() + 200000)
+            : 0,
+        );
     },
   });
   useEffect(() => {
@@ -131,6 +137,7 @@ export function useChat(id: string, identity: ChatIdentity) {
     setError(null);
     setReadSeq("0");
     setHasOlder(false);
+    setTypingUntil(0);
     /** snapshot 获取授权快照，游标失效时立即重建，再继续补齐期间发生的事件。 */
     async function snapshot() {
       const epoch = ++snapshotEpoch.current;
@@ -197,9 +204,14 @@ export function useChat(id: string, identity: ChatIdentity) {
             if (seen.has(event.id)) continue;
             seen.add(event.id);
             if (seen.size > 1000) seen.delete(seen.values().next().value!);
-            if (event.event_type === "message.created")
+            if (event.event_type === "message.created") {
+              if (
+                event.payload.sender_id !== identity.actorId &&
+                (event.payload.sender_kind !== identity.kind || event.payload.source === "ai")
+              )
+                setTypingUntil(0);
               setMessages((previous) => mergeIncoming(previous, [event.payload as ChatMessage]));
-            else if (event.event_type === "message.withdrawn") {
+            } else if (event.event_type === "message.withdrawn") {
               const withdrawnAt = new Date().toISOString();
               knownWithdrawals.current.set(String(event.payload.id), withdrawnAt);
               setMessages((previous) =>
@@ -252,10 +264,10 @@ export function useChat(id: string, identity: ChatIdentity) {
     const poll = setInterval(() => {
       void pump.trigger().catch(() => {});
     }, 4000);
-    const lease = setInterval(
-      () => setTypingUntil((previous) => (previous > Date.now() ? previous : 0)),
-      1000,
-    );
+    const lease = setInterval(() => {
+      setTypingClock(Date.now());
+      setTypingUntil((previous) => (previous > Date.now() ? previous : 0));
+    }, 1000);
     return () => {
       cancelled = true;
       snapshotEpoch.current++;
@@ -375,6 +387,12 @@ export function useChat(id: string, identity: ChatIdentity) {
     typingSent.current = Date.now();
     live.send({ type: "typing", conversation_id: id, is_typing: active });
   }
+  const { until: peerTypingUntil, isAIThinking } = peerTypingState(
+    conversation,
+    identity.kind,
+    typingUntil,
+    typingClock,
+  );
   return {
     messages,
     unconfirmed,
@@ -385,7 +403,8 @@ export function useChat(id: string, identity: ChatIdentity) {
     connected: live.connected && synced,
     connectionStatus: live.status,
     diagnostics: live.diagnostics,
-    typingUntil,
+    typingUntil: peerTypingUntil,
+    isAIThinking,
     hasOlder,
     loadingOlder,
     olderError,

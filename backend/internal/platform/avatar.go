@@ -9,6 +9,9 @@ var uploadedAvatarPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f
 // AvatarURL 将已授权的头像引用转换为本站公开图片地址，非法引用返回空字符串。
 // ref 只能为固定平台头像编号或上传图片UUID，不接受任意URL。
 func AvatarURL(ref string) string {
+	if ref == "goodchat" {
+		return "/logo/icon-192.png"
+	}
 	if defaultAvatarPattern.MatchString(ref) {
 		return "/images/avatars/" + ref + ".png"
 	}

@@ -38,7 +38,7 @@ export function messageDisplay(
   const avatarURL = automatic
     ? automaticAgent?.avatar_url ||
       (automaticAgent ? undefined : context?.agent_avatar_url) ||
-      undefined
+      "/logo/icon-192.png"
     : message.sender_avatar_url;
   return {
     automatic,

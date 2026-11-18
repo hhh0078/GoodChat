@@ -55,8 +55,12 @@ func (s *Service) enqueueAIReply(ctx context.Context, tx pgx.Tx, tenant, convers
 		return e
 	}
 	snapshot := aiSnapshot{Bot: b, Locale: locale, Epoch: epoch, Agent: agent, Assignment: assignment, Entry: entry}
-	_, e = tx.Exec(ctx, `INSERT INTO ai_jobs(tenant_id,kind,bot_id,conversation_id,trigger_message_id,owner_membership_id,snapshot,run_after) VALUES($1,'reply',$2,$3,$4,$5,$6,now()+interval '1 second') ON CONFLICT(tenant_id,trigger_message_id) DO NOTHING`, tenant, id, conversation, message, b.Owner, jsonValue(snapshot))
-	return e
+	jobID := newID()
+	tag, e := tx.Exec(ctx, `INSERT INTO ai_jobs(id,tenant_id,kind,bot_id,conversation_id,trigger_message_id,owner_membership_id,snapshot,run_after) VALUES($1,$2,'reply',$3,$4,$5,$6,$7,now()+interval '1 second') ON CONFLICT(tenant_id,trigger_message_id) DO NOTHING`, jobID, tenant, id, conversation, message, b.Owner, jsonValue(snapshot))
+	if e != nil || tag.RowsAffected() == 0 {
+		return e
+	}
+	return s.aiThinking(ctx, tx, &aiJobData{ID: jobID, Tenant: tenant, Kind: "reply", Conversation: conversation, Snapshot: snapshot}, true)
 }
 
 // aiReplyValid 重新检查控制权、最新访客消息和机器人版本，最终提交时锁定会话行。
@@ -193,8 +197,10 @@ func (s *Service) completeAIJob(ctx context.Context, tx pgx.Tx, j *aiJobData, pl
 			}
 		}
 	}
-	_, e := tx.Exec(ctx, "UPDATE ai_jobs SET status=$2,result=$3,completed_at=now(),lease_until=NULL WHERE id=$1", j.ID, terminal, jsonValue(plan))
-	return e
+	if _, e := tx.Exec(ctx, "UPDATE ai_jobs SET status=$2,result=$3,completed_at=now(),lease_until=NULL WHERE id=$1", j.ID, terminal, jsonValue(plan)); e != nil {
+		return e
+	}
+	return s.aiThinking(ctx, tx, j, false)
 }
 
 // expandAIPlan 在当前租户和绑定内读取话术真实内容，限制组合后的消息数量。
@@ -271,13 +277,13 @@ func (s *Service) aiHandoff(ctx context.Context, tx pgx.Tx, j *aiJobData, reason
 	if e := s.aiReplyValid(ctx, tx, j, true); e != nil {
 		return nil
 	}
-	if _, e := tx.Exec(ctx, `UPDATE conversations SET ai_paused=true,ai_epoch=ai_epoch+1,context=context-'ai_receiving' WHERE id=$1`, j.Conversation); e != nil {
+	if _, e := tx.Exec(ctx, `UPDATE conversations SET ai_paused=true,ai_epoch=ai_epoch+1,context=context-'ai_receiving'-'ai_thinking' WHERE id=$1`, j.Conversation); e != nil {
 		return e
 	}
 	if e := s.assignLocked(ctx, tx, j.Tenant, j.Conversation, "", false); e != nil {
 		return e
 	}
-	text := localization.Text(j.Snapshot.Locale, "AI自动接待已暂停，请稍候或继续留言，等待人工客服处理。")
+	text := localization.Text(j.Snapshot.Locale, "请稍等，正在为您转接人工客服。您可以继续补充问题，客服接入后会为您处理。")
 	if reason == "ai_unsupported_input" {
 		text = localization.Text(j.Snapshot.Locale, "当前AI无法识别此类附件，请用文字或图片描述，或等待人工客服处理。")
 	}

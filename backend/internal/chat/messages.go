@@ -144,7 +144,7 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if a.ContactID == "" && in.Audience == "public" {
-			if _, err := tx.Exec(ctx, "UPDATE conversations SET ai_paused=true,ai_epoch=ai_epoch+1,context=context-'ai_receiving' WHERE id=$1", id); err != nil {
+			if _, err := tx.Exec(ctx, "UPDATE conversations SET ai_paused=true,ai_epoch=ai_epoch+1,context=context-'ai_receiving'-'ai_thinking' WHERE id=$1", id); err != nil {
 				return err
 			}
 		}

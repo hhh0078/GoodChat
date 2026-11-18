@@ -1,6 +1,7 @@
 /** 文件作用说明：实现真实邮箱注册、验证码与密码登录、密码重置和受邀激活流程。 */
 "use client";
 import { AIReplyPreview } from "@/components/ai-reply-preview";
+import { LocaleSettingsButton } from "@/i18n/locale-provider";
 import { Brand } from "@/components/brand";
 import Link from "@/i18n/link";
 import { usePreferences } from "@/i18n/locale-provider";
@@ -197,6 +198,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </div>
       </aside>
       <main className="auth-form-side">
+        <nav className="auth-locale-nav">
+          <LocaleSettingsButton />
+        </nav>
         <div className="auth-form">
           <div className="auth-form-brand">
             <Brand />
