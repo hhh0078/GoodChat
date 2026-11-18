@@ -119,10 +119,10 @@ func loadPlans(ctx context.Context, tx interface {
 	return items, rows.Err()
 }
 
-// tenantLock 串行化同一租户的订阅、成员启用与邀请预留，避免并发突破额度。
+// tenantLock 串行化同一租户的订阅、成员启用与邀请预留，兼容访客外键的KEY SHARE锁而不修改租户主键。
 func tenantLock(ctx context.Context, tx pgx.Tx, tenantID string) error {
 	var id string
-	err := tx.QueryRow(ctx, "SELECT id::text FROM tenants WHERE id=$1 FOR UPDATE", tenantID).Scan(&id)
+	err := tx.QueryRow(ctx, "SELECT id::text FROM tenants WHERE id=$1 FOR NO KEY UPDATE", tenantID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return platform.Fail(404, "tenant_not_found", "租户不存在")
 	}

@@ -266,3 +266,42 @@ func TestExpiryUsesStatementTime(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestConcurrentFeatureChecksAfterForeignKeyLocks 回归访客先持有租户外键KEY SHARE锁后并发检查套餐的真实锁升级死锁。
+func TestConcurrentFeatureChecksAfterForeignKeyLocks(t *testing.T) {
+	f := billingIntegration(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	ready := make(chan struct{}, 2)
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for n := 0; n < 2; n++ {
+		go func() {
+			results <- platform.TenantTx(ctx, f.pool, f.principal.TenantID, func(tx pgx.Tx) error {
+				if _, e := tx.Exec(ctx, "SELECT id FROM tenants WHERE id=$1 FOR KEY SHARE", f.principal.TenantID); e != nil {
+					return e
+				}
+				ready <- struct{}{}
+				select {
+				case <-start:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				return f.s.EnsureTenant(ctx, tx, f.principal.TenantID)
+			})
+		}()
+	}
+	for n := 0; n < 2; n++ {
+		select {
+		case <-ready:
+		case <-ctx.Done():
+			t.Fatal("并发外键锁准备超时")
+		}
+	}
+	close(start)
+	for n := 0; n < 2; n++ {
+		if e := <-results; e != nil {
+			t.Fatalf("并发套餐检查不应升级租户键锁并死锁：%v", e)
+		}
+	}
+}
