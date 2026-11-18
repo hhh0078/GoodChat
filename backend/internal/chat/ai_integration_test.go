@@ -64,6 +64,30 @@ func runAITestJob(t *testing.T, f *fixture) {
 	}
 }
 
+// TestAISummaryUsesConfiguredOutputBudget 验证短摘要也按供应商包含思考Token的完整用量计费，不擅自缩减平台输出预算。
+func TestAISummaryUsesConfiguredOutputBudget(t *testing.T) {
+	f := newFixture(t)
+	setupAITest(t, f, func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			MaxTokens int `json:"max_tokens"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.MaxTokens != 1024 {
+			t.Error("知识摘要未采用平台配置的总输出预算")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": "reasoning-fixture", "object": "chat.completion", "choices": []any{map[string]any{"index": 0, "message": map[string]any{"role": "assistant", "content": "适用于产品和接入问题。"}, "finish_reason": "stop"}}, "usage": map[string]any{"prompt_tokens": 200, "completion_tokens": 700, "total_tokens": 900, "completion_tokens_details": map[string]any{"reasoning_tokens": 650}}})
+	})
+	status, data := f.request("POST", "/api/v1/tenant/ai/knowledge", f.owner, "", map[string]any{"title": "思考预算验收", "body": "产品支持网站接入。", "enabled": true})
+	id := mustData(t, status, data)["id"].(string)
+	runAITestJob(t, f)
+	if f.countRows("SELECT count(*) FROM ai_knowledge_bases WHERE id=$1 AND status='ready' AND published_version=1", id) != 1 {
+		t.Fatal("包含思考Token的合法摘要未发布")
+	}
+	if f.countRows("SELECT count(*) FROM ai_wallet_entries WHERE kind='charge' AND delta_micro=-6000") != 1 || f.countRows("SELECT count(*) FROM ai_wallets WHERE reserved_micro=0") != 1 {
+		t.Fatal("思考Token未按真实用量结算或未释放预占")
+	}
+}
+
 // TestAIKnowledgePublishAndPermissions 验证描述原子发布、成员边界和真实用量账本。
 func TestAIKnowledgePublishAndPermissions(t *testing.T) {
 	f := newFixture(t)

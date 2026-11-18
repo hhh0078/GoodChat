@@ -218,9 +218,7 @@ func (s *Service) prepareAIJob(ctx context.Context, tx pgx.Tx, j *aiJobData) err
 		return e
 	}
 	m.APIKey = ""
-	if j.Kind == "summary" && m.MaxOutput > 512 {
-		m.MaxOutput = 512
-	}
+	// 摘要同样可能包含供应商计费的思考Token，使用平台总输出预算，正文长度另行严格校验。
 	if j.BotID != "" && m.MaxOutput > j.Snapshot.Bot.Settings.MaxOutput {
 		m.MaxOutput = j.Snapshot.Bot.Settings.MaxOutput
 	}
