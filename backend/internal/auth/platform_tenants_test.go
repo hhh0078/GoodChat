@@ -43,6 +43,32 @@ func platformData(t *testing.T, response *httptest.ResponseRecorder) platformTen
 	return envelope.Data
 }
 
+// TestPlatformSelfOwnedTenant 无须发送自我邀请邮件，开通者立即成为所有者且拥有接待权限，重试不重复创建成员。
+func TestPlatformSelfOwnedTenant(t *testing.T) {
+	f := identityIntegration(t)
+	user, session := f.register(t, "platform-self@example.com")
+	if _, err := f.pool.Exec(context.Background(), "UPDATE users SET is_platform_admin=true WHERE id=$1", user.User.ID); err != nil {
+		t.Fatal(err)
+	}
+	input := map[string]any{"name": "官方客服", "admin_email": "platform-self@example.com", "can_serve": true}
+	for i := 0; i < 2; i++ {
+		response := f.platformCall("/api/v1/platform/tenants", "own-team", input, session)
+		if i == 0 {
+			requireStatus(t, response, 201)
+		} else {
+			requireStatus(t, response, 200)
+		}
+		view := platformData(t, response)
+		if view.DeliveryStatus != "not_required" || view.Invitation.Status != "accepted" {
+			t.Fatal("自用工作空间不应等待激活")
+		}
+		var count int
+		if err := f.pool.QueryRow(context.Background(), "SELECT count(*) FROM tenant_memberships WHERE tenant_id=$1 AND user_id=$2 AND role='owner' AND can_serve AND NOT disabled", view.Tenant["id"], user.User.ID).Scan(&count); err != nil || count != 1 {
+			t.Fatal("未建立唯一且可接待的所有者身份")
+		}
+	}
+}
+
 // TestPlatformTenantIdempotentCreationAndActivation 验证平台权限、并发同键防重、默认初始化和邮箱验证后的唯一所有者。
 func TestPlatformTenantIdempotentCreationAndActivation(t *testing.T) {
 	f := identityIntegration(t)

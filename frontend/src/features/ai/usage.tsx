@@ -63,6 +63,11 @@ export function AIUsagePage() {
         )}
       </p>
       <ErrorNotice error={error} retry={() => setRevision((v) => v + 1)} />
+      {data?.wallet?.unlimited && (
+        <p className="ai-help">
+          {tr("当前为不限制余额的运营模式，费用照常记录，负余额表示累计使用费用。")}
+        </p>
+      )}
       <div className="ai-toolbar">
         <p className="ai-help">
           {tr("知识库描述、调试和辅助回复均产生AI用量。待核对任务保留预算，核对前不会猜测扣费。")}
@@ -80,7 +85,11 @@ export function AIUsagePage() {
           <Card>
             <Statistic
               title={tr("当前可用余额")}
-              value={money(data.wallet.balance_micro - data.wallet.reserved_micro)}
+              value={
+                data.wallet.unlimited
+                  ? tr("不限制")
+                  : money(data.wallet.balance_micro - data.wallet.reserved_micro)
+              }
             />
           </Card>
         </Space>

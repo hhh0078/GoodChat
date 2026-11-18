@@ -44,6 +44,35 @@ func enableAITestPlatform(f *fixture) {
 	f.server = httptest.NewServer(mux)
 }
 
+// TestAIOperationsUnlimited 验证运营租户余额为零也能按真实模拟用量结算，普通成员不能开启且欠费不能切回预付费。
+func TestAIOperationsUnlimited(t *testing.T) {
+	f := newFixture(t)
+	setupAITest(t, f, func(w http.ResponseWriter, r *http.Request) {
+		aiFixtureResponse(w, "", nil, "运营知识描述", true)
+	})
+	enableAITestPlatform(f)
+	if _, err := f.admin.Exec(context.Background(), "UPDATE ai_wallets SET balance_micro=0"); err != nil {
+		t.Fatal(err)
+	}
+	path := "/api/v1/platform/ai/wallets/" + f.tenant + "/mode"
+	status, _ := f.request("PUT", path, f.agent, "", map[string]any{"unlimited": true})
+	if status != 403 {
+		t.Fatal("普通客服开启了不限制余额模式")
+	}
+	status, reply := f.request("PUT", path, f.owner, "", map[string]any{"unlimited": true})
+	mustData(t, status, reply)
+	status, reply = f.request("POST", "/api/v1/tenant/ai/knowledge", f.owner, "", map[string]any{"title": "运营知识", "body": "实际产品事实", "enabled": true})
+	mustData(t, status, reply)
+	runAITestJob(t, f)
+	if f.countRows("SELECT count(*) FROM ai_wallets WHERE unlimited AND balance_micro=-800 AND reserved_micro=0") != 1 {
+		t.Fatal("零余额运营费用未正确记账")
+	}
+	status, _ = f.request("PUT", path, f.owner, "", map[string]any{"unlimited": false})
+	if status != 409 {
+		t.Fatal("欠费不应切回要求非负余额的预付模式")
+	}
+}
+
 // TestAIWalletCreditAndReconciliation 验证平台充值幂等及未知成本的实际核对路径。
 func TestAIWalletCreditAndReconciliation(t *testing.T) {
 	f := newFixture(t)

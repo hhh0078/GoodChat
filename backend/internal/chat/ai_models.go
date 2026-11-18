@@ -48,6 +48,7 @@ func (s *Service) registerAI(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/platform/ai/tenants/{id}/jobs/{job}/reconcile", s.auth.RequirePlatform(s.aiReconcile))
 	mux.HandleFunc("GET /api/v1/platform/ai/usage", s.auth.RequirePlatform(s.aiPlatformUsage))
 	mux.HandleFunc("POST /api/v1/platform/ai/wallets/{id}/credit", s.auth.RequirePlatform(s.aiCredit))
+	mux.HandleFunc("PUT /api/v1/platform/ai/wallets/{id}/mode", s.auth.RequirePlatform(s.aiWalletMode))
 	for _, resource := range []string{"knowledge", "scripts", "media"} {
 		mux.HandleFunc("GET /api/v1/tenant/ai/"+resource, s.auth.RequireTenant(s.aiResources(resource)))
 		mux.HandleFunc("POST /api/v1/tenant/ai/"+resource, s.auth.RequireTenant(s.aiResources(resource)))

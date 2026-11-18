@@ -134,7 +134,9 @@ export function PlatformTenants({ onManagePlans }: { onManagePlans?: () => void 
       setCreateOpen(false);
       setQuery("");
       tenants.reload();
-      if (result.delivery_status === "accepted")
+      if (result.delivery_status === "not_required")
+        message.success(tr("工作空间已创建，你已拥有管理员与客服权限，无需激活。"));
+      else if (result.delivery_status === "accepted")
         message.success(tr("租户与邀请已保存，邮件服务器已受理，请等待受邀人验证邮箱激活"));
       else message.warning(tr("租户与邀请已保存，邮件结果尚未确认，请在列表核对并按需重发邀请"));
     } catch (problem) {

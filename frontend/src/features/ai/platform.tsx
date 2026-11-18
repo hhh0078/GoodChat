@@ -31,6 +31,7 @@ type TenantUsage = {
   revenue_micro: number;
   uncertain: number;
   unknown_cost: number;
+  unlimited: boolean;
 };
 
 /** PlatformCustomerAI 管理独立客服模型配置，不改变已有装修助手配置。 */
@@ -71,6 +72,21 @@ export function PlatformCustomerAI() {
       });
     } catch (e) {
       message.error(errorMessage(e));
+    } finally {
+      setBusy("");
+    }
+  }
+  /** setUnlimited 通过平台权限切换指定租户运营模式，余额与实际消费流水保持不变。 */
+  async function setUnlimited(item: TenantUsage, unlimited: boolean) {
+    setBusy(item.tenant_id);
+    try {
+      await api(`/platform/ai/wallets/${item.tenant_id}/mode`, {
+        method: "PUT",
+        bodyJSON: { unlimited },
+      });
+      usage.reload();
+    } catch (problem) {
+      message.error(errorMessage(problem));
     } finally {
       setBusy("");
     }
@@ -166,6 +182,16 @@ export function PlatformCustomerAI() {
           pagination={{ pageSize: 10 }}
           columns={[
             { title: tr("租户"), dataIndex: "tenant_name" },
+            {
+              title: tr("不限制余额"),
+              render: (_: unknown, item: TenantUsage) => (
+                <Switch
+                  checked={item.unlimited}
+                  loading={busy === item.tenant_id}
+                  onChange={(value) => void setUnlimited(item, value)}
+                />
+              ),
+            },
             { title: tr("余额"), dataIndex: "balance_micro", render: money },
             { title: tr("预算预占"), dataIndex: "reserved_micro", render: money },
             { title: tr("已报告成本"), dataIndex: "cost_micro", render: money },

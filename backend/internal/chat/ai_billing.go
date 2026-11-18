@@ -46,10 +46,11 @@ func reserveAIWallet(ctx context.Context, tx pgx.Tx, j *aiJobData) error {
 		return e
 	}
 	var available int64
-	if e = tx.QueryRow(ctx, "SELECT balance_micro-reserved_micro,now() FROM ai_wallets FOR UPDATE").Scan(&available, &j.Snapshot.BudgetAt); e != nil {
+	var unlimited bool
+	if e = tx.QueryRow(ctx, "SELECT balance_micro-reserved_micro,unlimited,now() FROM ai_wallets FOR UPDATE").Scan(&available, &unlimited, &j.Snapshot.BudgetAt); e != nil {
 		return e
 	}
-	if reserve > available {
+	if !unlimited && reserve > available {
 		return platform.Fail(402, "ai_insufficient_balance", "AI余额不足")
 	}
 	if j.BotID != "" {
@@ -59,7 +60,7 @@ func reserveAIWallet(ctx context.Context, tx pgx.Tx, j *aiJobData) error {
 		if e != nil {
 			return e
 		}
-		if budget < used+reserve || count >= 1000 {
+		if budget > 0 && budget < used+reserve || count >= 1000 {
 			return platform.Fail(402, "ai_daily_limit", "AI每日额度已用完")
 		}
 	}
@@ -87,7 +88,7 @@ func settleAIWallet(ctx context.Context, tx pgx.Tx, j *aiJobData, charge bool) e
 	if sale > reserve {
 		return platform.Fail(409, "ai_settlement_uncertain", "AI用量需要核对")
 	}
-	tag, e := tx.Exec(ctx, "UPDATE ai_wallets SET reserved_micro=reserved_micro-$1,balance_micro=balance_micro-$2,updated_at=now() WHERE reserved_micro>=$1 AND balance_micro>=$2", reserve, sale)
+	tag, e := tx.Exec(ctx, "UPDATE ai_wallets SET reserved_micro=reserved_micro-$1,balance_micro=balance_micro-$2,updated_at=now() WHERE reserved_micro>=$1 AND (unlimited OR balance_micro>=$2)", reserve, sale)
 	if e != nil {
 		return e
 	}
@@ -101,6 +102,55 @@ func settleAIWallet(ctx context.Context, tx pgx.Tx, j *aiJobData, charge bool) e
 	}
 	_, e = tx.Exec(ctx, "UPDATE ai_jobs SET reserved_micro=0 WHERE id=$1", j.ID)
 	return e
+}
+
+// aiWalletMode 仅允许平台为指定租户开启不限制余额的运营模式，费用仍按真实用量结算。
+func (s *Service) aiWalletMode(w http.ResponseWriter, r *http.Request) {
+	tenant := r.PathValue("id")
+	var in struct {
+		Unlimited bool `json:"unlimited"`
+	}
+	if !uuidPattern.MatchString(tenant) {
+		returnError(w, r, "invalid_id", "资源编号格式不正确")
+		return
+	}
+	if err := platform.Decode(w, r, &in); err != nil {
+		replyError(w, r, err)
+		return
+	}
+	err := platform.TenantTx(r.Context(), s.pool, tenant, func(tx pgx.Tx) error {
+		if err := tenantActive(r.Context(), tx, tenant); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(r.Context(), "INSERT INTO ai_wallets(tenant_id) VALUES($1) ON CONFLICT DO NOTHING", tenant); err != nil {
+			return err
+		}
+		var balance, reserved int64
+		var previous bool
+		if err := tx.QueryRow(r.Context(), "SELECT balance_micro,reserved_micro,unlimited FROM ai_wallets FOR UPDATE").Scan(&balance, &reserved, &previous); err != nil {
+			return err
+		}
+		if !in.Unlimited && (balance < 0 || reserved > balance) {
+			return platform.Fail(409, "ai_insufficient_balance", "AI余额不足")
+		}
+		if previous == in.Unlimited {
+			return nil
+		}
+		if _, err := tx.Exec(r.Context(), "UPDATE ai_wallets SET unlimited=$1,updated_at=now()", in.Unlimited); err != nil {
+			return err
+		}
+		reason := "平台关闭不限制余额运营模式"
+		if in.Unlimited {
+			reason = "平台开启不限制余额运营模式"
+		}
+		_, err := tx.Exec(r.Context(), `INSERT INTO ai_wallet_entries(tenant_id,delta_micro,kind,reason,client_key,created_by) VALUES($1,0,'adjustment',$2,$3,$4)`, tenant, reason, "mode:"+newID(), platform.Current(r).UserID)
+		return err
+	})
+	if err != nil {
+		replyError(w, r, err)
+		return
+	}
+	platform.JSON(w, 200, map[string]any{"unlimited": in.Unlimited})
 }
 
 // aiCredit 只允许平台管理员人工充值，幂等键与原始金额不一致时拒绝。
@@ -217,7 +267,7 @@ func (s *Service) aiPlatformUsage(w http.ResponseWriter, r *http.Request) {
 	items := []map[string]any{}
 	for _, tenant := range ids {
 		e = platform.TenantTx(r.Context(), s.pool, tenant, func(tx pgx.Tx) error {
-			item, e := txJSON(r.Context(), tx, `SELECT jsonb_build_object('tenant_id',($1::uuid)::text,'tenant_name',(SELECT name FROM tenants WHERE id=$1::uuid),'balance_micro',coalesce((SELECT balance_micro FROM ai_wallets),0),'reserved_micro',coalesce((SELECT reserved_micro FROM ai_wallets),0),'cost_micro',coalesce((SELECT sum(cost_micro) FROM ai_jobs),0),'revenue_micro',coalesce((SELECT -sum(delta_micro) FROM ai_wallet_entries WHERE kind='charge'),0),'uncertain',(SELECT count(*) FROM ai_jobs WHERE status='uncertain'),'unknown_cost',(SELECT count(*) FROM ai_jobs WHERE billing_status IN('uncertain','waived_unknown_cost')))`, tenant)
+			item, e := txJSON(r.Context(), tx, `SELECT jsonb_build_object('tenant_id',($1::uuid)::text,'tenant_name',(SELECT name FROM tenants WHERE id=$1::uuid),'balance_micro',coalesce((SELECT balance_micro FROM ai_wallets),0),'reserved_micro',coalesce((SELECT reserved_micro FROM ai_wallets),0),'unlimited',coalesce((SELECT unlimited FROM ai_wallets),false),'cost_micro',coalesce((SELECT sum(cost_micro) FROM ai_jobs),0),'revenue_micro',coalesce((SELECT -sum(delta_micro) FROM ai_wallet_entries WHERE kind='charge'),0),'uncertain',(SELECT count(*) FROM ai_jobs WHERE status='uncertain'),'unknown_cost',(SELECT count(*) FROM ai_jobs WHERE billing_status IN('uncertain','waived_unknown_cost')))`, tenant)
 			if e == nil {
 				items = append(items, item)
 			}
