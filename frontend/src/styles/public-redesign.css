@@ -1300,7 +1300,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 9px;
 }
-.product-route-agents > div {
+.product-route-agents > button {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1311,7 +1311,7 @@
   border-radius: 7px;
   font-size: 10px;
 }
-.product-route-agents > div:first-child {
+.product-route-agents > button[aria-pressed="true"] {
   border-color: #a5b4d0;
   background: #f2f6ff;
 }

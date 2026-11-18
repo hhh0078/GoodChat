@@ -5,12 +5,13 @@ import {
   RobotOutlined,
   TeamOutlined,
 } from "@/components/public-icons";
-import { AIReplyPreview } from "@/components/ai-reply-preview";
 import { getTranslator } from "@/i18n/server";
+import { PublicAIDemo } from "./public-ai-demo";
+import Link from "@/i18n/link";
 
 /** PublicAIPreview 展示知识库驱动的自动回复示意，不伪造真实客户对话或承诺业务结果。 */
 export function PublicAIPreview() {
-  return <AIReplyPreview />;
+  return <PublicAIDemo />;
 }
 
 /** PublicAIOverview 将AI自动化放在官网首个功能区，基础免费优势由后续独立区域说明。 */
@@ -48,8 +49,10 @@ export async function PublicAIOverview() {
       <div className="public-ai-capability-grid">
         {capabilities.map((item) => (
           <article key={item.title}>
-            <item.icon />
-            <h3>{item.title}</h3>
+            <Link className="public-card-link" href="/features#section-1">
+              <item.icon />
+              <h3>{item.title}</h3>
+            </Link>
             <p>{item.text}</p>
           </article>
         ))}

@@ -103,20 +103,20 @@ export default async function HomePage() {
             </Link>
           </div>
         </div>
-        <div className="cobalt-hero-callout cobalt-callout-entry" aria-hidden="true">
+        <Link href="#ai-demo" className="cobalt-hero-callout cobalt-callout-entry">
           <RobotOutlined />
           <div>
             <strong>{tr("知识库自动回复与人工协作")}</strong>
             <span>{tr("AI 按需读取相关知识")}</span>
           </div>
-        </div>
-        <div className="cobalt-hero-callout cobalt-callout-route" aria-hidden="true">
+        </Link>
+        <Link href="#ai-demo" className="cobalt-hero-callout cobalt-callout-route">
           <ApartmentOutlined />
           <div>
             <strong>{tr("人工随时接管。")}</strong>
             <span>{tr("自动或辅助，人工接手")}</span>
           </div>
-        </div>
+        </Link>
         <div className="public-hero-product">
           <PublicAIPreview />
         </div>
@@ -135,11 +135,13 @@ export default async function HomePage() {
           </p>
         </div>
         <div className="cobalt-connect-list">
-          {localizeStatic(connections, tr).map((item) => (
+          {localizeStatic(connections, tr).map((item, index) => (
             <article key={item.title}>
               <item.icon />
               <div>
-                <h3>{item.title}</h3>
+                <h3>
+                  <Link href={`/features#section-${index + 2}`}>{item.title}</Link>
+                </h3>
                 <p>{item.text}</p>
               </div>
             </article>
