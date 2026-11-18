@@ -357,7 +357,7 @@ func (s *Service) assignmentAction(action string) http.HandlerFunc {
 			if err != nil {
 				return err
 			}
-			if _, err = tx.Exec(ctx, "UPDATE conversations SET ai_epoch=ai_epoch+1,ai_paused=CASE WHEN $2 OR context->>'ai_receiving'='true' THEN true ELSE ai_paused END,context=context-'ai_receiving' WHERE id=$1", id, action == "transfer" || action == "close"); err != nil {
+			if _, err = tx.Exec(ctx, "UPDATE conversations SET ai_epoch=ai_epoch+1,ai_paused=CASE WHEN $2 OR context->>'ai_receiving'='true' THEN true ELSE ai_paused END,context=context-'ai_receiving'-'ai_thinking' WHERE id=$1", id, action == "transfer" || action == "close"); err != nil {
 				return err
 			}
 			result, err = conversationJSONForActor(ctx, tx, id, a)

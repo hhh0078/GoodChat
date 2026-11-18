@@ -41,7 +41,7 @@ type aiBot struct {
 
 // defaultAIBot 给首次进入设置的客服返回关闭状态，保存并不会自动开启接待。
 func defaultAIBot() aiBot {
-	return aiBot{Name: "AI", AvatarRef: "default-01", Mode: "off", Language: "auto", KnowledgeIDs: []string{}, ScriptIDs: []string{}, Settings: aiBotSettings{Offline: true, Start: "00:00", End: "23:59", Weekdays: []int{0, 1, 2, 3, 4, 5, 6}, DailyBudget: 0, MaxOutput: 1024, MaxTurns: 8}}
+	return aiBot{Name: "AI", AvatarRef: "goodchat", Mode: "off", Language: "auto", KnowledgeIDs: []string{}, ScriptIDs: []string{}, Settings: aiBotSettings{Offline: true, Start: "00:00", End: "23:59", Weekdays: []int{0, 1, 2, 3, 4, 5, 6}, DailyBudget: 0, MaxOutput: 1024, MaxTurns: 8}}
 }
 
 // aiBot 仅从认证上下文推导机器人归属，不允许管理员借此修改别人的个人设置。
@@ -54,7 +54,7 @@ func (s *Service) aiBot(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if in.AvatarRef == "" {
-			in.AvatarRef = "default-01"
+			in.AvatarRef = "goodchat"
 		}
 		if e := validateAIBot(in); e != nil {
 			replyError(w, r, e)
@@ -110,7 +110,7 @@ func (s *Service) aiBot(w http.ResponseWriter, r *http.Request) {
 
 // validateAIBot 拒绝无效时段、语言、目录数量及超额预算配置。
 func validateAIBot(b aiBot) error {
-	if !strings.HasPrefix(b.AvatarRef, "default-") || platform.AvatarURL(b.AvatarRef) == "" || strings.TrimSpace(b.Name) == "" || len([]rune(b.Name)) > 60 || len([]byte(b.Prompt)) > 4000 || !inStrings(b.Mode, "off", "assistant", "auto") || !aiLanguage(b.Language, true) || b.ModelID != "" && !uuidPattern.MatchString(b.ModelID) {
+	if (!strings.HasPrefix(b.AvatarRef, "default-") && b.AvatarRef != "goodchat") || platform.AvatarURL(b.AvatarRef) == "" || strings.TrimSpace(b.Name) == "" || len([]rune(b.Name)) > 60 || len([]byte(b.Prompt)) > 4000 || !inStrings(b.Mode, "off", "assistant", "auto") || !aiLanguage(b.Language, true) || b.ModelID != "" && !uuidPattern.MatchString(b.ModelID) {
 		return platform.Fail(400, "ai_bot_invalid", "请检查机器人设置")
 	}
 	st := b.Settings

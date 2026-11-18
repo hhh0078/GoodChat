@@ -25,6 +25,7 @@ import {
 import { App, Avatar, Button, Drawer, Dropdown, Menu, Space, Tag, Tooltip } from "antd";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { LocaleSettingsButton } from "@/i18n/locale-provider";
 import { Brand } from "./brand";
 /** WorkspaceChrome 根据身份呈现工作端导航与租户切换。 */
 function WorkspaceChrome({ children }: { children: React.ReactNode }) {
@@ -305,6 +306,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
             </Space>
             <div className="shell-actions">
               <div id="workspace-header-actions" />
+              <LocaleSettingsButton />
               <AssistantLauncher />
               {!serving && (
                 <Link href="/help" className="shell-help">

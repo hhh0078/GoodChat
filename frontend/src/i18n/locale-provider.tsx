@@ -1,9 +1,10 @@
 /** 文件作用说明：提供逐字段语言时区检测确认、URL 直用、持久偏好与九种语言切换入口。 */
 "use client";
 import { GlobalOutlined } from "@ant-design/icons";
-import { Button, ConfigProvider, Modal, Select, Space, Typography } from "antd";
+import { Button, ConfigProvider, Modal, Radio, Select, Space, Typography } from "antd";
 import { NextIntlClientProvider } from "next-intl";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslator } from "./use-translator";
 import { antdLocales } from "./antd-locales";
 import {
   availableTimezones,
@@ -19,6 +20,7 @@ import {
 import { createTextTranslator, setBrowserPreferences, type Messages } from "./runtime";
 
 const LocaleContext = createContext<Preferences>({ locale: "en", timezone: "UTC" });
+const LocaleActionContext = createContext<(() => void) | null>(null);
 const storageKey = "goodchat.preferences.v1";
 const sessionKey = "goodchat.url-preferences.v1";
 
@@ -243,21 +245,19 @@ export function LocaleProvider({
         theme={{ token: { colorPrimary: "#1455ff" } }}
       >
         <LocaleContext.Provider value={preferences}>
-          {children}
-          {!embeddedChat && (
-            <Button
-              className="locale-settings-button"
-              icon={<GlobalOutlined />}
-              aria-label={tr("语言与时区")}
-              onClick={() => {
-                setDraft(preferences);
-                setManual(true);
-                setOpen(true);
-              }}
-            >
-              {languageNames[preferences.locale]}
-            </Button>
-          )}
+          <LocaleActionContext.Provider
+            value={
+              embeddedChat
+                ? null
+                : () => {
+                    setDraft(preferences);
+                    setManual(true);
+                    setOpen(true);
+                  }
+            }
+          >
+            {children}
+          </LocaleActionContext.Provider>
           <Modal
             open={open}
             title={tr(manual ? "语言与时区" : "确认你的语言与时区")}
@@ -276,14 +276,23 @@ export function LocaleProvider({
             </Typography.Paragraph>
             <Space orientation="vertical" size={16} style={{ width: "100%" }}>
               <label htmlFor="goodchat-language">{tr("语言")}</label>
-              <Select
+              <Radio.Group
                 id="goodchat-language"
-                style={{ width: "100%" }}
+                aria-label={tr("语言")}
+                className="locale-language-options"
+                buttonStyle="solid"
                 disabled={!manual && !pending.locale}
                 value={draft.locale}
-                options={locales.map((locale) => ({ value: locale, label: languageNames[locale] }))}
-                onChange={(locale) => setDraft((previous) => ({ ...previous, locale }))}
-              />
+                onChange={(event) =>
+                  setDraft((previous) => ({ ...previous, locale: event.target.value }))
+                }
+              >
+                {locales.map((locale) => (
+                  <Radio.Button key={locale} value={locale}>
+                    {languageNames[locale]}
+                  </Radio.Button>
+                ))}
+              </Radio.Group>
               <label htmlFor="goodchat-timezone">{tr("时区")}</label>
               <Select
                 id="goodchat-timezone"
@@ -311,4 +320,24 @@ export function LocaleProvider({
 /** usePreferences 读取当前窗口已选定的个人语言与显示时区。 */
 export function usePreferences(): Preferences {
   return useContext(LocaleContext);
+}
+
+/** LocaleSettingsButton 在页面导航中打开统一语言时区设置，嵌入聊天页不重复显示入口。 */
+export function LocaleSettingsButton() {
+  const tr = useTranslator();
+  const open = useContext(LocaleActionContext);
+  const preferences = usePreferences();
+  if (!open) return null;
+  return (
+    <Button
+      type="text"
+      className="locale-nav-button"
+      icon={<GlobalOutlined />}
+      aria-label={tr("语言与时区")}
+      title={tr("语言与时区")}
+      onClick={open}
+    >
+      <span className="locale-nav-label">{languageNames[preferences.locale]}</span>
+    </Button>
+  );
 }

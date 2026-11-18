@@ -1,5 +1,6 @@
 /** 文件作用说明：读取多链接入口，建立隔离访客身份并连接真实会话，支持安全恢复与重新咨询。 */
 "use client";
+import { LocaleSettingsButton } from "@/i18n/locale-provider";
 import { ErrorNotice } from "@/components/page-state";
 import { localizeStatic } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
@@ -24,6 +25,7 @@ import { VisitorActions, type VisitorActionsHandle } from "./visitor-actions";
 type Entry = Resource & {
   entry_key: string;
   tenant_name: string;
+  logo_url?: string;
   service_space_id: string;
   page_id?: string;
   pinned_release_id?: string;
@@ -351,7 +353,7 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
         {!(session && entry.render_url && entry.release_id) && (
           <header className="visitor-header">
             <div className="visitor-brand">
-              <Avatar size={42}>
+              <Avatar size={42} src={entry.logo_url || "/logo/goodchat-mark.svg"}>
                 {(entry.tenant_name || entry.name || tr("在线客服")).slice(0, 1)}
               </Avatar>
               <div>
@@ -371,6 +373,7 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                 </p>
               </div>
             </div>
+            <LocaleSettingsButton />
             {session && (
               <VisitorActions
                 entryKey={entryKey}

@@ -70,6 +70,7 @@ export function visibleBridgeAvatar(
     typeof messageId !== "string" ||
     typeof value !== "string" ||
     !(
+      value === "/logo/icon-192.png" ||
       /^\/images\/avatars\/default-(0[1-9]|[1-4][0-9]|50)\.png$/.test(value) ||
       /^\/api\/v1\/avatar-assets\/[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(
         value,
@@ -201,6 +202,7 @@ export function validBridgeHandshake(
 function publicAvatarURL(value: unknown): string | undefined {
   if (typeof value !== "string" || !value) return undefined;
   if (
+    value === "/logo/icon-192.png" ||
     /^\/images\/avatars\/default-\d{2}\.png$/.test(value) ||
     /^\/api\/v1\/avatar-assets\/[a-f\d-]{36}$/i.test(value)
   )

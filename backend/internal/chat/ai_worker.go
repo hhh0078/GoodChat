@@ -338,6 +338,9 @@ func (s *Service) failAIJob(ctx context.Context, j *aiJobData, cause error) {
 		if _, e := tx.Exec(ctx, "UPDATE ai_jobs SET status=$2,error_code=$3,billing_status=CASE WHEN $2='uncertain' THEN 'uncertain' ELSE billing_status END,completed_at=now() WHERE id=$1", j.ID, terminal, code); e != nil {
 			return e
 		}
+		if e := s.aiThinking(ctx, tx, j, false); e != nil {
+			return e
+		}
 		if j.Kind == "summary" {
 			_, e := tx.Exec(ctx, "UPDATE ai_knowledge_bases SET status='failed',error_code=$3 WHERE id=$1 AND version=$2", j.KnowledgeID, j.Snapshot.KnowledgeVersion, code)
 			return e

@@ -266,11 +266,19 @@
     const bottom = !positioned || followingLatest, anchor = historyAnchor || (positioned && !bottom ? captureAnchor() || readingAnchor : null);
     state = next;
     status.textContent = next.conversation ? ({ queued: tr("正在排队，请稍候"), assigned: tr("客服正在接入"), active: tr("已连接客服"), closed: tr("本次咨询已结束") }[next.conversation.status] || tr("已连接咨询服务")) : tr("咨询服务已准备好");
-    typing.textContent = next.is_typing && next.conversation?.status !== "closed" ? tr("客服正在输入…") : "";
+    typing.hidden = !(next.is_typing && next.conversation?.status !== "closed");
+    if (!typing.firstElementChild) {
+      typing.className = "gc-message-row gc-typing-message";
+      const bubble = document.createElement("span"); bubble.className = "gc-message";
+      const label = document.createElement("span"); label.textContent = tr("客服正在输入…");
+      const dots = document.createElement("span"); dots.className = "gc-typing-dots"; dots.setAttribute("aria-hidden","true");
+      for (let n=0;n<3;n++) dots.append(document.createElement("i"));
+      bubble.append(label,dots); typing.append(bubble);
+    }
     const signature = JSON.stringify(next.messages);
     if (signature !== messageSignature) {
       for (const objectURL of urls) URL.revokeObjectURL(objectURL);
-      urls = []; messages.replaceChildren(historyControl, ...next.messages.map(messageElement)); messageSignature = signature;
+      urls = []; messages.replaceChildren(historyControl, ...next.messages.map(messageElement), typing); messageSignature = signature;
     }
     updateHistoryControl();
     if (anchor) restoreAnchor(anchor);

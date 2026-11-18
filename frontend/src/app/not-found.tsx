@@ -1,4 +1,5 @@
 /** 文件作用说明：按明亮错误页设计图提供明确的未知地址提示和返回官网、工作台的入口。 */
+import { LocaleSettingsButton } from "@/i18n/locale-provider";
 import { Brand } from "@/components/brand";
 import { getTranslator } from "@/i18n/server";
 import { Button } from "antd";
@@ -9,6 +10,7 @@ export default async function NotFound() {
     <section className="public-error-page" aria-labelledby="public-error-title">
       <header>
         <Brand />
+        <LocaleSettingsButton />
       </header>
       <div className="public-error-content">
         <span className="public-kicker">{tr("页面未找到")}</span>

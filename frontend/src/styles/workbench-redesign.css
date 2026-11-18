@@ -1820,3 +1820,102 @@
   padding: 8px 2px !important;
   line-height: 24px;
 }
+
+/* 临时输入气泡不属于历史消息；跳动圆点突出等待状态，减少动画偏好保持静态。 */
+.typing-message {
+  opacity: 0.95;
+}
+.typing-bubble {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  border: 1px solid #d7e1f1;
+  color: #42536d;
+}
+.typing-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  height: 18px;
+}
+.typing-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2459db;
+  animation: goodchat-typing 1.2s ease-in-out infinite;
+}
+.typing-dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.typing-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+@keyframes goodchat-typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots i {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* 语言入口归入导航；语言选项完整展示并随弹窗宽度自然换行。 */
+.locale-nav-button {
+  position: static;
+  flex-shrink: 0;
+  max-width: 150px;
+}
+.locale-nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ant-radio-group.locale-language-options {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.locale-language-options .ant-radio-button-wrapper {
+  border-inline-start: 1px solid #d9e1ee;
+  border-radius: 8px;
+  margin: 0;
+  min-height: 36px;
+  height: auto;
+  display: flex;
+  align-items: center;
+}
+.locale-language-options .ant-radio-button-wrapper::before {
+  display: none;
+}
+.auth-locale-nav {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  position: absolute;
+  inset: 0 0 auto;
+}
+@media (max-width: 768px) {
+  .public-actions .locale-nav-button .locale-nav-label,
+  .shell-actions .locale-nav-label {
+    display: none;
+  }
+  .public-site .public-actions {
+    gap: 8px;
+  }
+  .public-site .public-actions .locale-nav-button {
+    padding-inline: 6px;
+  }
+}

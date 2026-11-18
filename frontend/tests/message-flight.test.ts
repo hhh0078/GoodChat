@@ -111,6 +111,9 @@ test("发送动效定位到同编号消息，完成后恢复真实气泡", async
   const f = fixture();
   try {
     animateMessageFlight(f.root, f.input, "11111111-2222-4333-8444-555555555555", "真实发送文字");
+    assert.equal(f.styles.length, 1);
+    assert.match(f.styles[0].textContent, /visibility:hidden/);
+    assert.equal(f.overlays.length, 0);
     f.flush();
     assert.equal(f.scroller.scrollTop, 640);
     assert.equal(f.overlays[0].style.left, "100px");
@@ -141,7 +144,7 @@ test("会话取消或减少动态效果时不留下浮层或隐藏消息", () =>
       cancel();
       f.flush();
       assert.equal(f.overlays.length, 0);
-      assert.equal(f.styles.length, 0);
+      assert.equal(f.styles.filter((style) => !style.removed).length, 0);
     } finally {
       f.restore();
     }

@@ -315,6 +315,7 @@ func (s *Service) aiCall(ctx context.Context, j *aiJobData, index int, messages 
 		})
 		return nil, errors.New("ai_provider_uncertain")
 	}
+	aiNormalizeToolResponse(out)
 	usage := out.ResponseMeta.Usage
 	input, output := int64(usage.PromptTokens), int64(usage.CompletionTokens)
 	cost, e := aiAmount(input, output, m.CostInput, m.CostOutput)
@@ -486,5 +487,9 @@ func aiResponseMetadata(out *schema.Message) map[string]any {
 	if out.ResponseMeta != nil && inStrings(out.ResponseMeta.FinishReason, "stop", "tool_calls", "length", "content_filter") {
 		finish = out.ResponseMeta.FinishReason
 	}
-	return map[string]any{"tool_count": len(out.ToolCalls), "tool_names": names, "argument_keys": keys, "knowledge_id_counts": readCounts, "content_length": len([]rune(out.Content)), "finish_reason": finish}
+	encoding := "native"
+	if out.Extra["goodchat_tool_wrapper"] == true {
+		encoding = "compat_text"
+	}
+	return map[string]any{"tool_encoding": encoding, "tool_count": len(out.ToolCalls), "tool_names": names, "argument_keys": keys, "knowledge_id_counts": readCounts, "content_length": len([]rune(out.Content)), "finish_reason": finish}
 }

@@ -6,20 +6,21 @@ function animateSend({ input, messages, client_message_id, text, after }) {
   if (!/^[\da-f-]{36}$/i.test(client_message_id || "")) return;
   runningSendMotions.get(messages)?.();
   const from = input.getBoundingClientRect(), scope = crypto.randomUUID();
-  let attempts = 0, overlay = null, style = null, cancelled = false;
+  let attempts = 0, overlay = null, cancelled = false;
+  messages.dataset.sendScope = scope;
+  const style = document.createElement("style"); style.textContent = `[data-send-scope="${scope}"] [data-client-message-id="${client_message_id}"]{visibility:hidden!important}`; document.head.append(style);
+  const deadline = setTimeout(finish, 32000);
   /** finish 移除动画副本并恢复当前同编号消息，不改变消息保存或已读状态。 */
-  function finish() { cancelled=true; overlay?.remove(); style?.remove(); if (messages.dataset.sendScope === scope) delete messages.dataset.sendScope; if(runningSendMotions.get(messages)===finish)runningSendMotions.delete(messages); }
+  function finish() { cancelled=true; clearTimeout(deadline); overlay?.remove(); style?.remove(); if (messages.dataset.sendScope === scope) delete messages.dataset.sendScope; if(runningSendMotions.get(messages)===finish)runningSendMotions.delete(messages); }
   runningSendMotions.set(messages,finish);
   /** locate 等实际消息DOM出现后测量，布局之外的估算坐标不参与飞行。 */
   function locate() {
     if (cancelled || !messages.isConnected) return;
     const row = messages.querySelector(`[data-client-message-id="${client_message_id}"]`);
-    if (!row) { if (++attempts < 60) requestAnimationFrame(locate); return; }
+    if (!row) { if (++attempts < 60) requestAnimationFrame(locate); else finish(); return; }
     messages.scrollTop = messages.scrollHeight;
     const target = row.querySelector(".gc-message") || row;
     const to = target.getBoundingClientRect(), appearance = getComputedStyle(target);
-    messages.dataset.sendScope = scope;
-    style = document.createElement("style"); style.textContent = `[data-send-scope="${scope}"] [data-client-message-id="${client_message_id}"]{opacity:0}`; document.head.append(style);
     overlay = document.createElement("div"); overlay.textContent = text; overlay.setAttribute("aria-hidden", "true");
     Object.assign(overlay.style, { position:"fixed",zIndex:"1000",pointerEvents:"none",left:`${to.left}px`,top:`${to.top}px`,width:`${to.width}px`,maxHeight:`${Math.min(to.height,160)}px`,overflow:"hidden",boxSizing:"border-box",whiteSpace:"pre-wrap",overflowWrap:"anywhere",borderRadius:appearance.borderRadius,padding:appearance.padding,background:appearance.backgroundColor,color:appearance.color,font:appearance.font });
     document.body.append(overlay);

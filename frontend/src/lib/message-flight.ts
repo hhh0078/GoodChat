@@ -16,9 +16,15 @@ export function animateMessageFlight(
   let overlay: HTMLDivElement | null = null,
     style: HTMLStyleElement | null = null;
   let animation: Animation | undefined;
+  root.dataset.flightScope = scope;
+  style = document.createElement("style");
+  style.textContent = `[data-flight-scope="${scope}"] [data-client-message-id="${CSS.escape(clientId)}"]{visibility:hidden!important}`;
+  document.head.append(style);
+  const deadline = setTimeout(cleanup, 1500);
   /** cleanup 无论成功结束或会话卸载都移除浮层并恢复真实消息的展示。 */
   function cleanup() {
     cancelled = true;
+    clearTimeout(deadline);
     cancelAnimationFrame(frame);
     animation?.cancel();
     overlay?.remove();
@@ -27,22 +33,23 @@ export function animateMessageFlight(
   }
   /** locate 在当前会话中定位同一客户端消息，不用估算坐标或把网络发送成功提前展示。 */
   function locate() {
-    if (cancelled || !root.isConnected) return;
+    if (cancelled) return;
+    if (!root.isConnected) {
+      cleanup();
+      return;
+    }
     const target = root.querySelector<HTMLElement>(
       `[data-client-message-id="${CSS.escape(clientId)}"] .message-bubble`,
     );
     if (!target || !target.getClientRects().length) {
       if (++attempts < 30) frame = requestAnimationFrame(locate);
+      else cleanup();
       return;
     }
     const scroller = root.querySelector<HTMLElement>(".chat-messages");
     if (scroller) scroller.scrollTop = scroller.scrollHeight;
     const to = target.getBoundingClientRect(),
       appearance = getComputedStyle(target);
-    root.dataset.flightScope = scope;
-    style = document.createElement("style");
-    style.textContent = `[data-flight-scope="${scope}"] [data-client-message-id="${CSS.escape(clientId)}"] .message-bubble{opacity:0}`;
-    document.head.append(style);
     overlay = document.createElement("div");
     overlay.className = "message-send-flight";
     overlay.setAttribute("aria-hidden", "true");

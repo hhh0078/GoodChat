@@ -184,18 +184,29 @@ export function AIBotSettingsPage() {
           </div>
           <Form.Item name="avatar_ref" label={tr("头像")}>
             <Select
-              options={Array.from({ length: 50 }, (_, i) => {
-                const value = `default-${String(i + 1).padStart(2, "0")}`;
-                return {
-                  value,
+              options={[
+                {
+                  value: "goodchat",
                   label: (
                     <Space>
-                      <Avatar size={24} src={`/images/avatars/${value}.png`} />
-                      {i + 1}
+                      <Avatar size={24} src="/logo/goodchat-mark.svg" />
+                      GoodChat
                     </Space>
                   ),
-                };
-              })}
+                },
+                ...Array.from({ length: 50 }, (_, i) => {
+                  const value = `default-${String(i + 1).padStart(2, "0")}`;
+                  return {
+                    value,
+                    label: (
+                      <Space>
+                        <Avatar size={24} src={`/images/avatars/${value}.png`} />
+                        {i + 1}
+                      </Space>
+                    ),
+                  };
+                }),
+              ]}
             />
           </Form.Item>
           <Form.Item name="model_id" label={tr("AI模型")}>

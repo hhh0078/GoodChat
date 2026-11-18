@@ -16,7 +16,7 @@ import {
   SendOutlined,
   VideoCameraOutlined,
 } from "@ant-design/icons";
-import { Alert, App, Button, Input, Popconfirm, Popover, Spin } from "antd";
+import { Alert, App, Avatar, Button, Input, Popconfirm, Popover, Spin } from "antd";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./chat-history.css";
 import { MessageHistory } from "./message-history";
@@ -243,7 +243,7 @@ export function ChatPanel({
   useEffect(() => {
     if (atBottom && !chat.loading)
       scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
-  }, [chat.messages.length, pending.length, atBottom, chat.loading]);
+  }, [chat.messages.length, pending.length, chat.typingUntil, atBottom, chat.loading]);
   useEffect(() => {
     const node = scroller.current;
     if (!node || !atBottom || typeof ResizeObserver === "undefined") return;
@@ -628,13 +628,38 @@ export function ChatPanel({
                 </Popconfirm>
               </div>
             ))}
+          {chat.typingUntil > Date.now() && (
+            <div
+              className={`message-row typing-message${identity.kind === "agent" && chat.isAIThinking ? " own" : ""}`}
+              role="status"
+              aria-live="polite"
+            >
+              <Avatar
+                className="message-avatar"
+                size={32}
+                src={
+                  chat.isAIThinking
+                    ? "/logo/goodchat-mark.svg"
+                    : identity.kind === "visitor"
+                      ? current?.agent_avatar_url || "/logo/goodchat-mark.svg"
+                      : current?.contact?.avatar_url || "/logo/goodchat-mark.svg"
+                }
+              />
+              <div className="message-meta">
+                {chat.isAIThinking ? "AI" : identity.kind === "visitor" ? tr("客服") : tr("访客")}
+              </div>
+              <div className="message-bubble typing-bubble">
+                <span>{tr("对方正在输入\u2026 ")}</span>
+                <span className="typing-dots" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-      {chat.typingUntil > Date.now() && (
-        <div style={{ fontSize: 12, color: "var(--muted)", padding: "0 20px 8px" }}>
-          {tr("对方正在输入\u2026 ")}
-        </div>
-      )}
       <div
         className={`chat-composer ${identity.kind === "agent" && canSend ? "has-quick-replies" : ""}`}
       >
@@ -738,6 +763,8 @@ export function ChatPanel({
                     setDraft(event.target.value);
                     chat.typing(!!event.target.value);
                   }}
+                  onFocus={() => chat.typing(true)}
+                  onBlur={() => chat.typing(false)}
                   onCompositionStart={() => {
                     composing.current = true;
                   }}

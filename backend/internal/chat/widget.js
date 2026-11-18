@@ -59,12 +59,12 @@ path.setAttribute("stroke-width", "1.8");
 path.setAttribute("stroke-linecap", "round");
 icon.append(path);
 launcher.append(icon);
-if (config.logo_url) {
+{
   const logo = document.createElement("img");
   logo.alt = "";
-  logo.src = config.logo_url;
+  logo.src = config.logo_url || new URL("/logo/goodchat-mark.svg", config.origin).href;
   logo.referrerPolicy = "no-referrer";
-  logo.addEventListener("error", () => { logo.remove(); icon.removeAttribute("hidden"); });
+  logo.addEventListener("error", () => { if (logo.dataset.fallback) { logo.remove(); icon.removeAttribute("hidden"); } else { logo.dataset.fallback = "1"; logo.src = new URL("/logo/goodchat-mark.svg", config.origin).href; } });
   icon.setAttribute("hidden", "");
   launcher.append(logo);
 }
