@@ -28,6 +28,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import { LinkTemplateFields, type PublishedTemplatePage } from "./link-template-fields";
+import { LinkWidgetSettings, widgetCode } from "./link-widget";
 const parameterExamples: Record<string, string> = {
   姓名: "张三",
   手机号: "13800000000",
@@ -91,6 +92,7 @@ export function LinksPage() {
   const members = useResource<Member>("/tenant/members");
   const [editing, setEditing] = useState<AccessLink | null | undefined>();
   const [sharing, setSharing] = useState<AccessLink | null>(null);
+  const [widgetLink, setWidgetLink] = useState<AccessLink | null>(null);
   const [parameterKeys, setParameterKeys] = useState<string[]>([]);
   const [parameterValues, setParameterValues] = useState(localizeStatic(parameterExamples, tr));
   const [saving, setSaving] = useState(false);
@@ -294,7 +296,7 @@ export function LinksPage() {
     },
     {
       title: tr("操作"),
-      width: 230,
+      width: 290,
       render: (_, row) => (
         <Space>
           <Button type="link" size="small" onClick={() => edit(row)}>
@@ -302,6 +304,9 @@ export function LinksPage() {
           </Button>
           <Button type="link" size="small" onClick={() => setSharing(row)}>
             {tr("分享 ")}
+          </Button>
+          <Button type="link" size="small" onClick={() => setWidgetLink(row)}>
+            {tr("悬浮窗")}
           </Button>
           <Button type="link" size="small" onClick={() => setSharing(row)}>
             {tr("访问与参数 ")}
@@ -618,6 +623,23 @@ export function LinksPage() {
               label: tr("嵌入"),
               children: (
                 <Form layout="vertical">
+                  <Form.Item label={tr("JS悬浮窗代码")}>
+                    <Input.TextArea
+                      readOnly
+                      rows={4}
+                      value={sharing ? widgetCode(window.location.origin, sharing.entry_key) : ""}
+                    />
+                    <Button
+                      onClick={() => {
+                        if (sharing) {
+                          setWidgetLink(sharing);
+                          setSharing(null);
+                        }
+                      }}
+                    >
+                      {tr("配置悬浮窗")}
+                    </Button>
+                  </Form.Item>
                   <Form.Item label={tr("网页嵌入示例")}>
                     <Input.TextArea
                       readOnly
@@ -643,6 +665,14 @@ export function LinksPage() {
           )}
         </p>
       </Drawer>
+      {widgetLink && (
+        <LinkWidgetSettings
+          key={`${links.tenantId}:${widgetLink.id}`}
+          link={widgetLink}
+          tenantId={links.tenantId}
+          onClose={() => setWidgetLink(null)}
+        />
+      )}
     </section>
   );
 }

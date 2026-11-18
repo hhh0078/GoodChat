@@ -91,7 +91,7 @@ export type AIJob = {
   owner_membership_id: string;
 };
 export type AIUsageData = {
-  wallet: { balance_micro: number; reserved_micro: number } | null;
+  wallet: { balance_micro: number; reserved_micro: number; unlimited?: boolean } | null;
   jobs: AIJob[] | null;
   entries:
     { id: string; kind: string; reason: string; delta_micro: number; created_at: string }[] | null;

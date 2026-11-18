@@ -79,6 +79,7 @@ func (s *Service) platformCreateTenant(w http.ResponseWriter, r *http.Request) e
 		return platform.Fail(400, "idempotency_key_required", "创建租户必须提供1至128字符的Idempotency-Key")
 	}
 	p := platform.Current(r)
+	selfOwned := p.Email == input.AdminEmail
 	raw, _ := json.Marshal(input)
 	requestHash := digestToken(string(raw))
 	var tenantID, invitationID, deliveryID, token string
@@ -97,13 +98,18 @@ func (s *Service) platformCreateTenant(w http.ResponseWriter, r *http.Request) e
 				return platform.Fail(409, "idempotency_conflict", "相同幂等标识已用于其他租户开通请求")
 			}
 			replayed = true
+			if selfOwned {
+				return s.joinOwnPlatformTenant(r.Context(), tx, p.UserID, tenantID, invitationID)
+			}
 			return nil
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
-		if err := s.mailer.validate(); err != nil {
-			return err
+		if !selfOwned {
+			if err := s.mailer.validate(); err != nil {
+				return err
+			}
 		}
 		if err := tx.QueryRow(r.Context(), "INSERT INTO tenants(name,slug,timezone) VALUES($1,$2,$3) RETURNING id::text", input.Name, "platform-"+keyDigest(p.UserID, key), input.Timezone).Scan(&tenantID); err != nil {
 			return err
@@ -127,12 +133,17 @@ func (s *Service) platformCreateTenant(w http.ResponseWriter, r *http.Request) e
 		if _, err := tx.Exec(r.Context(), "INSERT INTO platform_tenant_creations(actor_id,idempotency_key,request_hash,tenant_id,invitation_id) VALUES($1,$2,$3,$4,$5)", p.UserID, key, requestHash, tenantID, invitationID); err != nil {
 			return err
 		}
+		if selfOwned {
+			if err := s.joinOwnPlatformTenant(r.Context(), tx, p.UserID, tenantID, invitationID); err != nil {
+				return err
+			}
+		}
 		return audit(r.Context(), tx, tenantID, p.UserID, "platform_tenant_created", tenantID)
 	})
 	if err != nil {
 		return err
 	}
-	if !replayed {
+	if !replayed && !selfOwned {
 		if err := s.sendPlatformInvitation(r, tenantID, invitationID, deliveryID, input.AdminEmail, input.Name, token); err != nil {
 			return err
 		}
@@ -140,6 +151,9 @@ func (s *Service) platformCreateTenant(w http.ResponseWriter, r *http.Request) e
 	view, err := s.platformTenantResult(r.Context(), tenantID, invitationID, replayed)
 	if err != nil {
 		return err
+	}
+	if selfOwned {
+		view.DeliveryStatus = "not_required"
 	}
 	status := 201
 	if replayed {
@@ -149,6 +163,45 @@ func (s *Service) platformCreateTenant(w http.ResponseWriter, r *http.Request) e
 	}
 	platform.JSON(w, status, view)
 	return nil
+}
+
+// joinOwnPlatformTenant 为已登录且邮箱匹配的开通者直接建立所有者身份，不要求邀请自己。
+// 仅处理本人发起的初始邀请；幂等重放可修复先前尚未加入的自用租户，不提升其他成员权限。
+func (s *Service) joinOwnPlatformTenant(ctx context.Context, tx pgx.Tx, userID, tenantID, invitationID string) error {
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id',$1,true)", tenantID); err != nil {
+		return err
+	}
+	var active, selfInvitation bool
+	if err := tx.QueryRow(ctx, `SELECT t.status='active',EXISTS(SELECT 1 FROM member_invitations i JOIN users u ON u.id=$1 JOIN platform_tenant_creations c ON c.invitation_id=i.id AND c.actor_id=u.id WHERE i.id=$3 AND i.tenant_id=t.id AND i.email=u.email AND i.revoked_at IS NULL) FROM tenants t WHERE t.id=$2 FOR UPDATE`, userID, tenantID, invitationID).Scan(&active, &selfInvitation); err != nil {
+		return err
+	}
+	if !active || !selfInvitation {
+		return platform.Fail(403, "invitation_email_mismatch", "请使用受邀邮箱账号接受邀请")
+	}
+	var alreadyOwner, hasOwner bool
+	if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM tenant_memberships WHERE tenant_id=$1 AND user_id=$2 AND role='owner' AND removed_at IS NULL),EXISTS(SELECT 1 FROM tenant_memberships WHERE tenant_id=$1 AND role='owner' AND removed_at IS NULL)", tenantID, userID).Scan(&alreadyOwner, &hasOwner); err != nil {
+		return err
+	}
+	if alreadyOwner {
+		return nil
+	}
+	if hasOwner {
+		return platform.Fail(409, "already_member", "已经加入租户，请直接登录")
+	}
+	if err := s.seats(ctx, tx, tenantID, "", invitationID, 1); err != nil {
+		return err
+	}
+	var memberID string
+	if err := tx.QueryRow(ctx, `INSERT INTO tenant_memberships(tenant_id,user_id,role,can_serve) VALUES($1,$2,'owner',true) RETURNING id::text`, tenantID, userID).Scan(&memberID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, "UPDATE member_invitations SET accepted_by=$1,accepted_at=now() WHERE id=$2", userID, invitationID); err != nil {
+		return err
+	}
+	if err := s.initialize(ctx, tx, tenantID, userID); err != nil {
+		return err
+	}
+	return audit(ctx, tx, tenantID, userID, "platform_self_owner_created", memberID)
 }
 
 // keyDigest 为租户slug生成稳定且不暴露业务输入的短摘要。
@@ -173,6 +226,13 @@ func insertPlatformInvitation(ctx context.Context, tx pgx.Tx, tenantID, actorID 
 	var invitationID, deliveryID string
 	if err := tx.QueryRow(ctx, `INSERT INTO member_invitations(tenant_id,email,display_name,role,can_serve,capacity,token_hash,invited_by,expires_at) VALUES($1,$2,$3,'admin',$4,5,$5,$6,now()+interval '7 days') RETURNING id::text`, tenantID, input.AdminEmail, input.AdminName, input.CanServe, digestToken(token), actorID).Scan(&invitationID); err != nil {
 		return "", "", err
+	}
+	var self bool
+	if err := tx.QueryRow(ctx, "SELECT email=$2 FROM users WHERE id=$1", actorID, input.AdminEmail).Scan(&self); err != nil {
+		return "", "", err
+	}
+	if self {
+		return invitationID, "", nil
 	}
 	err := tx.QueryRow(ctx, "INSERT INTO email_delivery_records(kind,source_id,recipient,purpose) VALUES('invitation',$1,$2,'invitation') RETURNING id::text", invitationID, input.AdminEmail).Scan(&deliveryID)
 	return invitationID, deliveryID, err

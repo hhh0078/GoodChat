@@ -270,6 +270,7 @@ export function AIBotSettingsPage() {
             <Form.Item
               name={["settings", "daily_budget_micro"]}
               label={tr("每日预算（元）")}
+              extra={tr("0 表示不限制每日金额，默认不设上限。")}
               rules={[{ required: true }]}
             >
               <InputNumber min={0} max={1000000} precision={6} />

@@ -41,7 +41,7 @@ type aiBot struct {
 
 // defaultAIBot 给首次进入设置的客服返回关闭状态，保存并不会自动开启接待。
 func defaultAIBot() aiBot {
-	return aiBot{Name: "AI", AvatarRef: "default-01", Mode: "off", Language: "auto", KnowledgeIDs: []string{}, ScriptIDs: []string{}, Settings: aiBotSettings{Offline: true, Start: "00:00", End: "23:59", Weekdays: []int{0, 1, 2, 3, 4, 5, 6}, DailyBudget: 10000000, MaxOutput: 1024, MaxTurns: 8}}
+	return aiBot{Name: "AI", AvatarRef: "default-01", Mode: "off", Language: "auto", KnowledgeIDs: []string{}, ScriptIDs: []string{}, Settings: aiBotSettings{Offline: true, Start: "00:00", End: "23:59", Weekdays: []int{0, 1, 2, 3, 4, 5, 6}, DailyBudget: 0, MaxOutput: 1024, MaxTurns: 8}}
 }
 
 // aiBot 仅从认证上下文推导机器人归属，不允许管理员借此修改别人的个人设置。
