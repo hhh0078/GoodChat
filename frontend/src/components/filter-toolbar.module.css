@@ -44,6 +44,14 @@
   padding-inline: 0;
 }
 
+/* 外层已提供完整焦点提示，覆盖组件无边框模式额外绘制的内层轮廓。 */
+.field:focus-within > :global(.ant-input),
+.field:focus-within > :global(.ant-input-affix-wrapper),
+.field:focus-within > :global(.ant-select),
+.field:focus-within > :global(.ant-picker) {
+  outline: none !important;
+}
+
 .search {
   flex: 0 1 240px;
   min-width: 160px;
