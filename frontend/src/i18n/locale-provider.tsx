@@ -4,6 +4,7 @@ import { GlobalOutlined } from "@ant-design/icons";
 import { Button, ConfigProvider, Modal, Radio, Select, Space, Typography } from "antd";
 import { NextIntlClientProvider } from "next-intl";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslator } from "./use-translator";
 import { antdLocales } from "./antd-locales";
 import {
   availableTimezones,
@@ -16,7 +17,7 @@ import {
   type Preferences,
   type SavedPreferences,
 } from "./preferences";
-import { createTextTranslator, setBrowserPreferences, translate, type Messages } from "./runtime";
+import { createTextTranslator, setBrowserPreferences, type Messages } from "./runtime";
 
 const LocaleContext = createContext<Preferences>({ locale: "en", timezone: "UTC" });
 const LocaleActionContext = createContext<(() => void) | null>(null);
@@ -323,6 +324,7 @@ export function usePreferences(): Preferences {
 
 /** LocaleSettingsButton 在页面导航中打开统一语言时区设置，嵌入聊天页不重复显示入口。 */
 export function LocaleSettingsButton() {
+  const tr = useTranslator();
   const open = useContext(LocaleActionContext);
   const preferences = usePreferences();
   if (!open) return null;
@@ -331,8 +333,8 @@ export function LocaleSettingsButton() {
       type="text"
       className="locale-nav-button"
       icon={<GlobalOutlined />}
-      aria-label={translate("语言与时区")}
-      title={translate("语言与时区")}
+      aria-label={tr("语言与时区")}
+      title={tr("语言与时区")}
       onClick={open}
     >
       <span className="locale-nav-label">{languageNames[preferences.locale]}</span>

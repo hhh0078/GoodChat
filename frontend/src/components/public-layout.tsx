@@ -1,4 +1,5 @@
-/** 文件作用说明：提供服务端官网导航、页脚与公开信息页面布局。 */
+/** 文件作用说明：提供可服务端预渲染、随个人语言即时更新的官网导航与页脚。 */
+"use client";
 import Link from "@/i18n/link";
 import { useTranslator } from "@/i18n/use-translator";
 import { Button } from "antd";
