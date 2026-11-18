@@ -391,7 +391,8 @@ func (s *Service) aiHTTPClient() *http.Client {
 		}
 		return nil, errors.New("ai_endpoint_unreachable")
 	}
-	return &http.Client{Transport: aiTransport{transport}, Timeout: 45 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	// 兼容包含思考过程的模型慢响应，整体任务仍受四分钟上下文与未知用量审计约束。
+	return &http.Client{Transport: aiTransport{transport}, Timeout: 90 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 }
 
 // aiModelTest 实际验证原生工具和供应商Token报告，不把构造结果冒充真实连接。
