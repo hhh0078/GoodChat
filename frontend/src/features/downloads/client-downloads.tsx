@@ -87,7 +87,12 @@ export function ClientDownloads() {
                       {name}
                       {tr(" 客户端 ")}
                     </Button>
-                    <p className="download-notes">{release.description}</p>
+                    {release.description && (
+                      <details className="download-notes">
+                        <summary>{tr("更新说明")}</summary>
+                        <p>{release.description}</p>
+                      </details>
+                    )}
                   </>
                 ) : (
                   <p>{tr("客户端即将提供，请稍后重试。")}</p>
