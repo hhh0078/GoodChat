@@ -1,5 +1,6 @@
 /** 文件作用说明：实现真实邮箱注册、验证码与密码登录、密码重置和受邀激活流程。 */
 "use client";
+import { AIReplyPreview } from "@/components/ai-reply-preview";
 import { Brand } from "@/components/brand";
 import Link from "@/i18n/link";
 import { usePreferences } from "@/i18n/locale-provider";
@@ -11,9 +12,10 @@ import { safeReturnPath } from "@/lib/urls";
 import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
-  LinkOutlined,
+  FileTextOutlined,
+  PictureOutlined,
+  RobotOutlined,
   MailOutlined,
-  SkinOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
 import { Alert, App, Button, Checkbox, Form, Input, Segmented, Select, Space } from "antd";
@@ -164,75 +166,50 @@ export function AuthForm({ mode }: { mode: Mode }) {
         />
         <Brand />
         <div className="auth-intro-content">
-          <div className="public-overline">GOODCHAT · CONNECT</div>
+          <div className="public-overline">GOODCHAT · AI CUSTOMER SERVICE</div>
           <h1>
-            {tr("连接每一位客户。 ")}
-            <br />
-            {tr("即刻回应每次期待。 ")}
+            {tr("AI 客服自动回复，")}
+            <span>{tr("人工随时接管。")}</span>
           </h1>
-          <p className="muted">{tr("连接每一位客户，也连接你和团队。")}</p>
-          <div className="auth-conversation-preview" aria-label={tr("客户沟通界面示意")}>
-            <div className="auth-preview-heading">
-              <span className="auth-preview-avatar">{tr("顾")}</span>
-              <div>
-                <strong>{tr("你的品牌 \u00B7 客户服务")}</strong>
-                <small>
-                  <i />
-                  {tr("在线，随时为你解答 ")}
-                </small>
-              </div>
-              <span className="auth-preview-more">···</span>
-            </div>
-            <div className="auth-preview-message">
-              <span>
-                {tr("你好，很高兴遇见你。 ")}
-                <br />
-                {tr("有什么可以帮到你？ ")}
-              </span>
-            </div>
-            <div className="auth-preview-message own">
-              <span>{tr("想了解一下你们的产品。")}</span>
-            </div>
-            <div className="auth-preview-input">
-              <span>{tr("从一句你好开始\u2026")}</span>
-              <ArrowRightOutlined />
-            </div>
-            <small className="auth-preview-caption">{tr("客户沟通界面示意")}</small>
-          </div>
+          <p className="muted">{tr("从业务知识到真实回复，AI 与你的客服团队协同接待。")}</p>
+          <AIReplyPreview compact />
           <div className="auth-capabilities">
             <div>
-              <LinkOutlined />
-              <span>
-                <strong>{tr("多链接接入")}</strong>
-                <small>{tr("独立入口连接不同业务，让咨询有序进入团队。")}</small>
-              </span>
+              <FileTextOutlined aria-hidden="true" />
+              <strong>{tr("多知识库，按需回答")}</strong>
             </div>
             <div>
-              <TeamOutlined />
-              <span>
-                <strong>{tr("灵活分配")}</strong>
-                <small>{tr("按团队规则分配咨询，让合适的人提供服务。")}</small>
-              </span>
+              <PictureOutlined aria-hidden="true" />
+              <strong>{tr("图文与音视频话术")}</strong>
             </div>
             <div>
-              <SkinOutlined />
-              <span>
-                <strong>{tr("品牌装修")}</strong>
-                <small>{tr("用组件、代码或 AI 创作自己的聊天页面。")}</small>
-              </span>
+              <TeamOutlined aria-hidden="true" />
+              <strong>{tr("自动或辅助，人工接手")}</strong>
             </div>
           </div>
         </div>
-        <p className="auth-free-note">
-          <span>{tr("2 个免费客服坐席")}</span>
-          <i />
-          {tr("基础服务长期免费 ")}
-        </p>
+        <div className="auth-free-note">
+          <TeamOutlined aria-hidden="true" />
+          <div>
+            <strong>{tr("2 个免费客服坐席")}</strong>
+            <p>{tr("系统与 2 个基础坐席免费，AI 调用按实际 Token 计费。")}</p>
+          </div>
+        </div>
       </aside>
       <main className="auth-form-side">
         <div className="auth-form">
           <div className="auth-form-brand">
             <Brand />
+          </div>
+          <div className="auth-mobile-benefits">
+            <span>
+              <RobotOutlined aria-hidden="true" />
+              {tr("AI客服")}
+            </span>
+            <span>
+              <TeamOutlined aria-hidden="true" />
+              {tr("2 个免费客服坐席")}
+            </span>
           </div>
           <h1>{localizeStatic(labels, tr)[mode][0]}</h1>
           <p className="auth-subtitle">{localizeStatic(labels, tr)[mode][1]}</p>

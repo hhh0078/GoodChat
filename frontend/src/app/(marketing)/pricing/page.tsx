@@ -1,5 +1,5 @@
 /** 文件作用说明：按明亮定价设计图服务端读取平台套餐，公开展示真实价格、有效期、坐席与功能。 */
-import { ArrowRightOutlined, CheckOutlined } from "@/components/public-icons";
+import { ArrowRightOutlined, CheckOutlined, RobotOutlined } from "@/components/public-icons";
 import { publicMetadata } from "@/i18n/metadata";
 import { localizeStatic } from "@/i18n/runtime";
 import { getPreferences, getTranslator } from "@/i18n/server";
@@ -156,6 +156,17 @@ export default async function PricingPage() {
           ))}
         </div>
       )}
+      <section className="public-ai-pricing-note">
+        <RobotOutlined aria-hidden="true" />
+        <div>
+          <h2>{tr("系统免费，AI 按量计费")}</h2>
+          <p>
+            {tr(
+              "基础版长期免费，包含 2 个客服坐席。AI 模型调用按实际输入和输出 Token 计费，单价与可用余额以控制台为准。",
+            )}
+          </p>
+        </div>
+      </section>
       <section className="public-upgrade-note">
         <h2>{tr("扩展团队时再升级")}</h2>
         <p>{tr("需要更多客服坐席，可以在控制台申请升级。付费版本与价格由平台发布后展示。")}</p>

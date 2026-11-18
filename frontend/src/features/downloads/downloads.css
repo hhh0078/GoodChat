@@ -28,10 +28,17 @@
   padding: 32px;
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: white;
+  background: #fff;
+  box-shadow: 0 10px 28px #20355c06;
 }
 .download-icon {
-  font-size: 34px;
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: #edf3ff;
+  font-size: 32px;
   color: var(--brand);
   margin-bottom: 18px;
 }
@@ -54,7 +61,25 @@
 }
 .download-notes {
   margin: 20px 0 0;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.download-notes summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: list-item;
+  align-content: center;
+  color: #304363;
+}
+.download-notes summary:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 4px;
+}
+.download-notes p {
   white-space: pre-wrap;
+  line-height: 1.8;
 }
 .download-help {
   max-width: 800px;

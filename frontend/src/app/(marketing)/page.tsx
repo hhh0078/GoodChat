@@ -185,11 +185,6 @@ export default async function HomePage() {
           <Link href="/help">{tr("AI 客服使用指南")}</Link>
         </details>
       </section>
-      <p className="public-width public-roadmap-note">
-        {tr(
-          "当前支持网页接待。macOS、Windows、Android 客服端及第三方平台渠道将后续接入，具体可用能力以控制台为准。 ",
-        )}
-      </p>
     </div>
   );
 }
