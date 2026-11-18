@@ -6,8 +6,8 @@ import type { Metadata } from "next";
 export async function generateMetadata(): Promise<Metadata> {
   return publicMetadata(
     "/downloads",
-    "客户端下载",
-    "下载GoodChat Mac和Windows客服端，在桌面程序中接待客户并接收消息提醒。",
+    "AI 客服客户端下载",
+    "下载 GoodChat 客服端，统一处理网站咨询、AI 辅助回复与人工接待。各平台可用版本以下载列表为准。",
   );
 }
 /** DownloadsPage 提供独立官网入口，未提供的APK不会显示下载按钮。 */

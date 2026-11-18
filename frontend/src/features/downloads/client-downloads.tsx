@@ -42,7 +42,7 @@ export function ClientDownloads() {
   return (
     <div className="download-page public-width">
       <span className="download-eyebrow">GOODCHAT DESKTOP</span>
-      <h1>{tr("把接待工作，留在工作台。")}</h1>
+      <h1>{tr("AI 客服客户端下载")}</h1>
       <p className="download-intro">
         {tr("使用桌面客户端接待客户。窗口最小化或关闭后，程序继续在系统托盘或菜单栏处理消息。 ")}
       </p>

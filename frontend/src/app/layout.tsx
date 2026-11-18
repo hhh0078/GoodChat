@@ -31,9 +31,9 @@ export async function generateMetadata(): Promise<Metadata> {
       shortcut: "/favicon.ico?v=20261117-logo",
       apple: { url: "/logo/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     },
-    title: { default: tr("GoodChat · 在线客服与 AI 页面装修"), template: "%s · GoodChat" },
+    title: { default: tr("GoodChat · AI 客服与免费基础版"), template: "%s · GoodChat" },
     description: tr(
-      "面向商户的在线客服 SaaS。多链接接入、灵活分配、统一客服工作台，租户自主设计和发布自己的聊天页面。",
+      "GoodChat AI 客服支持知识库自动回复、图片识别、媒体话术与人工接管。小团队基础系统免费，含 2 个客服坐席；AI 调用按实际 Token 计费。",
     ),
     openGraph: {
       type: "website",

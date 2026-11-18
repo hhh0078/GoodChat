@@ -1,4 +1,5 @@
 /** 文件作用说明：提供产品、场景、套餐、帮助与隐私条款的服务端公开页面。 */
+import { PublicAIPreview } from "@/components/public-ai-overview";
 import { ProductPreview } from "@/components/product-preview";
 import { publicMetadata } from "@/i18n/metadata";
 import { localizeStatic, translate as tr } from "@/i18n/runtime";
@@ -19,9 +20,13 @@ const pages: Record<
   }
 > = {
   features: {
-    title: "让服务流程完整连接",
-    lead: "客户入口、客服分配、沟通记录和页面设计，放进同一个工作空间。",
+    title: "AI 客服功能：自动回复与人工协作",
+    lead: "为售前、售后维护不同知识库，AI 按描述选择内容；支持访客图片识别、图文和音视频话术，复杂问题随时转人工。",
     sections: [
+      {
+        title: "知识库自动回复与人工协作",
+        text: "上传知识库，绑定机器人可用的话术，再选择自动或辅助回复。AI 按需读取知识，人工可随时接管。",
+      },
       {
         title: "从多个链接接入",
         text: "为售前、售后、门店和投放建立独立链接，分别配置来源、接待组、分配池与页面。手机和电脑使用相同业务规则。",
@@ -38,8 +43,8 @@ const pages: Record<
     ],
   },
   solutions: {
-    title: "为不同业务安排接待",
-    lead: "用入口和接待范围组织咨询，让客户进入合适的服务流程。",
+    title: "网站 AI 客服与售前售后服务",
+    lead: "用免费客服系统连接网站访客，结合知识库自动回复、业务分组和人工接待，服务售前与售后咨询。",
     sections: [
       {
         title: "网站与 App 业务",
@@ -56,8 +61,8 @@ const pages: Record<
     ],
   },
   help: {
-    title: "从第一个聊天链接开始",
-    lead: "注册、配置、分享链接，然后让团队开始接待。",
+    title: "AI 客服使用指南",
+    lead: "从免费注册、知识库准备到机器人配置，完成网站接入、自动回复和转人工。",
     sections: [
       {
         title: "1 创建工作空间",
@@ -74,6 +79,10 @@ const pages: Record<
       {
         title: "4 装修与发布",
         text: "选择平台模板，手动编辑或用 AI 创建租户私有模板。预览电脑与手机效果，发布后绑定入口；保存草稿不会直接改变线上页面。",
+      },
+      {
+        title: "配置知识库与机器人",
+        text: "在 AI 客服中维护知识库和媒体话术，选择允许读取的内容，设置自动或辅助模式。AI 调用需要可用余额，先调试再启用。",
       },
       {
         title: "收不到验证码时",
@@ -158,7 +167,10 @@ export default async function PublicContentPage({
   if (!page) notFound();
   const illustrated = slug === "features" || slug === "solutions";
   const legal = slug === "privacy" || slug === "terms";
-  const previews = ["links", "routing", "design"] as const;
+  const previews =
+    slug === "features"
+      ? (["workspace", "links", "routing", "design"] as const)
+      : (["links", "routing", "design"] as const);
   return (
     <div className="public-width public-content" data-public-page={slug}>
       <header className="public-content-heading">
@@ -204,7 +216,13 @@ export default async function PublicContentPage({
                   )}
                 </div>
               </div>
-              {illustrated && previews[index] && <ProductPreview kind={previews[index]} />}
+              {illustrated &&
+                previews[index] &&
+                (slug === "features" && index === 0 ? (
+                  <PublicAIPreview />
+                ) : (
+                  <ProductPreview kind={previews[index]} />
+                ))}
             </section>
           ))}
           {!legal && (

@@ -2,7 +2,8 @@
 import { brandShareImages } from "@/lib/site-brand";
 import type { Metadata } from "next";
 import { getLocale } from "next-intl/server";
-import { locales } from "./preferences";
+import { publicLanguagePaths, publicPagePath } from "../lib/public-seo";
+import type { Locale } from "./preferences";
 import { getTranslator } from "./server";
 
 /** publicMetadata 只发布实际支持语言的 SEO 信息，不将不同语言规范化到同一个中文地址。 */
@@ -11,19 +12,15 @@ export async function publicMetadata(
   title: string,
   description?: string,
 ): Promise<Metadata> {
-  const locale = await getLocale();
+  const locale = (await getLocale()) as Locale;
   const tr = await getTranslator();
-  const suffix = path === "/" ? "" : path;
-  const canonical = `/${locale}${suffix}`;
+  const canonical = publicPagePath(locale, path);
   return {
     title: tr(title),
     description: description ? tr(description) : undefined,
     alternates: {
       canonical,
-      languages: {
-        ...Object.fromEntries(locales.map((code) => [code, `/${code}${suffix}`])),
-        "x-default": `/en${suffix}`,
-      },
+      languages: publicLanguagePaths(path),
     },
     openGraph: {
       title: tr(title),

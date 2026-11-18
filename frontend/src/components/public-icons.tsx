@@ -9,5 +9,8 @@ export {
   MessageFilled,
   TeamOutlined,
   SkinOutlined,
+  RobotOutlined,
+  FileTextOutlined,
+  PictureOutlined,
   SafetyOutlined,
 } from "@ant-design/icons";

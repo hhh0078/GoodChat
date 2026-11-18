@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   return publicMetadata(
     "/pricing",
-    "免费开始与套餐价格",
-    "查看 GoodChat 已发布套餐、客服坐席额度、服务有效期与功能范围。",
+    "AI 客服价格与免费基础版",
+    "基础版长期免费，包含 2 个客服坐席。AI 模型调用按实际输入和输出 Token 计费，单价与可用余额以控制台为准。",
   );
 }
 type Plan = {
@@ -80,9 +80,11 @@ export default async function PricingPage() {
     <div className="public-width public-pricing" data-public-page="pricing">
       <header className="public-pricing-heading">
         <div className="public-overline">{tr("从一个免费工作空间开始")}</div>
-        <h1>{tr("免费 2 个客服坐席，按需扩展团队。")}</h1>
+        <h1>{tr("AI 客服价格与免费基础版")}</h1>
         <p className="page-lead">
-          {tr("根据团队人数选择客服坐席与服务能力，具体价格和有效期以已发布套餐为准。 ")}
+          {tr(
+            "基础版长期免费，包含 2 个客服坐席。AI 模型调用按实际输入和输出 Token 计费，单价与可用余额以控制台为准。",
+          )}
         </p>
       </header>
       {unavailable || !plans.length ? (
