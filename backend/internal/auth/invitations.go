@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"supportdesk/backend/internal/localization"
+	"supportdesk/backend/internal/notifications"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -156,7 +157,22 @@ func (s *Service) issueInvitation(w http.ResponseWriter, r *http.Request, input 
 		locale = value
 	}
 	link := strings.TrimRight(s.cfg.PublicURL, "/") + "/accept-invitation?token=" + url.QueryEscape(token) + "&lang=" + url.QueryEscape(locale)
-	result := s.mailer.send(r.Context(), email, localization.Format(locale, "GoodChat 租户成员邀请"), localization.Format(locale, "您受邀加入GoodChat租户「%s」。\n\n请打开以下链接，验证受邀邮箱后加入：\n%s\n\n邀请7天有效；注册受邀账号不会创建其他租户。邀请邮件不包含初始密码。如果并非您期待的邀请，请忽略。", principal.TenantName, link))
+	result := deliveryResult{}
+	if s.RenderMail == nil {
+		result = s.mailer.send(r.Context(), email, localization.Format(locale, "GoodChat 租户成员邀请"), localization.Format(locale, "您受邀加入GoodChat租户「%s」。\n\n请打开以下链接，验证受邀邮箱后加入：\n%s\n\n邀请7天有效；注册受邀账号不会创建其他租户。邀请邮件不包含初始密码。如果并非您期待的邀请，请忽略。", principal.TenantName, link))
+	} else {
+		var zone string
+		if err := s.pool.QueryRow(r.Context(), "SELECT coalesce(nullif((SELECT display_timezone FROM users WHERE email=$1),''),timezone) FROM tenants WHERE id=$2", email, principal.TenantID).Scan(&zone); err != nil {
+			return err
+		}
+		mail, e := s.RenderMail(r.Context(), "invitation", locale, zone, map[string]string{"tenant": principal.TenantName, "token": token})
+		if e != nil {
+			result = deliveryResult{"failed", "template"}
+		} else {
+			result = s.mailer.sendRich(r.Context(), email, mail.Subject, mail.Body, mail.HTML)
+		}
+	}
+
 	if err := s.recordDelivery(r.Context(), "invitation", invite.ID, deliveryID, result); err != nil {
 		return err
 	}
@@ -360,6 +376,9 @@ func (s *Service) acceptInvitation(w http.ResponseWriter, r *http.Request) error
 			return err
 		}
 		if err := audit(r.Context(), tx, tenantID, userID, "invitation_accepted", memberID); err != nil {
+			return err
+		}
+		if err := s.queueNotice(r.Context(), tx, notifications.Event{Tenant: tenantID, User: userID, Kind: "welcome", Key: "welcome:" + memberID, Params: map[string]string{"_locale": localization.RequestLocale(r), "_timezone": localization.RequestTimezone(r)}}); err != nil {
 			return err
 		}
 		token, err = s.createSession(r.Context(), tx, userID)

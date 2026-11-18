@@ -181,7 +181,22 @@ func insertPlatformInvitation(ctx context.Context, tx pgx.Tx, tenantID, actorID 
 // sendPlatformInvitation 在事务提交后发信，只报告真实SMTP边界且不会回滚已创建租户。
 func (s *Service) sendPlatformInvitation(r *http.Request, tenantID, invitationID, deliveryID, email, name, token string) error {
 	link := strings.TrimRight(s.cfg.PublicURL, "/") + "/accept-invitation?token=" + url.QueryEscape(token)
-	result := s.mailer.send(r.Context(), email, "GoodChat 租户管理员开通邀请", fmt.Sprintf("平台已为您开通GoodChat租户「%s」。\n\n请打开链接，验证受邀邮箱后设置密码并激活管理员身份：\n%s\n\n邀请7天有效。此邮件不包含初始密码；首次接受当前初始管理员邀请会成为本租户所有者。", name, link))
+	result := deliveryResult{}
+	if s.RenderMail == nil {
+		result = s.mailer.send(r.Context(), email, "GoodChat 租户管理员开通邀请", fmt.Sprintf("平台已为您开通GoodChat租户「%s」。\n\n请打开链接，验证受邀邮箱后设置密码并激活管理员身份：\n%s\n\n邀请7天有效。此邮件不包含初始密码；首次接受当前初始管理员邀请会成为本租户所有者。", name, link))
+	} else {
+		var locale, zone string
+		if err := s.pool.QueryRow(r.Context(), "SELECT coalesce(nullif((SELECT preferred_locale FROM users WHERE email=$1),''),default_locale),coalesce(nullif((SELECT display_timezone FROM users WHERE email=$1),''),timezone) FROM tenants WHERE id=$2", email, tenantID).Scan(&locale, &zone); err != nil {
+			return err
+		}
+		mail, e := s.RenderMail(r.Context(), "admin_invitation", locale, zone, map[string]string{"tenant": name, "token": token})
+		if e != nil {
+			result = deliveryResult{"failed", "template"}
+		} else {
+			result = s.mailer.sendRich(r.Context(), email, mail.Subject, mail.Body, mail.HTML)
+		}
+	}
+
 	if err := s.recordDelivery(r.Context(), "invitation", invitationID, deliveryID, result); err != nil {
 		return err
 	}

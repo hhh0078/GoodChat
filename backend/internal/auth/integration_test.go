@@ -19,6 +19,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"supportdesk/backend/internal/notifications"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -122,6 +123,13 @@ func identityIntegration(t *testing.T) *identityFixture {
 	if _, err := admin.Exec(ctx, string(file)); err != nil {
 		t.Fatal(err)
 	}
+	file, err = os.ReadFile(filepath.Join("..", "database", "migrations", "041_notifications.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = admin.Exec(ctx, string(file)); err != nil {
+		t.Fatal(err)
+	}
 	poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
 		t.Fatal("运行数据库配置解析失败")
@@ -149,6 +157,9 @@ func identityIntegration(t *testing.T) *identityFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
+	notices := notifications.New(pool, service, authConfig, service.SendRenderedNotification)
+	service.Notify = notifications.Enqueue
+	service.RenderMail = notices.RenderMail
 	service.SetTenantInitializer(func(ctx context.Context, tx pgx.Tx, tenantID, userID string) error {
 		var current string
 		if err := tx.QueryRow(ctx, "SELECT current_setting('app.tenant_id',true)").Scan(&current); err != nil {

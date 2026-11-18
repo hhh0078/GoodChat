@@ -1,5 +1,6 @@
 /** 文件作用说明：将租户功能路由连接到统一工作端中的真实资源页面。 */
 import { AICustomerServicePage } from "@/features/ai/console";
+import { NotificationsPage } from "@/features/notifications/console";
 import { notFound } from "next/navigation";
 import { MembersPage } from "@/features/console/members";
 import { LinksPage } from "@/features/console/links";
@@ -16,6 +17,7 @@ export default async function ConsoleSection({ params }: { params: Promise<{ sec
   const { section } = await params;
   const pages: Record<string, React.ComponentType> = {
     ai: AICustomerServicePage,
+    notifications: NotificationsPage,
     members: MembersPage,
     links: LinksPage,
     routing: RoutingPage,

@@ -3,7 +3,9 @@ package auth
 
 import (
 	"context"
+	"github.com/jackc/pgx/v5"
 	"strings"
+	"supportdesk/backend/internal/notifications"
 	"unicode/utf8"
 )
 
@@ -18,4 +20,25 @@ func (s *Service) SendNotification(ctx context.Context, recipient, subject, body
 	}
 	result := s.mailer.send(ctx, email, subject, body)
 	return result.Status, result.FailureKind
+}
+
+// SendRenderedNotification 复用SMTP传输，仅接收后端安全渲染邮件，不开放公共发信接口。
+func (s *Service) SendRenderedNotification(ctx context.Context, recipient string, mail notifications.Mail) (string, string) {
+	email, err := normalizeEmail(recipient)
+	if err != nil || strings.ContainsAny(mail.Subject+mail.UnsubscribeURL, "\r\n") || utf8.RuneCountInString(mail.Subject) > 120 || len(mail.Body) > 60000 {
+		return "failed", "invalid_notification"
+	}
+	if s.mailer == nil {
+		return "failed", "configuration"
+	}
+	result := s.mailer.sendRichHeaders(ctx, email, mail.Subject, mail.Body, mail.HTML, mail.UnsubscribeURL)
+	return result.Status, result.FailureKind
+}
+
+// queueNotice 将账号通知与业务写入同一事务，未装配时保留独立模块行为。
+func (s *Service) queueNotice(ctx context.Context, tx pgx.Tx, e notifications.Event) error {
+	if s.Notify == nil {
+		return nil
+	}
+	return s.Notify(ctx, tx, e)
 }

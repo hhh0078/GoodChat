@@ -199,6 +199,12 @@ func configureNoticeFixture(t *testing.T, f *fixture, sender func(context.Contex
 	f.s.cfg.SMTPFrom = "notice@goodchat.test"
 	f.s.cfg.PublicURL = "http://127.0.0.1:13000"
 	f.s.SetLeadNotifier(sender)
+	if _, e := f.admin.Exec(context.Background(), "UPDATE users SET email='admin@goodchat.test' WHERE id=(SELECT user_id FROM tenant_memberships WHERE id=$1)", f.owner); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := f.admin.Exec(context.Background(), "UPDATE users SET email='new-admin@goodchat.test' WHERE id=(SELECT user_id FROM tenant_memberships WHERE id=$1)", f.agent); e != nil {
+		t.Fatal(e)
+	}
 	status, reply := f.request("GET", "/api/v1/tenant/lead-settings", f.owner, "", nil)
 	settings := mustData(t, status, reply)
 	status, reply = f.request("PUT", "/api/v1/tenant/lead-settings", f.owner, "", map[string]any{"enabled": true, "email": "admin@goodchat.test", "version": settings["version"]})

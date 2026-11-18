@@ -16,6 +16,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"supportdesk/backend/internal/platform"
@@ -29,13 +30,18 @@ type deliveryResult struct {
 
 // smtpMailer 封装本项目SMTP配置，测试替身不代表真实邮箱收件。
 type smtpMailer struct {
+	mu      sync.RWMutex
 	cfg     platform.Config
 	timeout time.Duration
 }
 
 // validate 检查邮件配置，禁止生产明文连接或凭证不完整的假发信。
 func (m *smtpMailer) validate() error {
-	cfg := m.cfg
+	return validateMailConfig(m.snapshot())
+}
+
+// validateMailConfig 在发送和平台配置写入边界验证TLS及发件地址。
+func validateMailConfig(cfg platform.Config) error {
 	if cfg.SMTPHost == "" || cfg.SMTPPort == "" || cfg.SMTPFrom == "" {
 		return platform.Fail(503, "mail_unavailable", "邮件服务尚未配置，请联系平台管理员")
 	}
@@ -55,7 +61,18 @@ func (m *smtpMailer) validate() error {
 
 // send 在同一截止时间内完成建连、TLS和SMTP；只有DATA确认才算已受理。
 func (m *smtpMailer) send(ctx context.Context, recipient, subject, body string) deliveryResult {
-	if err := m.validate(); err != nil {
+	return m.sendRich(ctx, recipient, subject, body, "")
+}
+
+// sendRich 共用原有TLS和SMTP确认边界，仅接收后端渲染的HTML。
+func (m *smtpMailer) sendRich(ctx context.Context, recipient, subject, body, rich string) deliveryResult {
+	return m.sendRichHeaders(ctx, recipient, subject, body, rich, "")
+}
+
+// sendRichHeaders 为订阅邮件加入一键退订头，其余邮件保持现有SMTP受理边界。
+func (m *smtpMailer) sendRichHeaders(ctx context.Context, recipient, subject, body, rich, unsubscribe string) deliveryResult {
+	cfg := m.snapshot()
+	if err := validateMailConfig(cfg); err != nil {
 		return deliveryResult{"failed", "configuration"}
 	}
 	timeout := m.timeout
@@ -65,7 +82,7 @@ func (m *smtpMailer) send(ctx context.Context, recipient, subject, body string) 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	dialer := net.Dialer{}
-	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(m.cfg.SMTPHost, m.cfg.SMTPPort))
+	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(cfg.SMTPHost, cfg.SMTPPort))
 	if err != nil {
 		return classifyDelivery(err, false)
 	}
@@ -76,8 +93,8 @@ func (m *smtpMailer) send(ctx context.Context, recipient, subject, body string) 
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(deadline)
 	}
-	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: m.cfg.SMTPHost}
-	implicitTLS := m.cfg.SMTPPort == "465"
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: cfg.SMTPHost}
+	implicitTLS := cfg.SMTPPort == "465"
 	if implicitTLS {
 		secure := tls.Client(conn, tlsConfig)
 		if err := secure.HandshakeContext(ctx); err != nil {
@@ -85,7 +102,7 @@ func (m *smtpMailer) send(ctx context.Context, recipient, subject, body string) 
 		}
 		conn = secure
 	}
-	client, err := smtp.NewClient(conn, m.cfg.SMTPHost)
+	client, err := smtp.NewClient(conn, cfg.SMTPHost)
 	if err != nil {
 		return classifyDelivery(err, false)
 	}
@@ -95,27 +112,31 @@ func (m *smtpMailer) send(ctx context.Context, recipient, subject, body string) 
 			if err := client.StartTLS(tlsConfig); err != nil {
 				return classifyDelivery(err, false)
 			}
-		} else if m.cfg.Production || !m.cfg.SMTPAllowPlain {
+		} else if cfg.Production || !cfg.SMTPAllowPlain {
 			return deliveryResult{"failed", "tls_required"}
 		}
 	}
-	if m.cfg.SMTPUser != "" {
-		if err := client.Auth(smtp.PlainAuth("", m.cfg.SMTPUser, m.cfg.SMTPPassword, m.cfg.SMTPHost)); err != nil {
-			return classifyDelivery(err, false)
+	if cfg.SMTPUser != "" {
+		if err := client.Auth(smtp.PlainAuth("", cfg.SMTPUser, cfg.SMTPPassword, cfg.SMTPHost)); err != nil {
+			return deliveryResult{"failed", "configuration"}
 		}
 	}
-	from, _ := mail.ParseAddress(m.cfg.SMTPFrom)
+	from, _ := mail.ParseAddress(cfg.SMTPFrom)
 	if err := client.Mail(from.Address); err != nil {
 		return classifyDelivery(err, false)
 	}
 	if err := client.Rcpt(recipient); err != nil {
-		return classifyDelivery(err, false)
+		result := classifyDelivery(err, false)
+		if result.FailureKind == "permanent" {
+			result.FailureKind = "recipient_permanent"
+		}
+		return result
 	}
 	writer, err := client.Data()
 	if err != nil {
 		return classifyDelivery(err, false)
 	}
-	if _, err := io.WriteString(writer, buildMail(from.Address, recipient, subject, body)); err != nil {
+	if _, err := io.WriteString(writer, buildMail(from.Address, recipient, subject, body, rich, unsubscribe)); err != nil {
 		return classifyDelivery(err, false)
 	}
 	if err := writer.Close(); err != nil {
@@ -148,9 +169,38 @@ func classifyDelivery(err error, awaitingFinal bool) deliveryResult {
 }
 
 // buildMail 组装纯文本与HTML两种正文，品牌固定为本项目而不复制参考凭证。
-func buildMail(from, to, subject, body string) string {
+func buildMail(from, to, subject, body, rich, unsubscribe string) string {
+	id, _ := platform.Token()
+	if id == "" {
+		id = strconv.FormatInt(time.Now().UnixNano(), 10)
+	}
+	domain := strings.Split(from, "@")
+	host := "goodchat.local"
+	if len(domain) == 2 {
+		host = domain[1]
+	}
+	extra := fmt.Sprintf("Date: %s\r\nMessage-ID: <%s@%s>\r\n", time.Now().UTC().Format(time.RFC1123Z), id, host)
+	if unsubscribe != "" {
+		extra += "List-Unsubscribe: <" + unsubscribe + ">\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n"
+	}
+
 	boundary := "goodchat-auth-multipart"
-	plain := base64.StdEncoding.EncodeToString([]byte(body))
-	rich := "<!doctype html><html><body style=\"font-family:system-ui;color:#233e2c;background:#f5f7f5;padding:24px\"><h1>GoodChat</h1><div style=\"white-space:pre-wrap\">" + html.EscapeString(body) + "</div></body></html>"
-	return fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=%q\r\n\r\n--%s\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n--%s\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n--%s--\r\n", from, to, mime.BEncoding.Encode("UTF-8", subject), boundary, boundary, plain, boundary, base64.StdEncoding.EncodeToString([]byte(rich)), boundary)
+	plain := mailBase64(body)
+	if rich == "" {
+		rich = "<!doctype html><html><body style=\"font-family:system-ui;color:#182338;background:#f4f7fb;padding:24px\"><h1>GoodChat</h1><div style=\"white-space:pre-wrap\">" + html.EscapeString(body) + "</div></body></html>"
+	}
+	return extra + fmt.Sprintf("From: GoodChat <%s>\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=%q\r\n\r\n--%s\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n--%s\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n--%s--\r\n", from, to, mime.BEncoding.Encode("UTF-8", subject), boundary, boundary, plain, boundary, mailBase64(rich), boundary)
+}
+
+// mailBase64 将MIME编码按76字符换行，避免长模板超过SMTP单行长度限制。
+func mailBase64(value string) string {
+	encoded := base64.StdEncoding.EncodeToString([]byte(value))
+	var out strings.Builder
+	for len(encoded) > 76 {
+		out.WriteString(encoded[:76])
+		out.WriteString("\r\n")
+		encoded = encoded[76:]
+	}
+	out.WriteString(encoded)
+	return out.String()
 }

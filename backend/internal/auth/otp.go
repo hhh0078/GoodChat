@@ -118,7 +118,18 @@ func (s *Service) sendCode(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	result := s.mailer.send(r.Context(), email, localization.RequestText(r, "GoodChat 验证码"), localization.RequestText(r, "您的GoodChat%s验证码为：%s\n\n验证码5分钟内有效，仅限本次用途。重新申请后旧码失效。请勿转告他人。\n如果不是您本人操作，请忽略本邮件。", localization.RequestText(r, label), code))
+	result := deliveryResult{}
+	if s.RenderMail == nil {
+		result = s.mailer.send(r.Context(), email, localization.RequestText(r, "GoodChat 验证码"), localization.RequestText(r, "您的GoodChat%s验证码为：%s\n\n验证码5分钟内有效，仅限本次用途。重新申请后旧码失效。请勿转告他人。\n如果不是您本人操作，请忽略本邮件。", localization.RequestText(r, label), code))
+	}
+	if s.RenderMail != nil {
+		mail, e := s.RenderMail(r.Context(), "code_"+input.Purpose, localization.RequestLocale(r), localization.RequestTimezone(r), map[string]string{"code": code})
+		if e != nil {
+			result = deliveryResult{"failed", "template"}
+		} else {
+			result = s.mailer.sendRich(r.Context(), email, mail.Subject, mail.Body, mail.HTML)
+		}
+	}
 	if err := s.recordDelivery(r.Context(), "challenge", id, deliveryID, result); err != nil {
 		return err
 	}

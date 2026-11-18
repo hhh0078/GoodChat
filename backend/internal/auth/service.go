@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"supportdesk/backend/internal/notifications"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -22,6 +23,8 @@ const sessionTTL = 7 * 24 * time.Hour
 
 // Service 保存身份模块依赖；敏感密钥不通过API或日志返回。
 type Service struct {
+	RenderMail       func(context.Context, string, string, string, map[string]string) (notifications.Mail, error)
+	Notify           func(context.Context, pgx.Tx, notifications.Event) error
 	pool             *pgxpool.Pool
 	cfg              platform.Config
 	secret           []byte
@@ -61,6 +64,10 @@ func New(pool *pgxpool.Pool, cfg platform.Config) (*Service, error) {
 		return nil, errors.New("认证模块需要PostgreSQL连接池")
 	}
 	secret, err := loadAuthSecret(cfg)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err = applyStoredSMTP(cfg, secret)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +194,8 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/tenant/invitations/{id}/resend", s.RequireAdmin(s.endpoint(s.resendInvitation)))
 	mux.HandleFunc("DELETE /api/v1/tenant/invitations/{id}", s.RequireAdmin(s.endpoint(s.revokeInvitation)))
 	mux.HandleFunc("POST /api/v1/tenant/transfer-ownership", s.RequireAdmin(s.endpoint(s.transferOwnership)))
+	mux.HandleFunc("GET /api/v1/platform/mail-settings", s.RequirePlatform(s.endpoint(s.mailSettings)))
+	mux.HandleFunc("PUT /api/v1/platform/mail-settings", s.RequirePlatform(s.endpoint(s.mailSettings)))
 	mux.HandleFunc("POST /api/v1/platform/tenants", s.RequirePlatform(s.endpoint(s.platformCreateTenant)))
 	mux.HandleFunc("POST /api/v1/platform/tenants/{id}/resend-invitation", s.RequirePlatform(s.endpoint(s.platformResendInitialInvitation)))
 }

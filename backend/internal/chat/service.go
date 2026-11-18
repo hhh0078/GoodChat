@@ -23,6 +23,7 @@ import (
 
 // Service 保存聊天模块依赖及本进程实时连接。
 type Service struct {
+	mailConfigured  func() bool
 	pool            *pgxpool.Pool
 	auth            platform.Authorizer
 	cfg             platform.Config

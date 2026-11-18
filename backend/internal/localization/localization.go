@@ -175,3 +175,17 @@ func Middleware(next http.Handler) http.Handler {
 		r.Pattern = localized.Pattern
 	})
 }
+
+// RequestTimezone 优先使用明确URL时区，再读取可信偏好头与Cookie，不在后端猜测电脑时区。
+func RequestTimezone(r *http.Request) string {
+	if values := r.URL.Query()["timezone"]; len(values) == 1 && ValidTimezone(values[0]) {
+		return values[0]
+	}
+	if value := r.Header.Get("X-GoodChat-Timezone"); ValidTimezone(value) {
+		return value
+	}
+	if cookie, err := r.Cookie("goodchat.timezone"); err == nil && ValidTimezone(cookie.Value) {
+		return cookie.Value
+	}
+	return "UTC"
+}

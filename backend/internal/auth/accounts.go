@@ -10,7 +10,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"supportdesk/backend/internal/localization"
+	"supportdesk/backend/internal/notifications"
 	"supportdesk/backend/internal/platform"
+	"time"
 )
 
 // passwordHash 限制同时运行的昂贵密码派生数量，避免认证接口耗尽进程内存。
@@ -113,6 +115,9 @@ func (s *Service) registerAccount(w http.ResponseWriter, r *http.Request) error 
 			return err
 		}
 		if err := audit(r.Context(), tx, tenantID, userID, "tenant_registered", memberID); err != nil {
+			return err
+		}
+		if err := s.queueNotice(r.Context(), tx, notifications.Event{Tenant: tenantID, User: userID, Kind: "welcome", Key: "welcome:" + memberID, Params: map[string]string{"_locale": localization.RequestLocale(r), "_timezone": localization.RequestTimezone(r)}}); err != nil {
 			return err
 		}
 		token, err = s.createSession(r.Context(), tx, userID)
@@ -236,8 +241,10 @@ func (s *Service) resetPassword(w http.ResponseWriter, r *http.Request) error {
 		} else if err != nil {
 			return err
 		}
-		_, err := tx.Exec(r.Context(), "UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL", userID)
-		return err
+		if _, err := tx.Exec(r.Context(), "UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL", userID); err != nil {
+			return err
+		}
+		return s.queueNotice(r.Context(), tx, notifications.Event{User: userID, Kind: "password_changed", Key: "password:" + time.Now().UTC().Format(time.RFC3339Nano), Params: map[string]string{"occurred_at": time.Now().UTC().Format(time.RFC3339), "_locale": localization.RequestLocale(r), "_timezone": localization.RequestTimezone(r)}})
 	})
 	if err != nil {
 		return err

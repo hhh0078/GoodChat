@@ -38,6 +38,9 @@ func ensureLeadNoticeConfig(ctx context.Context, tx pgx.Tx, tenant string) (lead
 
 // smtpConfigured 只表示配置字段和发送适配器已存在，不代表邮件受理或收件。
 func (s *Service) smtpConfigured() bool {
+	if s.mailConfigured != nil {
+		return s.mailConfigured()
+	}
 	return s.leadNotifier != nil && s.cfg.SMTPHost != "" && s.cfg.SMTPPort != "" && s.cfg.SMTPFrom != ""
 }
 
@@ -78,6 +81,15 @@ func (s *Service) leadSettings(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if r.Method == http.MethodPut {
+			if input.Enabled && !(config.Enabled && config.Email == input.Email) {
+				var verified bool
+				if e := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM users u JOIN tenant_memberships m ON m.user_id=u.id WHERE u.email=$1 AND m.tenant_id=$2 AND NOT m.disabled AND m.removed_at IS NULL)", input.Email, a.TenantID).Scan(&verified); e != nil {
+					return e
+				}
+				if !verified {
+					return platform.Fail(400, "notification_recipient_unverified", "请选择本租户已验证成员的邮箱")
+				}
+			}
 			tag, err := tx.Exec(ctx, "UPDATE lead_notification_settings SET enabled=$2,email=$3,version=version+1,updated_at=now() WHERE tenant_id=$1 AND version=$4", a.TenantID, input.Enabled, input.Email, input.Version)
 			if err != nil {
 				return err
@@ -94,6 +106,25 @@ func (s *Service) leadSettings(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		result = map[string]any{"enabled": config.Enabled, "email": config.Email, "version": config.Version, "smtp_configured": s.smtpConfigured(), "attachment_limit": 3, "max_attachment_bytes": 20971520}
+		rows, e := tx.Query(ctx, "SELECT u.email FROM users u JOIN tenant_memberships m ON m.user_id=u.id WHERE m.tenant_id=$1 AND NOT m.disabled AND m.removed_at IS NULL ORDER BY u.email", a.TenantID)
+		if e != nil {
+			return e
+		}
+		emails := []string{}
+		for rows.Next() {
+			var email string
+			if e := rows.Scan(&email); e != nil {
+				rows.Close()
+				return e
+			}
+			emails = append(emails, email)
+		}
+		rows.Close()
+		if e := rows.Err(); e != nil {
+			return e
+		}
+		result["verified_recipients"] = emails
+
 		return nil
 	})
 	if err != nil {
@@ -277,3 +308,6 @@ func (s *Service) leadNotifications(w http.ResponseWriter, r *http.Request) {
 	}
 	platform.JSON(w, 200, result)
 }
+
+// SetMailStateChecker 在服务启动前注入SMTP实时状态，使平台更新发信配置后立即生效。
+func (s *Service) SetMailStateChecker(check func() bool) { s.mailConfigured = check }

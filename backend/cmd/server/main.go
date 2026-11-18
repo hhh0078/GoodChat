@@ -28,6 +28,7 @@ import (
 	"supportdesk/backend/internal/decoration"
 	"supportdesk/backend/internal/localization"
 	"supportdesk/backend/internal/monitoring"
+	"supportdesk/backend/internal/notifications"
 	"supportdesk/backend/internal/platform"
 	"supportdesk/backend/internal/releases"
 	"supportdesk/backend/internal/reporting"
@@ -78,8 +79,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	notices := notifications.New(pool, identity, cfg, identity.SendRenderedNotification)
+	notices.MailStatus = identity.MailStatus
+	identity.RenderMail = notices.RenderMail
+	identity.Notify = notifications.Enqueue
 	messaging := chat.New(pool, identity, cfg)
-	messaging.SetLeadNotifier(identity.SendNotification)
+	messaging.SetLeadNotifier(notices.SendLegacyLead)
+	messaging.SetMailStateChecker(func() bool { v, _ := identity.MailStatus()["configured"].(bool); return v })
 	plans := billing.New(pool, identity, cfg)
 	messaging.SetFeatureChecker(plans.CheckFeature)
 	identity.SetSeatChecker(plans.CheckSeats)
@@ -108,6 +114,7 @@ func main() {
 	messaging.SetVisitorEnteredHook(hooks.Enqueue)
 	mux := http.NewServeMux()
 	identity.Register(mux)
+	notices.Register(mux)
 	releases.New(pool, identity).Register(mux)
 	messaging.Register(mux)
 	hooks.Register(mux)
@@ -133,6 +140,8 @@ func main() {
 		platform.JSON(w, 200, map[string]any{"status": "ok", "database": true, "redis": true, "version": "0.1.0"})
 	})
 	identity.Start(ctx)
+	notices.Start(ctx)
+	defer notices.Wait()
 	messaging.Start(ctx)
 	messaging.StartLeadNotifications(ctx)
 	hooks.Start(ctx)

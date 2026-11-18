@@ -11,6 +11,7 @@ import {
   BarChartOutlined,
   CustomerServiceOutlined,
   LinkOutlined,
+  MailOutlined,
   MenuOutlined,
   PartitionOutlined,
   QuestionCircleOutlined,
@@ -39,6 +40,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
     { key: "/console", icon: <AppstoreOutlined />, label: tr("工作空间") },
     { key: "/workspace", icon: <CustomerServiceOutlined />, label: tr("客服工作台") },
     { key: "/console/ai", icon: <RobotOutlined />, label: tr("AI客服") },
+    { key: "/console/notifications", icon: <MailOutlined />, label: tr("邮件与通知") },
     ...(!manages
       ? [
           { key: "/console/records", icon: <CustomerServiceOutlined />, label: tr("我的聊天记录") },
@@ -111,8 +113,9 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
             "/console/reports",
             "/console/billing",
             "/console/settings",
+            "/console/notifications",
           ]
-        : ["/console/settings"],
+        : ["/console/settings", "/console/notifications"],
     },
     { label: tr("平台"), icon: <SafetyOutlined />, paths: ["/platform", "/platform/monitoring"] },
   ]

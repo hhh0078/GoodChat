@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"supportdesk/backend/internal/notifications"
 	"supportdesk/backend/internal/platform"
 )
 
@@ -145,6 +146,11 @@ func (s *Service) updateMember(w http.ResponseWriter, r *http.Request) error {
 		if err := s.initialize(r.Context(), tx, principal.TenantID, userID); err != nil {
 			return err
 		}
+		if input.Disabled != nil && *input.Disabled != disabled || input.Role != nil && *input.Role != role {
+			if err := s.queueNotice(r.Context(), tx, notifications.Event{Tenant: principal.TenantID, User: userID, Kind: "permissions_changed", Key: "permissions:" + r.PathValue("id") + ":" + time.Now().UTC().Format(time.RFC3339Nano), Params: map[string]string{"tenant": principal.TenantName, "occurred_at": time.Now().UTC().Format(time.RFC3339)}}); err != nil {
+				return err
+			}
+		}
 		return audit(r.Context(), tx, principal.TenantID, principal.UserID, "member_updated", r.PathValue("id"))
 	})
 	if err != nil {
@@ -198,6 +204,9 @@ func (s *Service) removeMember(w http.ResponseWriter, r *http.Request) error {
 		if _, err := tx.Exec(r.Context(), "UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL", userID); err != nil {
 			return err
 		}
+		if err := s.queueNotice(r.Context(), tx, notifications.Event{Tenant: principal.TenantID, User: userID, Kind: "permissions_changed", Key: "removed:" + r.PathValue("id"), Params: map[string]string{"tenant": principal.TenantName, "occurred_at": time.Now().UTC().Format(time.RFC3339)}}); err != nil {
+			return err
+		}
 		return audit(r.Context(), tx, principal.TenantID, principal.UserID, "member_removed", r.PathValue("id"))
 	})
 	if err != nil {
@@ -248,6 +257,15 @@ func (s *Service) transferOwnership(w http.ResponseWriter, r *http.Request) erro
 		}
 		if _, err := tx.Exec(r.Context(), "UPDATE tenant_memberships SET role='owner' WHERE id=$1 AND tenant_id=$2", input.MemberID, principal.TenantID); err != nil {
 			return err
+		}
+		var targetUser string
+		if err := tx.QueryRow(r.Context(), "SELECT user_id::text FROM tenant_memberships WHERE id=$1 AND tenant_id=$2", input.MemberID, principal.TenantID).Scan(&targetUser); err != nil {
+			return err
+		}
+		for _, user := range []string{principal.UserID, targetUser} {
+			if err := s.queueNotice(r.Context(), tx, notifications.Event{Tenant: principal.TenantID, User: user, Kind: "permissions_changed", Key: "ownership:" + input.MemberID + ":" + time.Now().UTC().Format(time.RFC3339Nano), Params: map[string]string{"tenant": principal.TenantName, "occurred_at": time.Now().UTC().Format(time.RFC3339)}}); err != nil {
+				return err
+			}
 		}
 		return audit(r.Context(), tx, principal.TenantID, principal.UserID, "ownership_transferred", input.MemberID)
 	})

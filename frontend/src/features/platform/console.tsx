@@ -1,11 +1,12 @@
 /** 文件作用说明：为平台管理员提供独立平台管理页与真实套餐配置入口。 */
 "use client";
+import { PlatformMail } from "@/features/notifications/platform";
 import { PlatformCustomerAI } from "@/features/ai/platform";
 import { PageTitle } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { useTranslator } from "@/i18n/use-translator";
 import { Alert, Tabs } from "antd";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ClientReleases } from "./client-releases";
 import { PlatformOverview } from "./overview";
 import { PlatformPlans } from "./plans";
@@ -16,7 +17,28 @@ import { PlatformUpgrades } from "./upgrades";
 export function PlatformConsole() {
   const tr = useTranslator();
   const { current } = useSession();
-  const [activeTab, setActiveTab] = useState("tenants");
+  const query = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const selected = query.get("tab") || "tenants";
+  const activeTab = [
+    "overview",
+    "tenants",
+    "templates",
+    "plans",
+    "upgrades",
+    "mail",
+    "customer-ai",
+    "clients",
+  ].includes(selected)
+    ? selected
+    : "tenants";
+  /** setActiveTab 将页签保存在当前URL，初始化与语言刷新后仍保留用户选择。 */
+  function setActiveTab(key: string) {
+    const next = new URLSearchParams(query.toString());
+    next.set("tab", key);
+    router.replace(pathname + "?" + next.toString(), { scroll: false });
+  }
   if (!current.user.is_platform_admin)
     return <Alert type="error" showIcon title={tr("此账号没有平台管理权限")} />;
   return (
@@ -41,6 +63,7 @@ export function PlatformConsole() {
             { key: "templates", label: tr("公共装修模板"), children: <PlatformTemplates /> },
             { key: "plans", label: tr("套餐版本与官网价格"), children: <PlatformPlans /> },
             { key: "upgrades", label: tr("升级申请与人工开通"), children: <PlatformUpgrades /> },
+            { key: "mail", label: tr("邮件与通知"), children: <PlatformMail /> },
             { key: "customer-ai", label: tr("客服AI与计费"), children: <PlatformCustomerAI /> },
             { key: "clients", label: tr("客户端下载与版本"), children: <ClientReleases /> },
           ]}

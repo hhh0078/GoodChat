@@ -15,7 +15,7 @@ import {
   Card,
   Drawer,
   Form,
-  Input,
+  Select,
   InputNumber,
   Popconfirm,
   Space,
@@ -53,6 +53,7 @@ export function LeadNotifications() {
   const [form] = Form.useForm();
   const enabled = Form.useWatch("enabled", form);
   const [configured, setConfigured] = useState(false);
+  const [recipients, setRecipients] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -68,11 +69,17 @@ export function LeadNotifications() {
       email: string;
       version: number;
       smtp_configured: boolean;
+      verified_recipients: string[];
     }>("/tenant/lead-settings", { tenantId, signal: controller.signal })
       .then((data) => {
         if (controller.signal.aborted) return;
         form.setFieldsValue({ enabled: data.enabled, email: data.email, version: data.version });
         setConfigured(data.smtp_configured);
+        setRecipients(
+          Array.from(
+            new Set([...(data.verified_recipients || []), ...(data.email ? [data.email] : [])]),
+          ),
+        );
         setLoaded(true);
       })
       .catch((problem) => {
@@ -161,10 +168,14 @@ export function LeadNotifications() {
               { required: !!enabled, message: tr("开启提醒需填写收件邮箱") },
             ]}
             extra={tr(
-              "填写负责跟进留言的管理员邮箱。更换邮箱后，尚未发送的旧提醒会停止，可在下方记录中查看原因。",
+              "选择本租户已验证成员的邮箱。更换邮箱后，尚未发送的旧提醒会停止，可在下方记录中查看原因。",
             )}
           >
-            <Input maxLength={254} autoComplete="email" />
+            <Select
+              showSearch
+              allowClear
+              options={recipients.map((email) => ({ value: email, label: email }))}
+            />
           </Form.Item>
           <Button
             type="primary"
