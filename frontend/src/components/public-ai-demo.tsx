@@ -1,73 +1,79 @@
-/** 文件作用说明：以可暂停、逐帧切换的交互卡片演示 AI 客服处理咨询、读取知识与人工协作的过程。 */
+/** 文件作用说明：按聊天视觉稿逐条追加示例消息，自动衔接场景并保留最近对话，限制卡片高度。 */
 "use client";
-
 import { useTranslator } from "@/i18n/use-translator";
-import {
-  ArrowLeftOutlined,
-  ArrowRightOutlined,
-  CheckOutlined,
-  FileTextOutlined,
-  MessageOutlined,
-  PauseOutlined,
-  CaretRightOutlined,
-  PictureOutlined,
-  RobotOutlined,
-  TeamOutlined,
-} from "@ant-design/icons";
-import { useEffect, useRef, useState } from "react";
+import { FileTextOutlined, PictureOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
+import Image from "next/image";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { BrandMark } from "./brand-mark";
 
-/** PublicAIDemo 保留服务端可读文案，仅在卡片可见且用户允许动态时自动播放五步业务示意。 */
+type ConversationItem =
+  | { kind: "separator"; text: string }
+  | {
+      kind: "message";
+      role: "visitor" | "ai";
+      text: string;
+      source?: string;
+      recognition?: boolean;
+      image?: boolean;
+      handoff?: boolean;
+    };
+
+/** PublicAIDemo 用连续对话呈现知识回复、上下文理解、图片识别和人工协作，不操作真实会话。 */
 export function PublicAIDemo() {
   const tr = useTranslator();
   const host = useRef<HTMLElement>(null);
-  const [scene, setScene] = useState(0);
-  const [step, setStep] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const viewport = useRef<HTMLDivElement>(null);
+  const following = useRef(true);
+  const [shown, setShown] = useState(2);
   const [visible, setVisible] = useState(false);
   const [reduced, setReduced] = useState(false);
-  const scenarios = [
+  const items: ConversationItem[] = [
+    { kind: "separator", text: tr("订单售后") },
+    { kind: "message", role: "visitor", text: tr("刚收到耳机，拆开包装后还能退吗？") },
     {
-      label: tr("订单售后"),
-      icon: FileTextOutlined,
-      question: tr("怎么申请售后服务？"),
-      intent: tr("订单售后"),
-      knowledge: tr("售后服务指南"),
-      excerpt: tr("申请售后时，请先提供订单号，确认订单信息后再告知处理方式。"),
-      reply: tr("我已查阅售后知识库，请提供订单号，我来帮你确认处理方式。"),
+      kind: "message",
+      role: "ai",
+      source: tr("已查阅《退换货政策》"),
+      text: tr("可以拆封检查。请保留原包装、配件和赠品，商品完好且不影响二次销售即可申请。"),
+    },
+    { kind: "message", role: "visitor", text: tr("好的，怎么提交申请？") },
+    { kind: "message", role: "ai", text: tr("请提供订单号，我来帮你确认申请方式。") },
+    { kind: "separator", text: tr("访客图片识别") },
+    {
+      kind: "message",
+      role: "visitor",
+      image: true,
+      text: tr("收到的耳机就是这样，可以帮我看一下吗？"),
     },
     {
-      label: tr("访客图片识别"),
-      icon: PictureOutlined,
-      question: tr("这个提示是什么意思？"),
-      intent: tr("访客图片识别"),
-      knowledge: tr("常见问题指南"),
-      excerpt: tr("登录链接过期时，可以返回登录页面，重新获取验证邮件。"),
-      reply: tr("图片提示登录链接已过期，请返回登录页面，重新获取一封验证邮件。"),
+      kind: "message",
+      role: "ai",
+      source: tr("已识别图片内容"),
+      recognition: true,
+      text: tr("看到左侧耳罩有脱落。建议先停止使用，我可以为你转接人工核实售后。"),
     },
+    { kind: "message", role: "visitor", text: tr("帮我转人工吧。") },
     {
-      label: tr("人工接管"),
-      icon: TeamOutlined,
-      question: tr("我想让人工客服帮我处理。"),
-      intent: tr("人工接管"),
-      knowledge: tr("人工协作规则"),
-      excerpt: tr("客户需要人工帮助时发起转接，客服接管后暂停 AI 自动回复。"),
-      reply: tr("正在为你转接人工客服，对话记录会保留，方便客服继续处理。"),
+      kind: "message",
+      role: "ai",
+      handoff: true,
+      text: tr("好的，正在转接。照片和这段对话会一起保留，客服可以接着处理。"),
     },
   ];
-  const steps = [
-    { title: tr("收到咨询"), text: tr("将消息与当前对话关联"), icon: MessageOutlined },
-    { title: tr("识别需求"), text: tr("结合消息内容与对话上下文"), icon: RobotOutlined },
-    { title: tr("读取知识"), text: tr("按需读取相关业务资料"), icon: FileTextOutlined },
-    { title: tr("生成回复"), text: tr("依据业务知识组织回答"), icon: RobotOutlined },
-    { title: tr("完成处理"), text: tr("发送回复，或交由人工接手"), icon: CheckOutlined },
-  ];
-  const current = scenarios[scene];
-  const playing = !paused && visible && !reduced;
+  // 只回收八段对话以前的屏幕外记录，当前消息和前一段对话连续保留。
+  const count = reduced ? 5 : shown;
+  const first = Math.max(0, count - 40);
+  const history = Array.from({ length: count - first }, (_, index) => first + index);
+  const next = items[shown % items.length];
+  const playing = visible && !reduced;
+  const typing = playing && next.kind === "message" && next.role === "ai";
+  const delay =
+    next.kind === "separator" ? 5200 : next.role === "ai" ? 2400 : shown % 5 === 1 ? 800 : 3400;
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
     let inView = false;
-    /** reconcile 同步视口、后台状态与系统偏好，隐藏时不安排自动切帧。 */
+    /** reconcile 同步视口、后台状态与系统偏好，不可见时不继续追加消息。 */
     function reconcile() {
       setReduced(preference.matches);
       setVisible(inView && !document.hidden);
@@ -92,220 +98,108 @@ export function PublicAIDemo() {
 
   useEffect(() => {
     if (!playing) return;
-    const timer = window.setTimeout(() => setStep((value) => (value + 1) % 5), 4400);
+    const timer = window.setTimeout(() => setShown((value) => value + 1), delay);
     return () => window.clearTimeout(timer);
-  }, [playing, step, scene]);
+  }, [playing, shown, delay]);
 
-  /** selectStep 手动选择后暂停轮播，确保客户有时间阅读所选处理动作。 */
-  function selectStep(next: number) {
-    setPaused(true);
-    setStep((next + 5) % 5);
-  }
+  useLayoutEffect(() => {
+    const list = viewport.current;
+    if (list && following.current)
+      list.scrollTo({
+        top: list.scrollHeight,
+        behavior: reduced || shown === 2 ? "auto" : "smooth",
+      });
+  }, [shown, reduced, typing]);
 
-  /** selectScene 切换示例并从第一步开始，保留用户的播放偏好。 */
-  function selectScene(next: number) {
-    setScene(next);
-    setStep(0);
+  /** updateFollowing 用户向上阅读历史时保留位置，回到底部后再跟随新消息。 */
+  function updateFollowing() {
+    const list = viewport.current;
+    if (list) following.current = list.scrollHeight - list.clientHeight - list.scrollTop < 60;
   }
 
   return (
-    <figure className="product-illustration ai-demo" id="ai-demo" ref={host}>
-      <div className="ai-demo-toolbar">
-        <strong>
-          <RobotOutlined />
-          {tr("AI客服")}
-          <span>LIVE DEMO</span>
-        </strong>
-        <span className="ai-demo-status">
-          <i />
-          {tr("产品演示")}
+    <figure className="product-illustration ai-conversation" id="ai-demo" ref={host}>
+      <header className="ai-conversation-header">
+        <span className="ai-conversation-brand">
+          <BrandMark inverted size={24} />
         </span>
-      </div>
-      <div className="ai-demo-scenarios" role="group" aria-label={tr("切换演示场景")}>
-        {scenarios.map((item, index) => (
-          <button
-            type="button"
-            key={item.label}
-            aria-pressed={scene === index}
-            onClick={() => selectScene(index)}
-          >
-            <item.icon />
-            {item.label}
-            <ArrowRightOutlined />
-          </button>
-        ))}
-      </div>
-      <div className="ai-demo-body">
-        <aside className="ai-demo-rail">
-          <div className="ai-demo-overline">AI WORKFLOW</div>
-          <h3>{tr("从提问到回应")}</h3>
-          <ol aria-label={tr("AI 处理步骤")}>
-            {steps.map((item, index) => (
-              <li key={item.title} data-active={step === index} data-done={step > index}>
-                <button
-                  type="button"
-                  aria-current={step === index ? "step" : undefined}
-                  onClick={() => selectStep(index)}
-                >
-                  <span className="ai-demo-step-number">
-                    {step > index ? <CheckOutlined /> : `0${index + 1}`}
-                  </span>
-                  <span>
-                    <strong>{item.title}</strong>
-                    <small>{item.text}</small>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ol>
-          <div className="ai-demo-source">
-            <FileTextOutlined />
-            <span>
-              {tr("知识库")}
-              <strong>{current.knowledge}</strong>
-            </span>
-          </div>
-        </aside>
-        <div className="ai-demo-stage">
-          <div className="ai-demo-visitor">
-            <span className="ai-demo-overline">CUSTOMER</span>
-            <p>{current.question}</p>
-            {scene === 1 && (
-              <div className="ai-demo-image">
-                <PictureOutlined />
-                <span>{tr("登录链接已过期")}</span>
-              </div>
-            )}
-          </div>
-          <div className="ai-demo-frames" aria-live={paused ? "polite" : "off"}>
-            {steps.map((item, index) => (
-              <div
-                key={index}
-                className="ai-demo-frame"
-                data-active={step === index}
-                aria-hidden={step !== index}
+        <strong>GoodChat AI</strong>
+        <span className="ai-conversation-online">
+          <span aria-hidden="true" />
+          {tr("在线")}
+        </span>
+      </header>
+      <div
+        className="ai-conversation-scroll"
+        ref={viewport}
+        onScroll={updateFollowing}
+        role="log"
+        aria-live="off"
+        aria-label={tr("AI客服对话演示")}
+        tabIndex={0}
+        data-message-count={count}
+      >
+        <ol className="ai-conversation-history">
+          {history.map((id) => {
+            const item = items[id % items.length];
+            if (item.kind === "separator")
+              return (
+                <li className="ai-conversation-divider" key={id} data-conversation-entry={id}>
+                  <span>{item.text}</span>
+                </li>
+              );
+            return (
+              <li
+                className={"ai-conversation-message is-" + item.role}
+                key={id}
+                data-conversation-entry={id}
               >
-                <div className="ai-demo-frame-heading">
-                  <span className="ai-demo-action-icon">
-                    <item.icon />
+                <span className={"ai-conversation-avatar is-" + item.role} aria-hidden="true">
+                  {item.role === "ai" ? <BrandMark inverted size={20} /> : <UserOutlined />}
+                </span>
+                <div className="ai-conversation-content">
+                  <span className="ai-conversation-name">
+                    {item.role === "ai" ? "GoodChat AI" : tr("访客")}
                   </span>
-                  <div>
-                    <span className="ai-demo-overline">AI ACTION / 0{index + 1}</span>
-                    <h4>{item.title}</h4>
+                  <div className="ai-conversation-bubble">
+                    {item.source && (
+                      <span className="ai-conversation-source">
+                        {item.recognition ? <PictureOutlined /> : <FileTextOutlined />}
+                        {item.source}
+                      </span>
+                    )}
+                    {item.image && (
+                      <Image
+                        className="ai-conversation-photo"
+                        src="/images/ai-demo-headphones.png"
+                        alt={tr("示例照片：左侧耳罩脱落的白色耳机")}
+                        width={160}
+                        height={120}
+                        sizes="160px"
+                      />
+                    )}
+                    <p>{item.text}</p>
+                    {item.handoff && (
+                      <span className="ai-conversation-source is-handoff">
+                        <TeamOutlined />
+                        {tr("人工接管后，AI 暂停回复")}
+                      </span>
+                    )}
                   </div>
-                  <span className="ai-demo-frame-count">0{index + 1} / 05</span>
                 </div>
-                {index === 0 && (
-                  <div className="ai-demo-action-content">
-                    <p>{tr("将消息与当前对话关联")}</p>
-                    <div className="ai-demo-message">
-                      <MessageOutlined />
-                      <span>{current.question}</span>
-                      <CheckOutlined />
-                    </div>
-                    <div className="ai-demo-signal">
-                      <i />
-                      <i />
-                      <i />
-                      <span>{tr("准备处理咨询")}</span>
-                    </div>
-                  </div>
-                )}
-                {index === 1 && (
-                  <div className="ai-demo-action-content">
-                    <p>{tr("结合消息内容与对话上下文")}</p>
-                    <div className="ai-demo-intent">
-                      <current.icon />
-                      <strong>{current.intent}</strong>
-                      <CheckOutlined />
-                    </div>
-                    <div className="ai-demo-tags">
-                      <span>{tr("当前消息")}</span>
-                      <span>{tr("对话上下文")}</span>
-                      {scene === 1 && <span>{tr("图片内容")}</span>}
-                    </div>
-                  </div>
-                )}
-                {index === 2 && (
-                  <div className="ai-demo-action-content">
-                    <p>{tr("AI 按需读取相关知识")}</p>
-                    <div className="ai-demo-document">
-                      <div>
-                        <FileTextOutlined />
-                        <strong>{current.knowledge}</strong>
-                        <CheckOutlined />
-                      </div>
-                      <p>{current.excerpt}</p>
-                    </div>
-                  </div>
-                )}
-                {index === 3 && (
-                  <div className="ai-demo-action-content">
-                    <p>{tr("依据业务知识组织回答")}</p>
-                    <div className="ai-demo-draft">
-                      <span>{tr("回复草稿")}</span>
-                      <p>{current.reply}</p>
-                    </div>
-                    <small className="ai-demo-reference">
-                      <FileTextOutlined />
-                      {current.knowledge}
-                    </small>
-                  </div>
-                )}
-                {index === 4 && (
-                  <div className="ai-demo-action-content">
-                    <div className="ai-demo-reply">
-                      <strong>
-                        <RobotOutlined />
-                        {tr("AI客服")}
-                      </strong>
-                      <p>{current.reply}</p>
-                    </div>
-                    <div className="ai-demo-result">
-                      {scene === 2 ? <TeamOutlined /> : <CheckOutlined />}
-                      <strong>
-                        {scene === 2 ? tr("人工接管后，AI 暂停回复") : tr("已发送回复")}
-                      </strong>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="ai-demo-playback">
-            <span>{tr("逐步查看 AI 的处理动作")}</span>
-            <div>
-              <button type="button" onClick={() => selectStep(step - 1)} aria-label={tr("上一步")}>
-                <ArrowLeftOutlined />
-              </button>
-              <button
-                type="button"
-                className="ai-demo-play"
-                aria-pressed={!paused && !reduced}
-                disabled={reduced}
-                onClick={() => setPaused((value) => !value)}
-                aria-label={
-                  reduced
-                    ? tr("已遵循减少动态偏好，可手动逐步查看")
-                    : paused
-                      ? tr("播放演示")
-                      : tr("暂停演示")
-                }
-              >
-                {paused || reduced ? <CaretRightOutlined /> : <PauseOutlined />}
-                {reduced ? tr("产品演示") : paused ? tr("播放演示") : tr("暂停演示")}
-              </button>
-              <button type="button" onClick={() => selectStep(step + 1)} aria-label={tr("下一步")}>
-                <ArrowRightOutlined />
-              </button>
-            </div>
-          </div>
-        </div>
+              </li>
+            );
+          })}
+          {typing && (
+            <li className="ai-conversation-typing" aria-label={tr("生成回复")}>
+              <span />
+              <span />
+              <span />
+            </li>
+          )}
+        </ol>
       </div>
-      <figcaption>
-        {reduced ? `${tr("已遵循减少动态偏好，可手动逐步查看")} · ` : ""}
-        {tr("产品界面示意 · 非真实业务资料")}
-      </figcaption>
+      <figcaption>{tr("产品演示 · 非真实咨询")}</figcaption>
     </figure>
   );
 }
