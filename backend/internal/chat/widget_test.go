@@ -5,9 +5,34 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os/exec"
 	"strings"
 	"testing"
 )
+
+// TestWidgetHours 使用实际嵌入脚本的时段计算，覆盖企业时区、跨午夜、星期和全时段。
+func TestWidgetHours(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("需要Node运行JS时段检查")
+	}
+	start := strings.Index(widgetScript, "function withinHours(")
+	end := strings.Index(widgetScript, "\n/** openChat")
+	if start < 0 || end <= start {
+		t.Fatal("未找到实际悬浮窗时段函数")
+	}
+	script := `const assert=require('node:assert/strict');let config={schedule_enabled:true,timezone:'Asia/Shanghai',start:'22:00',end:'02:00',weekdays:[1]};` + widgetScript[start:end] + `
+assert.equal(withinHours(new Date('2026-11-16T15:00:00Z')),true);
+assert.equal(withinHours(new Date('2026-11-16T17:00:00Z')),true);
+assert.equal(withinHours(new Date('2026-11-16T19:00:00Z')),false);
+assert.equal(withinHours(new Date('2026-11-17T15:00:00Z')),false);
+config.start='00:00';config.end='23:59';config.weekdays=[0,1,2,3,4,5,6];
+assert.equal(withinHours(new Date('2026-11-16T16:00:00Z')),true);
+config.schedule_enabled=false;config.weekdays=[];assert.equal(withinHours(),true);`
+	if out, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
+		t.Fatalf("悬浮窗时段计算错误: %s", out)
+	}
+}
 
 // TestWidgetValidation 防止不合法尺寸、时段和图标脚本进入跨站展示脚本。
 func TestWidgetValidation(t *testing.T) {

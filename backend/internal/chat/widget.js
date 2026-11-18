@@ -39,7 +39,7 @@ style.textContent = `
   .bar button,.bar a{display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:inherit;text-decoration:none;min-width:44px;min-height:44px;font-size:20px}
   .bar button:hover,.bar a:hover{background:#ffffff25}.bar button:focus-visible,.bar a:focus-visible{outline-color:#fff;outline-offset:-3px}
   iframe{display:block;border:0;flex:1;width:100%;min-height:0;background:#fff}
-  @media(max-width:600px){:host{right:12px!important;left:auto!important;bottom:max(12px,env(safe-area-inset-bottom))!important}.panel{position:fixed;inset:8px 8px max(8px,env(safe-area-inset-bottom));width:auto;height:auto;border-radius:12px}.panel.maximized{inset:0;border-radius:0}.launcher{max-width:calc(100vw - 24px)}}
+  @media(max-width:600px){:host{${config.side}:12px!important;${config.side === "right" ? "left" : "right"}:auto!important;bottom:max(${config.bottom_offset}px,env(safe-area-inset-bottom))!important}.panel{position:fixed;inset:8px 8px max(8px,env(safe-area-inset-bottom));width:auto;height:auto;border-radius:12px}.panel.maximized{inset:0;border-radius:0}.launcher{max-width:calc(100vw - 24px)}}
 `;
 shadow.append(style);
 const launcher = document.createElement("button");

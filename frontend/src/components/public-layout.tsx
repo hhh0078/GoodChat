@@ -3,6 +3,8 @@ import Link from "@/i18n/link";
 import { useTranslator } from "@/i18n/use-translator";
 import { Button } from "antd";
 import { Brand } from "./brand";
+import { OfficialSupportWidget } from "./official-support-widget";
+import { officialSupportEntry } from "@/lib/official-support-entry";
 /** PublicLayout 渲染无需客户端 JavaScript 即可读取的官网导航和内容。 */
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const tr = useTranslator();
@@ -45,6 +47,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </footer>
+      <OfficialSupportWidget entryKey={officialSupportEntry} />
     </div>
   );
 }
