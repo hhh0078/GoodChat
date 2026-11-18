@@ -1,0 +1,272 @@
+/* 文件作用说明：统一官网导航、功能卡片、按钮、插图与折叠内容的交互和渐进出场动画。 */
+.public-site {
+  --public-motion-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.public-site :is(a, button, summary):focus-visible {
+  outline: 2px solid #1455ff;
+  outline-offset: 5px;
+  border-radius: 5px;
+}
+.public-site :is(a, button, summary) {
+  touch-action: manipulation;
+}
+.public-site :is(.public-nav a, .footer-links a, .public-actions a, .public-toc a) {
+  transition:
+    color 180ms,
+    background 180ms,
+    border-color 180ms,
+    transform 200ms;
+}
+.public-site :is(.footer-links a, .public-toc a):hover {
+  color: #1455ff;
+  transform: translateX(3px);
+}
+.public-site .public-nav a {
+  position: relative;
+}
+.public-site .public-nav a::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  background: #1455ff;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms var(--public-motion-ease);
+}
+.public-site .public-nav a:hover::after,
+.public-site .public-nav a:focus-visible::after {
+  transform: scaleX(1);
+}
+.public-site :is(.ant-btn, .public-text-action) {
+  transition:
+    transform 200ms var(--public-motion-ease),
+    box-shadow 200ms,
+    background 180ms;
+}
+.public-site :is(.ant-btn, .public-text-action):hover {
+  transform: translateY(-2px);
+}
+.public-site .ant-btn-primary:hover {
+  box-shadow: 0 7px 20px #1455ff26;
+}
+.public-site :is(.ant-btn, .public-text-action):active {
+  transform: translateY(0) scale(0.97);
+}
+.public-site :is(.public-text-action, .public-hero-actions .ant-btn) .anticon {
+  transition: transform 200ms;
+}
+.public-site :is(.public-text-action, .public-hero-actions .ant-btn):hover .anticon {
+  transform: translateX(4px);
+}
+.public-card-link {
+  display: block;
+  color: inherit;
+}
+.public-ai-capability-grid article {
+  position: relative;
+}
+.public-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+}
+.public-ai-capability-grid .public-card-link > .anticon {
+  font-size: 28px;
+  color: #1455ff;
+}
+.cobalt-connect-list article {
+  position: relative;
+}
+.cobalt-connect-list h3 a {
+  color: inherit;
+}
+.cobalt-connect-list h3 a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.public-site
+  :is(
+    .public-ai-capability-grid article,
+    .cobalt-connect-list article,
+    .public-plan,
+    .download-platform,
+    .cobalt-hero-callout
+  ) {
+  transition:
+    transform 260ms var(--public-motion-ease),
+    box-shadow 260ms,
+    border-color 220ms,
+    background 220ms;
+}
+.public-site
+  :is(
+    .public-ai-capability-grid article,
+    .cobalt-connect-list article,
+    .public-plan,
+    .download-platform,
+    .cobalt-hero-callout
+  ):focus-within {
+  border-color: #b9ceff;
+  box-shadow: 0 10px 28px #1e4d9810;
+}
+.public-site .cobalt-hero-callout {
+  color: inherit;
+}
+.public-site :is(.product-illustration, .public-hero-product) {
+  transition:
+    box-shadow 360ms,
+    border-color 260ms;
+}
+.public-site .public-ai-faq details {
+  transition:
+    background 220ms,
+    padding 220ms;
+}
+.public-site .public-ai-faq details[open] {
+  padding-inline: 18px;
+  background: #f7f9ff;
+}
+.public-site .public-ai-faq details[open] > :not(summary) {
+  animation: public-content-in 300ms ease both;
+}
+.public-site .public-ai-faq summary {
+  transition: color 180ms;
+}
+.public-site .public-ai-faq summary:hover {
+  color: #1455ff;
+}
+.public-site
+  :is(button.product-inbox-item, button.product-link-row, .product-route-agents > button) {
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  background: #fff;
+  border: 0;
+  cursor: pointer;
+  transition:
+    background 200ms,
+    border-color 200ms;
+}
+.public-site :is(button.product-inbox-item, button.product-link-row) {
+  width: 100%;
+  border-bottom: 1px solid #f2f6ff;
+}
+.public-site button.product-inbox-item.selected,
+.public-site button.product-link-row[aria-pressed="true"],
+.public-site .product-route-agents > button[aria-pressed="true"] {
+  background: #edf3ff;
+  color: #1455ff;
+}
+.public-site
+  :is(button.product-inbox-item, button.product-link-row, .product-route-agents > button):hover {
+  background: #f0f5ff;
+}
+.public-site .product-route-agents > button {
+  border: 1px solid #e7eefb;
+  text-align: center;
+}
+.public-site .product-design-phone button.product-mini-submit {
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  background: var(--preview-color);
+  font-family: inherit;
+}
+.public-site .product-design-phone .brand-mark {
+  color: var(--preview-color);
+}
+.public-site .product-color-swatches {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.public-site .product-color-swatches > button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 4px solid #fff;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: transform 200ms;
+}
+.public-site .product-color-swatches > button[aria-pressed="true"] {
+  outline: 1px solid #687a9d;
+}
+.public-site .product-color-swatches > button:hover {
+  transform: translateY(-3px);
+}
+.public-site .product-mini-submit {
+  transition:
+    background 200ms,
+    box-shadow 200ms;
+}
+.public-site [data-public-reveal="true"]:not([data-public-visible="true"]) {
+  opacity: 0;
+}
+.public-site [data-public-reveal="true"][data-public-visible="true"] {
+  animation: public-reveal 620ms var(--public-motion-ease) var(--public-reveal-delay, 0ms) both;
+}
+@keyframes public-reveal {
+  from {
+    opacity: 0;
+    translate: 0 22px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes public-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .public-site
+    :is(
+      .public-ai-capability-grid article,
+      .cobalt-connect-list article,
+      .public-plan,
+      .download-platform
+    ):hover {
+    transform: translateY(-5px);
+    border-color: #b9ceff;
+    box-shadow: 0 14px 34px #1e4d9812;
+  }
+  .public-site .cobalt-hero-callout:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px #1e4d9818;
+  }
+  .public-site .product-illustration:hover {
+    border-color: #b9ceff;
+    box-shadow: 0 12px 36px #1e4d9812;
+  }
+  .public-site .public-hero-product:hover {
+    box-shadow:
+      0 24px 64px #2947842b,
+      inset 0 0 0 2px #fff;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-site *,
+  .public-site *::before,
+  .public-site *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .public-site [data-public-reveal="true"] {
+    opacity: 1 !important;
+  }
+  .public-site :is(a, button, article):hover,
+  .public-site :is(a, button, article):active {
+    transform: none !important;
+  }
+}

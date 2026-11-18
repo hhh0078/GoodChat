@@ -1,6 +1,8 @@
-/** 文件作用说明：用可缩放的服务端原生界面示意展示接待、接入、分配和装修能力，所有人物与消息均为示例。 */
+/** 文件作用说明：用可交互的界面示意展示接待、接入、分配和装修能力，所有人物与消息均为示例。 */
+"use client";
 import { useTranslator } from "@/i18n/use-translator";
 import Image from "next/image";
+import { useState, type CSSProperties } from "react";
 import { BrandMark } from "./brand-mark";
 import {
   ApartmentOutlined,
@@ -33,9 +35,17 @@ function DemoAvatar({ name, variant = 0 }: { name: string; variant?: number }) {
     </span>
   );
 }
-/** ProductPreview 按产品能力输出清晰的静态示意，并明确区分示例与真实业务数据。 */
+/** ProductPreview 支持试选入口、接待人、对话与品牌颜色，示例操作仅保存在当前组件中。 */
 export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
   const tr = useTranslator();
+  const [selected, setSelected] = useState(0);
+  const [color, setColor] = useState("#1455ff");
+  const [started, setStarted] = useState(false);
+  const contacts = [
+    [tr("林可"), tr("想了解一下你们的服务"), tr("刚刚")],
+    [tr("陈安"), tr("好的，谢谢你的帮助"), "10:24"],
+    [tr("周一"), tr("请问如何开始使用？"), "10:18"],
+  ];
   if (kind !== "workspace") {
     return (
       <figure className={`product-illustration product-illustration-${kind}`}>
@@ -62,8 +72,14 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
               [tr("品牌官网"), tr("售前咨询"), tr("官网访客")],
               [tr("手机商城"), tr("订单售后"), tr("商城客户")],
               [tr("线下门店"), tr("门店服务"), tr("到店客户")],
-            ].map(([title, group, source]) => (
-              <div className="product-link-row" key={title}>
+            ].map(([title, group, source], index) => (
+              <button
+                type="button"
+                className="product-link-row"
+                key={title}
+                aria-pressed={selected === index}
+                onClick={() => setSelected(index)}
+              >
                 <span className="product-mini-icon">
                   <LinkOutlined />
                 </span>
@@ -77,10 +93,11 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
                   <i />
                   {tr("已启用 ")}
                 </span>
-              </div>
+              </button>
             ))}
             <div className="product-link-address">
-              goodchat / c / your-brand <LinkOutlined />
+              goodchat / c / {["your-brand", "your-store", "your-location"][selected]}{" "}
+              <LinkOutlined />
             </div>
           </div>
         ) : kind === "routing" ? (
@@ -101,17 +118,25 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
             <div className="product-route-connector" />
             <div className="product-route-agents">
               {[tr("林可"), tr("陈安"), tr("周一")].map((name, index) => (
-                <div key={name}>
+                <button
+                  type="button"
+                  key={name}
+                  aria-pressed={selected === index}
+                  onClick={() => setSelected(index)}
+                >
                   <DemoAvatar name={name} variant={index} />
                   <strong>{name}</strong>
-                  <small>{index === 0 ? tr("本次接待") : tr("团队成员")}</small>
-                  {index === 0 && <CheckOutlined />}
-                </div>
+                  <small>{index === selected ? tr("本次接待") : tr("团队成员")}</small>
+                  {index === selected && <CheckOutlined />}
+                </button>
               ))}
             </div>
           </div>
         ) : (
-          <div className="product-design-demo">
+          <div
+            className="product-design-demo"
+            style={{ "--preview-color": color } as CSSProperties}
+          >
             <div className="product-design-tools">
               <strong>{tr("品牌页面设计")}</strong>
               <span className="selected">
@@ -145,18 +170,33 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
                 </span>
                 <strong>{tr("欢迎咨询 GoodChat")}</strong>
                 <small>{tr("我们很高兴为你提供帮助")}</small>
-                <p>{tr("你好，有什么可以帮助你？")}</p>
-                <span className="product-mini-submit">{tr("开始对话")}</span>
+                <p aria-live="polite">
+                  {started ? tr("您好，很高兴为您解答。") : tr("你好，有什么可以帮助你？")}
+                </p>
+                <button
+                  type="button"
+                  className="product-mini-submit"
+                  aria-pressed={started}
+                  onClick={() => setStarted((value) => !value)}
+                >
+                  {started ? tr("结束会话") : tr("开始对话")}
+                </button>
               </div>
             </div>
             <div className="product-design-properties">
               <strong>{tr("主题设置")}</strong>
               <span>{tr("主色调")}</span>
-              <div className="product-color-swatches" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-                <i />
+              <div className="product-color-swatches" role="group" aria-label={tr("主色调")}>
+                {["#1455ff", "#16856c", "#b76732", "#374151"].map((value) => (
+                  <button
+                    type="button"
+                    key={value}
+                    style={{ background: value }}
+                    aria-label={`${tr("主色调")} ${value}`}
+                    aria-pressed={value === color}
+                    onClick={() => setColor(value)}
+                  />
+                ))}
               </div>
               <span>{tr("品牌名称")}</span>
               <div className="product-property-value">GoodChat</div>
@@ -204,12 +244,14 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
             <span>{tr("待分配")}</span>
             <span>{tr("已结束")}</span>
           </div>
-          {[
-            [tr("林可"), tr("想了解一下你们的服务"), tr("刚刚")],
-            [tr("陈安"), tr("好的，谢谢你的帮助"), "10:24"],
-            [tr("周一"), tr("请问如何开始使用？"), "10:18"],
-          ].map(([name, text, time], index) => (
-            <div className={`product-inbox-item ${index === 0 ? "selected" : ""}`} key={name}>
+          {contacts.map(([name, text, time], index) => (
+            <button
+              type="button"
+              className={`product-inbox-item ${index === selected ? "selected" : ""}`}
+              key={name}
+              aria-pressed={selected === index}
+              onClick={() => setSelected(index)}
+            >
               <DemoAvatar name={name} variant={index} />
               <div>
                 <strong>
@@ -218,7 +260,7 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
                 </strong>
                 <p>{text}</p>
               </div>
-            </div>
+            </button>
           ))}
           <div className="product-inbox-footer">
             <i />
@@ -228,7 +270,7 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
         <div className="product-preview-conversation">
           <div className="product-conversation-heading">
             <div>
-              <strong>{tr("林可")}</strong>
+              <strong>{contacts[selected][0]}</strong>
               <small>
                 <i />
                 {tr("来自品牌官网 \u00B7 售前咨询 ")}
@@ -240,10 +282,10 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
           <div className="product-conversation-messages">
             <span className="product-date-divider">{tr("今天 10:24")}</span>
             <div className="product-demo-message">
-              <DemoAvatar name={tr("林可")} />
+              <DemoAvatar name={contacts[selected][0]} variant={selected} />
               <div>
-                <small>{tr("林可")}</small>
-                <p>{tr("你好，想了解一下你们的服务。")}</p>
+                <small>{contacts[selected][0]}</small>
+                <p>{contacts[selected][1]}</p>
               </div>
             </div>
             <div className="product-demo-message own">
@@ -275,8 +317,8 @@ export function ProductPreview({ kind = "workspace" }: { kind?: PreviewKind }) {
         <aside className="product-preview-contact">
           <strong>{tr("客户资料")}</strong>
           <div className="product-contact-identity">
-            <DemoAvatar name={tr("林可")} />
-            <strong>{tr("林可")}</strong>
+            <DemoAvatar name={contacts[selected][0]} variant={selected} />
+            <strong>{contacts[selected][0]}</strong>
             <small>{tr("新客户")}</small>
           </div>
           <dl>
