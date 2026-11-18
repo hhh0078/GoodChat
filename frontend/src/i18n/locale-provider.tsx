@@ -55,6 +55,7 @@ export function LocaleProvider({
   const [draft, setDraft] = useState(initial);
   const [pending, setPending] = useState({ locale: false, timezone: false });
   const [open, setOpen] = useState(false);
+  const [embeddedChat, setEmbeddedChat] = useState(false);
   const [manual, setManual] = useState(false);
   const [busy, setBusy] = useState(false);
   const revision = useRef(0);
@@ -78,6 +79,7 @@ export function LocaleProvider({
     if (initialized.current) return;
     initialized.current = true;
     const query = new URLSearchParams(location.search);
+    setEmbeddedChat(location.pathname.startsWith("/c/") && query.get("embed") === "1");
     const pathLocale = normalizeLocale(location.pathname.split("/")[1]);
     if (!query.has("lang") && pathLocale) query.set("lang", pathLocale);
     let saved: SavedPreferences = {},
@@ -242,18 +244,20 @@ export function LocaleProvider({
       >
         <LocaleContext.Provider value={preferences}>
           {children}
-          <Button
-            className="locale-settings-button"
-            icon={<GlobalOutlined />}
-            aria-label={tr("语言与时区")}
-            onClick={() => {
-              setDraft(preferences);
-              setManual(true);
-              setOpen(true);
-            }}
-          >
-            {languageNames[preferences.locale]}
-          </Button>
+          {!embeddedChat && (
+            <Button
+              className="locale-settings-button"
+              icon={<GlobalOutlined />}
+              aria-label={tr("语言与时区")}
+              onClick={() => {
+                setDraft(preferences);
+                setManual(true);
+                setOpen(true);
+              }}
+            >
+              {languageNames[preferences.locale]}
+            </Button>
+          )}
           <Modal
             open={open}
             title={tr(manual ? "语言与时区" : "确认你的语言与时区")}

@@ -131,7 +131,9 @@ function openChat() {
   if (!frame) {
     frame = document.createElement("iframe");
     frame.title = config.label || labels[4];
-    frame.src = chatURL.href;
+    const embeddedURL = new URL(chatURL.href);
+    embeddedURL.searchParams.set("embed", "1");
+    frame.src = embeddedURL.href;
     frame.referrerPolicy = "strict-origin-when-cross-origin";
     panel.append(frame);
   }

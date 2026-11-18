@@ -435,3 +435,59 @@ func TestAIBudgetUsesReservationDay(t *testing.T) {
 		t.Fatalf("跨午夜任务绕过当日预算: %v", e)
 	}
 }
+
+// TestAIKnowledgeReadLimitRepair 验证模型超量选库时不读取正文，仅修复一次且无效调用不向租户收费。
+func TestAIKnowledgeReadLimitRepair(t *testing.T) {
+	f := newFixture(t)
+	ids := []string{}
+	reads := 0
+	model := setupAITest(t, f, func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			Tools []any `json:"tools"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&input)
+		if len(input.Tools) == 0 {
+			aiFixtureResponse(w, "", nil, "产品使用说明。", true)
+			return
+		}
+		reads++
+		if reads == 1 {
+			aiFixtureResponse(w, "read_knowledge_bases", map[string]any{"ids": ids}, "", true)
+		} else if reads == 2 {
+			aiFixtureResponse(w, "read_knowledge_bases", map[string]any{"ids": ids[:3]}, "", true)
+		} else {
+			aiFixtureResponse(w, "submit_reply", aiPlan{Items: []aiReplyItem{{Type: "text", Text: "已根据相关知识回答"}}}, "", true)
+		}
+	})
+	for i := 0; i < 4; i++ {
+		status, data := f.request("POST", "/api/v1/tenant/ai/knowledge", f.agent, "", map[string]any{"title": "产品知识", "body": "已发布的产品事实", "enabled": true})
+		ids = append(ids, mustData(t, status, data)["id"].(string))
+		runAITestJob(t, f)
+	}
+	bot := defaultAIBot()
+	bot.Mode = "assistant"
+	bot.ModelID = model
+	bot.KnowledgeIDs = ids
+	status, data := f.request("PUT", "/api/v1/me/ai/bot", f.agent, "", bot)
+	mustData(t, status, data)
+	status, data = f.request("POST", "/api/v1/me/ai/test", f.agent, "", map[string]any{"text": "产品怎么使用？"})
+	if status != 202 {
+		t.Fatal("调试任务未创建")
+	}
+	job := data["data"].(map[string]any)["id"].(string)
+	runAITestJob(t, f)
+	if reads != 3 || f.countRows("SELECT count(*) FROM ai_jobs WHERE id=$1 AND status='succeeded' AND cost_micro=1200 AND sale_micro=1600", job) != 1 {
+		t.Fatal("超量选库未在有界调用内恢复，或费用未正确归属")
+	}
+	if f.countRows("SELECT count(*) FROM ai_call_attempts WHERE job_id=$1 AND call_index=1 AND sale_micro=0 AND response_meta->>'platform_covered'='true' AND response_meta->'knowledge_id_counts'='[4]'::jsonb", job) != 1 {
+		t.Fatal("无效读取的安全诊断或费用豁免缺失")
+	}
+	var raw []byte
+	if err := f.admin.QueryRow(context.Background(), "SELECT result FROM ai_jobs WHERE id=$1", job).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	var plan aiPlan
+	if json.Unmarshal(raw, &plan) != nil || len(plan.ReadIDs) != 3 {
+		t.Fatal("超量读取不应产生知识读取副作用")
+	}
+}

@@ -358,11 +358,13 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                 <h1>{entry.tenant_name || entry.name || tr("在线客服")}</h1>
                 <p>
                   {session
-                    ? tr("在线咨询 \u00B7 {p0}", {
-                        p0: String(
-                          localizeStatic(conversationStatus, tr)[status] || tr("正在连接"),
-                        ),
-                      })
+                    ? search.get("embed") === "1"
+                      ? tr("在线咨询")
+                      : tr("在线咨询 \u00B7 {p0}", {
+                          p0: String(
+                            localizeStatic(conversationStatus, tr)[status] || tr("正在连接"),
+                          ),
+                        })
                     : specifiedOffline
                       ? tr("无客服在线，暂时无法访问")
                       : tr("欢迎咨询，请留下称呼后开始沟通")}
