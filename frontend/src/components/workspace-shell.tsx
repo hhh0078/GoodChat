@@ -127,7 +127,10 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
   const serving = pathname === "/workspace";
   const pageLabel = entries.find((entry) => entry.key === selected)?.label || tr("工作空间");
   const sections = [
-    { label: tr("工作空间"), paths: ["/console", "/workspace", "/console/ai"] },
+    {
+      label: tr("工作空间"),
+      paths: ["/console", "/workspace", "/console/ai", "/console/notifications"],
+    },
     {
       label: tr("客户服务"),
       paths: [
