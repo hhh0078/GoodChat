@@ -427,6 +427,9 @@ export function AutomationPage() {
       <Tabs
         className="studio-operations-tabs"
         tabPosition={screens.lg ? "left" : "top"}
+        onChange={(key) => {
+          if (key === "keywords") quickReplies.reload();
+        }}
         items={[
           {
             key: "settings",
