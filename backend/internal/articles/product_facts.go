@@ -23,7 +23,7 @@ func validateGeneratedFacts(d Draft) error {
 	text := strings.ToLower(d.Title + "\n" + d.Summary + "\n" + d.Markdown)
 	for _, term := range []string{"微信公众号", "企业微信", "小程序", "置信度", "灵敏度", "匹配阈值", "相似度阈值", "工单", "渠道接入", "选择对应的网站域名", "向量数据库", "免费模型", "零成本模型", "只有当用户发送消息", "自动学习聊天记录", "confidence threshold", "sensitivity threshold", "automatically create a ticket", "free ai model", "wechat official account", "wecom integration"} {
 		if strings.Contains(text, term) {
-			return taskFail("article_product_fact_check", "文章包含未经确认的功能或费用表述，已阻止自动发布，请调整选题或提示词后重试")
+			return taskFail("article_product_fact_check", "文章含未确认表述“"+term+"”，请删除相关功能或费用承诺及其否定说明，严格依据产品事实重新撰写")
 		}
 	}
 	if regexp.MustCompile(`(?i)\brag\b`).MatchString(text) {

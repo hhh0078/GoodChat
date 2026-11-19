@@ -32,7 +32,7 @@ func TestArticleModelCompatibility(t *testing.T) {
 			s.Model = func(context.Context) (platform.TextModel, error) {
 				return platform.TextModel{BaseURL: server.URL, Model: "qwen-test", MaxOutput: 4096, Extras: map[string]any{"enable_thinking": false}}, nil
 			}
-			draft, usage, err := s.callModel(context.Background(), "测试", "生成文章", "zh-CN")
+			draft, usage, err := s.callModel(context.Background(), "测试", "生成文章", "zh-CN", nil)
 			if finish == "length" {
 				code, _ := safeJobError(err)
 				if code != "article_ai_output_limit" || calls != 1 {
@@ -42,5 +42,41 @@ func TestArticleModelCompatibility(t *testing.T) {
 				t.Fatalf("嵌套用量处理异常：%v，调用%d次", err, calls)
 			}
 		})
+	}
+}
+
+// TestArticleFactRepair 验证事实反馈进入第二次请求，修正后可发布，连续错误最多调用两次。
+func TestArticleFactRepair(t *testing.T) {
+	for _, repair := range []bool{true, false} {
+		calls := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls++
+			var input struct {
+				Messages []struct {
+					Content string `json:"content"`
+				} `json:"messages"`
+			}
+			if json.NewDecoder(r.Body).Decode(&input) != nil {
+				t.Fatal("请求解析失败")
+			}
+			if calls == 2 && (len(input.Messages) == 0 || !strings.Contains(input.Messages[0].Content, "工单")) {
+				t.Error("缺少事实校验反馈")
+			}
+			body := "支持自动生成工单"
+			if repair && calls == 2 {
+				body = "在接入管理创建网站咨询链接。"
+			}
+			draft, _ := json.Marshal(Draft{Language: "zh-CN", Title: "如何配置网站咨询入口", Slug: "website-support-entry", Markdown: body})
+			_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": string(draft)}, "finish_reason": "stop"}}})
+		}))
+		s := New(nil, nil, platform.Config{})
+		s.Model = func(context.Context) (platform.TextModel, error) {
+			return platform.TextModel{BaseURL: server.URL, Model: "test"}, nil
+		}
+		draft, _, err := s.callModel(context.Background(), "已核实产品事实", "编写指南", "zh-CN", validateGeneratedFacts)
+		server.Close()
+		if calls != 2 || (repair && (err != nil || strings.Contains(draft.Markdown, "工单"))) || (!repair && err == nil) {
+			t.Fatalf("事实重写边界失败：修正=%v，调用=%d，错误=%v", repair, calls, err)
+		}
 	}
 }
