@@ -66,6 +66,7 @@ export function MessageForm({
     >
       {submission || saved ? <Tag color="green">{tr("已提交")}</Tag> : null}
       <Form
+        name={`message-${item.id}`}
         form={form}
         layout="vertical"
         disabled={busy || !!submission || saved || !canFill}
