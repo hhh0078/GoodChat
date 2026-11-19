@@ -998,3 +998,18 @@ body:has(.visitor-shell) .locale-settings-button {
     padding: 16px;
   }
 }
+
+/* 官网友链沿用页脚样式，保留可索引普通外链与键盘焦点。 */
+.public-friend-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.public-friend-links a {
+  color: inherit;
+}
+.public-friend-links a:hover {
+  color: #2457d6;
+}

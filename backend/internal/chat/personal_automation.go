@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -122,15 +123,16 @@ func (s *Service) personalWelcomeRules(w http.ResponseWriter, r *http.Request) {
 
 // personalKeyword 保存客服自己的文字匹配、冷却和并发版本。
 type personalKeyword struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Mode     string `json:"match_mode"`
-	Pattern  string `json:"pattern"`
-	Reply    string `json:"reply"`
-	Priority int32  `json:"priority"`
-	Cooldown int32  `json:"cooldown_seconds"`
-	Enabled  bool   `json:"enabled"`
-	Version  int    `json:"version"`
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	Mode         string  `json:"match_mode"`
+	Pattern      string  `json:"pattern"`
+	Reply        string  `json:"reply"`
+	QuickReplyID *string `json:"quick_reply_id"`
+	Priority     int32   `json:"priority"`
+	Cooldown     int32   `json:"cooldown_seconds"`
+	Enabled      bool    `json:"enabled"`
+	Version      int     `json:"version"`
 }
 
 // personalKeywordRules 通过当前认证成员隔离个人规则，禁止管理员从个人入口修改公共规则。
@@ -142,7 +144,7 @@ func (s *Service) personalKeywordRules(w http.ResponseWriter, r *http.Request) {
 			replyError(w, r, err)
 			return
 		}
-		allowed := fieldSet("name match_mode pattern reply priority cooldown_seconds enabled version")
+		allowed := fieldSet("name match_mode pattern reply priority cooldown_seconds enabled version quick_reply_id")
 		for key := range values {
 			if !allowed[key] {
 				returnErrorf(w, r, "unsupported_field", "不支持该字段：%s", key)
@@ -213,13 +215,22 @@ func (s *Service) personalKeywordRules(w http.ResponseWriter, r *http.Request) {
 		if err = json.Unmarshal(raw, &item); err != nil {
 			return platform.Fail(400, "invalid_keyword_rule", "请检查开关、整数优先级和冷却时间")
 		}
+		if err := validateKeywordReply(ctx, tx, a.MemberID, false, values); err != nil {
+			return err
+		}
+		if ref, provided := values["quick_reply_id"]; provided && ref == nil {
+			item.QuickReplyID = nil
+		}
+		if (item.QuickReplyID == nil || *item.QuickReplyID == "") && strings.TrimSpace(item.Reply) == "" {
+			return platform.Fail(400, "invalid_content", "请填写回复文字或选择快捷回复")
+		}
 		if item.Cooldown < 0 || item.Cooldown > 86400 {
 			return platform.Fail(400, "invalid_cooldown", "冷却时间应为0至86400秒整数")
 		}
 		if r.Method == http.MethodPost {
-			_, err = tx.Exec(ctx, `INSERT INTO keyword_rules(id,tenant_id,owner_membership_id,name,match_mode,pattern,reply,priority,cooldown_seconds,enabled) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, item.ID, a.TenantID, a.MemberID, item.Name, item.Mode, item.Pattern, item.Reply, item.Priority, item.Cooldown, item.Enabled)
+			_, err = tx.Exec(ctx, `INSERT INTO keyword_rules(id,tenant_id,owner_membership_id,name,match_mode,pattern,reply,priority,cooldown_seconds,enabled,quick_reply_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, item.ID, a.TenantID, a.MemberID, item.Name, item.Mode, item.Pattern, item.Reply, item.Priority, item.Cooldown, item.Enabled, item.QuickReplyID)
 		} else {
-			_, err = tx.Exec(ctx, `UPDATE keyword_rules SET name=$3,match_mode=$4,pattern=$5,reply=$6,priority=$7,cooldown_seconds=$8,enabled=$9,version=version+1,updated_at=now() WHERE id=$1 AND owner_membership_id=$2`, item.ID, a.MemberID, item.Name, item.Mode, item.Pattern, item.Reply, item.Priority, item.Cooldown, item.Enabled)
+			_, err = tx.Exec(ctx, `UPDATE keyword_rules SET name=$3,match_mode=$4,pattern=$5,reply=$6,priority=$7,cooldown_seconds=$8,enabled=$9,quick_reply_id=$10,version=version+1,updated_at=now() WHERE id=$1 AND owner_membership_id=$2`, item.ID, a.MemberID, item.Name, item.Mode, item.Pattern, item.Reply, item.Priority, item.Cooldown, item.Enabled, item.QuickReplyID)
 		}
 		if err != nil {
 			return err

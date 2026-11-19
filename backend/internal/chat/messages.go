@@ -11,7 +11,7 @@ import (
 	"supportdesk/backend/internal/platform"
 )
 
-var messageProjection = "to_jsonb(m)||jsonb_build_object('seq',m.event_seq::text,'event_seq',m.event_seq::text,'quick_reply_version',m.quick_reply_version::text,'options',CASE WHEN m.withdrawn_at IS NULL THEN m.options ELSE '[]'::jsonb END,'content',CASE WHEN m.withdrawn_at IS NULL THEN m.content ELSE '' END,'attachment',CASE WHEN m.withdrawn_at IS NULL THEN (SELECT to_jsonb(f)-'storage_key'-'sha256' FROM attachments f WHERE f.id=m.attachment_id AND f.tenant_id=m.tenant_id) ELSE NULL END,'sender_name',CASE WHEN m.sender_kind='system' THEN COALESCE(NULLIF(current_setting('app.system_name',true),''),'系统') WHEN m.sender_kind='visitor' THEN (SELECT display_name FROM contacts WHERE id=m.sender_id) ELSE (SELECT u.display_name FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id) END,'sender_avatar_url',CASE WHEN m.sender_kind='visitor' THEN coalesce((SELECT avatar_url FROM contacts WHERE id=m.sender_id),'') WHEN m.sender_kind='agent' THEN coalesce((SELECT " + platform.AvatarURLSQL("tm") + " FROM tenant_memberships tm WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id),'') ELSE '' END,'reply',CASE WHEN m.reply_to_id IS NULL THEN NULL ELSE (SELECT jsonb_build_object('id',q.id,'content',CASE WHEN q.withdrawn_at IS NULL THEN left(q.content,200) ELSE '' END,'withdrawn',q.withdrawn_at IS NOT NULL) FROM messages q WHERE q.id=m.reply_to_id AND q.tenant_id=m.tenant_id) END)" + "||jsonb_build_object('automation_agent'," + aiAgentForMessageSQL + ")"
+var messageProjection = "to_jsonb(m)||jsonb_build_object('seq',m.event_seq::text,'event_seq',m.event_seq::text,'quick_reply_version',m.quick_reply_version::text,'form_fields',CASE WHEN m.withdrawn_at IS NULL THEN m.form_fields ELSE '[]'::jsonb END,'form_values',CASE WHEN m.withdrawn_at IS NULL THEN m.form_values ELSE '{}'::jsonb END,'options',CASE WHEN m.withdrawn_at IS NULL THEN m.options ELSE '[]'::jsonb END,'content',CASE WHEN m.withdrawn_at IS NULL THEN m.content ELSE '' END,'attachment',CASE WHEN m.withdrawn_at IS NULL THEN (SELECT to_jsonb(f)-'storage_key'-'sha256' FROM attachments f WHERE f.id=m.attachment_id AND f.tenant_id=m.tenant_id) ELSE NULL END,'sender_name',CASE WHEN m.sender_kind='system' THEN COALESCE(NULLIF(current_setting('app.system_name',true),''),'系统') WHEN m.sender_kind='visitor' THEN (SELECT display_name FROM contacts WHERE id=m.sender_id) ELSE (SELECT u.display_name FROM tenant_memberships tm JOIN users u ON u.id=tm.user_id WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id) END,'sender_avatar_url',CASE WHEN m.sender_kind='visitor' THEN coalesce((SELECT avatar_url FROM contacts WHERE id=m.sender_id),'') WHEN m.sender_kind='agent' THEN coalesce((SELECT " + platform.AvatarURLSQL("tm") + " FROM tenant_memberships tm WHERE tm.id=m.sender_id AND tm.tenant_id=m.tenant_id),'') ELSE '' END,'reply',CASE WHEN m.reply_to_id IS NULL THEN NULL ELSE (SELECT jsonb_build_object('id',q.id,'content',CASE WHEN q.withdrawn_at IS NULL THEN left(q.content,200) ELSE '' END,'withdrawn',q.withdrawn_at IS NOT NULL) FROM messages q WHERE q.id=m.reply_to_id AND q.tenant_id=m.tenant_id) END)" + "||jsonb_build_object('automation_agent'," + aiAgentForMessageSQL + ")"
 
 // messages 读取历史或提交新消息，接收成功只在事务提交之后返回。
 func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +32,7 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 	if in.Audience == "" {
 		in.Audience = "public"
 	}
-	if !uuidPattern.MatchString(in.ClientID) || !inStrings(in.Type, "text", "image", "file", "audio") || !inStrings(in.Audience, "public", "internal") || len([]rune(in.Content)) > 10000 {
+	if !uuidPattern.MatchString(in.ClientID) || !inStrings(in.Type, "text", "image", "file", "audio", "form", "form_result") || !inStrings(in.Audience, "public", "internal") || len([]rune(in.Content)) > 10000 {
 		returnError(w, r, "invalid_message", "消息类型、编号或长度不正确")
 		return
 	}
@@ -59,6 +59,10 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		returnError(w, r, "empty_message", "请输入消息内容")
 		return
 	}
+	if in.Type == "form" && in.QuickReplyID == "" {
+		returnError(w, r, "invalid_form", "请选择表单快捷回复发送")
+		return
+	}
 	var result map[string]any
 	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
 		ctx := r.Context()
@@ -75,7 +79,7 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		existing, err := txJSON(ctx, tx, "SELECT "+messageProjection+" FROM messages m WHERE conversation_id=$1 AND sender_kind=$2 AND sender_id=$3 AND client_message_id=$4", id, actorKind(a), actorID(a), in.ClientID)
 		if err == nil {
 			var matches bool
-			if err := tx.QueryRow(ctx, "SELECT audience=$7 AND COALESCE(reply_to_id::text,'')=$9 AND CASE WHEN $10<>'' THEN coalesce(quick_reply_id::text,'')=$10 AND coalesce(quick_reply_version::text,'')=$11 ELSE quick_reply_id IS NULL AND content=$5 AND message_type=$6 AND COALESCE(attachment_id::text,'')=$8 END FROM messages WHERE conversation_id=$1 AND sender_kind=$2 AND sender_id=$3 AND client_message_id=$4", id, actorKind(a), actorID(a), in.ClientID, in.Content, in.Type, in.Audience, in.AttachmentID, in.ReplyID, in.QuickReplyID, in.QuickReplyVersion).Scan(&matches); err != nil {
+			if err := tx.QueryRow(ctx, "SELECT audience=$7 AND COALESCE(reply_to_id::text,'')=$9 AND CASE WHEN $10<>'' THEN coalesce(quick_reply_id::text,'')=$10 AND coalesce(quick_reply_version::text,'')=$11 WHEN $12<>'' THEN form_request_id=NULLIF($12,'')::uuid AND form_values=$13::jsonb ELSE quick_reply_id IS NULL AND content=$5 AND message_type=$6 AND COALESCE(attachment_id::text,'')=$8 END FROM messages WHERE conversation_id=$1 AND sender_kind=$2 AND sender_id=$3 AND client_message_id=$4", id, actorKind(a), actorID(a), in.ClientID, in.Content, in.Type, in.Audience, in.AttachmentID, in.ReplyID, in.QuickReplyID, in.QuickReplyVersion, in.FormRequestID, jsonValue(in.FormValues)).Scan(&matches); err != nil {
 				return err
 			}
 			if !matches {
@@ -86,6 +90,14 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		}
 		if err != pgx.ErrNoRows {
 			return err
+		}
+		formResult, formError := prepareFormSubmission(ctx, tx, a, id, &in)
+		if formError != nil {
+			return formError
+		}
+		if formResult != nil {
+			result = formResult
+			return nil
 		}
 		if status == "closed" {
 			return platform.Fail(409, "conversation_closed", "咨询已结束，请发起新咨询")
@@ -99,7 +111,7 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		if in.Type == "text" && in.AttachmentID != "" {
 			return platform.Fail(400, "unexpected_attachment", "媒体附件请使用对应的图片、语音或文件类型")
 		}
-		if in.Type != "text" {
+		if inStrings(in.Type, "image", "audio", "file") {
 			if !uuidPattern.MatchString(in.AttachmentID) {
 				return platform.Fail(400, "attachment_required", "请先上传有效附件")
 			}
@@ -136,10 +148,16 @@ func (s *Service) messages(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		if in.FormFields == nil {
+			in.FormFields = []formField{}
+		}
+		if in.FormValues == nil {
+			in.FormValues = map[string]string{}
+		}
 		if in.Options == nil {
 			in.Options = []welcomeOption{}
 		}
-		_, err = tx.Exec(ctx, "INSERT INTO messages(id,tenant_id,conversation_id,sender_id,sender_kind,client_message_id,message_type,content,audience,attachment_id,reply_to_id,event_seq,options,quick_reply_id,quick_reply_version) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,'')::uuid,NULLIF($11,'')::uuid,$12,$13,NULLIF($14,'')::uuid,NULLIF($15,'')::bigint)", messageID, a.TenantID, id, actorID(a), actorKind(a), in.ClientID, in.Type, in.Content, in.Audience, in.AttachmentID, in.ReplyID, seq, jsonValue(in.Options), in.QuickReplyID, in.QuickReplyVersion)
+		_, err = tx.Exec(ctx, "INSERT INTO messages(id,tenant_id,conversation_id,sender_id,sender_kind,client_message_id,message_type,content,audience,attachment_id,reply_to_id,event_seq,options,quick_reply_id,quick_reply_version,form_fields,form_request_id,form_values) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,'')::uuid,NULLIF($11,'')::uuid,$12,$13,NULLIF($14,'')::uuid,NULLIF($15,'')::bigint,$16,NULLIF($17,'')::uuid,$18)", messageID, a.TenantID, id, actorID(a), actorKind(a), in.ClientID, in.Type, in.Content, in.Audience, in.AttachmentID, in.ReplyID, seq, jsonValue(in.Options), in.QuickReplyID, in.QuickReplyVersion, jsonValue(in.FormFields), in.FormRequestID, jsonValue(in.FormValues))
 		if err != nil {
 			return err
 		}

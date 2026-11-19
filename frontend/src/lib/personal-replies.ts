@@ -25,6 +25,7 @@ export type PersonalKeyword = PersonalRule & {
   match_mode: "contains" | "exact";
   pattern: string;
   reply: string;
+  quick_reply_id?: string | null;
   priority: number;
   cooldown_seconds: number;
 };

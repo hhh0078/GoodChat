@@ -254,6 +254,24 @@ export function DecoratedVisitor({
             () => latest.current.conversation || undefined,
           ),
         };
+      if (method === "submitForm") {
+        const clientID = payload.client_message_id;
+        if (
+          typeof clientID !== "string" ||
+          !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(clientID)
+        )
+          throw new Error(tr("消息编号格式无效"));
+        return publicMessage(
+          await current.send({
+            client_message_id: clientID,
+            content: "",
+            message_type: "form_result",
+            audience: "public",
+            form_request_id: String(payload.message_id),
+            form_values: payload.values as Record<string, string>,
+          }),
+        );
+      }
       if (method === "sendText") {
         const text = payload.text ?? payload.content;
         if (typeof text !== "string" || !text.trim() || text.length > 10000)

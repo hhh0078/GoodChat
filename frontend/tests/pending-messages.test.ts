@@ -99,3 +99,26 @@ test("暂存只收集消息字段且限制数量和容量，绝不保存请求�
   );
   assert.equal(storage.getItem("oversize"), null);
 });
+
+test("表单提交完整保留原请求与字段，刷新重试不会丢数据或偷偷改变消息编号", () => {
+  const storage = memoryStorage();
+  const item = {
+    ...first,
+    client_message_id: "form-client",
+    content: "",
+    message_type: "form_result",
+    form_request_id: "11111111-1111-4111-8111-111111111111",
+    form_values: { "22222222-2222-4222-8222-222222222222": "访客真实填写" },
+  };
+  stagePending(storage, "form", item);
+  assert.deepEqual(readPending(storage, "form"), [item]);
+  assert.throws(() => stagePending(storage, "form", { ...item, form_values: {} }), /冲突/);
+  assert.throws(
+    () =>
+      stagePending(storage, "invalid", {
+        ...item,
+        form_values: [] as unknown as Record<string, string>,
+      }),
+    /表单提交/,
+  );
+});

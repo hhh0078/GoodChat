@@ -217,6 +217,21 @@ func (s *Service) expandAIPlan(ctx context.Context, tx pgx.Tx, j *aiJobData, pla
 			blocks = append(blocks, aiBlock{Type: "text", Text: item.Text})
 			continue
 		}
+		quick := false
+		for _, ref := range j.Snapshot.Scripts {
+			if ref.ID == item.ScriptID && ref.Version == item.Version {
+				quick = ref.QuickReply
+				break
+			}
+		}
+		if quick {
+			q, e := loadQuickReply(ctx, tx, item.ScriptID, "FOR SHARE")
+			if e != nil || !q.Enabled || q.Version != item.Version || !quickReplyVisible(q, j.Owner) {
+				return nil, errors.New("ai_stale")
+			}
+			blocks = append(blocks, aiBlock{Type: q.Type, Text: q.Content, MediaID: q.AttachmentID, FormFields: q.FormFields, Options: q.Options})
+			continue
+		}
 		var raw []byte
 		if e := tx.QueryRow(ctx, "SELECT blocks FROM ai_scripts WHERE id=$1 AND version=$2 AND enabled AND NOT archived FOR SHARE", item.ScriptID, item.Version).Scan(&raw); e != nil {
 			return nil, errors.New("ai_stale")
@@ -253,6 +268,10 @@ func (s *Service) sendAIPlan(ctx context.Context, tx pgx.Tx, j *aiJobData, plan 
 // insertAIMessage 保留AI来源与机器人身份，不伪造人工发送或人工首响统计。
 func (s *Service) insertAIMessage(ctx context.Context, tx pgx.Tx, j *aiJobData, b aiBlock) error {
 	id, client := newID(), newID()
+	options := append([]welcomeOption{}, b.Options...)
+	for i := range options {
+		options[i].ClientID = newID()
+	}
 	kind := b.Type
 	if kind == "video" {
 		kind = "file"
@@ -261,7 +280,7 @@ func (s *Service) insertAIMessage(ctx context.Context, tx pgx.Tx, j *aiJobData, 
 	if e != nil {
 		return e
 	}
-	if _, e = tx.Exec(ctx, `INSERT INTO messages(id,tenant_id,conversation_id,sender_id,sender_kind,client_message_id,message_type,content,audience,event_seq,attachment_id,source,ai_job_id,ai_bot_id) VALUES($1,$2,$3,$2,'system',$4,$5,$6,'public',$7,NULLIF($8,'')::uuid,'ai',$9,$10)`, id, j.Tenant, j.Conversation, client, kind, b.Text, seq, b.MediaID, j.ID, j.BotID); e != nil {
+	if _, e = tx.Exec(ctx, `INSERT INTO messages(id,tenant_id,conversation_id,sender_id,sender_kind,client_message_id,message_type,content,audience,event_seq,attachment_id,source,ai_job_id,ai_bot_id,form_fields,options) VALUES($1,$2,$3,$2,'system',$4,$5,$6,'public',$7,NULLIF($8,'')::uuid,'ai',$9,$10,$11,$12)`, id, j.Tenant, j.Conversation, client, kind, b.Text, seq, b.MediaID, j.ID, j.BotID, formFieldsJSON(b.FormFields), jsonValue(options)); e != nil {
 		return e
 	}
 	item, e := txJSON(ctx, tx, "SELECT "+messageProjection+" FROM messages m WHERE id=$1", id)

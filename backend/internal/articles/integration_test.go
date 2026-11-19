@@ -192,8 +192,10 @@ func TestArticleHTTPVersions(t *testing.T) {
 	c, data = f.request(t, "GET", "platform/articles/"+id, nil, true)
 	current := data["article"].(map[string]any)
 	edit := map[string]any{}
- for _,key:=range []string{"title","language","summary","keywords","version","body_markdown"}{edit[key]=current[key]}
- edit["slug"]="new-url"
+	for _, key := range []string{"title", "language", "summary", "keywords", "version", "body_markdown"} {
+		edit[key] = current[key]
+	}
+	edit["slug"] = "new-url"
 	if c, _ = f.request(t, "PATCH", "platform/articles/"+id, edit, true); c != 409 {
 		t.Fatal(c)
 	}
@@ -354,7 +356,7 @@ func TestSearchProviderContracts(t *testing.T) {
 			}
 			status = 202
 		case "oauth2.googleapis.com":
- r.Body=io.NopCloser(bytes.NewReader(raw))
+			r.Body = io.NopCloser(bytes.NewReader(raw))
 			_ = r.ParseForm()
 			parts := strings.Split(r.Form.Get("assertion"), ".")
 			if len(parts) != 3 {

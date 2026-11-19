@@ -13,9 +13,11 @@ import (
 
 // aiBlock 表示可精确重放的文字或媒体内容，媒体只保存稳定编号。
 type aiBlock struct {
-	Type    string `json:"type"`
-	Text    string `json:"text,omitempty"`
-	MediaID string `json:"media_id,omitempty"`
+	Type       string          `json:"type"`
+	Text       string          `json:"text,omitempty"`
+	MediaID    string          `json:"media_id,omitempty"`
+	FormFields []formField     `json:"form_fields,omitempty"`
+	Options    []welcomeOption `json:"options,omitempty"`
 }
 
 // aiContentInput 保存内容编辑的白名单字段，不接受租户或创建成员编号。
@@ -199,6 +201,9 @@ func validateAIBlocks(ctx context.Context, tx pgx.Tx, blocks []aiBlock) error {
 	}
 	total := 0
 	for _, b := range blocks {
+		if len(b.FormFields) > 0 || len(b.Options) > 0 {
+			return platform.Fail(400, "ai_blocks_invalid", "请通过快捷回复管理表单和选项")
+		}
 		total += len([]rune(b.Text))
 		if total > 10000 {
 			return platform.Fail(400, "ai_blocks_invalid", "话术内容过长")

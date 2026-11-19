@@ -42,6 +42,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <div className="public-footer-brand">
             <Brand />
             <p className="public-footer-description">{tr("每一次对话，都值得好好回应。")}</p>
+            <p className="public-friend-links">
+              <span>{tr("友情链接")}</span>
+              <a href="https://goodhr.58it.cn/" target="_blank" rel="noopener noreferrer">
+                GoodHR
+              </a>
+            </p>
           </div>
           <nav className="footer-links" aria-label={tr("页脚导航")}>
             <Link href="/features">{tr("产品功能")}</Link>

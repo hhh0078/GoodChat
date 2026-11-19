@@ -94,3 +94,32 @@
     --quick-reply-width: 38%;
   }
 }
+
+/* 表单字段以紧凑行编辑，访客表单在气泡内自适应。 */
+.quick-reply-form-field {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 130px 50px 32px;
+  gap: 10px;
+  align-items: center;
+}
+.message-form {
+  min-width: min(270px, 60vw);
+  margin-top: 14px;
+  white-space: normal;
+}
+.message-form .ant-form-item {
+  margin-bottom: 14px;
+}
+.message-form small {
+  font-weight: 400;
+  color: var(--muted);
+}
+@media (max-width: 600px) {
+  .quick-reply-form-field {
+    grid-template-columns: minmax(0, 1fr) 100px;
+  }
+  .message-form {
+    min-width: 0;
+    width: min(270px, 65vw);
+  }
+}

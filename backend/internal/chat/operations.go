@@ -180,7 +180,7 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		a := memberActor(r)
 		table := "keyword_rules"
-		allowed := fieldSet("name match_mode pattern reply priority cooldown_seconds enabled")
+		allowed := fieldSet("name match_mode pattern reply priority cooldown_seconds enabled quick_reply_id")
 		values := map[string]any{}
 		if r.Method == http.MethodPost || r.Method == http.MethodPatch {
 			if err := platform.Decode(w, r, &values); err != nil {
@@ -235,6 +235,9 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 				result = map[string]any{"id": id, "enabled": false}
 				return audit(ctx, tx, a, name+".disabled", id, nil)
 			}
+			if err := validateKeywordReply(ctx, tx, a.MemberID, true, values); err != nil {
+				return err
+			}
 			keys := []string{}
 			for key := range values {
 				keys = append(keys, key)
@@ -273,6 +276,9 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 			if err != nil {
 				return err
 			}
+			if (item["quick_reply_id"] == nil || item["quick_reply_id"] == "") && strings.TrimSpace(fmt.Sprint(item["reply"])) == "" {
+				return platform.Fail(400, "invalid_content", "请填写回复文字或选择快捷回复")
+			}
 			result = item
 			return audit(ctx, tx, a, name+".saved", id, values)
 		})
@@ -288,7 +294,21 @@ func (s *Service) operationResources(name string) http.HandlerFunc {
 func validateOperation(name string, values map[string]any, create bool) error {
 	required := []string{"title", "content"}
 	if name == "keyword-rules" {
-		required = []string{"name", "pattern", "reply"}
+		required = []string{"name", "pattern"}
+		if ref, ok := values["quick_reply_id"].(string); !ok || ref == "" {
+			if create {
+				required = append(required, "reply")
+			} else if text, exists := values["reply"]; exists && strings.TrimSpace(fmt.Sprint(text)) == "" {
+				if _, specified := values["quick_reply_id"]; specified {
+					return platform.Fail(400, "invalid_content", "请填写回复文字或选择快捷回复")
+				}
+			}
+		}
+		if ref, ok := values["quick_reply_id"].(string); ok && ref != "" {
+			if _, exists := values["reply"]; !exists {
+				values["reply"] = ""
+			}
+		}
 		if create {
 			if _, ok := values["match_mode"]; !ok {
 				values["match_mode"] = "contains"

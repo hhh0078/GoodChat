@@ -55,6 +55,7 @@ export function QuickReplyManager({ manages }: { manages: boolean }) {
                     ? tr("选项")
                     : {
                         text: tr("文字"),
+                        form: tr("表单"),
                         image: tr("图片"),
                         audio: tr("语音"),
                         file: tr("文件或视频"),

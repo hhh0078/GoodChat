@@ -6,6 +6,7 @@ import { AttachmentView } from "@/features/chat/attachment";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
 import { api, errorMessage } from "@/lib/api";
+import type { QuickReply } from "@/lib/quick-replies";
 import type { Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -413,6 +414,7 @@ function EvaluationList() {
 }
 /** AutomationPage 在同一运营入口管理自动回复、话术和独立留言评价。 */
 export function AutomationPage() {
+  const quickReplies = useResource<QuickReply>("/tenant/quick-replies");
   const tr = useTranslator();
   const { current, tenantId } = useSession();
   const screens = Grid.useBreakpoint();
@@ -455,7 +457,7 @@ export function AutomationPage() {
                   title={tr("关键词规则")}
                   path="/tenant/keyword-rules"
                   help={tr(
-                    "访客发送文字后自动匹配，每条消息最多回复一条规则。先在\u201C服务与欢迎语\u201D开启关键词总开关，再新增并启用规则。快捷话术则由客服手动双击发送，两者用途不同。",
+                    "访客发送文字后自动匹配，每条消息最多回复一条规则。先在\u201C服务与欢迎语\u201D开启关键词总开关，再新增并启用规则。也可选择快捷回复，命中后发送文字、媒体、选项或表单。",
                   )}
                   columns={[
                     { title: tr("规则名称"), dataIndex: "name" },
@@ -493,10 +495,21 @@ export function AutomationPage() {
                     {
                       name: "reply",
                       label: tr("自动回复文字"),
-                      required: true,
+                      required: false,
                       type: "textarea",
                       hint: tr(
                         "命中后直接发送给访客的内容，例如\u201C我们的营业时间为每天9:00至18:00\u201D。",
+                      ),
+                    },
+                    {
+                      name: "quick_reply_id",
+                      label: tr("选择快捷回复"),
+                      type: "select",
+                      options: quickReplies.items
+                        .filter((q) => q.scope === "public" && q.enabled)
+                        .map((q) => ({ value: q.id, label: q.title })),
+                      hint: tr(
+                        "选择后发送该快捷回复；不选择时使用上方文字。公共规则仅可选公共话术。",
                       ),
                     },
                     {

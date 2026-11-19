@@ -45,19 +45,19 @@ func (s *Service) enqueueKeyword(ctx context.Context, tx pgx.Tx, tenant, convers
 		return err
 	}
 	teamEnabled, _ := settings["keywords_enabled"].(bool)
-	rows, err := tx.Query(ctx, `SELECT k.id::text,k.match_mode,k.pattern,k.reply,k.cooldown_seconds,k.updated_at,coalesce(k.owner_membership_id::text,''),coalesce((SELECT current_assignment_id::text FROM conversations WHERE id=$1),'') FROM keyword_rules k WHERE k.enabled AND NOT k.archived AND (k.owner_membership_id IS NULL AND $2 OR k.owner_membership_id=(SELECT c.current_agent_id FROM conversations c JOIN tenant_memberships m ON m.id=c.current_agent_id AND m.tenant_id=c.tenant_id WHERE c.id=$1 AND c.status='active' AND m.can_serve AND NOT m.disabled AND m.removed_at IS NULL)) ORDER BY k.priority DESC,(k.owner_membership_id IS NULL) DESC,k.id`, conversation, teamEnabled)
+	rows, err := tx.Query(ctx, `SELECT coalesce(k.quick_reply_id::text,''),k.id::text,k.match_mode,k.pattern,k.reply,k.cooldown_seconds,k.updated_at,coalesce(k.owner_membership_id::text,''),coalesce((SELECT current_assignment_id::text FROM conversations WHERE id=$1),'') FROM keyword_rules k WHERE k.enabled AND NOT k.archived AND (k.owner_membership_id IS NULL AND $2 OR k.owner_membership_id=(SELECT c.current_agent_id FROM conversations c JOIN tenant_memberships m ON m.id=c.current_agent_id AND m.tenant_id=c.tenant_id WHERE c.id=$1 AND c.status='active' AND m.can_serve AND NOT m.disabled AND m.removed_at IS NULL)) ORDER BY k.priority DESC,(k.owner_membership_id IS NULL) DESC,k.id`, conversation, teamEnabled)
 	if err != nil {
 		return err
 	}
 	type rule struct {
-		id, mode, pattern, reply, member, assignment string
-		cooldown                                     int
-		updated                                      time.Time
+		quick, id, mode, pattern, reply, member, assignment string
+		cooldown                                            int
+		updated                                             time.Time
 	}
 	rules := []rule{}
 	for rows.Next() {
 		var item rule
-		if err := rows.Scan(&item.id, &item.mode, &item.pattern, &item.reply, &item.cooldown, &item.updated, &item.member, &item.assignment); err != nil {
+		if err := rows.Scan(&item.quick, &item.id, &item.mode, &item.pattern, &item.reply, &item.cooldown, &item.updated, &item.member, &item.assignment); err != nil {
 			rows.Close()
 			return err
 		}
@@ -81,6 +81,20 @@ func (s *Service) enqueueKeyword(ctx context.Context, tx pgx.Tx, tenant, convers
 			return nil
 		}
 		payload := map[string]any{"content": rule.reply, "rule_updated_at": rule.updated.UTC().Format(time.RFC3339Nano)}
+		if rule.quick != "" {
+			q, e := loadQuickReply(ctx, tx, rule.quick, "FOR SHARE")
+			if e == pgx.ErrNoRows {
+				continue
+			}
+			if e != nil {
+				return e
+			}
+			if !q.Enabled || (q.Owner != "" && q.Owner != rule.member) {
+				continue
+			}
+			payload["quick_reply_id"] = q.ID
+			payload["quick_reply_version"] = strconv.FormatInt(q.Version, 10)
+		}
 		if rule.member != "" {
 			payload["personal_member_id"] = rule.member
 			payload["personal_assignment_id"] = rule.assignment
@@ -221,10 +235,30 @@ func (s *Service) executeAutomatic(ctx context.Context, tx pgx.Tx, tenant, job s
 			return nil
 		}
 	}
+	if ref, ok := payload["quick_reply_id"].(string); ok {
+		q, e := loadQuickReply(ctx, tx, ref, "FOR SHARE")
+		valid := e == nil && q.Enabled && strconv.FormatInt(q.Version, 10) == payload["quick_reply_version"] && (q.Owner == "" || q.Owner == payload["personal_member_id"])
+		if e != nil && e != pgx.ErrNoRows {
+			return e
+		}
+		if !valid {
+			_, e = tx.Exec(ctx, "UPDATE chat_operation_jobs SET status='cancelled',completed_at=now() WHERE id=$1", job)
+			return e
+		}
+		payload["content"] = q.Content
+		payload["message_type"] = q.Type
+		payload["attachment_id"] = q.AttachmentID
+		payload["form_fields"] = q.FormFields
+		options := append([]welcomeOption{}, q.Options...)
+		for i := range options {
+			options[i].ClientID = newID()
+		}
+		payload["options"] = options
+	}
 	message := newID()
 	content, _ := payload["content"].(string)
 	messageType, _ := payload["message_type"].(string)
-	if messageType != "image" {
+	if !inStrings(messageType, "image", "audio", "file", "form") {
 		messageType = "text"
 	}
 	attachment, _ := payload["attachment_id"].(string)
@@ -253,7 +287,7 @@ func (s *Service) executeAutomatic(ctx context.Context, tx pgx.Tx, tenant, job s
 	if err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, "INSERT INTO messages(id,tenant_id,conversation_id,sender_id,sender_kind,client_message_id,message_type,content,audience,event_seq,attachment_id,options,source,source_rule_id,source_version) VALUES($1,$2,$3,$2,'system',$4,$5,$6,'public',$7,NULLIF($8,'')::uuid,$9,$10,NULLIF($11,'')::uuid,$12)", message, tenant, conversation, job, messageType, content, seq, attachment, jsonValue(options), kind, sourceRule, sourceVersion); err != nil {
+	if _, err := tx.Exec(ctx, "INSERT INTO messages(id,tenant_id,conversation_id,sender_id,sender_kind,client_message_id,message_type,content,audience,event_seq,attachment_id,options,source,source_rule_id,source_version,form_fields) VALUES($1,$2,$3,$2,'system',$4,$5,$6,'public',$7,NULLIF($8,'')::uuid,$9,$10,NULLIF($11,'')::uuid,$12,$13)", message, tenant, conversation, job, messageType, content, seq, attachment, jsonValue(options), kind, sourceRule, sourceVersion, formFieldsJSON(payload["form_fields"])); err != nil {
 		return err
 	}
 	projection, err := txJSON(ctx, tx, "SELECT "+messageProjection+" FROM messages m WHERE id=$1", message)

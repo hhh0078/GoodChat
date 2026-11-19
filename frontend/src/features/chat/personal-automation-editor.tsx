@@ -3,6 +3,7 @@
 import { useTranslator } from "@/i18n/use-translator";
 import { api, errorMessage } from "@/lib/api";
 import type { PersonalKeyword, PersonalWelcome, WelcomeContent } from "@/lib/personal-replies";
+import { useResource } from "@/lib/use-resource";
 import type { QuickReply } from "@/lib/quick-replies";
 import { PlusOutlined, UploadOutlined } from "@ant-design/icons";
 import {
@@ -42,15 +43,18 @@ type RuleForm = {
   match_mode: PersonalKeyword["match_mode"];
   pattern: string;
   reply: string;
+  quick_reply_id?: string | null;
   priority: number;
   cooldown_seconds: number;
 };
 /** PersonalAutomationEditor 仅提交个人规则字段，卸载后取消上传并阻止旧请求更新界面。 */
 export function PersonalAutomationEditor(props: EditorProps) {
   const tr = useTranslator();
+  const replies = useResource<QuickReply>("/tenant/quick-replies");
   const { tenantId, kind, item, onClose, onSaved } = props;
   const { message } = App.useApp();
   const [form] = Form.useForm<RuleForm>();
+  const selectedReply = Form.useWatch("quick_reply_id", form);
   const contents = Form.useWatch("contents", form) as WelcomeContent[] | undefined;
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState<number | null>(null);
@@ -94,7 +98,8 @@ export function PersonalAutomationEditor(props: EditorProps) {
               enabled: values.enabled,
               match_mode: values.match_mode,
               pattern: values.pattern,
-              reply: values.reply,
+              reply: values.reply || "",
+              quick_reply_id: values.quick_reply_id || null,
               priority: values.priority,
               cooldown_seconds: values.cooldown_seconds,
             };
@@ -252,6 +257,18 @@ export function PersonalAutomationEditor(props: EditorProps) {
                         </Button>
                       }
                     >
+                      <Form.Item
+                        name="quick_reply_id"
+                        label={tr("选择快捷回复")}
+                        extra={tr("选择后发送该快捷回复；不选择时使用上方文字。")}
+                      >
+                        <Select
+                          allowClear
+                          options={replies.items
+                            .filter((q) => q.enabled)
+                            .map((q) => ({ value: q.id, label: q.title }))}
+                        />
+                      </Form.Item>
                       <div className="personal-rule-fields">
                         <Form.Item name={[field.name, "type"]} label={tr("内容类型")}>
                           <Select
@@ -442,7 +459,9 @@ export function PersonalAutomationEditor(props: EditorProps) {
             <Form.Item
               name="reply"
               label={tr("回复内容")}
-              rules={[{ required: true, whitespace: true, message: tr("请输入回复内容") }]}
+              rules={[
+                { required: !selectedReply, whitespace: true, message: tr("请输入回复内容") },
+              ]}
             >
               <Input.TextArea rows={4} maxLength={2000} />
             </Form.Item>

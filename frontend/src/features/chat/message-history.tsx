@@ -6,6 +6,7 @@ import { messageDisplay, type MessageDisplayContext } from "@/lib/message-displa
 import type { ChatMessage } from "@/lib/types";
 import { Avatar, Button, Popconfirm, Space } from "antd";
 import { Fragment, useState } from "react";
+import { MessageForm } from "./message-form";
 import { AttachmentView } from "./attachment";
 import type { ChatIdentity, Outgoing } from "./use-chat";
 /** MessageHistory 只呈现已确认消息，所有发送与撤回动作仍由当前会话控制。 */
@@ -119,6 +120,14 @@ export function MessageHistory({
                       </div>
                     )}
                     {item.content}
+                    {item.message_type === "form" && (
+                      <MessageForm
+                        item={item}
+                        submission={messages.find((m) => m.form_request_id === item.id)}
+                        canFill={identity.kind === "visitor" && canSend && !sending}
+                        onSend={onSend}
+                      />
+                    )}
                     {item.attachment && (
                       <div
                         onClick={(event) => event.stopPropagation()}

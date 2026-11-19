@@ -18,6 +18,7 @@ const quickReplyProjection = `to_jsonb(q)||jsonb_build_object('version',q.versio
 type quickReply struct {
 	ID, Owner, Title, Content, Type, AttachmentID, Shortcut, Category string
 	Options                                                           []welcomeOption
+	FormFields                                                        []formField
 	Enabled                                                           bool
 	Sort                                                              int32
 	Version                                                           int64
@@ -30,6 +31,7 @@ type quickReplyInput struct {
 	Type         *string          `json:"message_type"`
 	AttachmentID *string          `json:"attachment_id"`
 	Options      *[]welcomeOption `json:"options"`
+	FormFields   *[]formField     `json:"form_fields"`
 	Scope        *string          `json:"scope"`
 	Shortcut     *string          `json:"shortcut"`
 	Category     *string          `json:"category"`
@@ -41,12 +43,15 @@ type quickReplyInput struct {
 // loadQuickReply 在当前租户事务内读取配置，锁参数仅由固定服务端调用点选择。
 func loadQuickReply(ctx context.Context, tx pgx.Tx, id, lock string) (quickReply, error) {
 	item := quickReply{}
-	var options []byte
-	err := tx.QueryRow(ctx, `SELECT id::text,coalesce(owner_membership_id::text,''),title,content,message_type,coalesce(attachment_id::text,''),options,enabled,sort,version,shortcut,category FROM quick_replies WHERE id=$1 `+lock, id).Scan(&item.ID, &item.Owner, &item.Title, &item.Content, &item.Type, &item.AttachmentID, &options, &item.Enabled, &item.Sort, &item.Version, &item.Shortcut, &item.Category)
+	var options, fields []byte
+	err := tx.QueryRow(ctx, `SELECT id::text,coalesce(owner_membership_id::text,''),title,content,message_type,coalesce(attachment_id::text,''),options,enabled,sort,version,shortcut,category,form_fields FROM quick_replies WHERE id=$1 `+lock, id).Scan(&item.ID, &item.Owner, &item.Title, &item.Content, &item.Type, &item.AttachmentID, &options, &item.Enabled, &item.Sort, &item.Version, &item.Shortcut, &item.Category, &fields)
 	if err != nil {
 		return item, err
 	}
 	if err := json.Unmarshal(options, &item.Options); err != nil {
+		return item, err
+	}
+	if err := json.Unmarshal(fields, &item.FormFields); err != nil {
 		return item, err
 	}
 	return item, nil
@@ -59,8 +64,17 @@ func quickReplyVisible(item quickReply, member string) bool {
 
 // validateQuickReply 校验真实媒体类型和选项，并限制新增媒体为本人上传或原话术已经授权的附件。
 func validateQuickReply(ctx context.Context, tx pgx.Tx, a actor, item, previous quickReply) error {
-	if strings.TrimSpace(item.Title) == "" || len([]rune(item.Title)) > 100 || len([]rune(item.Content)) > 10000 || !inStrings(item.Type, "text", "image", "audio", "file") || len([]rune(item.Shortcut)) > 100 || len([]rune(item.Category)) > 100 {
+	if strings.TrimSpace(item.Title) == "" || len([]rune(item.Title)) > 100 || len([]rune(item.Content)) > 10000 || !inStrings(item.Type, "text", "image", "audio", "file", "form") || len([]rune(item.Shortcut)) > 100 || len([]rune(item.Category)) > 100 {
 		return platform.Fail(400, "invalid_quick_reply", "请检查100字内标题、10000字内正文及消息类型")
+	}
+	if item.Type == "form" {
+		if item.AttachmentID != "" || len(item.Options) > 0 {
+			return platform.Fail(400, "invalid_form", "表单不能携带媒体附件或快捷选项")
+		}
+		return validateFormFields(item.FormFields)
+	}
+	if len(item.FormFields) > 0 {
+		return platform.Fail(400, "invalid_form", "只有表单类型可以配置字段")
 	}
 	if item.Type == "text" {
 		if item.AttachmentID != "" || strings.TrimSpace(item.Content) == "" && len(item.Options) == 0 {
@@ -161,6 +175,9 @@ func (s *Service) quickReplies(w http.ResponseWriter, r *http.Request) {
 		if input.Options != nil {
 			item.Options = *input.Options
 		}
+		if input.FormFields != nil {
+			item.FormFields = *input.FormFields
+		}
 		if input.Shortcut != nil {
 			item.Shortcut = *input.Shortcut
 		}
@@ -192,13 +209,19 @@ func (s *Service) quickReplies(w http.ResponseWriter, r *http.Request) {
 		if item.Options == nil {
 			item.Options = []welcomeOption{}
 		}
+		if item.FormFields == nil {
+			item.FormFields = []formField{}
+		}
+		if item.Type == "form" && strings.TrimSpace(item.Content) == "" {
+			item.Content = item.Title
+		}
 		if r.Method == http.MethodPost {
-			_, err := tx.Exec(ctx, `INSERT INTO quick_replies(id,tenant_id,owner_membership_id,title,content,message_type,attachment_id,options,shortcut,category,enabled,sort) VALUES($1,$2,NULLIF($3,'')::uuid,$4,$5,$6,NULLIF($7,'')::uuid,$8,$9,$10,$11,$12)`, item.ID, a.TenantID, item.Owner, item.Title, item.Content, item.Type, item.AttachmentID, jsonValue(item.Options), item.Shortcut, item.Category, item.Enabled, item.Sort)
+			_, err := tx.Exec(ctx, `INSERT INTO quick_replies(id,tenant_id,owner_membership_id,title,content,message_type,attachment_id,options,shortcut,category,enabled,sort,form_fields) VALUES($1,$2,NULLIF($3,'')::uuid,$4,$5,$6,NULLIF($7,'')::uuid,$8,$9,$10,$11,$12,$13)`, item.ID, a.TenantID, item.Owner, item.Title, item.Content, item.Type, item.AttachmentID, jsonValue(item.Options), item.Shortcut, item.Category, item.Enabled, item.Sort, jsonValue(item.FormFields))
 			if err != nil {
 				return err
 			}
 		} else {
-			_, err := tx.Exec(ctx, `UPDATE quick_replies SET owner_membership_id=NULLIF($2,'')::uuid,title=$3,content=$4,message_type=$5,attachment_id=NULLIF($6,'')::uuid,options=$7,shortcut=$8,category=$9,enabled=$10,sort=$11,version=version+1,updated_at=now() WHERE id=$1`, item.ID, item.Owner, item.Title, item.Content, item.Type, item.AttachmentID, jsonValue(item.Options), item.Shortcut, item.Category, item.Enabled, item.Sort)
+			_, err := tx.Exec(ctx, `UPDATE quick_replies SET owner_membership_id=NULLIF($2,'')::uuid,title=$3,content=$4,message_type=$5,attachment_id=NULLIF($6,'')::uuid,options=$7,shortcut=$8,category=$9,enabled=$10,sort=$11,form_fields=$12,version=version+1,updated_at=now() WHERE id=$1`, item.ID, item.Owner, item.Title, item.Content, item.Type, item.AttachmentID, jsonValue(item.Options), item.Shortcut, item.Category, item.Enabled, item.Sort, jsonValue(item.FormFields))
 			if err != nil {
 				return err
 			}

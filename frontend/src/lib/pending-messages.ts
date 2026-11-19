@@ -8,6 +8,8 @@ export type PendingMessage = {
   reply_to_id?: string;
   quick_reply_id?: string;
   quick_reply_version?: string;
+  form_request_id?: string;
+  form_values?: Record<string, string>;
 };
 type MessageStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const maxMessages = 100;
@@ -23,7 +25,7 @@ function cleanMessage(value: unknown): PendingMessage {
     item.client_message_id.length > 100 ||
     typeof item.content !== "string" ||
     typeof item.message_type !== "string" ||
-    !["text", "image", "audio", "file"].includes(item.message_type) ||
+    !["text", "image", "audio", "file", "form", "form_result"].includes(item.message_type) ||
     typeof item.audience !== "string" ||
     !["public", "internal"].includes(item.audience)
   )
@@ -37,7 +39,22 @@ function cleanMessage(value: unknown): PendingMessage {
       item.audience !== "public")
   )
     throw new Error(tr("待确认话术缺少有效编号或版本，请保留原数据并重新核对。"));
+  if (
+    item.message_type === "form_result" &&
+    (typeof item.form_request_id !== "string" ||
+      !/^[a-f\d-]{36}$/i.test(item.form_request_id) ||
+      !item.form_values ||
+      typeof item.form_values !== "object" ||
+      Array.isArray(item.form_values) ||
+      Object.keys(item.form_values).length > 20 ||
+      Object.values(item.form_values).some((v) => typeof v !== "string" || v.length > 10000))
+  )
+    throw new Error(tr("表单提交数据无效"));
   return {
+    ...(typeof item.form_request_id === "string" ? { form_request_id: item.form_request_id } : {}),
+    ...(item.message_type === "form_result"
+      ? { form_values: item.form_values as Record<string, string> }
+      : {}),
     client_message_id: item.client_message_id,
     content: item.content,
     message_type: item.message_type,

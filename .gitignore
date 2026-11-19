@@ -30,3 +30,4 @@ __pycache__/
 # 本地真实浏览器验收输出与截图不属于应用发布内容。
 /output/playwright/articles/
 /output/playwright/console-cards/
+/output/playwright/forms/

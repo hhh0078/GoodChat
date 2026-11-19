@@ -4,16 +4,17 @@ import { useTranslator } from "@/i18n/use-translator";
 import { api, errorMessage } from "@/lib/api";
 import type { QuickReply } from "@/lib/quick-replies";
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from "@ant-design/icons";
-import { App, Button, Form, Input, Modal, Popconfirm, Select, Space } from "antd";
+import { App, Button, Form, Input, Modal, Popconfirm, Select, Space, Switch } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { AttachmentView } from "./attachment";
-type ReplyKind = "text" | "image" | "audio" | "file" | "options";
+type ReplyKind = "text" | "image" | "audio" | "file" | "options" | "form";
 type ReplyForm = {
   title: string;
   content: string;
   kind: ReplyKind;
   scope: "personal" | "public";
   attachment_id: string;
+  form_fields: import("@/lib/quick-replies").FormField[];
   options: {
     id: string;
     label: string;
@@ -70,6 +71,7 @@ export function QuickReplyEditor({
             kind: item.options?.length ? "options" : item.message_type,
             attachment_id: item.attachment_id || "",
             options: item.options || [],
+            form_fields: item.form_fields || [],
           }
         : {
             title: "",
@@ -78,6 +80,7 @@ export function QuickReplyEditor({
             kind: "text",
             attachment_id: "",
             options: [],
+            form_fields: [],
           },
     );
   }, [item, form]);
@@ -137,6 +140,7 @@ export function QuickReplyEditor({
             ? values.attachment_id
             : "",
           options: values.kind === "options" ? values.options || [] : [],
+          form_fields: values.kind === "form" ? values.form_fields || [] : [],
           ...(item ? { version: item.version } : {}),
         },
       });
@@ -211,23 +215,32 @@ export function QuickReplyEditor({
           name="title"
           label={tr("标题")}
           rules={[{ required: true, whitespace: true, message: tr("请输入标题") }]}
-          extra={tr(
-            "仅用于在快捷回复列表里识别，例如\u201C价格说明\u201D。双击标题时，会向当前客户发送下方实际内容，不会发送这个标题。",
-          )}
+          extra={
+            kind === "form"
+              ? undefined
+              : tr(
+                  "仅用于在快捷回复列表里识别，例如\u201C价格说明\u201D。双击标题时，会向当前客户发送下方实际内容，不会发送这个标题。",
+                )
+          }
         >
           <Input maxLength={100} />
         </Form.Item>
         <Form.Item
           name="kind"
           label={tr("消息内容")}
-          extra={tr(
-            "文字用于常用答复；图片用于海报或截图；语音使用已上传的音频；文件或视频用于资料；选项让访客点选后发送对应的问题。",
-          )}
+          extra={
+            kind === "form"
+              ? tr("发送后访客可在聊天记录填写并保存，提交结果会作为消息发送。")
+              : tr(
+                  "文字用于常用答复；图片用于海报或截图；语音使用已上传的音频；文件或视频用于资料；选项让访客点选后发送对应的问题。",
+                )
+          }
         >
           <Select
             disabled={uploading}
             options={[
               { value: "text", label: tr("文字") },
+              { value: "form", label: tr("表单") },
               { value: "image", label: tr("图片") },
               { value: "audio", label: tr("语音") },
               { value: "options", label: tr("选项") },
@@ -248,11 +261,13 @@ export function QuickReplyEditor({
               : []
           }
           extra={
-            kind === "text"
-              ? tr("双击发送时，客户会收到这里的完整文字。")
-              : kind === "options"
-                ? tr("显示在选项按钮上方，例如\u201C请选择需要了解的内容\u201D；可留空。")
-                : tr("随媒体一起发送给客户的说明，可留空。")
+            kind === "form"
+              ? tr("发送后访客可在聊天记录填写并保存，提交结果会作为消息发送。")
+              : kind === "text"
+                ? tr("双击发送时，客户会收到这里的完整文字。")
+                : kind === "options"
+                  ? tr("显示在选项按钮上方，例如\u201C请选择需要了解的内容\u201D；可留空。")
+                  : tr("随媒体一起发送给客户的说明，可留空。")
           }
         >
           <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} maxLength={10000} />
@@ -308,6 +323,73 @@ export function QuickReplyEditor({
               )}
             </Form.Item>
           </>
+        )}
+        {kind === "form" && (
+          <Form.List
+            name="form_fields"
+            rules={[
+              {
+                validator: async (_, values) => {
+                  if (!values?.length || values.length > 20)
+                    throw new Error(tr("表单需要1至20个字段"));
+                },
+              },
+            ]}
+          >
+            {(fields, { add, remove }, { errors }) => (
+              <div className="quick-reply-form-editor">
+                {fields.map((field) => (
+                  <div key={field.key} className="quick-reply-form-field">
+                    <Form.Item name={[field.name, "id"]} hidden>
+                      <Input />
+                    </Form.Item>
+                    <Form.Item
+                      name={[field.name, "label"]}
+                      label={tr("字段名称")}
+                      rules={[{ required: true, whitespace: true }]}
+                    >
+                      <Input maxLength={80} />
+                    </Form.Item>
+                    <Form.Item name={[field.name, "type"]} label={tr("输入类型")}>
+                      <Select
+                        options={[
+                          { value: "text", label: tr("单行文本") },
+                          { value: "textarea", label: tr("多行文本") },
+                        ]}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name={[field.name, "required"]}
+                      label={tr("必填")}
+                      valuePropName="checked"
+                    >
+                      <Switch />
+                    </Form.Item>
+                    <Button
+                      type="text"
+                      danger
+                      aria-label={tr("删除字段")}
+                      icon={<DeleteOutlined />}
+                      onClick={() => remove(field.name)}
+                    />
+                  </div>
+                ))}
+                <Form.ErrorList errors={errors} />
+                <Button
+                  icon={<PlusOutlined />}
+                  disabled={fields.length >= 20}
+                  onClick={() =>
+                    add({ id: crypto.randomUUID(), label: "", type: "text", required: false })
+                  }
+                >
+                  {tr("添加字段")}
+                </Button>
+                <p className="muted">
+                  {tr("发送后访客可在聊天记录填写并保存，提交结果会作为消息发送。")}
+                </p>
+              </div>
+            )}
+          </Form.List>
         )}
         {kind === "options" && (
           <Form.List

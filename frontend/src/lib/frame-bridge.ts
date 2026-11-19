@@ -12,6 +12,7 @@ type BridgeHello = {
 const bridgeFields: Record<string, readonly string[]> = {
   getState: [],
   getAvatar: ["message_id"],
+  submitForm: ["message_id", "values", "client_message_id"],
   sendText: ["text", "content", "client_message_id", "reply_to_id"],
   withdrawMessage: ["message_id"],
   typing: ["active", "is_typing"],
@@ -40,6 +41,25 @@ export function validateBridgeRequest(
   }
   if (method === "download" || method === "saveAttachment") {
     visibleBridgeAttachment(messages, payload.attachment_id);
+    return;
+  }
+  if (method === "submitForm") {
+    const target = messages.find(
+      (m) =>
+        m.id === payload.message_id &&
+        m.audience !== "internal" &&
+        !m.withdrawn_at &&
+        m.message_type === "form",
+    );
+    if (
+      !target ||
+      !payload.values ||
+      typeof payload.values !== "object" ||
+      Array.isArray(payload.values) ||
+      Object.keys(payload.values).length > 20 ||
+      Object.values(payload.values).some((v) => typeof v !== "string" || v.length > 10000)
+    )
+      throw new Error(tr("表单提交数据无效"));
     return;
   }
   const target = method === "withdrawMessage" ? payload.message_id : payload.reply_to_id;
@@ -233,6 +253,9 @@ export function publicBridgeMessage(
     sender_name: display.senderName,
     sender_avatar_url: publicAvatarURL(display.avatarURL),
     message_type: item.message_type,
+    form_fields: item.withdrawn_at ? undefined : item.form_fields,
+    form_request_id: item.form_request_id,
+    form_values: item.withdrawn_at ? undefined : item.form_values,
     content: item.withdrawn_at ? "" : item.content,
     text: item.withdrawn_at ? "" : item.content,
     created_at: item.created_at,

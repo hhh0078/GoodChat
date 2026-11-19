@@ -428,3 +428,37 @@ test("附件服务错误与取消保持真实状态，不能作为下载成功",
     globalThis.fetch = original;
   }
 });
+
+test("表单桥只允许当前可见表单及纯文本字段，不能携带身份或指向别的会话", () => {
+  const item = {
+    id: "form-id",
+    message_type: "form",
+    audience: "public",
+    content: "登记",
+    sender_kind: "agent",
+    seq: "1",
+    event_seq: "1",
+  } as ChatMessage;
+  assert.doesNotThrow(() =>
+    validateBridgeRequest(
+      "submitForm",
+      { message_id: item.id, values: { field: "张三" }, client_message_id: "stable" },
+      [item],
+      "visitor",
+    ),
+  );
+  for (const payload of [
+    { message_id: "other", values: {} },
+    { message_id: item.id, values: { field: { script: 1 } } },
+    { message_id: item.id, values: {}, tenant_id: "other" },
+  ])
+    assert.throws(() => validateBridgeRequest("submitForm", payload, [item], "visitor"));
+  assert.throws(() =>
+    validateBridgeRequest(
+      "submitForm",
+      { message_id: item.id, values: {} },
+      [{ ...item, withdrawn_at: "now" }],
+      "visitor",
+    ),
+  );
+});

@@ -591,7 +591,10 @@ export function ChatPanel({
                 key={`pending-${item.client_message_id}`}
                 data-client-message-id={item.client_message_id}
               >
-                <div className="message-bubble">{item.content || tr("附件消息")}</div>
+                <div className="message-bubble">
+                  {item.content ||
+                    (item.message_type.startsWith("form") ? tr("表单") : tr("附件消息"))}
+                </div>
                 <span className="message-delivery">
                   <Spin size="small" />
                   {tr(" 发送中 ")}
@@ -607,7 +610,10 @@ export function ChatPanel({
             )
             .map((item) => (
               <div className="message-row own" key={item.client_message_id}>
-                <div className="message-bubble">{item.content || tr("附件消息")}</div>
+                <div className="message-bubble">
+                  {item.content ||
+                    (item.message_type.startsWith("form") ? tr("表单") : tr("附件消息"))}
+                </div>
                 <Button
                   danger
                   type="link"

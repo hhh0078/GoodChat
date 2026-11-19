@@ -11,15 +11,18 @@ import (
 
 // messageInput 定义真实发送请求，快捷回复只允许传入来源编号与版本，内容由服务端加载。
 type messageInput struct {
-	ClientID          string          `json:"client_message_id"`
-	Content           string          `json:"content"`
-	Type              string          `json:"message_type"`
-	Audience          string          `json:"audience"`
-	AttachmentID      string          `json:"attachment_id"`
-	ReplyID           string          `json:"reply_to_id"`
-	QuickReplyID      string          `json:"quick_reply_id"`
-	QuickReplyVersion string          `json:"quick_reply_version"`
-	Options           []welcomeOption `json:"-"`
+	ClientID          string            `json:"client_message_id"`
+	Content           string            `json:"content"`
+	Type              string            `json:"message_type"`
+	Audience          string            `json:"audience"`
+	AttachmentID      string            `json:"attachment_id"`
+	ReplyID           string            `json:"reply_to_id"`
+	QuickReplyID      string            `json:"quick_reply_id"`
+	QuickReplyVersion string            `json:"quick_reply_version"`
+	Options           []welcomeOption   `json:"-"`
+	FormFields        []formField       `json:"-"`
+	FormRequestID     string            `json:"form_request_id"`
+	FormValues        map[string]string `json:"form_values"`
 }
 
 // prepareQuickReplyMessage 在会话授权与幂等恢复之后读取当前可见版本，不允许客户端替换公共媒体。
@@ -42,6 +45,7 @@ func prepareQuickReplyMessage(ctx context.Context, tx pgx.Tx, a actor, input *me
 	}
 	input.Content = item.Content
 	input.Type = item.Type
+	input.FormFields = append([]formField{}, item.FormFields...)
 	input.AttachmentID = item.AttachmentID
 	input.Options = append([]welcomeOption{}, item.Options...)
 	for index := range input.Options {

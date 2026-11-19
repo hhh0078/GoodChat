@@ -23,6 +23,8 @@ export type Outgoing = {
   reply_to_id?: string;
   quick_reply_id?: string;
   quick_reply_version?: string;
+  form_request_id?: string;
+  form_values?: Record<string, string>;
 };
 type ChatEvent = {
   id: string;

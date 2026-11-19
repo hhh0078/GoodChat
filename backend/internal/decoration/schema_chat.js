@@ -16,6 +16,7 @@
   let state = null, composing = false, ready = false, busy = false, readSeq = 0n;
   let urls = [], retry = null, reply = null, lastTyping = 0, typingTimer = null, messageSignature = "";
   const avatarFiles = new Map();
+ const formDrafts=new Map();
   let selectedMessage = "";
   let historyBusy = false, historyError = "", positioned = false, lastScrollTop = 0, historyAnchor = null, readingAnchor = null, followingLatest = true;
   const historyControl = document.createElement("div"), historyButton = document.createElement("button"), historyNotice = document.createElement("span");
@@ -221,6 +222,20 @@
     node.append(options);
   }
 
+  /** 在消息气泡中绘制固定表单，输入草稿不因新消息重绘而丢失，结果由真实消息流确认。 */
+  function messageForm(node,item){
+    if(item.message_type!=="form"||!Array.isArray(item.form_fields))return;
+    const submitted=state?.messages?.find(m=>m.form_request_id===item.id);
+    let draft=formDrafts.get(item.id);if(!draft){draft={values:{},client:crypto.randomUUID(),busy:false};formDrafts.set(item.id,draft)}
+    const form=document.createElement("form");form.className="gc-message-form";
+    for(const field of item.form_fields){const label=document.createElement("label");const title=document.createElement("span");title.textContent=field.label+" · "+tr(field.required?"必填":"选填");const entry=document.createElement(field.type==="textarea"?"textarea":"input");entry.name=field.id;entry.required=!!field.required;entry.maxLength=2000;entry.value=submitted?.form_values?.[field.id]??draft.values[field.id]??"";entry.disabled=!!submitted||draft.busy||state?.conversation?.status==="closed";entry.oninput=()=>{draft.values[field.id]=entry.value};label.append(title,entry);form.append(label)}
+    const button=document.createElement("button");button.type="button";button.textContent=tr(submitted?"已提交":"保存");button.disabled=!!submitted||draft.busy||state?.conversation?.status==="closed";const notice=document.createElement("span");notice.className="gc-form-notice";notice.setAttribute("role","status");form.append(button,notice);
+    /** 通过受控桥保存，不触发沙箱禁止的原生表单导航。 */
+    const submitForm=async event=>{event.preventDefault();event.stopPropagation();if(draft.busy||submitted||!form.reportValidity())return;draft.busy=true;button.disabled=true;notice.textContent="";const values={};for(const field of item.form_fields)values[field.id]=form.elements.namedItem(field.id).value;try{await chat.submitForm(item.id,values,draft.client);render(await chat.getState())}catch(e){notice.textContent=String(e?.message||tr("操作未完成")).slice(0,500)}finally{draft.busy=false;messageSignature="";if(state)render(state)}};
+    button.onclick=submitForm;form.onsubmit=submitForm;
+ form.onclick=event=>event.stopPropagation();form.onkeydown=event=>{event.stopPropagation();if(event.key==="Enter"&&event.target.tagName==="INPUT"){event.preventDefault();void submitForm(event)}};node.append(form);
+  }
+
   /** 对本人已保存消息展示真实对方已读进度，不把保存成功当作送达。 */
   function updateReceipts() {
     const peerRead = sequence(state?.peer_read_seq);
@@ -245,6 +260,7 @@
       const body = document.createElement("div"); body.className = "gc-message-body"; const text = item.text ?? item.content ?? ""; body.textContent = typeof text === "string" ? text : ""; bubble.append(body);
       if (item.attachment) attachment(bubble, { ...item.attachment, message_type:item.message_type });
       welcomeOptions(bubble, item);
+ messageForm(bubble,item);
     }
     row.append(bubble);
     if (own && !withdrawn) { const receipt = document.createElement("div"); receipt.className = "gc-read-status"; receipt.dataset.seq = String(item.seq || item.event_seq || "0"); row.append(receipt); }

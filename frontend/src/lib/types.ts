@@ -53,6 +53,9 @@ export type ChatMessage = Resource & {
   withdrawn_at?: string;
   attachment?: { id: string; file_name: string; content_type: string; size_bytes: number };
   reply?: { id: string; content: string; withdrawn: boolean };
+  form_fields?: import("./quick-replies").FormField[];
+  form_request_id?: string | null;
+  form_values?: Record<string, string>;
   options?: { id: string; label: string; value: string; client_message_id: string }[];
   automation_agent?: { id?: string; name?: string; avatar_url?: string } | null;
   source?: string;

@@ -243,7 +243,13 @@ export function AIBotSettingsPage() {
                 .map((k) => ({ value: k.id, label: k.title }))}
             />
           </Form.Item>
-          <Form.Item name="script_ids" label={tr("可用AI话术")}>
+          <Form.Item
+            name="script_ids"
+            label={tr("可用AI话术")}
+            extra={tr(
+              "AI也可按场景使用已启用的公共快捷回复和本人的快捷回复，包括媒体、选项与表单。表单由访客填写。",
+            )}
+          >
             <Select
               mode="multiple"
               options={scripts.items

@@ -1,13 +1,15 @@
 /** 文件作用说明：定义富快捷回复接口并按个人、公共及当前成员真实使用次数分组排序。 */
+export type FormField = { id: string; label: string; required: boolean; type: "text" | "textarea" };
 export type QuickReplyOption = { id: string; label: string; value: string };
 export type QuickReply = {
   id: string;
   title: string;
   content: string;
-  message_type: "text" | "image" | "audio" | "file";
+  message_type: "text" | "image" | "audio" | "file" | "form";
   attachment_id?: string | null;
   attachment?: { id: string; file_name: string; content_type: string; size_bytes: number };
   options: QuickReplyOption[];
+  form_fields?: FormField[];
   scope: "personal" | "public";
   version: string;
   use_count: number;

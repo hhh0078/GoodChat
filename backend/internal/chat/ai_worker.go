@@ -175,7 +175,7 @@ func (s *Service) prepareAIJob(ctx context.Context, tx pgx.Tx, j *aiJobData) err
 			if e = tx.QueryRow(ctx, "SELECT message_type FROM messages WHERE id=$1", j.Trigger).Scan(&inputType); e != nil {
 				return e
 			}
-			if !inStrings(inputType, "text", "image") {
+			if !inStrings(inputType, "text", "image", "form_result") {
 				return errors.New("ai_unsupported_input")
 			}
 			if e = s.aiReplyValid(ctx, tx, j, false); e != nil {
@@ -295,6 +295,27 @@ func (s *Service) aiCatalog(ctx context.Context, tx pgx.Tx, j *aiJobData) error 
 		}
 		size += len(script.Title) + len(script.Description) + 100
 		j.Snapshot.Scripts = append(j.Snapshot.Scripts, script)
+	}
+	rows, e := tx.Query(ctx, "SELECT id::text,title,left(content,200),version,message_type FROM quick_replies WHERE enabled AND (owner_membership_id IS NULL OR owner_membership_id=$1) ORDER BY id", j.Owner)
+	if e != nil {
+		return e
+	}
+	for rows.Next() {
+		var script aiScript
+		var kind string
+		if e = rows.Scan(&script.ID, &script.Title, &script.Description, &script.Version, &kind); e != nil {
+			rows.Close()
+			return e
+		}
+		script.QuickReply = true
+		script.Language = "auto"
+		script.Description = kind + ": " + script.Description
+		size += len(script.Title) + len(script.Description) + 100
+		j.Snapshot.Scripts = append(j.Snapshot.Scripts, script)
+	}
+	rows.Close()
+	if e = rows.Err(); e != nil {
+		return e
 	}
 	if size > 12000 {
 		return errors.New("ai_catalog_limit")

@@ -1,7 +1,7 @@
 /** 文件作用说明：分别管理每日文章计划和搜索引擎凭据，私密配置仅显示是否已保存。 */
 "use client";
 import { Alert, App, Button, Checkbox, Drawer, Form, Input, Select, Switch } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api, errorMessage } from "@/lib/api";
 import { languageNames, locales, availableTimezones } from "@/i18n/preferences";
 import { useTranslator } from "@/i18n/use-translator";
@@ -16,6 +16,9 @@ export function ArticleSettingsDrawer({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const lastSection = useRef(section);
+  if (section) lastSection.current = section;
+  const visibleSection = section || lastSection.current;
   const tr = useTranslator();
   const { message } = App.useApp();
   const [form] = Form.useForm();
@@ -81,7 +84,7 @@ export function ArticleSettingsDrawer({
       onClose={onClose}
       size={660}
       loading={!settings}
-      title={tr(section === "ai" ? "AI定时文章" : "搜索引擎设置")}
+      title={tr(visibleSection === "ai" ? "AI定时文章" : "搜索引擎设置")}
       footer={
         <Button type="primary" onClick={() => void save()} loading={busy} disabled={!settings}>
           {tr("保存")}
@@ -89,7 +92,7 @@ export function ArticleSettingsDrawer({
       }
     >
       <Form form={form} layout="vertical">
-        {section === "ai" ? (
+        {visibleSection === "ai" ? (
           <>
             <Alert
               type={settings?.ai_configured ? "info" : "warning"}

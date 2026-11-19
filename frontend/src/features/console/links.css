@@ -197,3 +197,38 @@
     border-top: 1px solid var(--line);
   }
 }
+/* 按内容容器宽度收拢，避免侧栏占位后仍误用四列。 */
+.access-link-grid {
+  container-type: inline-size;
+}
+@container (max-width:1100px) {
+  .access-link-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .access-link-details,
+  .access-link-channels {
+    grid-column: 1;
+  }
+  .access-link-actions {
+    grid-column: 2;
+    grid-row: 2 / 4;
+  }
+}
+@container (max-width:620px) {
+  .access-link-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px;
+  }
+  .access-link-details,
+  .access-link-channels,
+  .access-link-actions {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .access-link-actions {
+    justify-content: flex-start;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+}
