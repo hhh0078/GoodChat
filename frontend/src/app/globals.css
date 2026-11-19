@@ -971,3 +971,30 @@ h3 {
 body:has(.visitor-shell) .locale-settings-button {
   bottom: 96px;
 }
+
+/* 后台页面统一容器：页签、说明、筛选和主操作均置于同一内容卡片内。 */
+.workspace-page-card {
+  min-width: 0;
+  padding: 24px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.workspace-page-card > .console-screen > .table-card {
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.record-list-end {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 768px) {
+  .workspace-page-card {
+    padding: 16px;
+  }
+}

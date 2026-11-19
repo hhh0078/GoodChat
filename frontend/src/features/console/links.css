@@ -1,0 +1,118 @@
+/* 文件作用说明：以可换行的入口卡片展示指标、路由和接入操作，避免表格挤压中文及截断按钮。 */
+.access-link-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+  gap: 16px;
+}
+.access-link-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--white);
+}
+.access-link-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.access-link-heading > div {
+  min-width: 0;
+}
+.access-link-heading h2 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.access-link-heading .ant-tag {
+  flex-shrink: 0;
+  margin: 0;
+}
+.access-link-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  background: var(--paper);
+  padding: 16px;
+  border-radius: 8px;
+  margin-block: 20px;
+}
+.access-link-metrics > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.access-link-metrics span,
+.access-link-metrics small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.access-link-metrics strong {
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.access-link-details {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  font-size: 13px;
+}
+.access-link-details > div {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 8px;
+}
+.access-link-details dt {
+  color: var(--muted);
+}
+.access-link-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.access-link-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 24px;
+  margin-block: 16px;
+}
+.access-link-channels .ant-tag {
+  max-width: 100%;
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.access-link-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.access-link-actions > :last-child {
+  margin-left: auto;
+}
+.share-embed-content {
+  display: grid;
+  gap: 28px;
+}
+.console-widget-settings > h3,
+.share-embed-content h3 {
+  font-size: 16px;
+  margin: 0 0 16px;
+}
+.console-widget-settings > .ant-btn {
+  margin-top: 16px;
+}
+@media (max-width: 600px) {
+  .access-link-card {
+    padding: 16px;
+  }
+  .access-link-actions .ant-btn {
+    min-height: 44px;
+  }
+}

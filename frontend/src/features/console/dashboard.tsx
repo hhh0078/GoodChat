@@ -1,6 +1,6 @@
 /** 文件作用说明：按接待准备图稿展示真实租户指标、初始化进度和日常工作入口。 */
 "use client";
-import { PageTitle } from "@/components/page-state";
+import { ErrorNotice, PageTitle } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import Link from "@/i18n/link";
 import { useFormats } from "@/i18n/use-formats";
@@ -8,6 +8,8 @@ import { useTranslator } from "@/i18n/use-translator";
 import { api } from "@/lib/api";
 import type { Member, Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
+import { serialPoll } from "@/lib/reporting-state";
+import "./dashboard.css";
 import {
   ArrowRightOutlined,
   CheckOutlined,
@@ -125,43 +127,98 @@ export function Dashboard() {
   const { current, tenantId } = useSession();
   const membership = current.memberships.find((item) => item.tenant_id === tenantId);
   const manages = ["owner", "admin"].includes(membership?.role || "");
-  const members = useResource<Member>("/tenant/members");
-  const links = useResource<Resource>("/tenant/access-links");
-  const contacts = useResource<Resource>("/tenant/contacts");
-  const conversations = useResource<Resource>("/conversations");
+  const members = useResource<Member>(manages ? "/tenant/members" : "");
+  const links = useResource<Resource>(manages ? "/tenant/access-links" : "");
   const groups = useResource<Resource>(manages ? "/tenant/groups" : "");
   const pools = useResource<Resource>(manages ? "/tenant/routing-pools" : "");
   const pages = useResource<Resource>(manages ? "/tenant/pages" : "");
-  const metrics = [
-    {
-      title: tr("团队成员"),
-      text: tr("客服与协作成员"),
-      result: members,
-      icon: TeamOutlined,
-      value: members.items.length,
-    },
-    {
-      title: tr("接入管理"),
-      text: tr("网页、手机网页等"),
-      result: links,
-      icon: LinkOutlined,
-      value: links.items.length,
-    },
-    {
-      title: tr("客户档案"),
-      text: tr("已建立的客户资料"),
-      result: contacts,
-      icon: IdcardOutlined,
-      value: contacts.items.length,
-    },
-    {
-      title: tr("进行中咨询"),
-      text: tr("当前未结束的咨询"),
-      result: conversations,
-      icon: CustomerServiceOutlined,
-      value: conversations.items.filter((record) => record.status !== "closed").length,
-    },
-  ];
+  const [overview, setOverview] = useState<{
+    scope: string;
+    data: Record<string, number | string>;
+  } | null>(null);
+  const [overviewError, setOverviewError] = useState<unknown>(null);
+  const [overviewRevision, setOverviewRevision] = useState(0);
+  const overviewScope = JSON.stringify([tenantId, membership?.id, manages]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setOverview(null);
+    setOverviewError(null);
+    if (!membership) return () => controller.abort();
+    const load = serialPoll(controller.signal, async () => {
+      try {
+        const data = await api<Record<string, number | string>>("/tenant/dashboard", {
+          tenantId,
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
+          setOverview({ scope: overviewScope, data });
+          setOverviewError(null);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) setOverviewError(error);
+      }
+    });
+    void load();
+    const timer = setInterval(() => void load(), 30000);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [tenantId, overviewScope, overviewRevision, membership?.id]);
+  const report = overview?.scope === overviewScope ? overview.data : null;
+  const metrics = manages
+    ? [
+        {
+          title: tr("排队中"),
+          key: "queued",
+          icon: CustomerServiceOutlined,
+          text: tr("等待分配的咨询"),
+        },
+        {
+          title: tr("接待中"),
+          key: "active",
+          icon: CustomerServiceOutlined,
+          text: tr("团队当前接待"),
+        },
+        {
+          title: tr("今日咨询"),
+          key: "today_created",
+          icon: IdcardOutlined,
+          text: tr("今天新建的咨询"),
+        },
+        {
+          title: tr("在线客服"),
+          key: "online_agents",
+          icon: TeamOutlined,
+          text: tr("实时探活有效的客服"),
+        },
+      ]
+    : [
+        {
+          title: tr("待接单"),
+          key: "assigned",
+          icon: CustomerServiceOutlined,
+          text: tr("已分配给我的咨询"),
+        },
+        {
+          title: tr("接待中"),
+          key: "active",
+          icon: CustomerServiceOutlined,
+          text: tr("我正在接待的咨询"),
+        },
+        {
+          title: tr("待处理消息"),
+          key: "unread",
+          icon: IdcardOutlined,
+          text: tr("含未读访客消息的咨询"),
+        },
+        {
+          title: tr("今日接待"),
+          key: "today_received",
+          icon: CustomerServiceOutlined,
+          text: tr("按本人接待段去重统计"),
+        },
+      ];
   const setup = [
     {
       title: tr("建立接待团队"),
@@ -216,22 +273,22 @@ export function Dashboard() {
           text: tr("进入工作台，处理正在进行的咨询"),
         },
         {
-          href: "/console/members",
+          href: "/console/member-statistics",
           icon: TeamOutlined,
-          title: tr("邀请成员"),
-          text: tr("邀请管理员与客服加入团队"),
+          title: tr("成员统计"),
+          text: tr("查看团队在线与接待效率"),
+        },
+        {
+          href: "/console/reports",
+          icon: IdcardOutlined,
+          title: tr("服务统计"),
+          text: tr("查看今日咨询与服务表现"),
         },
         {
           href: "/console/records",
-          icon: IdcardOutlined,
+          icon: LinkOutlined,
           title: tr("查看聊天记录"),
           text: tr("查找历史沟通，了解客户详情"),
-        },
-        {
-          href: "/console/templates",
-          icon: SkinOutlined,
-          title: tr("装修品牌页面"),
-          text: tr("让客户在你的品牌页面里获得服务"),
         },
       ]
     : [
@@ -264,15 +321,7 @@ export function Dashboard() {
     <section className="console-screen console-dashboard">
       <PageTitle
         title={tr("你好，{p0}", { p0: String(current.user.display_name || tr("欢迎回来")) })}
-        description={membership ? tr("让每一次咨询，都有回应。") : tr("你的账号暂未加入工作空间")}
-        action={
-          membership && (
-            <Button href="/workspace" type="primary">
-              {tr("进入客服工作台 ")}
-              <ArrowRightOutlined />
-            </Button>
-          )
-        }
+        description={tr("让每一次咨询，都有回应。")}
       />
       {!membership && (
         <Alert
@@ -286,32 +335,54 @@ export function Dashboard() {
         />
       )}
       {membership && tenantId && <ConnectionAlerts key={tenantId} tenantId={tenantId} />}
+      <div className="dashboard-overview-heading">
+        <div>
+          <h2>{manages ? tr("今日团队概况") : tr("我的今日工作")}</h2>
+          <p>
+            {report?.timezone || "—"} · {tr("每30秒更新")}
+          </p>
+        </div>
+        <div className="dashboard-overview-actions">
+          <Button onClick={() => setOverviewRevision((value) => value + 1)}>{tr("刷新")}</Button>
+          <Button href="/workspace" type="primary">
+            {tr("进入客服工作台 ")}
+            <ArrowRightOutlined />
+          </Button>
+        </div>
+      </div>
+      <ErrorNotice error={overviewError} retry={() => setOverviewRevision((value) => value + 1)} />
       <div className="console-metrics">
         {metrics.map((item) => (
-          <article className="console-metric" key={item.title}>
+          <article className="console-metric" key={item.key}>
             <span className="console-metric-icon" aria-hidden="true">
               <item.icon />
             </span>
             <div>
               <div className="console-metric-label">{item.title}</div>
               <div className="stat-value">
-                {item.result.loading ? (
-                  <Skeleton.Input active size="small" />
-                ) : item.result.error ? (
+                {overviewError ? (
                   "—"
+                ) : !report ? (
+                  <Skeleton.Input active size="small" />
                 ) : (
-                  item.value
+                  (report[item.key] ?? "—")
                 )}
               </div>
-              {!!item.result.error && (
-                <Button type="link" size="small" onClick={item.result.reload}>
-                  {tr("读取失败，重试 ")}
-                </Button>
-              )}
-              {!item.result.error && <p className="console-metric-note">{item.text}</p>}
+              <p className="console-metric-note">{item.text}</p>
             </div>
           </article>
         ))}
+      </div>
+      <div className="dashboard-shift-summary">
+        <span>
+          {tr("今日结束")} <strong>{!overviewError ? (report?.today_closed ?? "—") : "—"}</strong>
+        </span>
+        {manages && (
+          <span>
+            {tr("待接单")} <strong>{!overviewError ? (report?.assigned ?? "—") : "—"}</strong>
+          </span>
+        )}
+        <span className="muted">{tr("日期按租户时区统计")}</span>
       </div>
       <div className={`dashboard-panels${manages ? "" : " dashboard-agent-panels"}`}>
         {manages && (
@@ -354,6 +425,7 @@ export function Dashboard() {
                 </li>
               ))}
             </ol>
+            {tenantId && <DashboardSubscription key={tenantId} tenantId={tenantId} />}
           </section>
         )}
         <div className="dashboard-side">
@@ -377,7 +449,6 @@ export function Dashboard() {
               ))}
             </div>
           </aside>
-          {manages && tenantId && <DashboardSubscription key={tenantId} tenantId={tenantId} />}
           <aside className="dashboard-tip">
             <span className="dashboard-tip-icon" aria-hidden="true">
               <FlagOutlined />

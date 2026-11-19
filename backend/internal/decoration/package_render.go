@@ -71,7 +71,7 @@ func (s *Service) renderPackageAsset(w http.ResponseWriter, r *http.Request) {
 		}
 		id, name = parts[0], parts[1]
 	}
-	if idValue(id) != nil || packagePath(name) != nil || r.URL.RawQuery != "" {
+	if idValue(id) != nil || packagePath(name) != nil || !validRenderPreferences(r) {
 		http.NotFound(w, r)
 		return
 	}

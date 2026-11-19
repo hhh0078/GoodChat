@@ -90,7 +90,15 @@ export type AIJob = {
   bot_id?: string;
   owner_membership_id: string;
 };
+export type AIWalletEntry = {
+  id: string;
+  kind: string;
+  reason: string;
+  delta_micro: number;
+  created_at: string;
+};
 export type AIUsageData = {
+  summary?: { charged_micro: number; calls: number; uncertain: number };
   wallet: { balance_micro: number; reserved_micro: number; unlimited?: boolean } | null;
   jobs: AIJob[] | null;
   entries:

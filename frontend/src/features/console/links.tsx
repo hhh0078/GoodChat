@@ -1,5 +1,6 @@
 /** 文件作用说明：管理接入链接、生成二维码和参数化链接，并调用真实入口接口保存。 */
 "use client";
+import { LoadMore } from "@/components/load-more";
 import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
 import { localizeStatic } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
@@ -9,6 +10,8 @@ import { serialPoll } from "@/lib/reporting-state";
 import type { AccessLink, Member, Resource } from "@/lib/types";
 import { entryURL } from "@/lib/urls";
 import { useResource } from "@/lib/use-resource";
+import { usePagedResource } from "@/lib/use-paged-resource";
+import "./links.css";
 import { CopyOutlined, PlusOutlined, QrcodeOutlined } from "@ant-design/icons";
 import {
   App,
@@ -21,14 +24,12 @@ import {
   QRCode,
   Select,
   Space,
-  Table,
   Tabs,
   Tag,
 } from "antd";
-import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import { LinkTemplateFields, type PublishedTemplatePage } from "./link-template-fields";
-import { LinkWidgetSettings, widgetCode } from "./link-widget";
+import { LinkWidgetSettings } from "./link-widget";
 const parameterExamples: Record<string, string> = {
   姓名: "张三",
   手机号: "13800000000",
@@ -51,7 +52,7 @@ type LinkStatistics = {
 /** LinksPage 为独立业务入口维护路由范围并生成分享与嵌入内容。 */
 export function LinksPage() {
   const tr = useTranslator();
-  const links = useResource<AccessLink>("/tenant/access-links");
+  const links = usePagedResource<AccessLink>("/tenant/access-links");
   const templatePages = useResource<PublishedTemplatePage>("/tenant/pages");
   const [statistics, setStatistics] = useState<{
     tenantId: string;
@@ -92,32 +93,24 @@ export function LinksPage() {
   const members = useResource<Member>("/tenant/members");
   const [editing, setEditing] = useState<AccessLink | null | undefined>();
   const [sharing, setSharing] = useState<AccessLink | null>(null);
-  const [widgetLink, setWidgetLink] = useState<AccessLink | null>(null);
   const [parameterKeys, setParameterKeys] = useState<string[]>([]);
-  const [parameterValues, setParameterValues] = useState(localizeStatic(parameterExamples, tr));
+  const parameterValues = localizeStatic(parameterExamples, tr);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [form] = Form.useForm();
   const { message } = App.useApp();
-  /** link 通过当前站点生成标准公开聊天地址。 */
-  function link(item: AccessLink) {
+  /** link 生成可访问的咨询地址，示例展示与复制保留中文和JSON的可读形式。 */
+  function link(item: AccessLink, readable = false) {
     const profile = Object.fromEntries(parameterKeys.map((key) => [key, parameterValues[key]]));
-    return typeof window === "undefined"
-      ? `/c/${item.entry_key}`
-      : entryURL(window.location.origin, item.entry_key, profile);
-  }
-  let parameterError = "";
-  if (parameterKeys.includes("extra")) {
-    try {
-      const extra = JSON.parse(parameterValues.extra);
-      if (!extra || typeof extra !== "object" || Array.isArray(extra))
-        parameterError = tr("extra 必须是 JSON 对象");
-    } catch {
-      parameterError = tr("extra 必须是合法 JSON 对象");
+    const origin = typeof window === "undefined" ? "" : window.location.origin;
+    if (readable) {
+      const query = Object.entries(profile)
+        .map(([key, value]) => `${key}=${value}`)
+        .join("&");
+      return `${origin}/c/${item.entry_key}${query ? `?${query}` : ""}`;
     }
+    return entryURL(origin, item.entry_key, profile);
   }
-  if (!parameterError && sharing && new TextEncoder().encode(link(sharing)).length > 2048)
-    parameterError = tr("链接超过2 KiB，请减少资料，或改用POST初始化接口传递较大的JSON。");
   /** edit 将已有入口或初始配置填入真实保存表单。 */
   function edit(item: AccessLink | null) {
     setError(null);
@@ -167,10 +160,6 @@ export function LinksPage() {
   /** copy 只有系统剪贴板写入成功后才反馈已复制。 */
   async function copy(value: string) {
     try {
-      if (parameterError) {
-        message.warning(parameterError);
-        return;
-      }
       await navigator.clipboard.writeText(value);
       message.success(tr("已复制"));
     } catch {
@@ -187,139 +176,6 @@ export function LinksPage() {
       message.error(errorMessage(problem));
     }
   }
-  const columns: ColumnsType<AccessLink> = [
-    {
-      title: tr("入口名称"),
-      dataIndex: "name",
-      render: (value, row) => (
-        <>
-          <strong>{value}</strong>
-          <div className="console-entry-key" title={row.entry_key}>
-            {row.entry_key}
-          </div>
-        </>
-      ),
-    },
-    {
-      title: tr("接待范围"),
-      key: "routing",
-      render: (_, row) => (
-        <>
-          <div>
-            {groups.items.find((item) => item.id === row.service_group_id)?.name || tr("默认范围")}
-          </div>
-          <div className="muted" style={{ fontSize: 12 }}>
-            {pools.items.find((item) => item.id === row.routing_pool_id)?.name || tr("默认分配")}
-          </div>
-        </>
-      ),
-    },
-    {
-      title: tr("今日访客"),
-      key: "visitors",
-      width: 110,
-      render: (_, row) => (
-        <>
-          <strong>{metrics.get(row.id)?.visitors ?? "—"}</strong>
-          <div className="muted" style={{ fontSize: 12 }}>
-            {tr("访问 ")}
-            {metrics.get(row.id)?.visits ?? "—"}
-            {tr(" 次 ")}
-          </div>
-        </>
-      ),
-    },
-    {
-      title: tr("今日咨询"),
-      key: "conversations",
-      width: 110,
-      render: (_, row) => (
-        <>
-          <strong>{metrics.get(row.id)?.new_conversations ?? "—"}</strong>
-          <div className="muted" style={{ fontSize: 12 }}>
-            {tr("结束 ")}
-            {metrics.get(row.id)?.closed ?? "—"}
-          </div>
-        </>
-      ),
-    },
-    {
-      title: tr("当前状态"),
-      key: "current",
-      width: 120,
-      render: (_, row) => (
-        <div style={{ fontSize: 12 }}>
-          {tr("接待 ")}
-          {metrics.get(row.id)?.active ?? "—"}
-          <div className="muted">
-            {tr("排队 ")}
-            {metrics.get(row.id)?.queued ?? "—"}
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: tr("渠道标识"),
-      dataIndex: "channel_code",
-      render: (value, row) => (
-        <Space size={[0, 4]} wrap>
-          {Array.from(new Set([value, ...(row.channel_tags || [])].filter(Boolean))).map((tag) => (
-            <Tag key={tag}>{tag}</Tag>
-          ))}
-        </Space>
-      ),
-    },
-    {
-      title: tr("用户端模板"),
-      key: "template",
-      render: (_, row) => (
-        <span>
-          {row.page_id
-            ? templatePages.items.find((page) => page.id === row.page_id)?.name || tr("已绑定模板")
-            : tr("默认页面")}
-          {row.page_id && (
-            <div className="muted" style={{ fontSize: 12 }}>
-              {row.binding_mode === "PIN_RELEASE" ? tr("固定版本") : tr("跟随发布")}
-            </div>
-          )}
-        </span>
-      ),
-    },
-    {
-      title: tr("状态"),
-      dataIndex: "status",
-      render: (value) => (
-        <Tag color={value === "active" ? "green" : "default"}>
-          {value === "active" ? tr("启用") : tr("已停用")}
-        </Tag>
-      ),
-    },
-    {
-      title: tr("操作"),
-      width: 290,
-      render: (_, row) => (
-        <Space>
-          <Button type="link" size="small" onClick={() => edit(row)}>
-            {tr("配置 ")}
-          </Button>
-          <Button type="link" size="small" onClick={() => setSharing(row)}>
-            {tr("分享 ")}
-          </Button>
-          <Button type="link" size="small" onClick={() => setWidgetLink(row)}>
-            {tr("悬浮窗")}
-          </Button>
-          <Button type="link" size="small" onClick={() => setSharing(row)}>
-            {tr("访问与参数 ")}
-          </Button>
-          <Popconfirm title={tr("归档该入口？")} onConfirm={() => archive(row)}>
-            <Button type="link" danger size="small">
-              {tr("归档 ")}
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
   return (
     <section className="console-screen console-links">
       <PageTitle
@@ -347,23 +203,117 @@ export function LinksPage() {
         error={statisticsError}
         retry={() => setStatisticsRevision((value) => value + 1)}
       />
-      <div className="table-card">
-        <ErrorNotice error={links.error} retry={links.reload} />
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={links.items}
-          loading={links.loading}
-          scroll={{ x: 1320 }}
-          locale={{ emptyText: <EmptyData text={tr("创建第一个链接，开始接待客户。")} /> }}
-        />
+      <ErrorNotice error={links.error} retry={links.items.length ? links.loadMore : links.reload} />
+      <div className="access-link-grid" aria-busy={links.loading}>
+        {links.items.map((row) => {
+          const metric = metrics.get(row.id);
+          const template = row.page_id
+            ? templatePages.items.find((page) => page.id === row.page_id)?.name || tr("已绑定模板")
+            : tr("默认页面");
+          return (
+            <article className="access-link-card" key={row.id} aria-label={row.name}>
+              <header className="access-link-heading">
+                <div>
+                  <h2>{row.name}</h2>
+                  <div className="console-entry-key" title={row.entry_key}>
+                    {row.entry_key}
+                  </div>
+                </div>
+                <Tag color={row.status === "active" ? "green" : "default"}>
+                  {row.status === "active" ? tr("启用") : tr("已停用")}
+                </Tag>
+              </header>
+              <div className="access-link-metrics">
+                <div>
+                  <span>{tr("今日访客")}</span>
+                  <strong>{metric?.visitors ?? "—"}</strong>
+                  <small>
+                    {tr("访问 ")}
+                    {metric?.visits ?? "—"}
+                    {tr(" 次 ")}
+                  </small>
+                </div>
+                <div>
+                  <span>{tr("今日咨询")}</span>
+                  <strong>{metric?.new_conversations ?? "—"}</strong>
+                  <small>
+                    {tr("结束 ")}
+                    {metric?.closed ?? "—"}
+                  </small>
+                </div>
+                <div>
+                  <span>{tr("当前状态")}</span>
+                  <strong>{metric?.active ?? "—"}</strong>
+                  <small>
+                    {tr("排队 ")}
+                    {metric?.queued ?? "—"}
+                  </small>
+                </div>
+              </div>
+              <dl className="access-link-details">
+                <div>
+                  <dt>{tr("接待范围")}</dt>
+                  <dd>
+                    {groups.items.find((item) => item.id === row.service_group_id)?.name ||
+                      tr("默认范围")}
+                    <span className="muted">
+                      {" "}
+                      ·{" "}
+                      {pools.items.find((item) => item.id === row.routing_pool_id)?.name ||
+                        tr("默认分配")}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>{tr("用户端模板")}</dt>
+                  <dd>
+                    {template}
+                    {row.page_id && (
+                      <span className="muted">
+                        {" "}
+                        · {row.binding_mode === "PIN_RELEASE" ? tr("固定版本") : tr("跟随发布")}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              </dl>
+              <div className="access-link-channels">
+                {Array.from(
+                  new Set([row.channel_code, ...(row.channel_tags || [])].filter(Boolean)),
+                ).map((tag) => (
+                  <Tag key={tag}>{tag}</Tag>
+                ))}
+              </div>
+              <footer className="access-link-actions">
+                <Button onClick={() => edit(row)}>{tr("配置 ")}</Button>
+                <Button type="primary" onClick={() => setSharing(row)}>
+                  {tr("分享接入")}
+                </Button>
+                <Popconfirm title={tr("归档该入口？")} onConfirm={() => archive(row)}>
+                  <Button type="text" danger>
+                    {tr("归档 ")}
+                  </Button>
+                </Popconfirm>
+              </footer>
+            </article>
+          );
+        })}
       </div>
+      {!links.loading && !links.error && !links.items.length && (
+        <EmptyData text={tr("创建第一个链接，开始接待客户。")} />
+      )}
+      <LoadMore
+        loading={links.loading}
+        hasMore={links.hasMore}
+        error={links.error}
+        onLoad={links.loadMore}
+      />
       <Drawer
         rootClassName="console-drawer"
         title={editing ? tr("配置接入链接") : tr("创建接入链接")}
         open={editing !== undefined}
         onClose={() => setEditing(undefined)}
-        width={500}
+        size={500}
         destroyOnHidden
       >
         <ErrorNotice error={error} />
@@ -492,7 +442,7 @@ export function LinksPage() {
         }
         open={!!sharing}
         onClose={() => setSharing(null)}
-        width={620}
+        size={620}
         mask={false}
         destroyOnHidden
       >
@@ -505,106 +455,46 @@ export function LinksPage() {
               children: (
                 <Form layout="vertical">
                   <Form.Item
-                    label={tr("勾选要拼接的资料参数")}
-                    extra={tr(
-                      "资料参数始终接收，中文字段更易读；phone、name、avatar_url、sex 等英文写法也兼容。",
-                    )}
+                    label={tr("资料参数接入示例")}
+                    extra={tr("以下为示例数据，正式接入时请替换为客户的实际资料。")}
                   >
                     <Checkbox.Group
                       value={parameterKeys}
                       onChange={(keys) => setParameterKeys(keys as string[])}
-                      options={Object.keys(localizeStatic(parameterExamples, tr)).map((key) => ({
+                      options={Object.keys(parameterValues).map((key) => ({
                         label: key === "extra" ? tr("额外资料（extra JSON）") : key,
                         value: key,
                       }))}
                     />
                   </Form.Item>
-                  {parameterKeys.map((key) => (
-                    <Form.Item
-                      key={key}
-                      label={key === "extra" ? tr("额外资料 extra") : key}
-                      validateStatus={key === "extra" && parameterError ? "error" : undefined}
-                      help={key === "extra" ? parameterError || undefined : undefined}
-                    >
-                      {key === "性别" ? (
-                        <Select
-                          value={parameterValues[key]}
-                          onChange={(value) =>
-                            setParameterValues((previous) => ({ ...previous, [key]: value }))
-                          }
-                          options={[tr("男"), tr("女"), tr("未知")].map((value) => ({
-                            value,
-                            label: value,
-                          }))}
-                        />
-                      ) : key === "extra" ? (
-                        <Input.TextArea
-                          rows={3}
-                          value={parameterValues[key]}
-                          onChange={(event) =>
-                            setParameterValues((previous) => ({
-                              ...previous,
-                              [key]: event.target.value,
-                            }))
-                          }
-                        />
-                      ) : (
-                        <Input
-                          value={parameterValues[key]}
-                          onChange={(event) =>
-                            setParameterValues((previous) => ({
-                              ...previous,
-                              [key]: event.target.value,
-                            }))
-                          }
-                        />
-                      )}
-                    </Form.Item>
-                  ))}
-                  <p className="form-hint">
-                    {tr(
-                      "性别支持\u201C男、女、未知\u201D，也支持 sex=man、sex=woman、sex=unknown。字段不能满足需求时，可在链接后添加 extra= ",
-                    )}
-                    {localizeStatic(parameterExamples, tr).extra}
-                    {tr(
-                      "。也可直接传入自定义字段；客服右侧客户资料会逐行显示。复制时会自动编码中文、JSON与特殊字符。 ",
-                    )}
-                  </p>
-                  {parameterError && (
-                    <p role="alert" className="form-hint">
-                      {parameterError}
-                    </p>
-                  )}
                   <Form.Item label={tr("聊天链接")}>
-                    <Input
+                    <Input.TextArea
+                      aria-label={tr("聊天链接")}
                       readOnly
-                      value={sharing ? link(sharing) : ""}
-                      addonAfter={
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<CopyOutlined />}
-                          aria-label={tr("复制链接")}
-                          onClick={() => sharing && void copy(link(sharing))}
-                        />
-                      }
+                      autoSize={{ minRows: 2, maxRows: 6 }}
+                      value={sharing ? link(sharing, true) : ""}
                     />
                   </Form.Item>
-                  <Button
-                    type="primary"
-                    href={sharing && !parameterError ? link(sharing) : undefined}
-                    target="_blank"
-                    disabled={!!parameterError}
-                  >
-                    {tr("打开此链接 ")}
-                  </Button>
+                  <Space wrap>
+                    <Button
+                      icon={<CopyOutlined />}
+                      onClick={() => sharing && void copy(link(sharing, true))}
+                    >
+                      {tr("复制链接")}
+                    </Button>
+                    <Button
+                      type="primary"
+                      href={sharing ? link(sharing) : undefined}
+                      target="_blank"
+                    >
+                      {tr("打开此链接 ")}
+                    </Button>
+                  </Space>
                   <p className="form-hint">
-                    {tr("访客通过此链接即可发起咨询；公开参数仅为展示资料，不用于恢复身份。 ")}
+                    {tr(
+                      "资料参数始终接收，中文字段更易读；phone、name、avatar_url、sex 等英文写法也兼容。",
+                    )}
                   </p>
-                  <section className="console-share-qr">
-                    <h3>{tr("预览二维码")}</h3>
-                    {sharing && !parameterError && <QRCode value={link(sharing)} />}
-                  </section>
                 </Form>
               ),
             },
@@ -613,7 +503,7 @@ export function LinksPage() {
               label: tr("二维码"),
               children: (
                 <div className="console-share-qr">
-                  {sharing && !parameterError && <QRCode value={link(sharing)} />}
+                  {sharing && <QRCode value={link(sharing)} />}
                   <p className="form-hint">{tr("可用手机扫描，打开对应咨询入口。")}</p>
                 </div>
               ),
@@ -622,39 +512,27 @@ export function LinksPage() {
               key: "embed",
               label: tr("嵌入"),
               children: (
-                <Form layout="vertical">
-                  <Form.Item label={tr("JS悬浮窗代码")}>
-                    <Input.TextArea
-                      readOnly
-                      rows={4}
-                      value={sharing ? widgetCode(window.location.origin, sharing.entry_key) : ""}
+                <div className="share-embed-content">
+                  {sharing && (
+                    <LinkWidgetSettings
+                      key={`${links.tenantId}:${sharing.id}`}
+                      link={sharing}
+                      tenantId={links.tenantId}
                     />
-                    <Button
-                      onClick={() => {
-                        if (sharing) {
-                          setWidgetLink(sharing);
-                          setSharing(null);
-                        }
-                      }}
-                    >
-                      {tr("配置悬浮窗")}
-                    </Button>
-                  </Form.Item>
-                  <Form.Item label={tr("网页嵌入示例")}>
+                  )}
+                  <section>
+                    <h3>{tr("网页嵌入代码")}</h3>
                     <Input.TextArea
                       readOnly
-                      rows={6}
+                      rows={5}
                       value={
                         sharing
-                          ? tr(
-                              '<iframe src="{p0}" title="在线客服" style="width:100%;height:680px;border:0"></iframe>',
-                              { p0: String(link(sharing)) },
-                            )
+                          ? `<iframe src="${link(sharing)}" title="GoodChat" style="width:100%;height:680px;border:0"></iframe>`
                           : ""
                       }
                     />
-                  </Form.Item>
-                </Form>
+                  </section>
+                </div>
               ),
             },
           ]}
@@ -665,14 +543,6 @@ export function LinksPage() {
           )}
         </p>
       </Drawer>
-      {widgetLink && (
-        <LinkWidgetSettings
-          key={`${links.tenantId}:${widgetLink.id}`}
-          link={widgetLink}
-          tenantId={links.tenantId}
-          onClose={() => setWidgetLink(null)}
-        />
-      )}
     </section>
   );
 }

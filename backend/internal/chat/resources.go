@@ -71,6 +71,23 @@ func (s *Service) resources(name string) http.HandlerFunc {
 			if r.Method == http.MethodGet {
 				query := resourceQuery(name)
 				args := []any{}
+				if name == "access-links" && (r.URL.Query().Has("limit") || r.URL.Query().Has("cursor")) {
+					page, err := s.recordPageOptions(r, a, 20)
+					if err != nil {
+						return err
+					}
+					query, args = page.query(query, args, "t")
+					rows, err := tx.Query(ctx, query, args...)
+					if err != nil {
+						return err
+					}
+					items, err := jsonRows(rows)
+					if err != nil {
+						return err
+					}
+					result, err = s.recordPageResult(items, page)
+					return err
+				}
 				if name == "contacts" {
 					var err error
 					query, args, err = contactListQuery(r, a)

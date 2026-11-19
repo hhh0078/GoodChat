@@ -9,7 +9,6 @@ import {
   App,
   Button,
   Checkbox,
-  Drawer,
   Form,
   Input,
   InputNumber,
@@ -46,15 +45,7 @@ export function widgetCode(origin: string, entryKey: string): string {
 }
 
 /** LinkWidgetSettings 通过独立版本保存悬浮窗，避免覆盖链接的接待或装修设置。 */
-export function LinkWidgetSettings({
-  link,
-  tenantId,
-  onClose,
-}: {
-  link: AccessLink;
-  tenantId: string;
-  onClose: () => void;
-}) {
+export function LinkWidgetSettings({ link, tenantId }: { link: AccessLink; tenantId: string }) {
   const tr = useTranslator();
   const { message } = App.useApp();
   const [form] = Form.useForm<Widget>();
@@ -111,20 +102,8 @@ export function LinkWidgetSettings({
   const required = [{ required: true }];
   const days = [tr("周日"), tr("周一"), tr("周二"), tr("周三"), tr("周四"), tr("周五"), tr("周六")];
   return (
-    <Drawer
-      title={`${tr("悬浮窗")} · ${link.name}`}
-      open
-      onClose={onClose}
-      size={560}
-      footer={
-        <Space>
-          <Button type="primary" loading={busy} disabled={!current} onClick={() => form.submit()}>
-            {tr("保存")}
-          </Button>
-          <Button onClick={onClose}>{tr("关闭")}</Button>
-        </Space>
-      }
-    >
+    <section className="console-widget-settings">
+      <h3>{tr("悬浮窗")}</h3>
       <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />
       {!current ? (
         !error && <Spin />
@@ -335,6 +314,9 @@ export function LinkWidgetSettings({
           />
         </Form>
       )}
-    </Drawer>
+      <Button type="primary" loading={busy} disabled={!current} onClick={() => form.submit()}>
+        {tr("保存")}
+      </Button>
+    </section>
   );
 }

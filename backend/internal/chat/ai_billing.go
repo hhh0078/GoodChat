@@ -205,41 +205,97 @@ func (s *Service) aiCredit(w http.ResponseWriter, r *http.Request) {
 // aiUsage 返回租户钱包和按成员授权的用量，供应商成本不向租户公开。
 func (s *Service) aiUsage(w http.ResponseWriter, r *http.Request) {
 	a := memberActor(r)
-	var wallet any
-	var jobs, entries []map[string]any
-	e := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
+	page, err := s.recordPageOptions(r, a, 100)
+	if err != nil {
+		replyError(w, r, err)
+		return
+	}
+	var result map[string]any
+	err = platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
 		ctx := r.Context()
-		var e error
-		if isAdmin(a) {
-			wallet, e = txJSON(ctx, tx, "SELECT to_jsonb(w) FROM ai_wallets w")
-			if e == pgx.ErrNoRows {
-				wallet = map[string]any{"balance_micro": 0, "reserved_micro": 0}
-				e = nil
+		var wallet, summary any
+		var entries []map[string]any
+		if page.before == nil {
+			if isAdmin(a) {
+				var e error
+				wallet, e = txJSON(ctx, tx, "SELECT to_jsonb(w) FROM ai_wallets w")
+				if e == pgx.ErrNoRows {
+					wallet = map[string]any{"balance_micro": 0, "reserved_micro": 0}
+					e = nil
+				}
+				if e != nil {
+					return e
+				}
+				// 旧客户端继续接收最近流水，新列表按需访问独立分页账本。
+				if !r.URL.Query().Has("limit") {
+					rows, e := tx.Query(ctx, "SELECT to_jsonb(e) FROM ai_wallet_entries e ORDER BY created_at DESC,id LIMIT 100")
+					if e != nil {
+						return e
+					}
+					entries, e = jsonRows(rows)
+					if e != nil {
+						return e
+					}
+				}
 			}
-			if e != nil {
-				return e
-			}
-			rows, e := tx.Query(ctx, "SELECT to_jsonb(e) FROM ai_wallet_entries e ORDER BY created_at DESC LIMIT 100")
-			if e != nil {
-				return e
-			}
-			entries, e = jsonRows(rows)
+			var e error
+			summary, e = txJSON(ctx, tx, `SELECT jsonb_build_object('calls',count(*),'uncertain',count(*) FILTER(WHERE j.status='uncertain'),'charged_micro',coalesce(sum((SELECT coalesce(-sum(e.delta_micro),0) FROM ai_wallet_entries e WHERE e.job_id=j.id AND e.kind='charge')),0)) FROM ai_jobs j WHERE ($1 OR j.owner_membership_id=$2)`, isAdmin(a), a.MemberID)
 			if e != nil {
 				return e
 			}
 		}
-		rows, e := tx.Query(ctx, `SELECT (to_jsonb(j)-'snapshot'-'result'-'cost_micro')||jsonb_build_object('charged_micro',coalesce((SELECT -sum(e.delta_micro) FROM ai_wallet_entries e WHERE e.job_id=j.id AND e.kind='charge'),0),'owner_name',(SELECT coalesce(nullif(m.display_name,''),u.display_name) FROM tenant_memberships m JOIN users u ON u.id=m.user_id WHERE m.id=j.owner_membership_id)) FROM ai_jobs j WHERE ($1 OR owner_membership_id=$2) ORDER BY created_at DESC LIMIT 100`, isAdmin(a), a.MemberID)
+		query := `SELECT (to_jsonb(j)-'snapshot'-'result'-'cost_micro')||jsonb_build_object('charged_micro',coalesce((SELECT -sum(e.delta_micro) FROM ai_wallet_entries e WHERE e.job_id=j.id AND e.kind='charge'),0),'owner_name',(SELECT coalesce(nullif(m.display_name,''),u.display_name) FROM tenant_memberships m JOIN users u ON u.id=m.user_id WHERE m.id=j.owner_membership_id)) FROM ai_jobs j WHERE ($1 OR j.owner_membership_id=$2)`
+		query, args := page.query(query, []any{isAdmin(a), a.MemberID}, "j")
+		rows, e := tx.Query(ctx, query, args...)
 		if e != nil {
 			return e
 		}
-		jobs, e = jsonRows(rows)
-		return e
+		jobs, e := jsonRows(rows)
+		if e != nil {
+			return e
+		}
+		result, e = s.recordPageResult(jobs, page)
+		if e != nil {
+			return e
+		}
+		result["jobs"] = result["items"]
+		result["wallet"], result["summary"], result["entries"] = wallet, summary, entries
+		return nil
 	})
-	if e != nil {
-		replyError(w, r, e)
+	if err != nil {
+		replyError(w, r, err)
 		return
 	}
-	platform.JSON(w, 200, map[string]any{"wallet": wallet, "jobs": jobs, "entries": entries})
+	platform.JSON(w, 200, result)
+}
+
+// aiLedger 仅管理员可读取本租户的独立余额流水，消费和充值保留原始微元精度。
+func (s *Service) aiLedger(w http.ResponseWriter, r *http.Request) {
+	a := memberActor(r)
+	page, err := s.recordPageOptions(r, a, 20)
+	if err != nil {
+		replyError(w, r, err)
+		return
+	}
+	var result map[string]any
+	err = platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
+		query, args := page.query("SELECT to_jsonb(e) FROM ai_wallet_entries e WHERE true", nil, "e")
+		rows, e := tx.Query(r.Context(), query, args...)
+		if e != nil {
+			return e
+		}
+		items, e := jsonRows(rows)
+		if e != nil {
+			return e
+		}
+		result, e = s.recordPageResult(items, page)
+		return e
+	})
+	if err != nil {
+		replyError(w, r, err)
+		return
+	}
+	platform.JSON(w, 200, result)
 }
 
 // aiPlatformUsage 按租户事务汇总真实成本、收入、未知调用和余额，不越过租户RLS。

@@ -337,7 +337,11 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           <main key={tenantId} className="workspace-content">
-            {children}
+            {pathname.startsWith("/console") || pathname.startsWith("/platform") ? (
+              <div className="workspace-page-card">{children}</div>
+            ) : (
+              children
+            )}
           </main>
         </div>
         <Drawer

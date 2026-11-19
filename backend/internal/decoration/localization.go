@@ -17,6 +17,27 @@ import (
 //go:embed visitor_localization.js
 var visitorLocalizationScript string
 
+// validRenderPreferences 仅允许渲染入口继承的语言时区，资源凭证仍固定在路径中。
+func validRenderPreferences(r *http.Request) bool {
+	query, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		return false
+	}
+	for key, values := range query {
+		if len(values) != 1 {
+			return false
+		}
+		if key == "lang" && localization.Normalize(values[0]) != "" {
+			continue
+		}
+		if key == "timezone" && localization.ValidTimezone(values[0]) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 // localizedRenderTarget 在静态入口重定向时保留有效的个人语言时区，不转发身份信息。
 func localizedRenderTarget(r *http.Request, target string) string {
 	parsed, err := url.Parse(target)

@@ -108,7 +108,8 @@ func newFixture(t *testing.T) *fixture {
 	}
 	for _, dsn := range []string{cfg.Database, cfg.Migration} {
 		parsed, err := pgxpool.ParseConfig(dsn)
-		if err != nil || parsed.ConnConfig.Database != "goodchat_saas" {
+		// 允许本机带专用前缀的新测试库，避免复用旧结构；远程库仍仅限原来的独立测试库。
+		if err != nil || !(parsed.ConnConfig.Database == "goodchat_saas" || (strings.HasPrefix(parsed.ConnConfig.Database, "goodchat_saas_test_") && (parsed.ConnConfig.Host == "127.0.0.1" || parsed.ConnConfig.Host == "localhost" || parsed.ConnConfig.Host == "::1"))) {
 			t.Fatal("安全检查失败：只允许独立goodchat_saas测试库")
 		}
 	}
