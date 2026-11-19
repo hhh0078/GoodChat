@@ -11,11 +11,11 @@ import {
   publicSoftwareData,
 } from "../src/lib/public-seo.ts";
 
-test("XML完整覆盖九语言八类公开页面，排除业务与账号地址", () => {
+test("XML完整覆盖九语言九类公开页面，排除业务与账号地址", () => {
   const origin = "https://goodchat.example/";
   const entries = publicSitemap(origin);
-  assert.equal(entries.length, 72);
-  assert.equal(new Set(entries.map((entry) => entry.url)).size, 72);
+  assert.equal(entries.length, 81);
+  assert.equal(new Set(entries.map((entry) => entry.url)).size, 81);
   for (const locale of locales) {
     for (const path of publicPagePaths) {
       const expected = new URL(publicPagePath(locale, path), origin).href;

@@ -7,6 +7,7 @@ export const publicPagePaths = [
   "/pricing",
   "/help",
   "/downloads",
+  "/articles",
   "/privacy",
   "/terms",
 ] as const;

@@ -25,6 +25,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <Link href="/pricing">{tr("价格方案")}</Link>
             <Link href="/downloads">{tr("客户端下载")}</Link>
             <Link href="/help">{tr("接入帮助")}</Link>
+            <Link href="/articles">{tr("文章")}</Link>
           </nav>
           <div className="public-actions">
             <LocaleSettingsButton />
@@ -47,6 +48,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <Link href="/solutions">{tr("使用场景")}</Link>
             <Link href="/pricing">{tr("价格方案")}</Link>
             <Link href="/help">{tr("接入帮助")}</Link>
+            <Link href="/articles">{tr("文章")}</Link>
             <Link href="/privacy">{tr("隐私政策")}</Link>
             <Link href="/downloads">{tr("客户端下载")}</Link>
             <Link href="/terms">{tr("服务条款")}</Link>

@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"supportdesk/backend/internal/articles"
 	"supportdesk/backend/internal/auth"
 	"supportdesk/backend/internal/billing"
 	"supportdesk/backend/internal/callbacks"
@@ -117,6 +118,10 @@ func main() {
 	notices.Register(mux)
 	releases.New(pool, identity).Register(mux)
 	messaging.Register(mux)
+	posts := articles.New(pool, identity, cfg)
+	posts.Model = messaging.PlatformTextModel
+	posts.Register(mux)
+	go posts.Start(ctx)
 	hooks.Register(mux)
 	plans.Register(mux)
 	designs.Register(mux)

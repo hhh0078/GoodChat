@@ -1,0 +1,50 @@
+/** 文件作用说明：定义文章语言版本、任务及平台安全设置的前后端契约。 */
+export type SiteArticle = {
+  id: string;
+  group_id: string;
+  source_id: string | null;
+  language: string;
+  title: string;
+  slug: string;
+  summary: string;
+  body_markdown?: string;
+  body_html?: string;
+  keywords: string[];
+  status: string;
+  version: number;
+  published_at: string | null;
+  updated_at: string;
+  created_at: string;
+};
+export type ArticleSettings = {
+  version: number;
+  ai_enabled: boolean;
+  ai_prompt: string;
+  source_language: string;
+  target_languages: string[];
+  daily_time: string;
+  timezone: string;
+  next_run_at: string | null;
+  ai_configured: boolean;
+  model: string;
+  title_count: number;
+  baidu_enabled: boolean;
+  baidu_token_configured: boolean;
+  indexnow_enabled: boolean;
+  indexnow_key_configured: boolean;
+  indexnow_key_location: string;
+  google_enabled: boolean;
+  google_credentials_configured: boolean;
+  google_site: string;
+  sitemap_url: string;
+};
+export type ArticleJob = {
+  id: string;
+  kind: string;
+  provider: string;
+  status: string;
+  attempts: number;
+  error_message: string;
+  created_at: string;
+  result: { title?: string; submitted?: number };
+};

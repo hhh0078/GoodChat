@@ -1,5 +1,6 @@
 /** 文件作用说明：为平台管理员提供独立平台管理页与真实套餐配置入口。 */
 "use client";
+import { ArticleManager } from "@/features/articles/manager";
 import { PlatformMail } from "@/features/notifications/platform";
 import { PlatformCustomerAI } from "@/features/ai/platform";
 import { PageTitle } from "@/components/page-state";
@@ -30,6 +31,7 @@ export function PlatformConsole() {
     "mail",
     "customer-ai",
     "clients",
+    "articles",
   ].includes(selected)
     ? selected
     : "tenants";
@@ -65,6 +67,7 @@ export function PlatformConsole() {
             { key: "upgrades", label: tr("升级申请与人工开通"), children: <PlatformUpgrades /> },
             { key: "mail", label: tr("邮件与通知"), children: <PlatformMail /> },
             { key: "customer-ai", label: tr("客服AI与计费"), children: <PlatformCustomerAI /> },
+            { key: "articles", label: tr("文章管理"), children: <ArticleManager /> },
             { key: "clients", label: tr("客户端下载与版本"), children: <ClientReleases /> },
           ]}
         />

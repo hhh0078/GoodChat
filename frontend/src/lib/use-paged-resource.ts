@@ -11,11 +11,20 @@ type Page<T> = { items: T[]; next_cursor: string; has_more: boolean };
 export function usePagedResource<T extends { id: string }, Metadata = object>(
   path: string,
   enabled = true,
+  platform = false,
 ) {
   const { tenantId, current } = useSession();
   const locale = useLocale();
   const [revision, setRevision] = useState(0);
-  const scope = JSON.stringify([tenantId, current.user.id, locale, path, enabled, revision]);
+  const scope = JSON.stringify([
+    tenantId,
+    current.user.id,
+    locale,
+    path,
+    enabled,
+    platform,
+    revision,
+  ]);
   const [state, setState] = useState<{
     scope: string;
     items: T[];
@@ -33,14 +42,15 @@ export function usePagedResource<T extends { id: string }, Metadata = object>(
     setState({ scope, items: [], loading: enabled, hasMore: false, error: null });
     /** load 只消费一个当前游标，身份变化或组件销毁后不再更新视图。 */
     async function load() {
-      if (pending || !more || controller.signal.aborted || !enabled || !tenantId) return;
+      if (pending || !more || controller.signal.aborted || !enabled || (!platform && !tenantId))
+        return;
       pending = true;
       setState((previous) => ({ ...previous, loading: true, error: null }));
       try {
         const query = new URLSearchParams({ limit: "20", ...(cursor ? { cursor } : {}) });
         const page = await api<Page<T> & Metadata>(
           `${path}${path.includes("?") ? "&" : "?"}${query}`,
-          { tenantId, signal: controller.signal },
+          { tenantId: platform ? undefined : tenantId, signal: controller.signal },
         );
         if (controller.signal.aborted) return;
         if (page.has_more && (!page.next_cursor || page.next_cursor === cursor))
@@ -82,7 +92,7 @@ export function usePagedResource<T extends { id: string }, Metadata = object>(
       controller.abort();
       operation.current = null;
     };
-  }, [scope, path, tenantId, enabled]);
+  }, [scope, path, tenantId, enabled, platform]);
   const reload = useCallback(() => setRevision((value) => value + 1), []);
   const loadMore = useCallback(() => operation.current?.(), []);
   const active = state.scope === scope ? state : null;

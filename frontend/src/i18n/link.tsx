@@ -11,6 +11,7 @@ const publicPaths = new Set([
   "/pricing",
   "/help",
   "/downloads",
+  "/articles",
   "/privacy",
   "/terms",
 ]);
