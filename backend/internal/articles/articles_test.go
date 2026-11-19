@@ -75,7 +75,7 @@ func TestSearchSecret(t *testing.T) {
 
 // TestGeneratedProductFacts 阻止常见但未实现的行业功能被自动写成当前产品能力。
 func TestGeneratedProductFacts(t *testing.T) {
-	for _, body := range []string{"可接入微信公众号统一接待", "调整置信度阈值", "随后自动生成工单", "轻量免费模型处理", "只有当用户发送消息才产生费用", "Use a confidence threshold"} {
+	for _, body := range []string{"可接入微信公众号统一接待", "调整置信度阈值", "随后自动生成工单", "轻量免费模型处理", "只有当用户发送消息才产生费用", "Use a confidence threshold", "开启退出意图功能", "滚动到页面底部后显示", "在嵌入页面创建新入口", "Enable exit-intent"} {
 		if validateGeneratedFacts(Draft{Markdown: body}) == nil {
 			t.Fatal(body)
 		}
