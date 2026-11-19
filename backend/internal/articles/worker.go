@@ -98,7 +98,7 @@ func (s *Service) runOne(ctx context.Context) (bool, error) {
 		code, message := safeJobError(workErr)
 		status := "queued"
 		var completed any
-		if j.Attempts >= 3 {
+		if j.Attempts >= 3 || code == "article_ai_output_limit" || code == "article_context_too_large" {
 			status = "failed"
 			completed = s.now()
 		}

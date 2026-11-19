@@ -7,4 +7,5 @@ type TextModel struct {
 	APIKey    string `json:"-"`
 	MaxInput  int
 	MaxOutput int
+	Extras    map[string]any `json:"-"`
 }

@@ -15,7 +15,7 @@ func (s *Service) PlatformTextModel(ctx context.Context) (platform.TextModel, er
 		if err != nil {
 			return err
 		}
-		result = platform.TextModel{BaseURL: model.BaseURL, Model: model.Model, APIKey: model.APIKey, MaxInput: model.MaxInput, MaxOutput: model.MaxOutput}
+		result = platform.TextModel{BaseURL: model.BaseURL, Model: model.Model, APIKey: model.APIKey, MaxInput: model.MaxInput, MaxOutput: model.MaxOutput, Extras: aiModelExtras(model)}
 		return nil
 	})
 	return result, err

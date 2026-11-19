@@ -22,7 +22,7 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { App, Avatar, Button, Drawer, Dropdown, Menu, Space, Tag, Tooltip } from "antd";
+import { App, Avatar, Button, Drawer, Dropdown, Menu, Select, Space, Tag, Tooltip } from "antd";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { LocaleSettingsButton } from "@/i18n/locale-provider";
@@ -30,7 +30,7 @@ import { Brand } from "./brand";
 /** WorkspaceChrome 根据身份呈现工作端导航与租户切换。 */
 function WorkspaceChrome({ children }: { children: React.ReactNode }) {
   const tr = useTranslator();
-  const { current, tenantId } = useSession();
+  const { current, tenantId, setTenantId } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -171,7 +171,20 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
         <Brand />
       </div>
       <div className="sidebar-workspace">
-        <span className="shell-tenant-name">{member?.tenant_name || tr("工作空间")}</span>
+        {current.memberships.length > 1 ? (
+          <Select
+            aria-label={tr("工作空间")}
+            value={tenantId}
+            onChange={setTenantId}
+            style={{ width: "100%" }}
+            options={current.memberships.map((item) => ({
+              value: item.tenant_id,
+              label: item.tenant_name,
+            }))}
+          />
+        ) : (
+          <span className="shell-tenant-name">{member?.tenant_name || tr("工作空间")}</span>
+        )}
       </div>
       <Menu
         mode="inline"

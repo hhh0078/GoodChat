@@ -110,12 +110,18 @@ func (s *Service) callModel(ctx context.Context, system, prompt, language string
 	if maxOutput <= 0 || maxOutput > 12000 {
 		maxOutput = 8192
 	}
+	lastReason := "JSON对象与字段格式无效"
 	for attempt := 0; attempt < 2; attempt++ {
 		instruction := system + ` 仅输出JSON对象，结构为{"language":"` + language + `","title":"标题","slug":"英文小写关键词短横线网址","summary":"搜索摘要","body_markdown":"Markdown正文","keywords":["关键词"]}。不得输出代码围栏、HTML脚本或额外说明。标题和正文必须使用指定语言。`
 		if attempt > 0 {
-			instruction += " 上一次结果未通过结构校验，请严格按指定JSON字段和语言重新输出。"
+			instruction += " 上一次结果未通过结构校验：" + lastReason + "。请严格按指定JSON字段和语言重新输出。"
 		}
-		body, _ := json.Marshal(map[string]any{"model": model.Model, "response_format": map[string]string{"type": "json_object"}, "max_tokens": maxOutput, "messages": []map[string]string{{"role": "system", "content": instruction}, {"role": "user", "content": prompt}}})
+		payload := map[string]any{"model": model.Model, "response_format": map[string]string{"type": "json_object"}, "max_tokens": maxOutput, "messages": []map[string]string{{"role": "system", "content": instruction}, {"role": "user", "content": prompt}}}
+		if thinking, ok := model.Extras["enable_thinking"]; ok {
+			payload["enable_thinking"] = thinking
+		}
+		body, _ := json.Marshal(payload)
+
 		request, e := http.NewRequestWithContext(ctx, "POST", endpoint.String(), bytes.NewReader(body))
 		if e != nil {
 			return Draft{}, nil, e
@@ -139,26 +145,36 @@ func (s *Service) callModel(ctx context.Context, system, prompt, language string
 				Message struct {
 					Content string `json:"content"`
 				} `json:"message"`
+				FinishReason string `json:"finish_reason"`
 			} `json:"choices"`
-			Usage map[string]int64 `json:"usage"`
+			Usage struct {
+				Input  int64 `json:"prompt_tokens"`
+				Output int64 `json:"completion_tokens"`
+				Total  int64 `json:"total_tokens"`
+			} `json:"usage"`
 		}
 		if json.Unmarshal(raw, &result) != nil || len(result.Choices) == 0 {
 			continue
+		}
+		if result.Choices[0].FinishReason == "length" {
+			return Draft{}, nil, taskFail("article_ai_output_limit", "模型输出达到上限，文章尚未完整生成，请提高平台模型输出上限或缩短文章要求")
 		}
 		var draft Draft
 		if json.Unmarshal([]byte(result.Choices[0].Message.Content), &draft) != nil {
 			continue
 		}
 		if draft.Language != "" && draft.Language != language {
+			lastReason = "language字段必须严格使用" + language
 			continue
 		}
 		draft.Language = language
 		if _, e = validateDraft(&draft); e != nil {
+			_, lastReason = safeJobError(e)
 			continue
 		}
-		return draft, result.Usage, nil
+		return draft, map[string]int64{"prompt_tokens": result.Usage.Input, "completion_tokens": result.Usage.Output, "total_tokens": result.Usage.Total}, nil
 	}
-	return Draft{}, nil, taskFail("article_ai_format", "文章模型输出未通过Markdown文章结构校验")
+	return Draft{}, nil, taskFail("article_ai_format", "文章模型输出未通过结构校验："+lastReason)
 }
 
 // completeContentJob 与文章发布处于同一事务，重启不会在已发布后再次生成相同任务的文章。
