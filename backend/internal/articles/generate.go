@@ -111,12 +111,20 @@ func (s *Service) callModel(ctx context.Context, system, prompt, language string
 		maxOutput = 8192
 	}
 	lastReason := "JSON对象与字段格式无效"
+	previous := ""
 	for attempt := 0; attempt < 2; attempt++ {
 		instruction := system + ` 仅输出JSON对象，结构为{"language":"` + language + `","title":"标题","slug":"英文小写关键词短横线网址","summary":"搜索摘要","body_markdown":"Markdown正文","keywords":["关键词"]}。不得输出代码围栏、HTML脚本或额外说明。标题和正文必须使用指定语言。`
 		if attempt > 0 {
 			instruction += " 上一次结果未通过结构校验：" + lastReason + "。请严格按指定JSON字段和语言重新输出。"
 		}
-		payload := map[string]any{"model": model.Model, "response_format": map[string]string{"type": "json_object"}, "max_tokens": maxOutput, "messages": []map[string]string{{"role": "system", "content": instruction}, {"role": "user", "content": prompt}}}
+		messages := []map[string]string{{"role": "system", "content": instruction}, {"role": "user", "content": prompt}}
+		if previous != "" {
+			if model.MaxInput > 0 && len(instruction)+len(prompt)+len(previous) > model.MaxInput*3 {
+				return Draft{}, nil, taskFail("article_context_too_large", "原稿纠正超出模型上下文，请缩短文章要求或调整模型容量")
+			}
+			messages = append(messages, map[string]string{"role": "assistant", "content": previous}, map[string]string{"role": "user", "content": "请修改上面原稿，具体问题：" + lastReason + "。只保留已核实的产品事实；删除未确认能力所在的整段，包括否定这些能力的说明，不要改成‘不支持’后保留。保持其余正确内容，返回修正后的完整JSON文章。"})
+		}
+		payload := map[string]any{"model": model.Model, "response_format": map[string]string{"type": "json_object"}, "max_tokens": maxOutput, "messages": messages}
 		if thinking, ok := model.Extras["enable_thinking"]; ok {
 			payload["enable_thinking"] = thinking
 		}
@@ -159,6 +167,7 @@ func (s *Service) callModel(ctx context.Context, system, prompt, language string
 		if result.Choices[0].FinishReason == "length" {
 			return Draft{}, nil, taskFail("article_ai_output_limit", "模型输出达到上限，文章尚未完整生成，请提高平台模型输出上限或缩短文章要求")
 		}
+		previous = result.Choices[0].Message.Content
 		var draft Draft
 		if json.Unmarshal([]byte(result.Choices[0].Message.Content), &draft) != nil {
 			continue

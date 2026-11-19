@@ -62,6 +62,9 @@ func TestArticleFactRepair(t *testing.T) {
 			if calls == 2 && (len(input.Messages) == 0 || !strings.Contains(input.Messages[0].Content, "工单")) {
 				t.Error("缺少事实校验反馈")
 			}
+			if calls == 2 && (len(input.Messages) != 4 || !strings.Contains(input.Messages[2].Content, "支持自动生成工单") || !strings.Contains(input.Messages[3].Content, "修改上面原稿")) {
+				t.Error("未将原稿交回模型定向修正")
+			}
 			body := "支持自动生成工单"
 			if repair && calls == 2 {
 				body = "在接入管理创建网站咨询链接。"
