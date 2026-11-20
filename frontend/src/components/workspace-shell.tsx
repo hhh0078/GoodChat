@@ -1,4 +1,4 @@
-/** 文件作用说明：提供平台、租户和客服工作端统一导航、租户选择与退出操作。 */
+/** 文件作用说明：为默认客服后台提供平台、管理和客服统一导航及退出操作。 */
 "use client";
 import { AssistantLauncher, AssistantProvider } from "@/features/assistant/launcher";
 import { SessionProvider, useSession } from "@/features/auth/session";
@@ -22,15 +22,15 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { App, Avatar, Button, Drawer, Dropdown, Menu, Select, Space, Tag, Tooltip } from "antd";
+import { App, Avatar, Button, Drawer, Dropdown, Menu, Space, Tag, Tooltip } from "antd";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { LocaleSettingsButton } from "@/i18n/locale-provider";
 import { Brand } from "./brand";
-/** WorkspaceChrome 根据身份呈现工作端导航与租户切换。 */
+/** WorkspaceChrome 根据默认后台身份呈现工作端导航。 */
 function WorkspaceChrome({ children }: { children: React.ReactNode }) {
   const tr = useTranslator();
-  const { current, tenantId, setTenantId } = useSession();
+  const { current, tenantId } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -38,7 +38,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
   const member = current.memberships.find((item) => item.tenant_id === tenantId);
   const manages = member?.role === "owner" || member?.role === "admin";
   const entries = [
-    { key: "/console", icon: <AppstoreOutlined />, label: tr("工作空间") },
+    { key: "/console", icon: <AppstoreOutlined />, label: tr("概览") },
     { key: "/workspace", icon: <CustomerServiceOutlined />, label: tr("客服工作台") },
     { key: "/console/ai", icon: <RobotOutlined />, label: tr("AI客服") },
     { key: "/console/notifications", icon: <MailOutlined />, label: tr("邮件与通知") },
@@ -126,10 +126,10 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
     }))
     .filter((group) => group.items.length > 0);
   const serving = pathname === "/workspace";
-  const pageLabel = entries.find((entry) => entry.key === selected)?.label || tr("工作空间");
+  const pageLabel = entries.find((entry) => entry.key === selected)?.label || tr("概览");
   const sections = [
     {
-      label: tr("工作空间"),
+      label: tr("客服"),
       paths: ["/console", "/workspace", "/console/ai", "/console/notifications"],
     },
     {
@@ -171,20 +171,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
         <Brand />
       </div>
       <div className="sidebar-workspace">
-        {current.memberships.length > 1 ? (
-          <Select
-            aria-label={tr("工作空间")}
-            value={tenantId}
-            onChange={setTenantId}
-            style={{ width: "100%" }}
-            options={current.memberships.map((item) => ({
-              value: item.tenant_id,
-              label: item.tenant_name,
-            }))}
-          />
-        ) : (
-          <span className="shell-tenant-name">{member?.tenant_name || tr("工作空间")}</span>
-        )}
+        <span className="shell-tenant-name">{member?.tenant_name || "GoodChat"}</span>
       </div>
       <Menu
         mode="inline"
@@ -200,7 +187,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
           <strong>{current.user.display_name || current.user.email}</strong>
           <span>
             {member?.role === "owner"
-              ? tr("工作空间所有者")
+              ? tr("所有者")
               : member?.role === "admin"
                 ? tr("租户管理员")
                 : tr("客服成员")}
@@ -266,11 +253,11 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
                   );
                 })}
               </nav>
-              <Tooltip title={tr("账号与工作空间")} placement="right">
+              <Tooltip title={tr("账号")} placement="right">
                 <Button
                   className="rail-account"
                   type="text"
-                  aria-label={tr("账号与工作空间")}
+                  aria-label={tr("账号")}
                   onClick={() => navigate("/console/settings?tab=account")}
                 >
                   <Avatar size={30} src={member?.avatar_url || undefined}>
@@ -296,7 +283,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
                 <span className="shell-wordmark">GoodChat</span>
               ) : (
                 <span className="shell-breadcrumb">
-                  {tr("工作空间 ")}
+                  GoodChat
                   <span aria-hidden="true">/</span>
                 </span>
               )}
@@ -363,7 +350,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
           onClose={() => setMobileOpen(false)}
           placement="left"
           width={260}
-          title={tr("工作空间导航")}
+          title={tr("打开导航")}
         >
           {nav}
         </Drawer>

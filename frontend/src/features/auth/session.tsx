@@ -1,4 +1,4 @@
-/** 文件作用说明：管理当前账号、可用租户与工作空间切换，不在浏览器保存成员登录令牌。 */
+/** 文件作用说明：使用服务端默认客服后台管理当前账号身份，不在浏览器保存成员登录令牌。 */
 "use client";
 import { useTranslator } from "@/i18n/use-translator";
 import { api, ApiError, errorMessage } from "@/lib/api";
@@ -9,11 +9,10 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 type SessionValue = {
   current: CurrentUser;
   tenantId: string;
-  setTenantId: (id: string) => void;
   reload: () => Promise<void>;
 };
 const SessionContext = createContext<SessionValue | null>(null);
-/** SessionProvider 获取服务端身份，限定可选租户并在未登录时跳转。 */
+/** SessionProvider 获取服务端默认后台身份，忽略历史切换偏好并在未登录时跳转。 */
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const tr = useTranslator();
   const [current, setCurrent] = useState<CurrentUser | null>(null);
@@ -28,17 +27,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setCurrent(data);
       window.dispatchEvent(new Event("goodchat:authenticated"));
       setError("");
-      let remembered: string | null = null;
       try {
-        remembered = localStorage.getItem("goodchat.activeTenant");
+        localStorage.removeItem("goodchat.activeTenant");
       } catch {
-        /* 禁用存储时使用服务端默认租户。 */
+        /* 禁用存储不影响服务端默认身份。 */
       }
-      setTenant(
-        data.memberships.some((item) => item.tenant_id === remembered)
-          ? remembered!
-          : data.active_tenant_id || data.memberships[0]?.tenant_id || "",
-      );
+      setTenant(data.active_tenant_id || data.memberships[0]?.tenant_id || "");
     } catch (problem) {
       setCurrent(null);
       if (problem instanceof ApiError && problem.status === 401)
@@ -49,21 +43,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void reload();
   }, [reload]);
-  /** setTenantId 只接受当前账号已有成员关系的租户。 */
-  function setTenantId(id: string) {
-    if (!current?.memberships.some((item) => item.tenant_id === id)) return;
-    try {
-      localStorage.setItem("goodchat.activeTenant", id);
-    } catch {
-      /* 当前窗口仍可切换工作空间。 */
-    }
-    setTenant(id);
-  }
   if (error)
     return (
       <Result
         status="warning"
-        title={tr("暂时没有读到工作空间")}
+        title={tr("重新连接")}
         subTitle={<Alert type="error" title={error} />}
         extra={<Button onClick={() => void reload()}>{tr("重新连接")}</Button>}
       />
@@ -71,11 +55,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   if (!current)
     return (
       <div className="console-loading">
-        <Spin description={tr("正在读取工作空间")} size="large" />
+        <Spin size="large" />
       </div>
     );
   return (
-    <SessionContext.Provider value={{ current, tenantId, setTenantId, reload }}>
+    <SessionContext.Provider value={{ current, tenantId, reload }}>
       {children}
     </SessionContext.Provider>
   );
