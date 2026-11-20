@@ -8,8 +8,80 @@ import os
 import re
 from pathlib import Path
 import subprocess
+import tempfile
 import time
 import urllib.request
+import urllib.error
+import urllib.parse
+import xml.etree.ElementTree as ET
+
+
+def publish_static(target, content):
+    """同目录原子替换公开文件，相同内容保留修改时间，不暴露未写完的文件。"""
+    target.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
+    if target.exists() and target.read_bytes() == content:
+        return
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".sitemap-", delete=False) as output:
+            temporary = Path(output.name)
+            output.write(content)
+            output.flush()
+            os.fsync(output.fileno())
+        temporary.chmod(0o644)
+        os.replace(temporary, target)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def refresh_sitemap(root):
+    """读取本机应用的完整公开目录，校验后原子发布静态副本，失败保留旧文件。"""
+    request = urllib.request.Request("http://127.0.0.1:13100/sitemap.xml", headers={"Accept-Encoding": "identity"})
+    with urllib.request.urlopen(request, timeout=15) as response:
+        if response.status != 200:
+            raise ValueError("地图生成失败")
+        content = response.read(50_000_001)
+    if len(content) > 50_000_000:
+        raise ValueError("地图超过大小限制")
+    namespace = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+    tree = ET.fromstring(content)
+    if tree.tag != namespace + "urlset":
+        raise ValueError("地图根节点无效")
+    urls = [row.findtext(namespace + "loc", "") for row in tree]
+    if not 81 <= len(urls) <= 50000 or len(set(urls)) != len(urls):
+        raise ValueError("地图目录不完整或重复")
+    for address in urls:
+        url = urllib.parse.urlsplit(address)
+        if url.scheme != "https" or url.netloc != "goodchat.58it.cn" or url.query or url.fragment:
+            raise ValueError("地图包含非规范网址")
+        if url.path.split("/")[1] not in {"zh-CN", "zh-TW", "en", "ja", "ko", "es", "pt-BR", "fr", "de"}:
+            raise ValueError("地图包含非公开页面")
+    publish_static(root.parent / ".well-known" / "sitemap.xml", content)
+
+
+def refresh_indexnow_key(root):
+    """同步已启用的公开验证键，停用后移除副本；临时错误不得覆盖有效键。"""
+    target = root.parent / ".well-known" / "indexnow-key.txt"
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:13100/indexnow-key.txt", timeout=10) as response:
+            content = response.read(129)
+            if response.status != 200 or not re.fullmatch(rb"[A-Za-z0-9-]{8,128}", content):
+                raise ValueError("验证文件无效")
+        publish_static(target, content)
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise
+        target.unlink(missing_ok=True)
+
+
+def try_refresh_sitemap(root):
+    """独立更新地图和公开验证键，失败仅记录类型且不阻塞应用发布。"""
+    for update in (refresh_sitemap, refresh_indexnow_key):
+        try:
+            update(root)
+        except Exception as error:
+            print(f"公开文件更新失败，保留旧文件：{update.__name__} {type(error).__name__}", flush=True)
 
 
 def run(args, root, capture=False, timeout=None):
@@ -125,8 +197,10 @@ def main():
             print("上次构建尚未结束，本轮跳过", flush=True)
             return
         try:
+            try_refresh_sitemap(args.root.resolve())
             deploy(args.root.resolve(), args.private.resolve(), args.force)
         finally:
+            try_refresh_sitemap(args.root.resolve())
             cleanup_images(args.root.resolve())
 
 
