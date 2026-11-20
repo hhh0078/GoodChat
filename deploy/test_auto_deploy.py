@@ -63,6 +63,7 @@ class SitemapSnapshotTest(unittest.TestCase):
             stamp = self.target.stat().st_mtime_ns
             deploy.refresh_sitemap(self.root)
         self.assertEqual(self.target.read_bytes(), self.content)
+        self.assertEqual((self.target.parent / 'sitemap-crawl-check-20261120.xml').read_bytes(), self.content)
         self.assertEqual(self.target.stat().st_mtime_ns, stamp)
         self.assertEqual(self.target.stat().st_mode & 0o777, 0o644)
         self.assertEqual(list(self.target.parent.glob('.sitemap-*')), [])

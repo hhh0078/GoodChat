@@ -58,6 +58,8 @@ def refresh_sitemap(root):
         if url.path.split("/")[1] not in {"zh-CN", "zh-TW", "en", "ja", "ko", "es", "pt-BR", "fr", "de"}:
             raise ValueError("地图包含非公开页面")
     publish_static(root.parent / ".well-known" / "sitemap.xml", content)
+    # 同时更新已提交的旧地址对应文件，兼容证书验证目录的独立静态处理规则。
+    publish_static(root.parent / ".well-known" / "sitemap-crawl-check-20261120.xml", content)
 
 
 def refresh_indexnow_key(root):
