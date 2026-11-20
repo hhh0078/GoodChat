@@ -1,0 +1,130 @@
+/* 文件作用说明：将知识目录与正文组织为紧凑双栏，小屏改为上下布局，避免知识表格挤压。 */
+.ai-knowledge-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ai-knowledge-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  min-height: 420px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ai-knowledge-tree {
+  padding: 16px 10px;
+  background: #f8faff;
+  border-right: 1px solid var(--border, #e2e8f0);
+  max-height: 740px;
+  overflow: auto;
+}
+.ai-knowledge-tree .ant-tree {
+  background: transparent;
+  font-size: 13px;
+}
+.ai-knowledge-tree .ant-tree-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ai-knowledge-main {
+  padding: 20px;
+  min-width: 0;
+}
+.ai-knowledge-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.ai-knowledge-heading h3 {
+  font-size: 16px;
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+.ai-knowledge-heading p {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.ai-knowledge-documents article {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.ai-knowledge-document-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.ai-knowledge-document-link:hover strong {
+  color: var(--brand, #1e55ff);
+}
+.ai-knowledge-document-link span {
+  min-width: 0;
+}
+.ai-knowledge-document-link strong,
+.ai-knowledge-document-link small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.ai-knowledge-document-link small {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.6;
+}
+.ai-knowledge-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.85;
+  padding: 18px;
+  background: #f8faff;
+  border-radius: 8px;
+  margin: 16px 0 24px;
+}
+.ai-knowledge-document-meta {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 1000px) {
+  .ai-knowledge-layout {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+}
+@media (max-width: 720px) {
+  .ai-knowledge-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ai-knowledge-tree {
+    max-height: 260px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+  }
+  .ai-knowledge-main {
+    padding: 16px;
+  }
+  .ai-knowledge-documents article {
+    flex-wrap: wrap;
+  }
+  .ai-knowledge-documents .ai-knowledge-document-link {
+    flex-basis: 100%;
+  }
+  .ai-knowledge-heading {
+    flex-wrap: wrap;
+  }
+}

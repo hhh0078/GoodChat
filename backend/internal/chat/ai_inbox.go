@@ -20,6 +20,7 @@ func (s *Service) aiInbox(w http.ResponseWriter, r *http.Request) {
 	}
 	var in struct {
 		Action      string `json:"action"`
+		FolderID    string `json:"folder_id"`
 		KnowledgeID string `json:"knowledge_id"`
 		Title       string `json:"title"`
 		Answer      string `json:"answer"`
@@ -125,8 +126,11 @@ func (s *Service) aiInbox(w http.ResponseWriter, r *http.Request) {
 			if count >= 1000 {
 				return platform.Fail(400, "ai_resource_limit", "资源数量已达到上限")
 			}
+			if e := aiValidateFolder(ctx, tx, a.TenantID, in.FolderID); e != nil {
+				return e
+			}
 			knowledge = newID()
-			if _, e := tx.Exec(ctx, `INSERT INTO ai_knowledge_bases(id,tenant_id,owner_membership_id,title,draft_body) VALUES($1,$2,$3,$4,$5)`, knowledge, a.TenantID, a.MemberID, title, strings.TrimSpace(block)); e != nil {
+			if _, e := tx.Exec(ctx, `INSERT INTO ai_knowledge_bases(id,tenant_id,owner_membership_id,title,draft_body,folder_id) VALUES($1,$2,$3,$4,$5,NULLIF($6,'')::uuid)`, knowledge, a.TenantID, a.MemberID, title, strings.TrimSpace(block), in.FolderID); e != nil {
 				return e
 			}
 		} else {

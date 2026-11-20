@@ -4103,5 +4103,16 @@
   "mf472f1c9": "Trace d’exécution IA",
   "mf686d4b0": "Tâche terminée",
   "mf8bcbcee": "Complété",
-  "mfd82a693": "Échec de l’appel au modèle"
+  "mfd82a693": "Échec de l’appel au modèle",
+  "m05088159": "Dossier",
+  "m376bd227": "Racine",
+  "m9440a464": "Modifier le dossier",
+  "mbdfc6c7e": "Nouveau dossier",
+  "mee124472": "Nom du dossier",
+  "m99a64818": "Dossier parent",
+  "m4b4cd42f": "Rechercher connaissances ou dossiers",
+  "m241b2fc5": "Chaque appel IA inclut l’arborescence autorisée complète. Les documents sont lus au besoin.",
+  "m3c95184e": "Répertoire des connaissances",
+  "ma5d07a11": "Toutes les connaissances",
+  "m0860436b": "Supprimer ce dossier vide ?"
 }

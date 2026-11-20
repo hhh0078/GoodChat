@@ -23,6 +23,7 @@ type aiBlock struct {
 // aiContentInput 保存内容编辑的白名单字段，不接受租户或创建成员编号。
 type aiContentInput struct {
 	Title        string    `json:"title"`
+	FolderID     *string   `json:"folder_id"`
 	Body         string    `json:"body"`
 	Description  string    `json:"description"`
 	Language     string    `json:"language"`
@@ -113,15 +114,26 @@ func (s *Service) aiResources(resource string) http.HandlerFunc {
 			}
 			switch resource {
 			case "knowledge":
+				if in.FolderID != nil {
+					if e := aiValidateFolder(ctx, tx, a.TenantID, *in.FolderID); e != nil {
+						return e
+					}
+				}
 				if strings.TrimSpace(in.Body) == "" || len([]byte(in.Body)) > 16000 {
 					return platform.Fail(400, "ai_knowledge_limit", "知识库正文不能为空且不能超过16000字节")
 				}
 				if r.Method == "POST" {
-					_, err := tx.Exec(ctx, `INSERT INTO ai_knowledge_bases(id,tenant_id,owner_membership_id,title,draft_body,enabled) VALUES($1,$2,$3,$4,$5,$6)`, id, a.TenantID, a.MemberID, in.Title, in.Body, in.Enabled)
+					_, err := tx.Exec(ctx, `INSERT INTO ai_knowledge_bases(id,tenant_id,owner_membership_id,title,draft_body,enabled,folder_id) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,'')::uuid)`, id, a.TenantID, a.MemberID, in.Title, in.Body, in.Enabled, in.FolderID)
 					if err != nil {
 						return err
 					}
 				} else {
+					// 目录属于组织元数据，正文未变时移动文档不重新生成描述或改变已发布正文。
+					if in.FolderID != nil {
+						if _, e := tx.Exec(ctx, "UPDATE ai_knowledge_bases SET folder_id=NULLIF($2,'')::uuid,updated_at=now() WHERE id=$1", id, *in.FolderID); e != nil {
+							return e
+						}
+					}
 					var unchanged bool
 					if e := tx.QueryRow(ctx, "SELECT draft_body=$2 AND title=$3 AND enabled=$4 AND status='ready' FROM ai_knowledge_bases WHERE id=$1", id, in.Body, in.Title, in.Enabled).Scan(&unchanged); e != nil {
 						return e

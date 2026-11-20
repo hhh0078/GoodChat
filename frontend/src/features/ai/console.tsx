@@ -4,6 +4,7 @@ import { useSession } from "@/features/auth/session";
 import { useTranslator } from "@/i18n/use-translator";
 import { useEffect, useState } from "react";
 import { AIInbox } from "./inbox";
+import { AIKnowledgeTree } from "./knowledge-tree";
 import { AITraces } from "./traces";
 import { Tabs } from "antd";
 import { AIBotSettingsPage } from "./bot";
@@ -32,7 +33,7 @@ export function AICustomerServicePage() {
         destroyOnHidden
         items={[
           { key: "bot", label: tr("机器人设置"), children: <AIBotSettingsPage /> },
-          { key: "knowledge", label: tr("知识库"), children: <AIContentList kind="knowledge" /> },
+          { key: "knowledge", label: tr("知识库"), children: <AIKnowledgeTree /> },
           { key: "media", label: tr("媒体库"), children: <AIMediaLibrary /> },
           { key: "scripts", label: tr("AI话术"), children: <AIContentList kind="scripts" /> },
           ...(manages ? [{ key: "inbox", label: tr("待处理"), children: <AIInbox /> }] : []),

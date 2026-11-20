@@ -23,6 +23,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import type { AIContent } from "./types";
 import { AIKnowledgeHistory } from "./revisions";
+import { knowledgeFolderPath, type AIFolder } from "./knowledge-tree-data";
 import { AIScriptEditor } from "./script-editor";
 
 /** AIContentList 为知识和话术显示真实状态及成员维护权限。 */
@@ -160,12 +161,14 @@ export function AIContentList({ kind }: { kind: "knowledge" | "scripts" }) {
 }
 
 /** AIKnowledgeEditor 保留纯文本正文，光标插入的话术编号不扩大机器人授权。 */
-function AIKnowledgeEditor({
+export function AIKnowledgeEditor({
   item,
+  defaultFolder = "",
   onClose,
   onSaved,
 }: {
   item: AIContent | null;
+  defaultFolder?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -176,6 +179,7 @@ function AIKnowledgeEditor({
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const scripts = useResource<AIContent>("/tenant/ai/scripts");
+  const folders = useResource<AIFolder>("/tenant/ai/knowledge-folders");
   const selection = useRef({
     start: item?.draft_body?.length || 0,
     end: item?.draft_body?.length || 0,
@@ -190,6 +194,7 @@ function AIKnowledgeEditor({
         tenantId,
         bodyJSON: {
           title: values.title,
+          folder_id: values.folder_id || "",
           body: values.body,
           enabled: values.enabled,
           version: item?.version || 0,
@@ -239,11 +244,27 @@ function AIKnowledgeEditor({
         layout="vertical"
         initialValues={{
           title: item?.title || "",
+          folder_id: item?.folder_id || defaultFolder,
           body: item?.draft_body || "",
           enabled: item?.enabled ?? true,
         }}
         disabled={busy}
       >
+        <ErrorNotice error={folders.error} retry={folders.reload} />
+        <Form.Item name="folder_id" label={tr("所属目录")}>
+          <Select
+            showSearch
+            optionFilterProp="label"
+            loading={folders.loading}
+            options={[
+              { value: "", label: tr("根目录") },
+              ...folders.items.map((f) => ({
+                value: f.id,
+                label: knowledgeFolderPath(f.id, folders.items),
+              })),
+            ]}
+          />
+        </Form.Item>
         <Form.Item name="title" label={tr("标题")} rules={[{ required: true, whitespace: true }]}>
           <Input maxLength={100} />
         </Form.Item>

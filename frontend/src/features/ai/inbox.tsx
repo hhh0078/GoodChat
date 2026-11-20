@@ -11,6 +11,7 @@ import { useResource } from "@/lib/use-resource";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { LoadMore } from "@/components/load-more";
 import { AITraceDetail } from "./traces";
+import { knowledgeFolderPath, type AIFolder } from "./knowledge-tree-data";
 import type { AIContent } from "./types";
 import "./operations.css";
 
@@ -44,6 +45,7 @@ function AIGapSupplement({
   const { tenantId } = useSession();
   const { message } = App.useApp();
   const knowledge = useResource<AIContent>("/tenant/ai/knowledge");
+  const folders = useResource<AIFolder>("/tenant/ai/knowledge-folders");
   const [form] = Form.useForm();
   const [busy, setBusy] = useState(false);
   const selected = Form.useWatch("knowledge_id", form);
@@ -88,7 +90,7 @@ function AIGapSupplement({
       <Form
         form={form}
         layout="vertical"
-        initialValues={{ knowledge_id: "", title: item.question.slice(0, 80) }}
+        initialValues={{ knowledge_id: "", folder_id: "", title: item.question.slice(0, 80) }}
       >
         <Form.Item name="knowledge_id" label={tr("补充到知识库")}>
           <Select
@@ -97,10 +99,29 @@ function AIGapSupplement({
               { value: "", label: tr("新建知识库") },
               ...knowledge.items
                 .filter((k) => k.editable && k.enabled)
-                .map((k) => ({ value: k.id, label: k.title })),
+                .map((k) => ({
+                  value: k.id,
+                  label: `${knowledgeFolderPath(k.folder_id || "", folders.items)} / ${k.title}`,
+                })),
             ]}
           />
         </Form.Item>
+        {!selected && (
+          <Form.Item name="folder_id" label={tr("所属目录")}>
+            <Select
+              showSearch
+              optionFilterProp="label"
+              loading={folders.loading}
+              options={[
+                { value: "", label: tr("根目录") },
+                ...folders.items.map((f) => ({
+                  value: f.id,
+                  label: knowledgeFolderPath(f.id, folders.items),
+                })),
+              ]}
+            />
+          </Form.Item>
+        )}
         {!selected && (
           <Form.Item name="title" label={tr("标题")} rules={[{ required: true }]}>
             <Input maxLength={100} />

@@ -49,6 +49,10 @@ func (s *Service) registerAI(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/platform/ai/usage", s.auth.RequirePlatform(s.aiPlatformUsage))
 	mux.HandleFunc("POST /api/v1/platform/ai/wallets/{id}/credit", s.auth.RequirePlatform(s.aiCredit))
 	mux.HandleFunc("PUT /api/v1/platform/ai/wallets/{id}/mode", s.auth.RequirePlatform(s.aiWalletMode))
+	mux.HandleFunc("GET /api/v1/tenant/ai/knowledge-folders", s.auth.RequireTenant(s.aiKnowledgeFolders))
+	mux.HandleFunc("POST /api/v1/tenant/ai/knowledge-folders", s.auth.RequireAdmin(s.aiKnowledgeFolders))
+	mux.HandleFunc("PATCH /api/v1/tenant/ai/knowledge-folders/{id}", s.auth.RequireAdmin(s.aiKnowledgeFolders))
+	mux.HandleFunc("DELETE /api/v1/tenant/ai/knowledge-folders/{id}", s.auth.RequireAdmin(s.aiKnowledgeFolders))
 	for _, resource := range []string{"knowledge", "scripts", "media"} {
 		mux.HandleFunc("GET /api/v1/tenant/ai/"+resource, s.auth.RequireTenant(s.aiResources(resource)))
 		mux.HandleFunc("POST /api/v1/tenant/ai/"+resource, s.auth.RequireTenant(s.aiResources(resource)))

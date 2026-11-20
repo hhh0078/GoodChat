@@ -280,7 +280,7 @@ func (s *Service) aiCatalog(ctx context.Context, tx pgx.Tx, j *aiJobData) error 
 	size := 0
 	for _, id := range j.Snapshot.Bot.KnowledgeIDs {
 		var k aiKnowledge
-		e := tx.QueryRow(ctx, `SELECT id::text,title,description,published_body,published_version FROM ai_knowledge_bases WHERE id=$1 AND enabled AND NOT archived AND published_version>0`, id).Scan(&k.ID, &k.Title, &k.Description, &k.Body, &k.Version)
+		e := tx.QueryRow(ctx, `SELECT id::text,title,description,published_body,published_version,coalesce(folder_id::text,'') FROM ai_knowledge_bases WHERE id=$1 AND enabled AND NOT archived AND published_version>0`, id).Scan(&k.ID, &k.Title, &k.Description, &k.Body, &k.Version, &k.FolderID)
 		if e == pgx.ErrNoRows {
 			continue
 		}
@@ -290,6 +290,12 @@ func (s *Service) aiCatalog(ctx context.Context, tx pgx.Tx, j *aiJobData) error 
 		size += len(k.Title) + len(k.Description) + 100
 		j.Snapshot.Knowledge = append(j.Snapshot.Knowledge, k)
 	}
+	var directoryErr error
+	j.Snapshot.Directory, directoryErr = aiBuildDirectory(ctx, tx, j.Snapshot.Knowledge)
+	if directoryErr != nil {
+		return directoryErr
+	}
+	size = len(jsonValue(j.Snapshot.Directory))
 	for _, id := range j.Snapshot.Bot.ScriptIDs {
 		var script aiScript
 		e := tx.QueryRow(ctx, `SELECT id::text,title,description,language,version FROM ai_scripts WHERE id=$1 AND enabled AND NOT archived`, id).Scan(&script.ID, &script.Title, &script.Description, &script.Language, &script.Version)

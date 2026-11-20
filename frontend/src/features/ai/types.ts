@@ -13,6 +13,7 @@ export type AIMedia = {
   attachment: { id: string; file_name: string; content_type: string; size_bytes: number };
 };
 export type AIContent = {
+  folder_id?: string | null;
   id: string;
   title: string;
   description: string;

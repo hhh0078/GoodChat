@@ -4103,5 +4103,16 @@
   "mf472f1c9": "AI execution trace",
   "mf686d4b0": "Task completed",
   "mf8bcbcee": "Supplemented",
-  "mfd82a693": "Model call failed"
+  "mfd82a693": "Model call failed",
+  "m05088159": "Folder",
+  "m376bd227": "Root",
+  "m9440a464": "Edit folder",
+  "mbdfc6c7e": "New folder",
+  "mee124472": "Folder name",
+  "m99a64818": "Parent folder",
+  "m4b4cd42f": "Search knowledge or folders",
+  "m241b2fc5": "Every AI support call includes the complete authorized directory tree. Documents are read on demand.",
+  "m3c95184e": "Knowledge directory",
+  "ma5d07a11": "All knowledge",
+  "m0860436b": "Delete this empty folder?"
 }
