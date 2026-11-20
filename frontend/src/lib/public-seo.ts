@@ -17,7 +17,7 @@ export function publicPagePath(locale: Locale, path: string): string {
   return `/${locale}${path === "/" ? "" : path}`;
 }
 
-/** publicLanguagePaths 为HTML与XML复用同一组含自身和默认语言的替代链接。 */
+/** publicLanguagePaths 为页面HTML提供含自身和默认语言的替代链接。 */
 export function publicLanguagePaths(path: string): Record<string, string> {
   return {
     ...Object.fromEntries(locales.map((locale) => [locale, publicPagePath(locale, path)])),
@@ -25,21 +25,11 @@ export function publicLanguagePaths(path: string): Record<string, string> {
   };
 }
 
-/** publicSitemap 只包含八类公开官网页面，禁止把账号、租户或访客资料放入目录。 */
+/** publicSitemap 只输出九类公开页面的规范网址，语言替代关系由页面HTML声明。 */
 export function publicSitemap(origin: string) {
   return locales.flatMap((locale) =>
     publicPagePaths.map((path) => ({
       url: new URL(publicPagePath(locale, path), origin).href,
-      alternates: {
-        languages: Object.fromEntries(
-          Object.entries(publicLanguagePaths(path)).map(([code, target]) => [
-            code,
-            new URL(target, origin).href,
-          ]),
-        ),
-      },
-      changeFrequency: "monthly" as const,
-      priority: path === "/" ? 1 : 0.7,
     })),
   );
 }

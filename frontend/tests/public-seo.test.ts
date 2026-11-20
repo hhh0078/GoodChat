@@ -1,4 +1,4 @@
-/** 文件作用说明：验证九语言公开目录、HTML/XML替代链接一致性和免费软件收费边界的结构化数据。 */
+/** 文件作用说明：验证简洁XML目录覆盖、HTML语言替代关系和免费软件收费边界的结构化数据。 */
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -21,21 +21,7 @@ test("XML完整覆盖九语言九类公开页面，排除业务与账号地址",
       const expected = new URL(publicPagePath(locale, path), origin).href;
       const entry = entries.find((row) => row.url === expected);
       assert.ok(entry);
-      assert.deepEqual(
-        entry.alternates.languages,
-        Object.fromEntries(
-          Object.entries(publicLanguagePaths(path)).map(([code, target]) => [
-            code,
-            new URL(target, origin).href,
-          ]),
-        ),
-      );
-      assert.equal(Object.keys(entry.alternates.languages).length, 10);
-      assert.equal(entry.alternates.languages[locale], expected);
-      assert.equal(
-        entry.alternates.languages["x-default"],
-        new URL(publicPagePath("en", path), origin).href,
-      );
+      assert.deepEqual(Object.keys(entry), ["url"]);
       assert.equal(new URL(entry.url).search, "");
       assert.doesNotMatch(entry.url, /\/console|\/platform|\/workspace|\/login|\/register|\/c\//);
     }
