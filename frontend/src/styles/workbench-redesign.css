@@ -1722,7 +1722,7 @@
 /* 输入胶囊共用紧凑布局；发送只移动浮层，真实消息状态与布局保持稳定。 */
 .message-capsule {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
   padding: 8px;
   border: 1px solid var(--line);
