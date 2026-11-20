@@ -344,7 +344,7 @@ func TestSearchProviderContracts(t *testing.T) {
 		status, body := 200, `{}`
 		switch r.URL.Hostname() {
 		case "data.zz.baidu.com":
-			if r.URL.Query().Get("token") != "private-baidu" || !strings.Contains(string(raw), "/zh-CN/articles/education-help") {
+			if r.Method != "POST" || r.URL.Scheme != "http" || r.URL.Path != "/urls" || r.URL.Query().Get("site") != "https://goodchat.example" || r.URL.Query().Get("token") != "private-baidu" || !strings.Contains(string(raw), "/zh-CN/articles/education-help") {
 				t.Error("百度协议")
 			}
 			body = `{"success":1}`

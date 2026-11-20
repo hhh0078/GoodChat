@@ -188,7 +188,8 @@ func (s *Service) submitSearch(ctx context.Context, j job) (map[string]any, erro
 			var raw []byte
 			if j.Provider == "baidu" {
 				q := url.Values{"site": {strings.TrimRight(s.cfg.PublicURL, "/")}, "token": {key}}
-				status, raw, e = s.searchRequest(ctx, "POST", "https://data.zz.baidu.com/urls?"+q.Encode(), "text/plain", []byte(strings.Join(chunk, "\n")), "")
+				// 百度资源平台公布的普通收录接口为HTTP，该主机不提供可用的HTTPS接口。
+				status, raw, e = s.searchRequest(ctx, "POST", "http://data.zz.baidu.com/urls?"+q.Encode(), "text/plain", []byte(strings.Join(chunk, "\n")), "")
 				if e != nil {
 					return nil, e
 				}
