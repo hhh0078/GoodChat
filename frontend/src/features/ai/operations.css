@@ -1,0 +1,198 @@
+/* 文件作用说明：为知识待办与调用记录提供紧凑行、可读链路及移动端布局，沿用后台银白钴蓝主题。 */
+.ai-operations {
+  padding: 4px 0;
+}
+.ai-operations-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.ai-operations-heading h2 {
+  font-size: 18px;
+  margin: 0 0 6px;
+}
+.ai-operations-heading p {
+  margin: 0;
+  color: var(--text-muted, #64748b);
+  font-size: 13px;
+}
+.ai-operations-filters {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+}
+.ai-operations-filters .ant-input-search {
+  max-width: 380px;
+}
+.ai-operations-filters > .ant-select {
+  min-width: 160px;
+}
+.ai-operation-list {
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+.ai-operation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.ai-operation-content {
+  min-width: 0;
+  flex: 1;
+}
+.ai-operation-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ai-operation-title strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.ai-operation-title .ant-tag {
+  margin: 0;
+}
+.ai-operation-content p {
+  font-size: 13px;
+  margin: 8px 0;
+  color: var(--text-muted, #64748b);
+  overflow-wrap: anywhere;
+}
+.ai-operation-content small {
+  color: var(--text-muted, #64748b);
+}
+.ai-operation-content details {
+  font-size: 12px;
+  margin-top: 10px;
+}
+.ai-operation-content summary,
+.ai-chain-event summary {
+  cursor: pointer;
+}
+.ai-operation-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ai-inbox-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.ai-inbox-summary button {
+  appearance: none;
+  text-align: left;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  border-radius: 10px;
+  padding: 14px 18px;
+  cursor: pointer;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.ai-inbox-summary button.active,
+.ai-inbox-summary button:hover {
+  border-color: var(--brand, #1e55ff);
+  background: var(--brand-soft, #edf2ff);
+}
+.ai-inbox-summary span {
+  font-size: 13px;
+}
+.ai-inbox-summary strong {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.ai-chain-summary {
+  background: var(--brand-soft, #edf2ff);
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  overflow-wrap: anywhere;
+}
+.ai-chain-summary p {
+  white-space: pre-wrap;
+  margin: 12px 0;
+}
+.ai-chain-event {
+  padding: 0 0 16px;
+  min-width: 0;
+}
+.ai-chain-event header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ai-chain-event time,
+.ai-chain-name {
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+}
+.ai-chain-name {
+  display: block;
+  margin: 5px 0 10px;
+  overflow-wrap: anywhere;
+}
+.ai-chain-event summary {
+  font-size: 12px;
+  color: var(--brand, #1e55ff);
+}
+.ai-chain-event pre {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.7;
+  background: #f6f8fb;
+  border: 1px solid #e4e9f0;
+  border-radius: 8px;
+  padding: 12px;
+  max-height: 480px;
+  overflow: auto;
+}
+.ai-trace-drawer .ant-timeline {
+  margin-top: 24px;
+}
+.ai-trace-drawer .ant-drawer-body {
+  overflow-x: hidden;
+}
+@media (max-width: 720px) {
+  .ai-operation-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ai-operation-actions {
+    justify-content: flex-start;
+  }
+  .ai-operations-filters {
+    flex-wrap: wrap;
+  }
+  .ai-operations-filters .ant-input-search {
+    max-width: none;
+  }
+  .ai-inbox-summary button {
+    padding: 12px;
+    gap: 8px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ai-inbox-summary strong {
+    font-size: 22px;
+  }
+  .ai-operations-heading {
+    align-items: flex-start;
+  }
+}

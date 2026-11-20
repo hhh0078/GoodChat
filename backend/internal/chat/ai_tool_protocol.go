@@ -32,7 +32,7 @@ func aiNormalizeToolResponse(out *schema.Message) bool {
 		Name      string          `json:"name"`
 		Arguments json.RawMessage `json:"arguments"`
 	}
-	if aiDecode(raw, &call) != nil || !inStrings(call.Name, "read_knowledge_bases", "submit_reply", "request_handoff") || !strings.HasPrefix(strings.TrimSpace(string(call.Arguments)), "{") {
+	if aiDecode(raw, &call) != nil || !inStrings(call.Name, "read_knowledge_bases", "submit_reply", "request_handoff", "report_knowledge_gap") || !strings.HasPrefix(strings.TrimSpace(string(call.Arguments)), "{") {
 		return false
 	}
 	out.ToolCalls = []schema.ToolCall{{ID: "compat_" + newID(), Type: "function", Function: schema.FunctionCall{Name: call.Name, Arguments: string(call.Arguments)}}}

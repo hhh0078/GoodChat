@@ -151,12 +151,18 @@ func (s *Service) completeAIJob(ctx context.Context, tx pgx.Tx, j *aiJobData, pl
 		return errors.New("ai_stale")
 	}
 	if j.Kind == "summary" {
+		if _, e := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1,47))", j.Tenant); e != nil {
+			return e
+		}
 		tag, e := tx.Exec(ctx, `UPDATE ai_knowledge_bases SET published_body=$3,description=$4,published_version=version,status='ready',error_code='',updated_at=now() WHERE id=$1 AND version=$2 AND NOT archived`, j.KnowledgeID, j.Snapshot.KnowledgeVersion, j.Snapshot.Body, plan.Description)
 		if e != nil {
 			return e
 		}
 		if tag.RowsAffected() != 1 {
 			return errors.New("ai_stale")
+		}
+		if e := aiResolveGaps(ctx, tx, j); e != nil {
+			return e
 		}
 	} else if j.Kind == "reply" {
 		if e := s.aiReplyValid(ctx, tx, j, true); e != nil {
@@ -198,6 +204,9 @@ func (s *Service) completeAIJob(ctx context.Context, tx pgx.Tx, j *aiJobData, pl
 		}
 	}
 	if _, e := tx.Exec(ctx, "UPDATE ai_jobs SET status=$2,result=$3,completed_at=now(),lease_until=NULL WHERE id=$1", j.ID, terminal, jsonValue(plan)); e != nil {
+		return e
+	}
+	if e := aiTraceTx(ctx, tx, j, "completed", terminal, plan); e != nil {
 		return e
 	}
 	return s.aiThinking(ctx, tx, j, false)

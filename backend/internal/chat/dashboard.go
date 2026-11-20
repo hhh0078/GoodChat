@@ -55,6 +55,11 @@ func (s *Service) dashboard(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			result["online_agents"] = online
+			var gaps int
+			if err := tx.QueryRow(ctx, "SELECT count(*) FROM ai_pending_items WHERE status IN('pending','supplementing')").Scan(&gaps); err != nil {
+				return err
+			}
+			result["ai_pending"] = gaps
 		}
 		result["timezone"], result["observed_at"] = timezone, now
 		return nil

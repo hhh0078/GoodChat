@@ -76,6 +76,8 @@ func TestAIBrowserHarness(t *testing.T) {
 		_ = json.NewDecoder(r.Body).Decode(&in)
 		if len(in.Messages) > 0 && strings.Contains(string(jsonValue(in.Messages[0].Content)), "知识库生成使用场景描述") {
 			aiFixtureResponse(w, "", nil, "用于安装、售前和售后问题的隔离验收知识库。", true)
+		} else if os.Getenv("GOODCHAT_AI_INBOX_BROWSER") == "1" && len(in.Messages) > 0 && in.Messages[len(in.Messages)-1].Role == "user" && strings.Contains(string(jsonValue(in.Messages[len(in.Messages)-1].Content)), "知识补充验收") {
+			aiFixtureResponse(w, "report_knowledge_gap", aiGapInput{Reason: "隔离浏览器验收：缺少公开演示代号"}, "", true)
 		} else {
 			aiFixtureResponse(w, "submit_reply", aiPlan{Items: []aiReplyItem{{Type: "text", Text: "这是隔离验收供应商返回的AI回复。"}}}, "", true)
 		}
@@ -124,6 +126,23 @@ func TestAIBrowserHarness(t *testing.T) {
 	}
 	if _, e = f.admin.Exec(ctx, "INSERT INTO ai_wallets(tenant_id,balance_micro) VALUES($1,10000000)", f.tenant); e != nil {
 		t.Fatal(e)
+	}
+	if os.Getenv("GOODCHAT_AI_INBOX_BROWSER") == "1" {
+		b := defaultAIBot()
+		b.Mode = "auto"
+		b.ModelID = modelID
+		b.Name = "隔离验收机器人"
+		var membership string
+		if e = f.admin.QueryRow(ctx, "SELECT id::text FROM tenant_memberships WHERE tenant_id=$1 AND user_id=$2", f.tenant, ownerUser).Scan(&membership); e != nil {
+			t.Fatal(e)
+		}
+		var bot string
+		if e = f.admin.QueryRow(ctx, `INSERT INTO ai_bots(tenant_id,owner_membership_id,model_id,name,mode,settings) VALUES($1,$2,$3,$4,'auto',$5) RETURNING id::text`, f.tenant, membership, modelID, b.Name, jsonValue(b.Settings)).Scan(&bot); e != nil {
+			t.Fatal(e)
+		}
+		if _, e = f.admin.Exec(ctx, `INSERT INTO ai_tenant_settings(tenant_id,default_bot_id,reception_mode) VALUES($1,$2,'ai_first')`, f.tenant, bot); e != nil {
+			t.Fatal(e)
+		}
 	}
 	mux := http.NewServeMux()
 	identity.Register(mux)

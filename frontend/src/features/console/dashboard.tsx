@@ -343,6 +343,11 @@ export function Dashboard() {
           </p>
         </div>
         <div className="dashboard-overview-actions">
+          {manages && (
+            <Button href="/console/ai?tab=inbox">
+              {tr("AI待补充知识")} {report?.ai_pending ?? "—"}
+            </Button>
+          )}
           <Button onClick={() => setOverviewRevision((value) => value + 1)}>{tr("刷新")}</Button>
           <Button href="/workspace" type="primary">
             {tr("进入客服工作台 ")}

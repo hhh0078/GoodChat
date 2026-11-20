@@ -122,6 +122,12 @@ func (s *Service) recoverAIJobs(ctx context.Context, tx pgx.Tx, tenant string) e
 				return e
 			}
 		}
+		if _, e = tx.Exec(ctx, `UPDATE ai_pending_items p SET status='pending',updated_at=now() FROM ai_jobs j WHERE j.id=$1 AND j.kind='summary' AND p.knowledge_id=j.knowledge_id AND p.knowledge_version<=(j.snapshot->>'knowledge_version')::bigint AND p.status='supplementing'`, id); e != nil {
+			return e
+		}
+		if _, e = tx.Exec(ctx, `UPDATE ai_knowledge_bases k SET status='failed',error_code='ai_interrupted' FROM ai_jobs j WHERE j.id=$1 AND j.kind='summary' AND k.id=j.knowledge_id AND k.version=(j.snapshot->>'knowledge_version')::bigint`, id); e != nil {
+			return e
+		}
 		if _, e = tx.Exec(ctx, "UPDATE ai_jobs SET status=$2,billing_status=$3,error_code='ai_interrupted',completed_at=now() WHERE id=$1", id, status, billing); e != nil {
 			return e
 		}
@@ -362,7 +368,13 @@ func (s *Service) failAIJob(ctx context.Context, j *aiJobData, cause error) {
 		if e := s.aiThinking(ctx, tx, j, false); e != nil {
 			return e
 		}
+		if e := aiTraceTx(ctx, tx, j, "failed", code, map[string]any{"status": terminal, "error_code": code}); e != nil {
+			return e
+		}
 		if j.Kind == "summary" {
+			if _, e := tx.Exec(ctx, "UPDATE ai_pending_items SET status='pending',updated_at=now() WHERE knowledge_id=$1 AND knowledge_version<=$2 AND status='supplementing'", j.KnowledgeID, j.Snapshot.KnowledgeVersion); e != nil {
+				return e
+			}
 			_, e := tx.Exec(ctx, "UPDATE ai_knowledge_bases SET status='failed',error_code=$3 WHERE id=$1 AND version=$2", j.KnowledgeID, j.Snapshot.KnowledgeVersion, code)
 			return e
 		}
