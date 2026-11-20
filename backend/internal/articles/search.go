@@ -187,7 +187,12 @@ func (s *Service) submitSearch(ctx context.Context, j job) (map[string]any, erro
 			chunk := urls[start:end]
 			var raw []byte
 			if j.Provider == "baidu" {
-				q := url.Values{"site": {strings.TrimRight(s.cfg.PublicURL, "/")}, "token": {key}}
+				base, parseErr := url.Parse(s.cfg.PublicURL)
+				if parseErr != nil || base.Hostname() == "" {
+					return nil, taskFail("baidu_site_invalid", "百度推送站点域名无效")
+				}
+				// site参数使用已验证的纯域名；包含https前缀会使百度返回site init fail。
+				q := url.Values{"site": {base.Hostname()}, "token": {key}}
 				// 百度资源平台公布的普通收录接口为HTTP，该主机不提供可用的HTTPS接口。
 				status, raw, e = s.searchRequest(ctx, "POST", "http://data.zz.baidu.com/urls?"+q.Encode(), "text/plain", []byte(strings.Join(chunk, "\n")), "")
 				if e != nil {
