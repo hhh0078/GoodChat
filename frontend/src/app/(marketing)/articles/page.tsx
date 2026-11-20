@@ -5,14 +5,29 @@ import { getTranslator } from "@/i18n/server";
 import { publicMetadata } from "@/i18n/metadata";
 import { articleData, articlePath } from "@/lib/site-articles";
 import type { SiteArticle } from "@/features/articles/types";
+import { publicArticleListPath } from "@/lib/public-seo";
+import type { Locale } from "@/i18n/preferences";
 import "@/features/articles/articles.css";
-/** generateMetadata 为文章目录设置当前语言规范网址。 */
-export async function generateMetadata() {
-  return publicMetadata(
+/** generateMetadata 为每页文章目录保留自身规范网址，游标不同的语言页面不伪装为译文。 */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ cursor?: string }>;
+}) {
+  const { cursor } = await searchParams;
+  const locale = (await getLocale()) as Locale;
+  const metadata = await publicMetadata(
     "/articles",
     "使用指南与行业场景",
     "了解AI客服在不同行业的接入方法、知识库配置与使用场景。",
   );
+  if (!cursor) return metadata;
+  const canonical = publicArticleListPath(locale, cursor);
+  return {
+    ...metadata,
+    alternates: { canonical },
+    openGraph: { ...metadata.openGraph, url: canonical },
+  };
 }
 /** ArticlesPage 在服务器过滤语言，切换语言时不会展示其他语言文章。 */
 export default async function ArticlesPage({
@@ -20,7 +35,7 @@ export default async function ArticlesPage({
 }: {
   searchParams: Promise<{ cursor?: string }>;
 }) {
-  const locale = await getLocale();
+  const locale = (await getLocale()) as Locale;
   const tr = await getTranslator();
   const { cursor } = await searchParams;
   const query = new URLSearchParams({
@@ -58,11 +73,9 @@ export default async function ArticlesPage({
         <div className="article-public-empty">{tr("当前语言暂无已发布文章。")}</div>
       )}
       <nav className="article-public-pagination" aria-label={tr("文章分页")}>
-        {cursor ? <Link href={`/${locale}/articles`}>{tr("返回首页")}</Link> : <span />}
+        {cursor ? <Link href={publicArticleListPath(locale)}>{tr("返回首页")}</Link> : <span />}
         {page?.has_more && (
-          <Link href={`/${locale}/articles?cursor=${encodeURIComponent(page.next_cursor)}`}>
-            {tr("下一页")} →
-          </Link>
+          <Link href={publicArticleListPath(locale, page.next_cursor)}>{tr("下一页")} →</Link>
         )}
       </nav>
     </div>

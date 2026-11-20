@@ -113,7 +113,7 @@ func (s *Service) callModel(ctx context.Context, system, prompt, language string
 	lastReason := "JSON对象与字段格式无效"
 	previous := ""
 	for attempt := 0; attempt < 2; attempt++ {
-		instruction := system + ` 仅输出JSON对象，结构为{"language":"` + language + `","title":"标题","slug":"英文小写关键词短横线网址","summary":"搜索摘要","body_markdown":"Markdown正文","keywords":["关键词"]}。不得输出代码围栏、HTML脚本或额外说明。标题和正文必须使用指定语言。`
+		instruction := system + ` 仅输出JSON对象，结构为{"language":"` + language + `","title":"标题","slug":"英文小写关键词短横线网址","summary":"搜索摘要","body_markdown":"Markdown正文","keywords":["关键词"]}。不得输出代码围栏、HTML脚本或额外说明。标题和正文必须使用指定语言。标题要简洁准确，中文建议12至30字，拉丁字母语言建议40至60个字符；保留核心搜索意图，避免冗长套话和堆砌品牌名。`
 		if attempt > 0 {
 			instruction += " 上一次结果未通过结构校验：" + lastReason + "。请严格按指定JSON字段和语言重新输出。"
 		}

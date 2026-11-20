@@ -17,6 +17,17 @@ export function publicPagePath(locale: Locale, path: string): string {
   return `/${locale}${path === "/" ? "" : path}`;
 }
 
+/**
+ * publicArticleListPath 保留文章翻页游标，规范地址不携带语言偏好或追踪参数。
+ * @param locale 当前文章目录语言。
+ * @param cursor 下一页游标，留空时返回文章目录首页。
+ * @returns 当前分页的站内规范地址。
+ */
+export function publicArticleListPath(locale: Locale, cursor?: string): string {
+  const path = publicPagePath(locale, "/articles");
+  return cursor ? `${path}?${new URLSearchParams({ cursor })}` : path;
+}
+
 /** publicLanguagePaths 为页面HTML提供含自身和默认语言的替代链接。 */
 export function publicLanguagePaths(path: string): Record<string, string> {
   return {

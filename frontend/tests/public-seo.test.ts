@@ -5,11 +5,26 @@ import fs from "node:fs";
 import { locales, messageKey } from "../src/i18n/preferences.ts";
 import {
   publicLanguagePaths,
+  publicArticleListPath,
   publicPagePath,
   publicPagePaths,
   publicSitemap,
   publicSoftwareData,
 } from "../src/lib/public-seo.ts";
+
+test("文章翻页规范地址保留当前语言和完整游标，不合并到第一页", () => {
+  for (const locale of locales) {
+    const base = publicArticleListPath(locale);
+    assert.equal(base, `/${locale}/articles`);
+    assert.equal(publicArticleListPath(locale, ""), base);
+    const cursor = "2026-11-20+08:00/下一页=&";
+    const page = new URL(publicArticleListPath(locale, cursor), "https://goodchat.example");
+    assert.equal(page.pathname, base);
+    assert.equal(page.searchParams.get("cursor"), cursor);
+    assert.deepEqual([...page.searchParams.keys()], ["cursor"]);
+    assert.notEqual(page.href, new URL(base, page.origin).href);
+  }
+});
 
 test("XML完整覆盖九语言九类公开页面，排除业务与账号地址", () => {
   const origin = "https://goodchat.example/";
