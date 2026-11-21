@@ -178,6 +178,7 @@ func middleware(cfg platform.Config, next http.Handler) http.Handler {
 		w.Header().Set("X-Request-ID", r.Header.Get("X-Request-ID"))
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		r = platform.BindPublicOrigin(r, cfg)
 		remote, _, _ := net.SplitHostPort(r.RemoteAddr)
 		if ip := net.ParseIP(remote); ip != nil && ip.IsLoopback() && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-GoodChat-Gateway-Token")), []byte(cfg.GatewaySecret)) == 1 {
 			if client := net.ParseIP(r.Header.Get("X-GoodChat-Client-IP")); client != nil {
@@ -185,7 +186,7 @@ func middleware(cfg platform.Config, next http.Handler) http.Handler {
 			}
 		}
 		if origin := r.Header.Get("Origin"); origin != "" && r.Method != http.MethodGet && r.Method != http.MethodHead {
-			allowed, _ := url.Parse(cfg.PublicURL)
+			allowed, _ := url.Parse(platform.PublicURL(r.Context(), cfg.PublicURL))
 			incoming, _ := url.Parse(origin)
 			if allowed == nil || incoming == nil || incoming.Scheme != allowed.Scheme || !strings.EqualFold(incoming.Host, allowed.Host) {
 				platform.ErrorJSON(w, r, platform.Fail(403, "origin_denied", "请从GoodChat页面完成此操作"))

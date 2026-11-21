@@ -105,7 +105,7 @@ func (s *Service) websocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	origins := []string{}
-	if u, e := url.Parse(s.cfg.PublicURL); e == nil && u.Host != "" {
+	if u, e := url.Parse(platform.PublicURL(r.Context(), s.cfg.PublicURL)); e == nil && u.Host != "" {
 		origins = append(origins, u.Host)
 	}
 	if !s.cfg.Production {

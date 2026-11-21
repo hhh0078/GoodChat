@@ -132,7 +132,7 @@ func (s *Service) publicWidget(w http.ResponseWriter, r *http.Request) {
 		Origin   string `json:"origin"`
 		EntryKey string `json:"entry_key"`
 		Timezone string `json:"timezone"`
-	}{widgetSettings: defaultWidgetSettings(), Origin: strings.TrimRight(s.cfg.PublicURL, "/"), EntryKey: key}
+	}{widgetSettings: defaultWidgetSettings(), Origin: platform.PublicURL(r.Context(), s.cfg.PublicURL), EntryKey: key}
 	err = platform.TenantTx(r.Context(), s.pool, tenant, func(tx pgx.Tx) error {
 		if err := tenantActive(r.Context(), tx, tenant); err != nil {
 			return err

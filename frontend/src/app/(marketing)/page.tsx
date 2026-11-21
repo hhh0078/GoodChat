@@ -1,6 +1,9 @@
 /** 文件作用说明：按已确认的银白钴蓝图稿展示科技风官网、真实产品能力与免费注册入口。 */
 import { PublicAIOverview, PublicAIPreview } from "@/components/public-ai-overview";
-import { HeroRings } from "@/components/hero-rings";
+// 双环组件保留，按用户要求暂停在首页挂载。
+// import { HeroRings } from "@/components/hero-rings";
+import { HeroParticles } from "@/components/hero-particles";
+import { HeroTypeTitle } from "@/components/hero-type-title";
 import { ProductPreview } from "@/components/product-preview";
 import {
   ApartmentOutlined,
@@ -20,7 +23,7 @@ import Image from "next/image";
 import { getLocale } from "next-intl/server";
 import type { Locale } from "@/i18n/preferences";
 import { publicSoftwareData } from "@/lib/public-seo";
-import { siteURL } from "@/lib/urls";
+import { requestSiteURL } from "@/lib/site-origin";
 /** generateMetadata 输出当前语言的官网标题和替代地址。 */
 export async function generateMetadata(): Promise<Metadata> {
   return publicMetadata(
@@ -51,7 +54,7 @@ export default async function HomePage() {
   const tr = await getTranslator();
   const locale = (await getLocale()) as Locale;
   const schema = publicSoftwareData(
-    siteURL(),
+    await requestSiteURL(),
     locale,
     tr("AI 客服系统"),
     tr(
@@ -65,7 +68,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, "\\u003c") }}
       />
-      <section className="public-width public-home-hero">
+      <section className="public-width public-home-hero has-conversation">
         <Image
           className="cobalt-hero-environment"
           src="/images/cobalt-hero-environment.png"
@@ -75,13 +78,10 @@ export default async function HomePage() {
           priority
           sizes="100vw"
         />
-        <HeroRings />
+        {/* <HeroRings /> */}
+        <HeroParticles />
         <div className="public-hero-copy">
-          <h1>
-            {tr("AI 客服自动回复，")}
-            <br />
-            <span>{tr("人工随时接管。")}</span>
-          </h1>
+          <HeroTypeTitle lines={[tr("AI 客服自动回复，"), tr("人工随时接管。")]} />
           <p>
             {tr("让 AI 根据你的知识库回答问题，发送图片、视频和语音话术，与人工客服协同接待。")}
           </p>
@@ -102,21 +102,23 @@ export default async function HomePage() {
               <ArrowRightOutlined />
             </Link>
           </div>
+          <div className="hero-capability-links">
+            <Link href="#ai-demo" className="cobalt-hero-callout cobalt-callout-entry">
+              <RobotOutlined />
+              <div>
+                <strong>{tr("知识库自动回复与人工协作")}</strong>
+                <span>{tr("AI 按需读取相关知识")}</span>
+              </div>
+            </Link>
+            <Link href="#ai-demo" className="cobalt-hero-callout cobalt-callout-route">
+              <ApartmentOutlined />
+              <div>
+                <strong>{tr("人工随时接管。")}</strong>
+                <span>{tr("自动或辅助，人工接手")}</span>
+              </div>
+            </Link>
+          </div>
         </div>
-        <Link href="#ai-demo" className="cobalt-hero-callout cobalt-callout-entry">
-          <RobotOutlined />
-          <div>
-            <strong>{tr("知识库自动回复与人工协作")}</strong>
-            <span>{tr("AI 按需读取相关知识")}</span>
-          </div>
-        </Link>
-        <Link href="#ai-demo" className="cobalt-hero-callout cobalt-callout-route">
-          <ApartmentOutlined />
-          <div>
-            <strong>{tr("人工随时接管。")}</strong>
-            <span>{tr("自动或辅助，人工接手")}</span>
-          </div>
-        </Link>
         <div className="public-hero-product">
           <PublicAIPreview />
         </div>

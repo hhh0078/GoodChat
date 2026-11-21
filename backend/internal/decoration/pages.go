@@ -170,7 +170,7 @@ func (s *Service) previewPage(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(r.Context(), `INSERT INTO decoration_previews(tenant_id,page_id,render_mode,design,token_hash) VALUES($1,$2,$3,$4,$5) RETURNING id::text`, platform.Current(r).TenantID, id, mode, design, digest([]byte(token))).Scan(&previewID); err != nil {
 			return nil, err
 		}
-		return map[string]any{"preview_url": s.renderURL(previewID, token), "release_id": previewID, "render_mode": mode, "design": design}, nil
+		return map[string]any{"preview_url": s.renderURLFor(r.Context(), previewID, token), "release_id": previewID, "render_mode": mode, "design": design}, nil
 	})
 }
 
@@ -185,7 +185,7 @@ func (s *Service) EntryDecoration(ctx context.Context, tx pgx.Tx, tenantID, link
 	if err != nil {
 		return nil, err
 	}
-	result := map[string]any{"render_mode": mode, "render_url": s.renderURL(releaseID, ""), "release_id": releaseID, "page_id": pageID}
+	result := map[string]any{"render_mode": mode, "render_url": s.renderURLFor(ctx, releaseID, ""), "release_id": releaseID, "page_id": pageID}
 	if mode == "schema" {
 		result["design"] = design
 	}

@@ -121,3 +121,27 @@ func TestDeliveryClassification(t *testing.T) {
 		}
 	}
 }
+
+// TestAliasOrigin 验证别名站点的来源检查跟随可信网关，仍拒绝主站跨域和伪造头。
+func TestAliasOrigin(t *testing.T) {
+	cfg := platform.Config{PublicURL: "https://primary.example", GatewaySecret: "unit-test-secret", Production: true}
+	service := &Service{cfg: cfg}
+	for _, tc := range []struct {
+		origin, token string
+		allowed       bool
+	}{
+		{"https://alias.example", "unit-test-secret", true},
+		{"https://primary.example", "unit-test-secret", false},
+		{"https://alias.example", "forged", false},
+	} {
+		r := httptest.NewRequest("POST", "/", nil)
+		r.RemoteAddr = "127.0.0.1:1234"
+		r.Header.Set("X-GoodChat-Gateway-Token", tc.token)
+		r.Header.Set("X-GoodChat-Public-Origin", "https://alias.example")
+		r.Header.Set("Origin", tc.origin)
+		r = platform.BindPublicOrigin(r, cfg)
+		if got := service.checkOrigin(r) == nil; got != tc.allowed {
+			t.Fatalf("origin=%s allowed=%v got=%v", tc.origin, tc.allowed, got)
+		}
+	}
+}

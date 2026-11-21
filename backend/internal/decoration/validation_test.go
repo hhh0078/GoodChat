@@ -160,3 +160,25 @@ func TestSchemaCapsuleAttachmentChooser(t *testing.T) {
 		t.Fatal("沙箱文件保存必须通过可信父层，不创建子页下载链接")
 	}
 }
+
+// TestAliasRenderURL 验证同域装修跟随当前站点，独立装修来源和后台默认网址保持原约束。
+func TestAliasRenderURL(t *testing.T) {
+	cfg := platform.Config{PublicURL: "https://primary.example", CodeOrigin: "https://primary.example", GatewaySecret: "unit-test-secret", Production: true}
+	r := httptest.NewRequest("GET", "/", nil)
+	r.RemoteAddr = "127.0.0.1:1234"
+	r.Header.Set("X-GoodChat-Gateway-Token", cfg.GatewaySecret)
+	r.Header.Set("X-GoodChat-Public-Origin", "https://alias.example")
+	r = platform.BindPublicOrigin(r, cfg)
+	s := &Service{cfg: cfg}
+	id := "11111111-1111-4111-8111-111111111111"
+	if got := s.renderURLFor(r.Context(), id, ""); got != "https://alias.example/render/"+id {
+		t.Fatal(got)
+	}
+	if got := s.renderURL(id, ""); got != "https://primary.example/render/"+id {
+		t.Fatal(got)
+	}
+	s.cfg.CodeOrigin = "https://code.example.net"
+	if got := s.renderURLFor(r.Context(), id, ""); got != "https://"+id+".code.example.net/render/"+id {
+		t.Fatal(got)
+	}
+}

@@ -136,7 +136,7 @@ func (s *Service) renderVersion(ctx context.Context, kind, locale, zone string, 
 			values[k] = LocalTime(at, zone)
 		}
 	}
-	return Render(s.cfg.PublicURL, locale, zone, d, values, subject, body, button, selected)
+	return Render(platform.PublicURL(ctx, s.cfg.PublicURL), locale, zone, d, values, subject, body, button, selected)
 }
 
 // endpoint 统一输出安全错误，不回显数据库和邮件正文。

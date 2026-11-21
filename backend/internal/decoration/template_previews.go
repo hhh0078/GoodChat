@@ -157,5 +157,5 @@ func (s *Service) saveTemplatePreview(ctx context.Context, tx pgx.Tx, tenant, so
 			}
 		}
 	}
-	return map[string]any{"preview_url": s.renderURL(previewID, token), "release_id": previewID, "expires_at": expires}, nil
+	return map[string]any{"preview_url": s.renderURLFor(ctx, previewID, token), "release_id": previewID, "expires_at": expires}, nil
 }

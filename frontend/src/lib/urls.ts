@@ -22,7 +22,10 @@ export function entryURL(
     if (value) url.searchParams.set(key, value);
   return url.toString();
 }
-/** siteURL 返回部署配置的官网地址。 */
+/** siteURL 浏览器优先采用当前站点，服务端无请求时使用运行期部署配置。 */
 export function siteURL(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL || "http://127.0.0.1:13000";
+  if (typeof window !== "undefined") return window.location.origin;
+  return (
+    process.env.SUPPORT_PUBLIC_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://127.0.0.1:13000"
+  );
 }

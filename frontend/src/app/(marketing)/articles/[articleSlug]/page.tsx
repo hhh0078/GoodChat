@@ -10,7 +10,7 @@ import {
   articleStructuredData,
   getPublishedArticle,
 } from "@/lib/site-articles";
-import { siteURL } from "@/lib/urls";
+import { requestSiteURL } from "@/lib/site-origin";
 import "@/features/articles/articles.css";
 type Props = { params: Promise<{ articleSlug: string }> };
 /** generateMetadata 使用绝对标题避免站点模板追加，缺失语言不生成另一语言地址。 */
@@ -61,7 +61,7 @@ export default async function ArticlePage({ params }: Props) {
         <div className="article-prose" dangerouslySetInnerHTML={{ __html: a.body_html || "" }} />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: articleStructuredData(a, siteURL()) }}
+          dangerouslySetInnerHTML={{ __html: articleStructuredData(a, await requestSiteURL()) }}
         />
       </article>
     </div>

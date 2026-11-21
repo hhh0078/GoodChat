@@ -241,3 +241,24 @@ func TestPostgresAIResultCannotOverwrite(t *testing.T) {
 		})
 	}
 }
+
+// TestPostgresAliasPreview 验证可信别名读取真实预览、入口链接和CSP父页面，主站会话隔离约束保持不变。
+func TestPostgresAliasPreview(t *testing.T) {
+	f := newIntegrationFixture(t, platform.Config{})
+	f.service.cfg.PublicURL = "https://primary.example"
+	f.service.cfg.CodeOrigin = f.service.cfg.PublicURL
+	f.service.cfg.GatewaySecret = "unit-test-alias-secret"
+	page := f.mustRequest("POST", "/tenant/pages", f.member, map[string]any{"name": "多域名预览验收"})
+	id := page["id"].(string)
+	preview := f.mustRequest("POST", "/tenant/pages/"+id+"/preview", f.member, nil)
+	raw := strings.Replace(preview["preview_url"].(string), "https://primary.example", "https://alias.example", 1)
+	request := httptest.NewRequest("GET", raw, nil)
+	request.RemoteAddr = "127.0.0.1:1234"
+	request.Header.Set("X-GoodChat-Gateway-Token", f.service.cfg.GatewaySecret)
+	request.Header.Set("X-GoodChat-Public-Origin", "https://alias.example")
+	response := httptest.NewRecorder()
+	f.service.CodeHandler().ServeHTTP(response, request)
+	if response.Code != 200 || !strings.Contains(response.Header().Get("Content-Security-Policy"), "frame-ancestors https://alias.example") || strings.Contains(response.Header().Get("Content-Security-Policy"), "allow-same-origin") {
+		t.Fatalf("别名预览隔离失败，状态%d", response.Code)
+	}
+}

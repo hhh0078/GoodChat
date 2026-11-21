@@ -226,7 +226,7 @@ func (s *Service) checkOrigin(r *http.Request) error {
 		return nil
 	}
 	got, err := url.Parse(origin)
-	want, wantErr := url.Parse(s.cfg.PublicURL)
+	want, wantErr := url.Parse(platform.PublicURL(r.Context(), s.cfg.PublicURL))
 	if err != nil || wantErr != nil || got.User != nil || got.RawQuery != "" || got.Fragment != "" || got.Path != "" || got.Scheme != want.Scheme || !strings.EqualFold(got.Host, want.Host) {
 		return platform.Fail(403, "invalid_origin", "请求来源不被允许")
 	}

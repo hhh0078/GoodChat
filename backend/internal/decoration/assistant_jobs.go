@@ -75,7 +75,7 @@ func (s *Service) assistantPreviewURL(ctx context.Context, tx pgx.Tx, tenant, pa
 	if err := tx.QueryRow(ctx, "INSERT INTO decoration_previews(tenant_id,page_id,render_mode,design,token_hash) VALUES($1,$2,'code',$3,$4) RETURNING id::text", tenant, pageID, design, digest([]byte(token))).Scan(&previewID); err != nil {
 		return "", err
 	}
-	return s.renderURL(previewID, token), nil
+	return s.renderURLFor(ctx, previewID, token), nil
 }
 
 // assistantGetJob 读取当前租户任务，其他租户编号返回不存在。

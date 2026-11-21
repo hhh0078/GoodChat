@@ -35,31 +35,57 @@ def publish_static(target, content):
             temporary.unlink(missing_ok=True)
 
 
+def public_origins(root):
+    """读取本站运行配置中的主域名与允许的别名，不把私有环境内容输出到日志。"""
+    values = dict(os.environ)
+    config = root.parent / "private" / "app.env"
+    if config.exists():
+        for line in config.read_text().splitlines():
+            if line and not line.lstrip().startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                if key in {"SUPPORT_PUBLIC_URL", "SUPPORT_PUBLIC_ORIGINS"}:
+                    values[key] = value.strip().strip("\"'")
+    candidates = [values.get("SUPPORT_PUBLIC_URL", ""), *values.get("SUPPORT_PUBLIC_ORIGINS", "").split(",")]
+    origins = []
+    for value in candidates:
+        url = urllib.parse.urlsplit(value.strip())
+        if url.scheme == "https" and url.hostname and not url.username and not url.password and url.path in {"", "/"} and not url.query and not url.fragment:
+            origin = f"{url.scheme}://{url.netloc}"
+            if origin not in origins: origins.append(origin)
+    if not origins:
+        raise ValueError("未配置有效的本站公开域名")
+    return origins
+
+
 def refresh_sitemap(root):
-    """读取本机应用的完整公开目录，校验后原子发布静态副本，失败保留旧文件。"""
-    request = urllib.request.Request("http://127.0.0.1:13100/sitemap.xml", headers={"Accept-Encoding": "identity"})
-    with urllib.request.urlopen(request, timeout=15) as response:
-        if response.status != 200:
-            raise ValueError("地图生成失败")
-        content = response.read(50_000_001)
-    if len(content) > 50_000_000:
-        raise ValueError("地图超过大小限制")
-    namespace = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
-    tree = ET.fromstring(content)
-    if tree.tag != namespace + "urlset":
-        raise ValueError("地图根节点无效")
-    urls = [row.findtext(namespace + "loc", "") for row in tree]
-    if not 81 <= len(urls) <= 50000 or len(set(urls)) != len(urls):
-        raise ValueError("地图目录不完整或重复")
-    for address in urls:
-        url = urllib.parse.urlsplit(address)
-        if url.scheme != "https" or url.netloc != "goodchat.58it.cn" or url.query or url.fragment:
-            raise ValueError("地图包含非规范网址")
-        if url.path.split("/")[1] not in {"zh-CN", "zh-TW", "en", "ja", "ko", "es", "pt-BR", "fr", "de"}:
-            raise ValueError("地图包含非公开页面")
-    publish_static(root.parent / ".well-known" / "sitemap.xml", content)
-    # 同时更新已提交的旧地址对应文件，兼容证书验证目录的独立静态处理规则。
-    publish_static(root.parent / ".well-known" / "sitemap-crawl-check-20261120.xml", content)
+    """按主域名及允许的别名分别校验和原子生成地图，避免海外或备用站点收录主站地址。"""
+    origins = public_origins(root)
+    for origin in origins:
+        request = urllib.request.Request("http://127.0.0.1:13100/sitemap.xml", headers={"Accept-Encoding": "identity", "Host": urllib.parse.urlsplit(origin).netloc})
+        with urllib.request.urlopen(request, timeout=15) as response:
+            if response.status != 200:
+                raise ValueError("地图生成失败")
+            content = response.read(50_000_001)
+        if len(content) > 50_000_000:
+            raise ValueError("地图超过大小限制")
+        namespace = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+        tree = ET.fromstring(content)
+        if tree.tag != namespace + "urlset":
+            raise ValueError("地图根节点无效")
+        urls = [row.findtext(namespace + "loc", "") for row in tree]
+        if not 81 <= len(urls) <= 50000 or len(set(urls)) != len(urls):
+            raise ValueError("地图目录不完整或重复")
+        for address in urls:
+            url = urllib.parse.urlsplit(address)
+            if url.scheme != "https" or url.netloc != urllib.parse.urlsplit(origin).netloc or url.query or url.fragment:
+                raise ValueError("地图包含非规范网址")
+            if url.path.split("/")[1] not in {"zh-CN", "zh-TW", "en", "ja", "ko", "es", "pt-BR", "fr", "de"}:
+                raise ValueError("地图包含非公开页面")
+        target = root.parent / ".well-known"
+        publish_static(target / f"sitemap-{urllib.parse.urlsplit(origin).hostname}.xml", content)
+        if origin == origins[0]:
+            publish_static(target / "sitemap.xml", content)
+            publish_static(target / "sitemap-crawl-check-20261120.xml", content)
 
 
 def refresh_indexnow_key(root):
@@ -151,7 +177,7 @@ def deploy(root, private, force):
             raise RuntimeError(f"缺少必须复用的现有容器：{name}；不会新建")
     image = "goodchat:" + commit[:12]
     print("构建候选", commit, flush=True)
-    run(["docker", "build", "--force-rm", "--build-arg", "NEXT_PUBLIC_SITE_URL=https://goodchat.58it.cn", "-t", image, "."], root)
+    run(["docker", "build", "--force-rm", "--build-arg", "NEXT_PUBLIC_SITE_URL=" + public_origins(root)[0], "-t", image, "."], root)
     run(["docker", "run", "--rm", "--network", "good-headhunter-data-services", "--env-file", str(private / "app.env"), "--env-file", str(private / "migration.env"), "-v", f"{private / 'data'}:/data", image, "/app/migrate"], root)
     if exists("goodchat-candidate"):
         run(["docker", "rm", "-f", "goodchat-candidate"], root)
@@ -188,7 +214,7 @@ def main():
     """使用文件锁防止一分钟任务与长构建重叠，凭据目录与源码分离。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument("--private", type=Path, default=Path("/www/wwwroot/goodchat.58it.cn/private"))
+    parser.add_argument("--private", type=Path, default=Path(__file__).resolve().parents[2] / "private")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
     args.private.mkdir(mode=0o700, parents=True, exist_ok=True)

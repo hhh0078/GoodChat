@@ -204,8 +204,16 @@ func rejectRedirect(request *http.Request, previous []*http.Request) error {
 
 // renderURL 在同域配置下使用发布路径，兼容已有独立域名配置的版本子域。
 func (s *Service) renderURL(id, token string) string {
+	return s.renderURLFor(context.Background(), id, token)
+}
+
+// renderURLFor 同域部署跟随可信请求域名，独立装修来源仍保持原有沙箱隔离规则。
+func (s *Service) renderURLFor(ctx context.Context, id, token string) string {
 	u, _ := url.Parse(s.cfg.CodeOrigin)
-	public, _ := url.Parse(s.cfg.PublicURL)
+	public, _ := url.Parse(platform.PublicURL(ctx, s.cfg.PublicURL))
+	if strings.TrimRight(s.cfg.CodeOrigin, "/") == strings.TrimRight(s.cfg.PublicURL, "/") {
+		u, _ = url.Parse(platform.PublicURL(ctx, s.cfg.PublicURL))
+	}
 	if !strings.EqualFold(public.Host, u.Host) || public.Scheme != u.Scheme {
 		host := id + "." + u.Hostname()
 		if u.Port() != "" {

@@ -5,7 +5,7 @@ import type { Messages } from "@/i18n/runtime";
 import { getPreferences, getTranslator } from "@/i18n/server";
 import { browserSymbolCompatibilityScript } from "@/lib/browser-symbol-compat";
 import { brandShareImages } from "@/lib/site-brand";
-import { siteURL } from "@/lib/urls";
+import { requestSiteURL } from "@/lib/site-origin";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import type { Metadata } from "next";
 import { getMessages } from "next-intl/server";
@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const tr = await getTranslator();
   const preferences = await getPreferences();
   return {
-    metadataBase: new URL(siteURL()),
+    metadataBase: new URL(await requestSiteURL()),
     icons: {
       icon: [
         { url: "/favicon.svg?v=20261117-logo", type: "image/svg+xml" },

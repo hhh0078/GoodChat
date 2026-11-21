@@ -240,7 +240,7 @@ func insertPlatformInvitation(ctx context.Context, tx pgx.Tx, tenantID, actorID 
 
 // sendPlatformInvitation 在事务提交后发信，只报告真实SMTP边界且不会回滚已创建租户。
 func (s *Service) sendPlatformInvitation(r *http.Request, tenantID, invitationID, deliveryID, email, name, token string) error {
-	link := strings.TrimRight(s.cfg.PublicURL, "/") + "/accept-invitation?token=" + url.QueryEscape(token)
+	link := platform.PublicURL(r.Context(), s.cfg.PublicURL) + "/accept-invitation?token=" + url.QueryEscape(token)
 	result := deliveryResult{}
 	if s.RenderMail == nil {
 		result = s.mailer.send(r.Context(), email, "GoodChat 租户管理员开通邀请", fmt.Sprintf("平台已为您开通GoodChat租户「%s」。\n\n请打开链接，验证受邀邮箱后设置密码并激活管理员身份：\n%s\n\n邀请7天有效。此邮件不包含初始密码；首次接受当前初始管理员邀请会成为本租户所有者。", name, link))

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"supportdesk/backend/internal/localization"
+	"supportdesk/backend/internal/platform"
 )
 
 // renderSnapshot 只包含公开或短期授权的静态设计元数据，不含任何客户或管理员凭证。
@@ -44,7 +45,7 @@ func (s *Service) staticSnapshot(r *http.Request, id, token string) (renderSnaps
 
 // staticHostMatches 每个发布只能在自身来源服务，禁止在另一版本来源读取或执行文件。
 func (s *Service) staticHostMatches(r *http.Request, id string) bool {
-	expected, _ := url.Parse(s.renderURL(id, ""))
+	expected, _ := url.Parse(s.renderURLFor(r.Context(), id, ""))
 	return strings.EqualFold(r.Host, expected.Host)
 }
 
@@ -95,7 +96,7 @@ func (s *Service) renderPackageAsset(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "静态资源暂不可用", 500)
 		return
 	}
-	public, _ := url.Parse(s.cfg.PublicURL)
+	public, _ := url.Parse(platform.PublicURL(r.Context(), s.cfg.PublicURL))
 	parent := public.Scheme + "://" + public.Host
 	code, _ := url.Parse(s.cfg.CodeOrigin)
 	setPackageRenderPolicy(w, nonce, parent, code.Scheme+"://"+r.Host+packagePrefix(id, token))

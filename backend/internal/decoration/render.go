@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"supportdesk/backend/internal/localization"
+	"supportdesk/backend/internal/platform"
 )
 
 // CodeHandler 提供隔离静态站点处理器，不注册认证、客户、消息或附件接口。
@@ -17,6 +18,7 @@ func (s *Service) CodeHandler() http.Handler { return http.HandlerFunc(s.render)
 
 // render 按发布路径与配置Host定位发布或短期预览，并输出与后台完全分离的静态HTML。
 func (s *Service) render(w http.ResponseWriter, r *http.Request) {
+	r = platform.BindPublicOrigin(r, s.cfg)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "no-referrer")
@@ -35,7 +37,7 @@ func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	expected, _ := url.Parse(s.renderURL(id, ""))
+	expected, _ := url.Parse(s.renderURLFor(r.Context(), id, ""))
 	if !strings.EqualFold(r.Host, expected.Host) {
 		http.Error(w, "请通过独立版本来源打开装修页面", http.StatusMisdirectedRequest)
 		return
@@ -69,7 +71,7 @@ func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "页面暂不可用", http.StatusInternalServerError)
 		return
 	}
-	public, _ := url.Parse(s.cfg.PublicURL)
+	public, _ := url.Parse(platform.PublicURL(r.Context(), s.cfg.PublicURL))
 	parentOrigin := public.Scheme + "://" + public.Host
 	setRenderPolicy(w, nonce, parentOrigin)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

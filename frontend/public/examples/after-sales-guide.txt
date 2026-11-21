@@ -1,0 +1,8 @@
+文件作用说明：官网对话演示中的虚构商品售后指引附件，不代表GoodChat实际商品或服务条款。
+GoodChat conversation demo — After-sales example
+
+1. Keep the product, packaging and accessories.
+2. Fill in the order reference and describe the issue in the chat form.
+3. The support agent reviews the details and confirms the next steps.
+
+This is a demonstration, not a real order or after-sales policy.

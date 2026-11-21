@@ -129,7 +129,7 @@ func (s *Service) preview(w http.ResponseWriter, r *http.Request) error {
 	if !localization.ValidTimezone(zone) {
 		return platform.Fail(400, "invalid_notice_locale", "请选择有效的语言与IANA时区")
 	}
-	mail, e := Render(s.cfg.PublicURL, in.Locale, zone, d, map[string]string{"code": "123456", "token": "preview-only", "tenant": "GoodChat Demo", "name": "Demo", "balance": "CNY 5.00", "amount": "CNY 10.00", "reference": "DEMO", "sessions": "12", "tokens": "3456", "expires_at": LocalTime(time.Now().Add(7*24*time.Hour), zone)}, in.Subject, in.Body, in.Button, 0)
+	mail, e := Render(platform.PublicURL(r.Context(), s.cfg.PublicURL), in.Locale, zone, d, map[string]string{"code": "123456", "token": "preview-only", "tenant": "GoodChat Demo", "name": "Demo", "balance": "CNY 5.00", "amount": "CNY 10.00", "reference": "DEMO", "sessions": "12", "tokens": "3456", "expires_at": LocalTime(time.Now().Add(7*24*time.Hour), zone)}, in.Subject, in.Body, in.Button, 0)
 	if e != nil {
 		return platform.Fail(400, "invalid_notice_template", e.Error())
 	}

@@ -46,6 +46,9 @@ class SitemapSnapshotTest(unittest.TestCase):
         self.content = ('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + ''.join(
             f'<url><loc>https://goodchat.58it.cn/en/articles/example-{i}</loc></url>' for i in range(81)
         ) + '</urlset>').encode()
+        self.origin_patch = patch.object(deploy, "public_origins", return_value=["https://goodchat.58it.cn"])
+        self.origin_patch.start()
+        self.addCleanup(self.origin_patch.stop)
         self.key_patch = patch.object(deploy, "refresh_indexnow_key")
         self.key_patch.start()
         self.addCleanup(self.key_patch.stop)
@@ -83,6 +86,19 @@ class SitemapSnapshotTest(unittest.TestCase):
         with patch.object(deploy.urllib.request, "urlopen", side_effect=TimeoutError):
             deploy.try_refresh_sitemap(self.root)
         self.assertEqual(self.target.read_bytes(), b'previous-valid-snapshot')
+
+    def test_alias_has_separate_snapshot(self):
+        """每个站点使用对应Host生成独立文件，默认地图保持主站且拒绝串站内容。"""
+        self.origin_patch.stop()
+        alias = self.content.replace(b'goodchat.58it.cn', b'goodchat.ai.58it.cn')
+        def fetch(request, **kwargs):
+            """按实际Host返回对应目录，防止实现只复制主站地图。"""
+            return self.response(alias if request.get_header('Host') == 'goodchat.ai.58it.cn' else self.content)
+        with patch.object(deploy,'public_origins',return_value=['https://goodchat.58it.cn','https://goodchat.ai.58it.cn']), patch.object(deploy.urllib.request,'urlopen',side_effect=fetch):
+            deploy.refresh_sitemap(self.root)
+        self.assertEqual(self.target.read_bytes(),self.content)
+        self.assertEqual((self.target.parent/'sitemap-goodchat.ai.58it.cn.xml').read_bytes(),alias)
+        self.assertEqual((self.target.parent/'sitemap-goodchat.58it.cn.xml').read_bytes(),self.content)
 
     def test_public_key_sync_and_disabled_removal(self):
         """验证键只接受规范格式，明确404时删除已停用副本。"""
