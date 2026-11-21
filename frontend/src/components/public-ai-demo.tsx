@@ -135,10 +135,13 @@ export function PublicAIDemo() {
   }, []);
   useEffect(() => {
     if (!playing) return;
+    // 选项出现后预留阅读与点击时间，再模拟默认选择，避免自动输入抢走可交互窗口。
     const delay = writing
-      ? ready
-        ? 650
-        : 55
+      ? next.choice && draftLength === 0
+        ? 2400
+        : ready
+          ? 650
+          : 55
       : next.kind === "action"
         ? 1500
         : next.kind === "separator"
