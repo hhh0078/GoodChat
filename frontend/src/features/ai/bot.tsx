@@ -1,10 +1,11 @@
 /** 文件作用说明：配置个人机器人、授权知识话术、时段预算及计费调试，管理员另设默认接待策略。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { languageNames } from "@/i18n/preferences";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import {
   Alert,
@@ -112,7 +113,7 @@ export function AIBotSettingsPage() {
       setBot(next);
       message.success(tr("已保存"));
     } catch (e) {
-      if (!(e && typeof e === "object" && "errorFields" in e)) message.error(errorMessage(e));
+      if (!(e && typeof e === "object" && "errorFields" in e)) showRequestError(e);
     } finally {
       setBusy(false);
     }
@@ -130,7 +131,7 @@ export function AIBotSettingsPage() {
       });
       setJobID(result.id);
     } catch (e) {
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setBusy(false);
     }
@@ -408,7 +409,7 @@ function AIDefaultReception() {
       });
       message.success(tr("已保存"));
     } catch (e) {
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setBusy(false);
     }

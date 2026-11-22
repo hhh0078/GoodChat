@@ -1,5 +1,6 @@
 /** 文件作用说明：在独立来源运行已发布装修，并用最小权限 MessageChannel 桥接真实访客聊天。 */
 "use client";
+import { ErrorNotice } from "@/components/page-state";
 import { usePreferences } from "@/i18n/locale-provider";
 import { useTranslator } from "@/i18n/use-translator";
 import { errorMessage } from "@/lib/api";
@@ -554,7 +555,7 @@ export function DecoratedVisitor({
         <p className="muted">
           {tr("确认后会重新检查附件权限并发起下载，请在浏览器下载记录中查看结果。")}
         </p>
-        {!!downloadError && <Alert type="error" showIcon title={errorMessage(downloadError)} />}
+        {!!downloadError && <ErrorNotice error={downloadError} />}
       </Modal>
     </div>
   );

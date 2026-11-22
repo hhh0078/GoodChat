@@ -396,3 +396,44 @@ func TestLocalizedAnnouncementOptIn(t *testing.T) {
 		t.Fatal("未按收件语言选择公告正文")
 	}
 }
+
+// TestKnowledgeGapNotificationDedup 验证真实待办扫描携带原问题、重复扫描去重，补充完成后不再发送旧提醒。
+func TestKnowledgeGapNotificationDedup(t *testing.T) {
+	f := integration(t)
+	ctx := context.Background()
+	var member, job, id string
+	if err := f.admin.QueryRow(ctx, "SELECT id::text FROM tenant_memberships WHERE tenant_id=$1 AND user_id=$2", f.tenant, f.user).Scan(&member); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.admin.QueryRow(ctx, "INSERT INTO ai_jobs(tenant_id,kind,owner_membership_id,status,snapshot) VALUES($1,'test',$2,'succeeded','{}') RETURNING id::text", f.tenant, member).Scan(&job); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.admin.QueryRow(ctx, "INSERT INTO ai_pending_items(tenant_id,question,normalized_question,reason,source_job_id,last_job_id) VALUES($1,'作者的公开微信号是多少？','作者的公开微信号是多少','知识没有公开说明',$2,$2) RETURNING id::text", f.tenant, job).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if err := f.s.scanTenant(ctx, f.tenant); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var count int
+	var question string
+	if err := f.admin.QueryRow(ctx, "SELECT count(*),max(params->>'question') FROM notification_jobs WHERE kind='knowledge_gap'").Scan(&count, &question); err != nil || count != 1 || question != "作者的公开微信号是多少？" {
+		t.Fatal("待补充通知没有正确去重或缺少真实问题", err, count)
+	}
+	if _, err := f.admin.Exec(ctx, "UPDATE ai_pending_items SET status='resolved' WHERE id=$1", id); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.s.systemTx(ctx, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id',$1,true)", f.tenant); err != nil {
+			return err
+		}
+		valid, err := f.s.stillRelevant(ctx, tx, f.tenant, "knowledge_gap", map[string]string{"reference": id})
+		if valid {
+			t.Error("已经处理的知识提醒仍有效")
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

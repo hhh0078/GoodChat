@@ -1,7 +1,7 @@
 /** 文件作用说明：下载兼容旧内部备注的私有附件，权限由客户备注专用接口实时核验。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { useTranslator } from "@/i18n/use-translator";
-import { errorMessage } from "@/lib/api";
 import { DownloadOutlined } from "@ant-design/icons";
 import { App, Button } from "antd";
 import { useEffect, useRef, useState } from "react";
@@ -34,7 +34,7 @@ export function NoteAttachment({
     if (busy) return;
     const expected = `/tenant/contacts/${contactId}/notes/${noteId}/attachment`;
     if (attachment.download_path !== expected) {
-      message.error(tr("备注附件下载地址无效，请刷新客户资料。"));
+      showRequestError(tr("备注附件下载地址无效，请刷新客户资料。"));
       return;
     }
     setBusy(true);
@@ -62,7 +62,7 @@ export function NoteAttachment({
       link.click();
       link.remove();
     } catch (problem) {
-      if (!active.signal.aborted) message.error(errorMessage(problem));
+      if (!active.signal.aborted) showRequestError(problem);
     } finally {
       if (url) {
         const downloadedURL = url;

@@ -1,7 +1,8 @@
 /** 文件作用说明：在真实客服会话中接管或恢复AI，并确认发送持久辅助草稿。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { App, Button, Collapse, Space, Tag } from "antd";
 import { useEffect, useState } from "react";
 import type { ChatIdentity } from "@/features/chat/use-chat";
@@ -60,7 +61,7 @@ export function AIConversationPanel({
       setRevision((v) => v + 1);
       onSent();
     } catch (e) {
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setBusy(false);
     }

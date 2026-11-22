@@ -95,12 +95,7 @@ func (s *Service) templateUsage(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil, err
 		}
-		rows, err = tx.Query(r.Context(), `SELECT jsonb_build_object('id',id,'status',status,'source','legacy') FROM ai_design_jobs WHERE template_id=$1 AND status IN('queued','running','validating') UNION ALL SELECT jsonb_build_object('id',j.id,'status',j.status,'source','assistant') FROM assistant_jobs j JOIN assistant_threads t ON t.id=j.thread_id AND t.tenant_id=j.tenant_id WHERE j.status IN('queued','running','validating') AND (j.base_template_id=$1 OR t.template_id=$1 OR t.page_id IN(SELECT id FROM decoration_pages WHERE template_id=$1))`, id)
-		if err != nil {
-			return nil, err
-		}
-		jobs, err := jsonRows(rows)
-		return map[string]any{"id": id, "links": links, "pages": pages, "active_jobs": jobs, "can_delete": len(links) == 0 && len(jobs) == 0}, err
+		return map[string]any{"id": id, "links": links, "pages": pages, "active_jobs": []any{}, "can_delete": len(links) == 0}, nil
 	})
 }
 
@@ -118,7 +113,7 @@ func (s *Service) deleteTemplate(w http.ResponseWriter, r *http.Request) {
 			case "P0002":
 				return nil, pgx.ErrNoRows
 			case "23503", "40P01", "40001":
-				return nil, platform.Fail(409, "template_in_use", "模板仍有链接、活动AI任务或并发绑定，请先检查使用位置并解除绑定后重试")
+				return nil, platform.Fail(409, "template_in_use", "模板仍有链接或并发绑定，请先检查使用位置并解除绑定后重试")
 			}
 		}
 		return result, err

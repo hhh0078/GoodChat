@@ -1,9 +1,10 @@
 /** 文件作用说明：维护小篇幅知识库及其AI描述，允许在文本光标处插入稳定话术引用。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { insertKnowledgeReference } from "@/lib/ai-content";
 import { useResource } from "@/lib/use-resource";
 import { PlusOutlined } from "@ant-design/icons";
@@ -48,7 +49,7 @@ export function AIContentList({ kind }: { kind: "knowledge" | "scripts" }) {
       await api(`/tenant/ai/${kind}/${item.id}`, { method: "DELETE", tenantId });
       data.reload();
     } catch (error) {
-      message.error(errorMessage(error));
+      showRequestError(error);
     }
   }
   /** edit 在新弹窗生命周期内加载草稿，避免继承前一条内容。 */
@@ -202,8 +203,7 @@ export function AIKnowledgeEditor({
       });
       onSaved();
     } catch (error) {
-      if (!(error && typeof error === "object" && "errorFields" in error))
-        message.error(errorMessage(error));
+      if (!(error && typeof error === "object" && "errorFields" in error)) showRequestError(error);
     } finally {
       setBusy(false);
     }

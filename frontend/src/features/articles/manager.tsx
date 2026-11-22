@@ -1,10 +1,11 @@
 /** 文件作用说明：提供平台多语言文章列表、发布入口、每日生成设置与可核对的任务记录。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { App, Button, Input, Popconfirm, Select, Space, Tag } from "antd";
 import { useState } from "react";
 import { usePagedResource } from "@/lib/use-paged-resource";
 import { useResource } from "@/lib/use-resource";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { ErrorNotice, EmptyData } from "@/components/page-state";
 import { LoadMore } from "@/components/load-more";
 import { useTranslator } from "@/i18n/use-translator";
@@ -57,7 +58,7 @@ export function ArticleManager() {
       });
       refresh();
     } catch (e) {
-      message.error(errorMessage(e));
+      showRequestError(e);
     }
   }
   return (

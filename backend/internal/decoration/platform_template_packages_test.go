@@ -107,7 +107,7 @@ func cleanupPlatformFixture(t *testing.T, f *integrationFixture, ids []string) {
 
 // TestPostgresPlatformStaticTemplates 验证公开包物化为两个租户各自的私有资源，隐藏不影响既有副本，私有作品仅由授权管理员显式公开。
 func TestPostgresPlatformStaticTemplates(t *testing.T) {
-	f := newAssistantFixture(t)
+	f := newIntegrationFixture(t, platform.Config{})
 	ctx := context.Background()
 	var publicIDs []string
 	t.Cleanup(func() { cleanupPlatformFixture(t, f, publicIDs) })
@@ -154,9 +154,8 @@ func TestPostgresPlatformStaticTemplates(t *testing.T) {
 	if first["source_platform_template_id"] != publicID || first["source_platform_version"] != float64(1) {
 		t.Fatal("复制必须固定平台来源版本")
 	}
-	thread := f.mustRequest("POST", "/tenant/assistant/threads", f.member, map[string]any{"title": "平台静态模板二创测试", "template_id": publicID, "source": "tenant"})
-	if thread["template_id"] == publicID || thread["page_id"] == nil {
-		t.Fatal("AI二创必须生成独立私有静态副本")
+	if status, _ := f.request("POST", "/tenant/assistant/threads", f.member, map[string]any{}); status != 404 {
+		t.Fatal("已下线的在线生成接口应返回404")
 	}
 	if status, _ := f.request("POST", "/tenant/templates", f.member, map[string]any{"name": "越界公共引用", "render_mode": "code", "design": map[string]any{"platform_package_id": globalPackageID}}); status != 400 {
 		t.Fatal("租户不能直接保存公共包引用")

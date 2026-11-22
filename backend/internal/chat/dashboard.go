@@ -45,11 +45,13 @@ func (s *Service) dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		result["today_received"] = received["today_received"]
 		if isAdmin(a) {
-			team, err := txJSON(ctx, tx, `SELECT jsonb_build_object('queued',count(*) FILTER(WHERE status='queued'),'today_created',count(*) FILTER(WHERE created_at>=$1 AND created_at<$2)) FROM conversations`, from, to)
+			team, err := txJSON(ctx, tx, `SELECT jsonb_build_object('queued',count(*) FILTER(WHERE c.status='queued' AND u.online_until>statement_timestamp() AND NOT(coalesce(c.context->>'ai_receiving','false')='true' AND NOT c.ai_paused)), 'active',count(*) FILTER(WHERE c.status IN('active','assigned') OR (c.status='queued' AND u.online_until>statement_timestamp() AND coalesce(c.context->>'ai_receiving','false')='true' AND NOT c.ai_paused)), 'ai_receiving',count(*) FILTER(WHERE c.status='queued' AND u.online_until>statement_timestamp() AND coalesce(c.context->>'ai_receiving','false')='true' AND NOT c.ai_paused), 'offline_open',count(*) FILTER(WHERE c.status='queued' AND u.online_until<=statement_timestamp()),'today_created',count(*) FILTER(WHERE c.created_at>=$1 AND c.created_at<$2)) FROM conversations c JOIN contacts u ON u.id=c.contact_id AND u.tenant_id=c.tenant_id`, from, to)
 			if err != nil {
 				return err
 			}
-			result["queued"], result["today_created"] = team["queued"], team["today_created"]
+			for key, value := range team {
+				result[key] = value
+			}
 			var online int
 			if err := tx.QueryRow(ctx, `SELECT count(*) FROM tenant_memberships m WHERE m.can_serve AND NOT m.disabled AND m.removed_at IS NULL AND EXISTS(SELECT 1 FROM member_presence_intervals p WHERE p.membership_id=m.id AND p.online_until>statement_timestamp())`).Scan(&online); err != nil {
 				return err

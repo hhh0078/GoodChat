@@ -1,10 +1,12 @@
 /** 文件作用说明：管理租户成员及邀请，支持真实服务端角色调整、停用与重发。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
+import { AIMember } from "./ai-member";
 import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Member, Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
 import { PlusOutlined } from "@ant-design/icons";
@@ -110,7 +112,7 @@ export function MembersPage() {
       members.reload();
       invitations.reload();
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   /** sendTransferCode 只向当前所有者邮箱申请转移验证码，展示邮件服务器的实际受理状态。 */
@@ -331,10 +333,11 @@ export function MembersPage() {
           items={[
             {
               key: "members",
-              label: tr("成员 {p0}", { p0: String(members.items.length) }),
+              label: tr("成员 {p0}", { p0: String(members.items.length + 1) }),
               children: (
                 <>
                   <ErrorNotice error={members.error} retry={members.reload} />
+                  <AIMember />
                   <Table
                     rowKey="id"
                     columns={memberColumns}

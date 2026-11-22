@@ -1,7 +1,8 @@
 /** 文件作用说明：在统一弹框维护个人及公共富话术，媒体通过现有受控附件接口上传。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { QuickReply } from "@/lib/quick-replies";
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from "@ant-design/icons";
 import { App, Button, Form, Input, Modal, Popconfirm, Select, Space, Switch } from "antd";
@@ -88,7 +89,7 @@ export function QuickReplyEditor({
   async function upload(file?: File) {
     if (!file || uploadRequest.current || busy) return;
     if (!file.size || file.size > 20 * 1024 * 1024) {
-      message.error(tr("请选择不超过20MB的有效文件"));
+      showRequestError(tr("请选择不超过20MB的有效文件"));
       return;
     }
     const controller = new AbortController();
@@ -109,13 +110,13 @@ export function QuickReplyEditor({
         (kind === "image" && !actual.startsWith("image/")) ||
         (kind === "audio" && !actual.startsWith("audio/") && actual !== "video/webm")
       ) {
-        message.error(tr("文件实际类型与所选消息类型不符，请重新选择"));
+        showRequestError(tr("文件实际类型与所选消息类型不符，请重新选择"));
         return;
       }
       setAttachment(uploaded);
       form.setFieldValue("attachment_id", uploaded.id);
     } catch (problem) {
-      if (!controller.signal.aborted && mounted.current) message.error(errorMessage(problem));
+      if (!controller.signal.aborted && mounted.current) showRequestError(problem);
     } finally {
       if (uploadRequest.current === controller) uploadRequest.current = null;
       if (!controller.signal.aborted && mounted.current) setUploading(false);
@@ -147,7 +148,7 @@ export function QuickReplyEditor({
       if (mounted.current) onSaved();
     } catch (problem) {
       if (mounted.current && !(problem && typeof problem === "object" && "errorFields" in problem))
-        message.error(errorMessage(problem));
+        showRequestError(problem);
     } finally {
       saving.current = false;
       if (mounted.current) setBusy(false);
@@ -165,7 +166,7 @@ export function QuickReplyEditor({
       });
       if (mounted.current) onSaved();
     } catch (problem) {
-      if (mounted.current) message.error(errorMessage(problem));
+      if (mounted.current) showRequestError(problem);
     } finally {
       if (mounted.current) setBusy(false);
     }

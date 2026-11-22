@@ -41,7 +41,7 @@ func platformLifecycleTemplate(t *testing.T, f *integrationFixture) (string, str
 
 // TestPostgresPlatformEditorAndUnreferencedDelete 验证完整源码、受保护脚本、版本冲突及无来源平台全部历史文件的回收。
 func TestPostgresPlatformEditorAndUnreferencedDelete(t *testing.T) {
-	f := newAssistantFixture(t)
+	f := newIntegrationFixture(t, platform.Config{})
 	id, originalPackage := platformLifecycleTemplate(t, f)
 	t.Cleanup(func() { cleanupPlatformFixture(t, f, []string{id}) })
 	p := f.principals[f.member]
@@ -105,7 +105,7 @@ func TestPostgresPlatformEditorAndUnreferencedDelete(t *testing.T) {
 
 // TestPostgresPlatformArchivePreservesCopies 验证已复制的平台移出目录后旧链接仍可使用，且直接编号不能继续预览或复制。
 func TestPostgresPlatformArchivePreservesCopies(t *testing.T) {
-	f := newAssistantFixture(t)
+	f := newIntegrationFixture(t, platform.Config{})
 	id, packageID := platformLifecycleTemplate(t, f)
 	t.Cleanup(func() { cleanupPlatformFixture(t, f, []string{id}) })
 	p := f.principals[f.member]
@@ -189,7 +189,7 @@ func TestPostgresPlatformArchivePreservesCopies(t *testing.T) {
 
 // TestPostgresPlatformSharedPackageCleanup 验证两个公开作品共用包时仅最后一个来源清除才回收实际字节。
 func TestPostgresPlatformSharedPackageCleanup(t *testing.T) {
-	f := newAssistantFixture(t)
+	f := newIntegrationFixture(t, platform.Config{})
 	id, packageID := platformLifecycleTemplate(t, f)
 	var sharedID string
 	ctx := context.Background()

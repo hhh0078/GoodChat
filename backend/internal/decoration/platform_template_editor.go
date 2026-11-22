@@ -49,7 +49,7 @@ func (s *Service) platformTemplateSource(w http.ResponseWriter, r *http.Request)
 		respond(w, r, nil, err)
 		return
 	}
-	s.assistantScope(w, r, "platform", func(tx pgx.Tx) (any, error) {
+	s.templateScope(w, r, "platform", func(tx pgx.Tx) (any, error) {
 		pkg, name, status, version, err := s.loadPlatformTemplateSource(r.Context(), tx, id)
 		if err != nil {
 			return nil, err
@@ -96,7 +96,7 @@ func (s *Service) revisePlatformTemplate(w http.ResponseWriter, r *http.Request)
 		respond(w, r, nil, err)
 		return
 	}
-	s.assistantScope(w, r, "platform", func(tx pgx.Tx) (any, error) {
+	s.templateScope(w, r, "platform", func(tx pgx.Tx) (any, error) {
 		var currentVersion int64
 		if err := tx.QueryRow(r.Context(), "SELECT version FROM platform_templates WHERE id=$1 AND archived_at IS NULL FOR UPDATE", id).Scan(&currentVersion); err != nil {
 			return nil, err
@@ -129,7 +129,7 @@ func (s *Service) revisePlatformTemplate(w http.ResponseWriter, r *http.Request)
 		if err != nil {
 			return nil, err
 		}
-		pkg, err = assistantRebuildCorePackage(pkg, scripts)
+		pkg, err = rebuildTemplateCorePackage(pkg, scripts)
 		if err != nil {
 			return nil, err
 		}

@@ -14,7 +14,7 @@ func templateWithActionButton(t *testing.T, button string) (*staticPackage, []Te
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, assets, err := assistantSplitBasePackage(pkg)
+	files, assets, err := splitTemplateBasePackage(pkg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestNewTemplateRejectsPermanentHiddenControls(t *testing.T) {
 			"commented style":   ` style="display:/*initial*/none"`,
 		} {
 			t.Run(id+"/"+name, func(t *testing.T) {
-				files, assets, err := assistantSplitBasePackage(pkg)
+				files, assets, err := splitTemplateBasePackage(pkg)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -169,7 +169,7 @@ func TestNewTemplateKeepsSDKHiddenAttribute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, assets, err := assistantSplitBasePackage(pkg)
+	files, assets, err := splitTemplateBasePackage(pkg)
 	if err != nil {
 		t.Fatal(err)
 	}

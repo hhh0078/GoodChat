@@ -33,6 +33,7 @@ export const kinds: Record<string, string> = {
   subscription_active: "套餐开通",
   subscription_expiring: "套餐即将到期",
   subscription_expired: "套餐已到期",
+  knowledge_gap: "AI待补充知识",
   handoff_waiting: "转人工待处理",
   ai_errors: "AI持续异常",
   digest: "每周服务摘要",

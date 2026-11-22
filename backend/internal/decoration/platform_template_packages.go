@@ -152,7 +152,7 @@ func (s *Service) createPlatformIndustryTemplate(w http.ResponseWriter, r *http.
 		respond(w, r, nil, err)
 		return
 	}
-	s.assistantScope(w, r, "platform", func(tx pgx.Tx) (any, error) {
+	s.templateScope(w, r, "platform", func(tx pgx.Tx) (any, error) {
 		if _, err := tx.Exec(r.Context(), "SELECT pg_advisory_xact_lock(hashtextextended($1,0))", "platform-template-industry:"+key); err != nil {
 			return nil, err
 		}

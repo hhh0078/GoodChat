@@ -1,8 +1,8 @@
 /** 文件作用说明：在聊天气泡内填写服务端表单快照，以原消息编号和稳定提交编号发送结果。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { useEffect, useRef, useState } from "react";
 import { App, Button, Form, Input, Tag } from "antd";
-import { errorMessage } from "@/lib/api";
 import { useTranslator } from "@/i18n/use-translator";
 import type { ChatMessage } from "@/lib/types";
 import type { Outgoing } from "./use-chat";
@@ -53,7 +53,7 @@ export function MessageForm({
       });
       if (result !== false) setSaved(true);
     } catch (e) {
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setBusy(false);
     }

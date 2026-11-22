@@ -1919,3 +1919,38 @@
     padding-inline: 6px;
   }
 }
+
+/* 外部AI装修辅助入口在窄屏只保留图标，保证日常接待、语言与账号入口可见。 */
+@media (max-width: 768px) {
+  .shell-actions {
+    gap: 4px;
+  }
+  .ai-decoration-guide-button.ant-btn {
+    width: 32px;
+    height: 32px;
+    padding-inline: 6px;
+    flex-shrink: 0;
+  }
+  .ai-decoration-guide-button.ant-btn > span:not(.ant-btn-icon) {
+    display: none;
+  }
+  .shell-page-label {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+@media (max-width: 768px) {
+  .shell-identity {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .shell-actions {
+    flex-shrink: 0;
+  }
+  .shell-page-label {
+    display: block;
+  }
+}

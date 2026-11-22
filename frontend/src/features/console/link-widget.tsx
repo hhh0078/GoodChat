@@ -1,8 +1,9 @@
 /** 文件作用说明：配置每个接入链接的JS悬浮窗、展示时段和品牌按钮，并提供可复制代码。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { AccessLink } from "@/lib/types";
 import { CustomerServiceOutlined } from "@ant-design/icons";
 import {
@@ -96,7 +97,7 @@ export function LinkWidgetSettings({ link, tenantId }: { link: AccessLink; tenan
       await navigator.clipboard.writeText(widgetCode(window.location.origin, link.entry_key));
       message.success(tr("已复制"));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   const required = [{ required: true }];

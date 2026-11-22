@@ -1,11 +1,12 @@
 /** 文件作用说明：配置租户欢迎语、关键词与快捷话术，并查询留言与评价；个人音量统一在工作台调整。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { AttachmentView } from "@/features/chat/attachment";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { QuickReply } from "@/lib/quick-replies";
 import type { Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
@@ -166,7 +167,7 @@ function LeadList() {
       data.reload();
       message.success(tr("跟进状态已保存"));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   /** saveDetails 保存内部跟进内容与状态，附件读取仍由服务端逐次检查权限。 */

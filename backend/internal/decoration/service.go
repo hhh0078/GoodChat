@@ -1,4 +1,4 @@
-// Package decoration 实现租户装修草稿、隔离发布、模板和持久AI设计任务。
+// Package decoration 实现租户装修草稿、隔离发布、模板与静态模板资源。
 package decoration
 
 import (
@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -23,14 +22,12 @@ import (
 
 // Service 保存装修数据库、鉴权及服务端模型配置。
 type Service struct {
-	pool             *pgxpool.Pool
-	auth             platform.Authorizer
-	cfg              platform.Config
-	client           *http.Client
-	featureChecker   func(context.Context, pgx.Tx, string, string) error
-	packageSlots     chan struct{}
-	assistantClient  *http.Client
-	assistantCancels sync.Map
+	pool           *pgxpool.Pool
+	auth           platform.Authorizer
+	cfg            platform.Config
+	client         *http.Client
+	featureChecker func(context.Context, pgx.Tx, string, string) error
+	packageSlots   chan struct{}
 }
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
@@ -58,7 +55,6 @@ func (s *Service) checkFeature(ctx context.Context, tx pgx.Tx, tenant, feature s
 
 // Register 注册租户与平台管理接口，所有写操作要求管理员身份。
 func (s *Service) Register(mux *http.ServeMux) {
-	s.registerAssistant(mux)
 	s.registerPackages(mux)
 	s.registerTemplateLifecycle(mux)
 	s.registerPlatformTemplatePackages(mux)
@@ -77,11 +73,6 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/platform/templates", s.auth.RequirePlatform(s.platformTemplates))
 	mux.HandleFunc("POST /api/v1/platform/templates", s.auth.RequirePlatform(s.platformTemplates))
 	mux.HandleFunc("PATCH /api/v1/platform/templates/{id}", s.auth.RequirePlatform(s.platformTemplates))
-	mux.HandleFunc("GET /api/v1/tenant/ai-configuration", s.auth.RequireTenant(s.aiConfiguration))
-	mux.HandleFunc("POST /api/v1/tenant/ai-design-jobs", s.auth.RequireAdmin(s.createAIJob))
-	mux.HandleFunc("GET /api/v1/tenant/ai-design-jobs", s.auth.RequireTenant(s.listAIJobs))
-	mux.HandleFunc("GET /api/v1/tenant/ai-design-jobs/{id}", s.auth.RequireTenant(s.getAIJob))
-	mux.HandleFunc("POST /api/v1/tenant/ai-design-jobs/{id}/cancel", s.auth.RequireAdmin(s.cancelAIJob))
 }
 
 // tenant 在认证租户范围执行事务并统一处理错误。

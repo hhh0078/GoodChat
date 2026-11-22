@@ -1,10 +1,11 @@
 /** 文件作用说明：维护平台租户基础状态与真实套餐分配，保留历史并要求人工开通依据。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import filterStyles from "@/components/filter-toolbar.module.css";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -156,7 +157,7 @@ export function PlatformTenants({ onManagePlans }: { onManagePlans?: () => void 
         message.success(tr("邀请邮件已获服务器受理，实际收件请向受邀人核对"));
       else message.warning(tr("重发请求已处理，邮件结果尚未确认"));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   return (

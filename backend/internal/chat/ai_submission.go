@@ -10,9 +10,8 @@ import (
 	"supportdesk/backend/internal/localization"
 )
 
-// aiDefaultBotScopeSQL 要求默认机器人所属客服仍在入口业务组与分配池内，离线AI也不能扩大成员数据权限。
-const aiDefaultBotScopeSQL = `(c.desired_agent_id IS NULL OR c.desired_agent_id=b.owner_membership_id)
- AND EXISTS(SELECT 1 FROM routing_pools p JOIN agent_groups g ON g.id=p.service_group_id AND g.tenant_id=p.tenant_id
+// aiBotGroupScopeSQL 要求默认机器人所属客服仍在入口业务组与分配池内，离线AI也不能扩大成员数据权限。
+const aiBotGroupScopeSQL = `EXISTS(SELECT 1 FROM routing_pools p JOIN agent_groups g ON g.id=p.service_group_id AND g.tenant_id=p.tenant_id
  JOIN agent_group_members gm ON gm.group_id=g.id AND gm.tenant_id=g.tenant_id
  WHERE p.id=c.routing_pool_id AND p.tenant_id=c.tenant_id AND g.id=c.service_group_id
  AND NOT p.archived AND NOT g.archived AND gm.membership_id=b.owner_membership_id
@@ -40,12 +39,13 @@ func (s *Service) enqueueAIReply(ctx context.Context, tx pgx.Tx, tenant, convers
 			return e
 		}
 	} else if agent == "" && status == "queued" {
-		e := tx.QueryRow(ctx, "SELECT b.id::text FROM ai_tenant_settings t JOIN ai_bots b ON b.id=t.default_bot_id JOIN conversations c ON c.id=$1 WHERE b.mode='auto' AND "+aiDefaultBotScopeSQL, conversation).Scan(&id)
-		if e == pgx.ErrNoRows {
-			return nil
-		}
+		var e error
+		id, e = aiReceptionBot(ctx, tx, conversation, false)
 		if e != nil {
 			return e
+		}
+		if id == "" {
+			return nil
 		}
 	} else {
 		return nil
@@ -53,6 +53,11 @@ func (s *Service) enqueueAIReply(ctx context.Context, tx pgx.Tx, tenant, convers
 	b, e := loadAIBot(ctx, tx, id)
 	if e != nil {
 		return e
+	}
+	if agent == "" {
+		if e := tx.QueryRow(ctx, "SELECT name,avatar_ref FROM ai_service_agents WHERE enabled").Scan(&b.Name, &b.AvatarRef); e != nil && e != pgx.ErrNoRows {
+			return e
+		}
 	}
 	snapshot := aiSnapshot{Bot: b, Locale: locale, Epoch: epoch, Agent: agent, Assignment: assignment, Entry: entry}
 	jobID := newID()
@@ -92,7 +97,7 @@ func (s *Service) aiReplyValid(ctx context.Context, tx pgx.Tx, j *aiJobData, loc
 		return errors.New("ai_stale")
 	}
 	var valid bool
-	e := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM ai_bots b JOIN tenant_memberships m ON m.id=b.owner_membership_id WHERE b.id=$1 AND b.version=$2 AND b.mode<>'off' AND NOT m.disabled AND m.removed_at IS NULL AND m.can_serve)", j.BotID, j.Snapshot.Bot.Version).Scan(&valid)
+	e := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM ai_bots b JOIN tenant_memberships m ON m.id=b.owner_membership_id WHERE b.id=$1 AND b.version=$2 AND b.mode<>'off' AND NOT m.disabled AND m.removed_at IS NULL AND (m.can_serve OR $3))", j.BotID, j.Snapshot.Bot.Version, agent == "").Scan(&valid)
 	if e != nil {
 		return e
 	}
@@ -100,13 +105,15 @@ func (s *Service) aiReplyValid(ctx context.Context, tx pgx.Tx, j *aiJobData, loc
 		return errors.New("ai_stale")
 	}
 	if agent == "" {
-		if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM ai_tenant_settings t JOIN ai_bots b ON b.id=t.default_bot_id JOIN conversations c ON c.id=$2 WHERE b.id=$1 AND "+aiDefaultBotScopeSQL+")", j.BotID, j.Conversation).Scan(&valid); e != nil {
+		current, e := aiReceptionBot(ctx, tx, j.Conversation, false)
+		if e != nil {
 			return e
 		}
-		if !valid {
+		if current != j.BotID {
 			return errors.New("ai_stale")
 		}
 	}
+
 	return nil
 }
 

@@ -1,11 +1,12 @@
 /** 文件作用说明：用文件夹树组织共享知识，文档继续使用原有正文编辑、发布与历史版本流程。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { useEffect, useState } from "react";
 import { App, Button, Form, Input, Modal, Popconfirm, Select, Tag, Tree } from "antd";
 import { FolderOutlined, FileTextOutlined, PlusOutlined } from "@ant-design/icons";
 import { useSession } from "@/features/auth/session";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { AIKnowledgeEditor } from "./content";
@@ -45,8 +46,7 @@ function AIFolderEditor({
       onSaved();
       onClose();
     } catch (error) {
-      if (!(error && typeof error === "object" && "errorFields" in error))
-        message.error(errorMessage(error));
+      if (!(error && typeof error === "object" && "errorFields" in error)) showRequestError(error);
     } finally {
       setBusy(false);
     }
@@ -123,7 +123,7 @@ export function AIKnowledgeTree() {
       setSelected("root");
       refresh();
     } catch (error) {
-      message.error(errorMessage(error));
+      showRequestError(error);
     }
   }
   const visible = docs.items.filter(

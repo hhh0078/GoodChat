@@ -1,9 +1,10 @@
 /** 文件作用说明：在客服工作台统一维护个人快捷回复、欢迎语和关键词，并展示已启用的公共只读内容。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { localizeStatic } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import {
   replySourceNames,
   welcomeScenarioNames,
@@ -126,7 +127,7 @@ function ReplySettings({ tenantId, items, onChanged, onClose }: SettingsProps) {
         reload();
       }
     } catch (problem) {
-      if (!controller.signal.aborted && mounted.current) message.error(errorMessage(problem));
+      if (!controller.signal.aborted && mounted.current) showRequestError(problem);
     } finally {
       locked.current = false;
       if (mounted.current) setBusyId("");

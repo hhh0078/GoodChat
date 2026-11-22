@@ -40,12 +40,16 @@ export async function api<T>(
   if (tenantId) headers.set("X-Tenant-ID", tenantId);
   if (bodyJSON !== undefined) headers.set("Content-Type", "application/json");
   if (idempotent) headers.set("Idempotency-Key", crypto.randomUUID());
+  // 主站CDN不支持PATCH；POST覆盖仍由服务端原PATCH路由校验身份与字段。
+  const method = (init.method || "GET").toUpperCase();
+  if (method === "PATCH") headers.set("X-HTTP-Method-Override", "PATCH");
   let response: Response;
   const timeout = AbortSignal.timeout(30000);
   const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
   try {
     response = await fetch(`/api/v1${path}`, {
       ...init,
+      method: method === "PATCH" ? "POST" : method,
       signal,
       credentials: "same-origin",
       cache: "no-store",
@@ -76,6 +80,7 @@ export async function api<T>(
 }
 /** errorMessage 输出统一错误说明，方便界面给出追踪编号。 */
 export function errorMessage(error: unknown): string {
+  if (typeof error === "string" && error.trim()) return error;
   if (error instanceof ApiError)
     return error.requestId
       ? tr("{p0}（请求编号 {p1}）", {

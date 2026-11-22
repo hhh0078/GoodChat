@@ -31,7 +31,7 @@ var resourceSpecs = map[string]resourceSpec{
 	"routing-skills": {"routing_skills", fieldSet("name archived")},
 	"groups":         {"agent_groups", fieldSet("name archived member_ids")},
 	"routing-pools":  {"routing_pools", fieldSet("name service_group_id algorithm assignment_mode members_mode agent_mode archived member_ids member_weights required_skill_ids optional_skill_ids history_priority")},
-	"access-links":   {"access_links", fieldSet("name service_space_id service_group_id routing_pool_id agent_id agent_mode status channel_code channel_tags reception_mode allow_routing_override expires_at binding_mode page_id pinned_release_id required_skill_ids optional_skill_ids")},
+	"access-links":   {"access_links", fieldSet("name service_space_id service_group_id routing_pool_id agent_id ai_agent_id agent_mode status channel_code channel_tags reception_mode allow_routing_override expires_at binding_mode page_id pinned_release_id required_skill_ids optional_skill_ids")},
 	"contacts":       {"contacts", fieldSet("display_name remark_name phone avatar_url category_id attributes notes archived tag_ids locked_fields")},
 	"categories":     {"contact_categories", fieldSet("name archived")},
 	"tag-categories": {"tag_categories", fieldSet("name archived")},
@@ -274,6 +274,15 @@ func prepareResource(ctx context.Context, tx pgx.Tx, name string, v map[string]a
 		}
 	}
 	if name == "access-links" {
+		if raw, ok := v["ai_agent_id"]; ok && raw != nil && raw != "" {
+			var valid bool
+			if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM ai_service_agents WHERE id::text=$1)", fmt.Sprint(raw)).Scan(&valid); err != nil {
+				return err
+			}
+			if !valid {
+				return platform.Fail(400, "invalid_ai_agent", "AI成员不存在或不属于当前租户")
+			}
+		}
 		if mode, ok := v["reception_mode"]; ok && !inStrings(fmt.Sprint(mode), "inherit", "auto", "manual") {
 			return platform.Fail(400, "invalid_reception_mode", "接待方式只能为自动分配或客服领取")
 		}

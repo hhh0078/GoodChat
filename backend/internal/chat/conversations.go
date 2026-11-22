@@ -4,13 +4,14 @@ package chat
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"supportdesk/backend/internal/platform"
 )
 
-var conversationProjection = "to_jsonb(c)||jsonb_build_object('next_event_seq',c.next_event_seq::text,'version',c.version::text,'last_message_seq',c.last_message_seq::text,'contact_online',u.online_until>statement_timestamp(),'contact',jsonb_build_object('id',u.id,'display_name',u.display_name,'phone',u.phone,'avatar_url',u.avatar_url),'agent_name',COALESCE(a.display_name,''),'agent_avatar_url'," + platform.AvatarURLSQL("m") + ",'first_agent'," + firstConversationAgentSQL + ")"
+var conversationProjection = "to_jsonb(c)||jsonb_build_object('next_event_seq',c.next_event_seq::text,'version',c.version::text,'last_message_seq',c.last_message_seq::text,'contact_online',u.online_until>statement_timestamp(),'reception_mode',coalesce(nullif(c.source_snapshot->'entry'->>'reception_mode','inherit'),(SELECT nullif(l.reception_mode,'inherit') FROM access_links l WHERE l.id=c.created_entry_id),(SELECT CASE WHEN p.algorithm='manual' THEN 'manual' ELSE 'auto' END FROM routing_pools p WHERE p.id=c.routing_pool_id),'auto'),'contact',jsonb_build_object('id',u.id,'display_name',u.display_name,'phone',u.phone,'avatar_url',u.avatar_url),'agent_name',COALESCE(a.display_name,''),'agent_avatar_url'," + platform.AvatarURLSQL("m") + ",'first_agent'," + firstConversationAgentSQL + ")"
 
 const conversationJoins = " FROM conversations c JOIN contacts u ON u.id=c.contact_id AND u.tenant_id=c.tenant_id LEFT JOIN tenant_memberships m ON m.id=c.current_agent_id AND m.tenant_id=c.tenant_id LEFT JOIN users a ON a.id=m.user_id "
 
@@ -95,7 +96,12 @@ func (s *Service) listConversations(w http.ResponseWriter, r *http.Request, a ac
 		args = append(args, from, to, before, beforeID, limit+1)
 		// 未读按当前成员自己的已读游标计算，不能由管理员、其他客服或访客的读取代清。
 		unread := `||jsonb_build_object('unread_count',(SELECT count(*) FROM messages unread WHERE unread.tenant_id=c.tenant_id AND unread.conversation_id=c.id AND unread.audience='public' AND unread.sender_kind='visitor' AND unread.withdrawn_at IS NULL AND chat_message_visible(NULLIF($3,'')::uuid,NULLIF($1,'')::uuid,$2,unread.id) AND unread.event_seq>coalesce((SELECT rc.last_read_seq FROM read_cursors rc WHERE rc.tenant_id=c.tenant_id AND rc.conversation_id=c.id AND rc.participant_id=NULLIF($3,'')::uuid AND rc.participant_kind='agent'),0)))`
-		query := "SELECT " + conversationProjection + unread + conversationJoins + conversationWhere + conversationActivityWhere + conversationPageWhere + " ORDER BY " + conversationActivity + " DESC,c.id LIMIT $15"
+		where := conversationWhere
+		// 工作台按实际接待展示AI与在线人工排队；历史记录和导出继续保留原始状态口径。
+		if r.URL.Path == "/api/v1/conversations" && a.ContactID == "" {
+			where = strings.Replace(where, "($4='' OR c.status=$4)", "($4='' OR ($4='active' AND (c.status='active' OR (c.status='queued' AND u.online_until>statement_timestamp() AND coalesce(c.context->>'ai_receiving','false')='true' AND NOT c.ai_paused))) OR ($4='queued' AND c.status='queued' AND u.online_until>statement_timestamp() AND NOT(coalesce(c.context->>'ai_receiving','false')='true' AND NOT c.ai_paused)) OR ($4 NOT IN('active','queued') AND c.status=$4))", 1)
+		}
+		query := "SELECT " + conversationProjection + unread + conversationJoins + where + conversationActivityWhere + conversationPageWhere + " ORDER BY " + conversationActivity + " DESC,c.id LIMIT $15"
 		rows, err := tx.Query(r.Context(), query, args...)
 		if err != nil {
 			return err

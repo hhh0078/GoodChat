@@ -22,11 +22,11 @@ func AvatarURL(ref string) string {
 }
 
 // AvatarURLSQL 为服务端固定表别名生成头像投影，别名不接受请求数据。
-// alias 应为调用处固定的SQL表别名，例如m或tm；返回SQL片段而非用户输入。
+// alias 应为调用处固定的SQL表别名，例如m、tm或AI成员a；返回SQL片段而非用户输入。
 func AvatarURLSQL(alias string) string {
-	if alias != "m" && alias != "tm" {
+	if alias != "m" && alias != "tm" && alias != "a" {
 		panic("头像SQL只允许服务端预定义成员表别名")
 	}
 	ref := alias + ".avatar_ref"
-	return "CASE WHEN " + ref + " LIKE 'default-%' THEN '/images/avatars/'||" + ref + "||'.png' WHEN " + ref + "<>'' THEN '/api/v1/avatar-assets/'||" + ref + " ELSE '' END"
+	return "CASE WHEN " + ref + "='goodchat' THEN '/logo/icon-192.png' WHEN " + ref + " LIKE 'default-%' THEN '/images/avatars/'||" + ref + "||'.png' WHEN " + ref + "<>'' THEN '/api/v1/avatar-assets/'||" + ref + " ELSE '' END"
 }

@@ -40,7 +40,7 @@ func buildTemplatePackageAssets(entry string, files []TemplateFile, scripts Temp
 		if isProtectedTemplatePath(source.Path) {
 			return nil, invalidDesign("AI或模板源码不能覆盖固定SDK、聊天脚本和版本合约")
 		}
-		if source.Path != entry && !strings.HasPrefix(source.Path, "static/") {
+		if source.Path != entry && !strings.HasPrefix(source.Path, "static/") && source.Path != "SKILL.md" && source.Path != "README.md" && source.Path != "PROMPT.md" {
 			return nil, invalidDesign("除index.html外，生成文件必须位于static静态目录")
 		}
 		file, err := checkStaticFile(source.Path, []byte(source.Content))

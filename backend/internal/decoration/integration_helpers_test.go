@@ -192,8 +192,7 @@ func newIntegrationFixture(t *testing.T, cfg platform.Config) *integrationFixtur
 	}
 	mux := http.NewServeMux()
 	f.service.Register(mux)
-	mux.HandleFunc("POST /api/v1/tenant/test-legacy-ai-design-jobs", integrationAuth{f.principals}.RequireAdmin(f.service.createLegacyAIJob))
-	f.server = httptest.NewServer(mux)
+	f.server = httptest.NewServer(platform.MethodOverride(mux))
 	return f
 }
 

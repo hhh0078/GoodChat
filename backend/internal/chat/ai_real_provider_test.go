@@ -122,7 +122,9 @@ func TestAIRealProviderKnowledgeAndMedia(t *testing.T) {
 		_ = f.admin.QueryRow(ctx, "SELECT error_code FROM ai_jobs WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1", conversation).Scan(&code)
 		var meta []byte
 		_ = f.admin.QueryRow(ctx, "SELECT coalesce(jsonb_agg(response_meta ORDER BY call_index),'[]'::jsonb) FROM ai_call_attempts WHERE job_id=(SELECT id FROM ai_jobs WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1)", conversation).Scan(&meta)
-		t.Fatalf("真实知识问答未回答88元，安全错误分类:%s，协议形状:%s", code, string(meta))
+		var details []byte
+		_ = f.admin.QueryRow(ctx, "SELECT coalesce(jsonb_agg(payload),'[]'::jsonb) FROM ai_job_events WHERE job_id=(SELECT id FROM ai_jobs WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1) AND kind='tool_start' AND name='submit_reply'", conversation).Scan(&details)
+		t.Fatalf("真实知识问答未回答88元，安全错误分类:%s，协议形状:%s，隔离回复参数:%s", code, string(meta), string(details))
 	}
 	var planRaw []byte
 	if e = f.admin.QueryRow(ctx, "SELECT result FROM ai_jobs WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 1", conversation).Scan(&planRaw); e != nil {
@@ -178,7 +180,7 @@ func TestAIRealProviderKnowledgeAndMedia(t *testing.T) {
 	if input <= 0 || output <= 0 || calls < 6 || f.countRows("SELECT count(*) FROM ai_wallet_entries WHERE kind='charge'") != 6 {
 		t.Fatal("真实用量或账本不完整")
 	}
-	t.Logf("真实Eino验收通过：模型%s，调用%d次，输入%d Token，输出%d Token；已配置正式费率计算消费%d微元。", cfg.Model, calls, input, output, charged)
+	t.Logf("真实Eino验收通过：模型%s，调用%d次，输入%d Token，输出%d Token；隔离验算费率计算消费%d微元。", cfg.Model, calls, input, output, charged)
 }
 
 // uploadAIVisitorImage 通过访客凭证上传真实图片，不复用客服附件或绕过附件所有权。

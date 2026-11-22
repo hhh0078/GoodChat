@@ -1,9 +1,10 @@
 /** 文件作用说明：为平台管理员配置统一客服AI模型、四项售价成本及租户余额运营。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import {
   App,
@@ -71,7 +72,7 @@ export function PlatformCustomerAI() {
         }),
       });
     } catch (e) {
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setBusy("");
     }
@@ -86,7 +87,7 @@ export function PlatformCustomerAI() {
       });
       usage.reload();
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     } finally {
       setBusy("");
     }
@@ -298,7 +299,7 @@ function AIModelEditor({
       });
       onSaved();
     } catch (e) {
-      if (!(e && typeof e === "object" && "errorFields" in e)) message.error(errorMessage(e));
+      if (!(e && typeof e === "object" && "errorFields" in e)) showRequestError(e);
     } finally {
       setBusy(false);
     }
@@ -407,7 +408,7 @@ function AICredit({
       });
       onSaved();
     } catch (e) {
-      if (!(e && typeof e === "object" && "errorFields" in e)) message.error(errorMessage(e));
+      if (!(e && typeof e === "object" && "errorFields" in e)) showRequestError(e);
     } finally {
       setBusy(false);
     }

@@ -1,11 +1,12 @@
 /** 文件作用说明：配置默认关闭的留言邮件提醒并展示真实排队、SMTP受理、失败及不确定结果。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { localizeStatic } from "@/i18n/runtime";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -118,7 +119,7 @@ export function LeadNotifications() {
       jobs.reload();
       message.success(tr("失败提醒已重新排队，尚未投递"));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   return (

@@ -1,5 +1,6 @@
 /** 文件作用说明：按各系统的最新公开版本展示真实下载链接，不显示虚构APK或过期静态版本。 */
 "use client";
+import { ErrorNotice } from "@/components/page-state";
 import { useTranslator } from "@/i18n/use-translator";
 import { api, errorMessage } from "@/lib/api";
 import {
@@ -46,7 +47,7 @@ export function ClientDownloads() {
       <p className="download-intro">
         {tr("使用桌面客户端接待客户。窗口最小化或关闭后，程序继续在系统托盘或菜单栏处理消息。 ")}
       </p>
-      {error && <Alert type="error" title={error} />}
+      {error && <ErrorNotice error={error} />}
       <Spin spinning={loading}>
         <div className="download-platforms">
           {[

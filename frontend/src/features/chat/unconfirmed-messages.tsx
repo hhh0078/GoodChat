@@ -1,8 +1,8 @@
 /** 文件作用说明：在可信访客父页面呈现待确认消息并由用户手动以原编号重试，不向装修iframe暴露暂存。 */
 "use client";
+import { ErrorNotice } from "@/components/page-state";
 import { useTranslator } from "@/i18n/use-translator";
-import { errorMessage } from "@/lib/api";
-import { Alert, Button } from "antd";
+import { Button } from "antd";
 import { useEffect, useRef, useState } from "react";
 import type { Outgoing } from "./use-chat";
 /** UnconfirmedMessages 只在消息快照加载后显示原身份暂存，重试直接提交原完整消息体。 */
@@ -64,14 +64,7 @@ export function UnconfirmedMessages({
           "这些内容保留在当前浏览器中。点击重试会使用原消息编号，服务器已收到的消息不会重复发送。 ",
         )}
       </p>
-      {(!!pendingError || !!error) && (
-        <Alert
-          type="error"
-          showIcon
-          title={errorMessage(error || pendingError)}
-          style={{ marginBottom: 8 }}
-        />
-      )}
+      <ErrorNotice error={error || pendingError} />
       <ol style={{ padding: 0, margin: 0, listStyle: "none", maxHeight: 160, overflowY: "auto" }}>
         {items.map((item) => (
           <li

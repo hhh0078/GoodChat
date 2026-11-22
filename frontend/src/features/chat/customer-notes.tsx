@@ -1,9 +1,10 @@
 /** 文件作用说明：按客户展示跨会话内部备注记录，支持稳定分页和幂等新增，不向访客发送。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, ApiError, errorMessage } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { mergeNotes, noteFailureState } from "@/lib/workspace-display";
 import { App, Button, Input } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -112,7 +113,7 @@ export function CustomerNotes({ contactId, tenantId }: { contactId: string; tena
       pending.current = null;
       setError(null);
     } catch (problem) {
-      if (mounted.current) message.error(errorMessage(problem));
+      if (mounted.current) showRequestError(problem);
     } finally {
       saving.current = false;
       if (mounted.current) setBusy(false);

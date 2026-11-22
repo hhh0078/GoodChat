@@ -1,8 +1,9 @@
 /** 文件作用说明：分别管理每日文章计划和搜索引擎凭据，私密配置仅显示是否已保存。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { Alert, App, Button, Checkbox, Drawer, Form, Input, Select, Switch } from "antd";
 import { useEffect, useState, useRef } from "react";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { languageNames, locales, availableTimezones } from "@/i18n/preferences";
 import { useTranslator } from "@/i18n/use-translator";
 import type { ArticleSettings } from "./types";
@@ -37,7 +38,7 @@ export function ArticleSettingsDrawer({
           form.setFieldsValue(data);
         }
       })
-      .catch((e) => message.error(errorMessage(e)));
+      .catch((e) => showRequestError(e));
     return () => {
       alive = false;
     };
@@ -57,7 +58,7 @@ export function ArticleSettingsDrawer({
       onSaved();
       onClose();
     } catch (e) {
-      if (e instanceof Error) message.error(errorMessage(e));
+      if (e instanceof Error) showRequestError(e);
     } finally {
       setBusy(false);
     }
@@ -72,7 +73,7 @@ export function ArticleSettingsDrawer({
       message.success(tr("任务已排队，请查看执行记录。"));
       onSaved();
     } catch (e) {
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setPending(false);
     }

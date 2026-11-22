@@ -1,7 +1,8 @@
 /** 文件作用说明：编辑客服本人的富欢迎语和关键词规则，媒体上传沿用受控附件接口。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { PersonalKeyword, PersonalWelcome, WelcomeContent } from "@/lib/personal-replies";
 import { useResource } from "@/lib/use-resource";
 import type { QuickReply } from "@/lib/quick-replies";
@@ -117,7 +118,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
         onSaved();
       }
     } catch (problem) {
-      if (!controller.signal.aborted && mounted.current) message.error(errorMessage(problem));
+      if (!controller.signal.aborted && mounted.current) showRequestError(problem);
     } finally {
       locked.current = false;
       if (mounted.current) setBusy(false);
@@ -127,7 +128,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
   async function uploadImage(file: File, index: number) {
     if (locked.current || (request.current && uploading !== null)) return;
     if (!file.size || file.size > 10 * 1024 * 1024) {
-      message.error(tr("请选择不超过10MB的图片"));
+      showRequestError(tr("请选择不超过10MB的图片"));
       return;
     }
     const controller = new AbortController();
@@ -149,7 +150,7 @@ export function PersonalAutomationEditor(props: EditorProps) {
         setAttachments((current) => ({ ...current, [index]: attachment }));
       }
     } catch (problem) {
-      if (!controller.signal.aborted && mounted.current) message.error(errorMessage(problem));
+      if (!controller.signal.aborted && mounted.current) showRequestError(problem);
     } finally {
       if (request.current === controller) request.current = null;
       if (mounted.current) setUploading(null);

@@ -82,7 +82,7 @@ export function AssistantPreview({
             type="error"
             showIcon
             title={tr("预览地址未通过来源检查")}
-            description={tr("请刷新任务记录，或重新生成隔离预览。")}
+            description={tr("请重新打开模板预览。")}
           />
         ) : (
           <Empty
@@ -90,9 +90,7 @@ export function AssistantPreview({
             description={
               <>
                 <strong>{tr("让想法变成可用的客服页面")}</strong>
-                <p>
-                  {tr("生成后将在这里展示真实模板，自动加入模拟消息，可测试发送、选项与附件。")}
-                </p>
+                <p>{tr("预览中的消息仅在本地演示。保存模板后，可绑定接入链接。")}</p>
               </>
             }
           />

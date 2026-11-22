@@ -73,6 +73,8 @@ func New(pool *pgxpool.Pool, auth platform.Authorizer, cfg platform.Config) *Ser
 // Register 注册真实持久化资源、访客、会话及实时接口。
 func (s *Service) Register(mux *http.ServeMux) {
 	s.registerAI(mux)
+	mux.HandleFunc("GET /api/v1/tenant/ai-service-agent", s.auth.RequireTenant(s.aiServiceAgent))
+	mux.HandleFunc("PUT /api/v1/tenant/ai-service-agent", s.auth.RequireAdmin(s.aiServiceAgent))
 	mux.HandleFunc("GET /api/v1/widget/{entry_script}", s.publicWidget)
 	mux.HandleFunc("GET /api/v1/tenant/access-links/{id}/widget", s.auth.RequireTenant(s.linkWidget))
 	mux.HandleFunc("GET /api/v1/tenant/dashboard", s.auth.RequireTenant(s.dashboard))

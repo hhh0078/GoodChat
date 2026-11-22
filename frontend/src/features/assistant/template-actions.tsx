@@ -1,10 +1,12 @@
-/** 文件作用说明：提供模板二创、完整 ZIP 下载、引用检查和有边界的删除操作。 */
+/** 文件作用说明：提供模板副本、完整 ZIP 下载、引用检查和有边界的删除操作。 */
 "use client";
+import { ErrorNotice } from "@/components/page-state";
+import { showRequestError } from "@/lib/request-error";
 import { useSession } from "@/features/auth/session";
 import type { Template } from "@/features/decoration/templates";
 import { translate as tr } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, ApiError, errorMessage } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { exportFilename, startFileDownload } from "@/lib/csv-download";
 import type { MenuProps } from "antd";
 import {
@@ -23,7 +25,6 @@ import {
 } from "antd";
 import { useState } from "react";
 import { preferenceHeaders } from "../../i18n/runtime.ts";
-import { useAssistantLauncher } from "./launcher";
 type TemplateUsage = {
   id: string;
   links: {
@@ -37,11 +38,6 @@ type TemplateUsage = {
     id: string;
     name: string;
     current_release_id?: string;
-  }[];
-  active_jobs: {
-    id: string;
-    status: string;
-    source?: string;
   }[];
   can_delete: boolean;
 };
@@ -70,7 +66,7 @@ export async function downloadTemplate(id: string, tenantId: string): Promise<vo
     exportFilename(response.headers.get("Content-Disposition"), "goodchat-template.zip"),
   );
 }
-/** TemplateActions 复制后发起 AI 二创，删除前展示服务端的链接与任务引用。 */
+/** TemplateActions 下载完整ZIP供外部编辑，删除前展示服务端的链接与页面引用。 */
 export function TemplateActions({
   template,
   isPublic,
@@ -84,7 +80,6 @@ export function TemplateActions({
 }) {
   const tr = useTranslator();
   const { tenantId, current } = useSession();
-  const { openAssistant } = useAssistantLauncher();
   const [busy, setBusy] = useState("");
   const [usageOpen, setUsageOpen] = useState(false);
   const [usage, setUsage] = useState<TemplateUsage | null>(null);
@@ -106,14 +101,6 @@ export function TemplateActions({
     });
     onChanged();
     return created;
-  }
-  /** remix 由助手服务原子复制并升级原模板，首次发送描述才调用模型。 */
-  function remix() {
-    openAssistant({
-      templateId: template.id,
-      templateName: template.name,
-      prompt: tr("请在当前模板基础上调整设计，保留完整聊天能力。"),
-    });
   }
   /** openPlatformCopy 先确认名称和可见范围，默认隐藏，不会因点击入口自动公开作品。 */
   function openPlatformCopy() {
@@ -159,7 +146,7 @@ export function TemplateActions({
       await downloadTemplate(selected.id, tenantId);
       message.success(tr("模板 ZIP 下载已发起"));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     } finally {
       setBusy("");
     }
@@ -202,14 +189,6 @@ export function TemplateActions({
     <>
       <Button
         size="small"
-        loading={busy === "remix"}
-        disabled={!!busy && busy !== "remix"}
-        onClick={() => void remix()}
-      >
-        {tr("AI 二创 ")}
-      </Button>
-      <Button
-        size="small"
         loading={busy === "download"}
         disabled={!!busy && busy !== "download"}
         onClick={() => void download()}
@@ -249,7 +228,7 @@ export function TemplateActions({
           description={tr("选择上架后，所有租户都能预览和复制此作品；私有原稿继续保留。")}
           style={{ marginBottom: 20 }}
         />
-        {!!platformError && <Alert type="error" showIcon title={errorMessage(platformError)} />}
+        {!!platformError && <ErrorNotice error={platformError} />}
         <Form
           form={platformForm}
           layout="vertical"
@@ -282,7 +261,7 @@ export function TemplateActions({
         onCancel={() => setUsageOpen(false)}
         footer={null}
       >
-        {!!error && <Alert type="error" showIcon title={errorMessage(error)} />}
+        {!!error && <ErrorNotice error={error} />}
         {busy === "usage" ? (
           <Spin />
         ) : usage ? (
@@ -295,10 +274,6 @@ export function TemplateActions({
               <Tag>
                 {usage.pages.length}
                 {tr(" 个页面")}
-              </Tag>
-              <Tag>
-                {usage.active_jobs.length}
-                {tr(" 个生成任务")}
               </Tag>
             </p>
             {usage.links.length > 0 && (
@@ -332,17 +307,11 @@ export function TemplateActions({
                 </ul>
               </>
             )}
-            {usage.active_jobs.length > 0 && (
-              <Alert
-                type="warning"
-                title={tr("仍有 AI 任务正在使用此模板，请先等待完成或取消任务。")}
-              />
-            )}
             {usage.can_delete && (
               <Alert
                 type="info"
                 showIcon
-                title={tr("此模板当前没有入口或运行任务绑定")}
+                title={tr("此模板当前没有入口绑定")}
                 description={tr(
                   "删除会同时清理对应的无绑定页面与无引用文件；其他模板和版本仍在使用的文件会保留。",
                 )}

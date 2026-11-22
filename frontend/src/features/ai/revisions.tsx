@@ -1,10 +1,11 @@
 /** 文件作用说明：展示知识库成功发布的正文描述历史，并原子恢复所选版本。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { App, Button, Modal, Popconfirm, Table } from "antd";
 import { useState } from "react";
@@ -37,7 +38,7 @@ export function AIKnowledgeHistory({
       });
       onRestored();
     } catch (e) {
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setBusy(false);
     }

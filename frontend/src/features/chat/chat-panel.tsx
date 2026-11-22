@@ -1,5 +1,6 @@
 /** 文件作用说明：提供访客与客服共用的消息界面、幂等重试、附件、语音、引用与可见已读。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { localizeStatic } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
@@ -349,7 +350,7 @@ export function ChatPanel({
       stagePending(sessionStorage, storageKey, body);
     } catch (problem) {
       setStorageWarning(errorMessage(problem));
-      message.error(errorMessage(problem));
+      showRequestError(problem);
       return false;
     }
     sendingLock.current = true;
@@ -378,7 +379,7 @@ export function ChatPanel({
           ? previous
           : [...previous, body],
       );
-      message.error(errorMessage(problem));
+      showRequestError(problem);
       return false;
     } finally {
       sendingLock.current = false;
@@ -441,7 +442,7 @@ export function ChatPanel({
   /** uploadAndSend 上传通过后才发送引用附件的消息。 */
   async function uploadAndSend(file: File, type?: string) {
     if (file.size > 20 * 1024 * 1024) {
-      message.error(tr("文件不能超过 20MB。"));
+      showRequestError(tr("文件不能超过 20MB。"));
       return;
     }
     setUploading(true);
@@ -469,7 +470,7 @@ export function ChatPanel({
         audience,
       });
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     } finally {
       setUploading(false);
     }
@@ -479,7 +480,7 @@ export function ChatPanel({
     try {
       await chat.withdraw(item.id);
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   /** removeFailed 由用户明确移除本机待确认记录，不撤回或删除服务端已经保存的消息。 */
@@ -488,7 +489,7 @@ export function ChatPanel({
       acknowledgePending(sessionStorage, `${draftKey}.pending`, [clientId]);
       setFailed((previous) => previous.filter((item) => item.client_message_id !== clientId));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   return (

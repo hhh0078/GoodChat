@@ -1,7 +1,8 @@
 /** 文件作用说明：以音量控制代替工作台提醒启停，保存真实偏好并独立申请系统通知。 */
 "use client";
+import { ErrorNotice } from "@/components/page-state";
+import { showRequestError } from "@/lib/request-error";
 import { useTranslator } from "@/i18n/use-translator";
-import { errorMessage } from "@/lib/api";
 import { AudioMutedOutlined, SoundOutlined } from "@ant-design/icons";
 import { App, Button, Checkbox, Popover, Slider } from "antd";
 import { useState } from "react";
@@ -24,7 +25,7 @@ export function ReminderVolume({
     try {
       await reminders.updatePreferences(values);
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     } finally {
       setPreferenceBusy(false);
       setVolumeDraft(null);
@@ -36,7 +37,7 @@ export function ReminderVolume({
     try {
       await reminders.setSystemNotifications(enabled);
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     } finally {
       setPreferenceBusy(false);
     }
@@ -90,7 +91,7 @@ export function ReminderVolume({
             {reminders.audioReady ? tr("提示音已就绪") : tr("点击或输入后，浏览器才允许播放提示音")}
             。
           </p>
-          {!!reminders.error && <p className="preference-error">{errorMessage(reminders.error)}</p>}
+          <ErrorNotice error={reminders.error} />
         </div>
       }
     >

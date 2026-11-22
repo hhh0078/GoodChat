@@ -1,11 +1,12 @@
 /** 文件作用说明：为默认客服后台提供平台、管理和客服统一导航及退出操作。 */
 "use client";
-import { AssistantLauncher, AssistantProvider } from "@/features/assistant/launcher";
+import { showRequestError } from "@/lib/request-error";
+import { AIDecorationEntry } from "@/features/decoration/ai-decoration-guide";
 import { SessionProvider, useSession } from "@/features/auth/session";
 import { WorkspaceRemindersProvider } from "@/features/chat/workspace-reminders";
 import Link from "@/i18n/link";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import {
   AppstoreOutlined,
   BarChartOutlined,
@@ -92,7 +93,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
       router.replace("/login");
       router.refresh();
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   const groups = [
@@ -129,38 +130,44 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
   const pageLabel = entries.find((entry) => entry.key === selected)?.label || tr("概览");
   const sections = [
     {
-      label: tr("客服"),
-      paths: ["/console", "/workspace", "/console/ai", "/console/notifications"],
+      key: "daily",
+      label: tr("日常工作"),
+      paths: ["/console", "/workspace", "/console/ai", "/console/contacts", "/console/records"],
+      daily: true,
     },
     {
-      label: tr("客户服务"),
+      key: "service",
+      label: tr("接入与运营"),
       paths: [
-        "/console/contacts",
-        "/console/records",
-        ...(!manages ? ["/console/automation", "/console/settings"] : []),
+        "/console/links",
+        "/console/templates",
+        "/console/automation",
+        "/console/notifications",
       ],
+      daily: false,
     },
     {
-      label: tr("租户管理"),
-      paths: manages
-        ? [
-            "/console/members",
-            "/console/member-statistics",
-            "/console/links",
-            "/console/routing",
-            "/console/automation",
-            "/console/templates",
-            "/console/billing",
-            "/console/settings",
-            "/console/reports",
-          ]
-        : [],
+      key: "team",
+      label: tr("团队与设置"),
+      paths: ["/console/members", "/console/routing", "/console/billing", "/console/settings"],
+      daily: false,
     },
-    { label: tr("平台管理员"), paths: ["/platform", "/platform/monitoring"] },
+    {
+      key: "statistics",
+      label: tr("数据统计"),
+      paths: ["/console/reports", "/console/member-statistics"],
+      daily: false,
+    },
+    {
+      key: "platform",
+      label: tr("平台管理员"),
+      paths: ["/platform", "/platform/monitoring"],
+      daily: false,
+    },
   ]
     .map((section) => ({
-      type: "group" as const,
-      key: section.label,
+      type: section.daily ? ("group" as const) : undefined,
+      key: section.key,
       label: section.label,
       children: section.paths.flatMap((path) => entries.filter((entry) => entry.key === path)),
     }))
@@ -176,6 +183,9 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
       <Menu
         mode="inline"
         items={sections}
+        defaultOpenKeys={sections
+          .filter((section) => section.children.some((entry) => entry.key === selected))
+          .map((section) => section.key)}
         selectedKeys={[selected]}
         onClick={({ key }) => navigate(key)}
       />
@@ -307,7 +317,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
             <div className="shell-actions">
               <div id="workspace-header-actions" />
               <LocaleSettingsButton />
-              <AssistantLauncher />
+              <AIDecorationEntry />
               {!serving && (
                 <Link href="/help" className="shell-help">
                   <QuestionCircleOutlined aria-hidden="true" />
@@ -362,9 +372,7 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <AssistantProvider>
-        <WorkspaceChrome>{children}</WorkspaceChrome>
-      </AssistantProvider>
+      <WorkspaceChrome>{children}</WorkspaceChrome>
     </SessionProvider>
   );
 }

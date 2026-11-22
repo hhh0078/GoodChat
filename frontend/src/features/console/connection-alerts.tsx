@@ -1,8 +1,9 @@
 /** 文件作用说明：在工作空间汇总上班却失去实时探活的客服，定期刷新并可展开多个异常详情。 */
 "use client";
+import { ErrorNotice } from "@/components/page-state";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { Alert, Button } from "antd";
 import { useEffect, useState } from "react";
 import "./connection-alerts.css";
@@ -78,26 +79,12 @@ export function ConnectionAlerts({ tenantId }: { tenantId: string }) {
       document.removeEventListener("visibilitychange", visible);
     };
   }, [tenantId, revision]);
-  if (error)
-    return (
-      <Alert
-        className="dashboard-connection-alert"
-        type="error"
-        showIcon
-        title={tr("客服实时连接检查失败")}
-        description={errorMessage(error)}
-        action={
-          <Button size="small" onClick={() => setRevision((value) => value + 1)}>
-            {tr("重新检查 ")}
-          </Button>
-        }
-      />
-    );
+  if (error) return <ErrorNotice error={error} retry={() => setRevision((value) => value + 1)} />;
   if (!data?.items.length) return null;
   return (
     <Alert
       className="dashboard-connection-alert"
-      type="error"
+      type="warning"
       showIcon
       title={
         data.scope === "team"

@@ -3,13 +3,10 @@ package decoration
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"supportdesk/backend/internal/platform"
@@ -162,83 +159,6 @@ func TestPostgresTenantReleaseIsolation(t *testing.T) {
 		return tx.QueryRow(ctx, "SELECT count(*) FROM decoration_releases WHERE page_id=$1", otherID).Scan(&publishedCount)
 	}); err != nil || publishedCount != 0 {
 		t.Fatal("绑定失败必须回滚整次发布，不能留下半发布")
-	}
-}
-
-// TestPostgresAIResultCannotOverwrite 验证本地假供应商迟到结果在用户编辑和取消后均不能覆盖私有草稿。
-func TestPostgresAIResultCannotOverwrite(t *testing.T) {
-	for _, operation := range []string{"edit", "cancel"} {
-		t.Run(operation, func(t *testing.T) {
-			started := make(chan struct{})
-			release := make(chan struct{})
-			var once sync.Once
-			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				once.Do(func() { close(started) })
-				select {
-				case <-release:
-				case <-r.Context().Done():
-					return
-				}
-				_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": string(defaultDesign("schema", "假模型候选结果"))}}}, "usage": map[string]int{"total_tokens": 120}})
-			}))
-			defer provider.Close()
-			f := newIntegrationFixture(t, platform.Config{AIEndpoint: provider.URL, AIKey: "local-test-only", AIModel: "local-fake-provider"})
-			job := f.mustRequest("POST", "/tenant/test-legacy-ai-design-jobs", f.member, map[string]any{"name": "私有AI测试", "prompt": "创建一个绿色的客服咨询页面", "render_mode": "schema"})
-			id, templateID := job["id"].(string), job["template_id"].(string)
-			tenant, claimed, err := f.service.claimAIJob(context.Background())
-			if err != nil || claimed != id || tenant != f.tenant {
-				t.Fatal("应从无载荷目录认领当前测试任务")
-			}
-			done := make(chan error, 1)
-			go func() { done <- f.service.processAIJob(context.Background(), tenant, id) }()
-			select {
-			case <-started:
-			case <-time.After(5 * time.Second):
-				t.Fatal("本地假供应商未收到真实HTTP请求")
-			}
-			if operation == "edit" {
-				f.mustRequest("PATCH", "/tenant/templates/"+templateID, f.member, map[string]any{"name": "手工编辑保留", "render_mode": "schema", "design": defaultDesign("schema", "用户后续有效编辑"), "version": 1})
-			} else {
-				f.mustRequest("POST", "/tenant/ai-design-jobs/"+id+"/cancel", f.member, nil)
-			}
-			close(release)
-			select {
-			case err := <-done:
-				if err != nil {
-					t.Fatal(err)
-				}
-			case <-time.After(5 * time.Second):
-				t.Fatal("假供应商任务未完成保存")
-			}
-			result := f.mustRequest("GET", "/tenant/ai-design-jobs/"+id, f.member, nil)
-			if operation == "edit" {
-				if result["status"] != "succeeded" || result["applied"] != false || !containsString(result["result"], "假模型候选结果") {
-					t.Fatal("编辑后应保留未应用候选而不是覆盖用户草稿")
-				}
-			} else if result["status"] != "cancelled" || result["applied"] != false {
-				t.Fatal("取消任务迟到后必须保持取消终态")
-			}
-			var design json.RawMessage
-			var version int64
-			if err := platform.TenantTx(context.Background(), f.pool, f.tenant, func(tx pgx.Tx) error {
-				return tx.QueryRow(context.Background(), "SELECT design,version FROM tenant_templates WHERE id=$1", templateID).Scan(&design, &version)
-			}); err != nil {
-				t.Fatal(err)
-			}
-			if operation == "edit" && (version != 2 || !strings.Contains(string(design), "用户后续有效编辑")) {
-				t.Fatal("AI不得覆盖手工编辑")
-			}
-			if operation == "cancel" && strings.Contains(string(design), "假模型候选结果") {
-				t.Fatal("取消后AI结果不得进入私有草稿")
-			}
-			status, _ := f.request("GET", "/tenant/ai-design-jobs/"+id, f.otherMember, nil)
-			if status != 404 {
-				t.Fatal("AI任务必须租户隔离")
-			}
-			if result["billing_status"] != "reported" {
-				t.Fatal("取消和并发编辑仍需记录供应商已报告的真实测试用量")
-			}
-		})
 	}
 }
 

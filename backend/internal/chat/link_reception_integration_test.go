@@ -17,6 +17,10 @@ func TestLinkReceptionMixedQueue(t *testing.T) {
 	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": auto["entry_key"], "visit_id": newID()})
 	secondSession := mustData(t, status, reply)
 	second := secondSession["conversation"].(map[string]any)
+	// 排队调度只处理仍在线访客；此测试隔离传输层并明确建立有效访客租约。
+	if _, err := f.admin.Exec(context.Background(), "UPDATE contacts SET online_until=now()+interval '5 minutes' WHERE tenant_id=$1", f.tenant); err != nil {
+		t.Fatal(err)
+	}
 	f.online(f.agent)
 	if err := f.s.routeQueues(context.Background(), f.tenant); err != nil {
 		t.Fatal(err)

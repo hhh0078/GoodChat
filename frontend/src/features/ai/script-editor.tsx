@@ -1,10 +1,11 @@
 /** 文件作用说明：编辑AI话术的使用条件及有序富媒体块，在当前文本光标处插入服务器媒体。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { useSession } from "@/features/auth/session";
 import { AttachmentView } from "@/features/chat/attachment";
 import { languageNames } from "@/i18n/preferences";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { insertMediaBlock } from "@/lib/ai-content";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -59,8 +60,7 @@ export function AIScriptEditor({
       });
       onSaved();
     } catch (error) {
-      if (!(error && typeof error === "object" && "errorFields" in error))
-        message.error(errorMessage(error));
+      if (!(error && typeof error === "object" && "errorFields" in error)) showRequestError(error);
     } finally {
       setBusy(false);
     }

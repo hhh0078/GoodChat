@@ -115,6 +115,7 @@ export function AgentWorkspace() {
   /** updateStatus 由客服明确选择上下班和示忙，不因打开页面自动上班。 */
   async function updateStatus(values: Partial<AgentStatus>) {
     setBusy(true);
+    setError(null);
     try {
       setRuntime(
         await api<AgentStatus>("/agent/status", { method: "PATCH", tenantId, bodyJSON: values }),
@@ -412,15 +413,17 @@ export function AgentWorkspace() {
                   {transfer && active.current_agent_id === membership.id && (
                     <Tag color="gold">{tr("等待目标客服确认")}</Tag>
                   )}
-                  {active.status === "queued" && (
-                    <Button
-                      type="primary"
-                      loading={busy}
-                      onClick={() => void assignmentAction("claim")}
-                    >
-                      {tr("领取咨询 ")}
-                    </Button>
-                  )}
+                  {active.status === "queued" &&
+                    !active.context?.ai_receiving &&
+                    active.reception_mode === "manual" && (
+                      <Button
+                        type="primary"
+                        loading={busy}
+                        onClick={() => void assignmentAction("claim")}
+                      >
+                        {tr("领取咨询 ")}
+                      </Button>
+                    )}
                   {["assigned", "pending"].includes(active.status) &&
                     active.current_agent_id === membership.id && (
                       <>

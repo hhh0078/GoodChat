@@ -1,8 +1,9 @@
 /** 文件作用说明：以原始静态资源包为基础提供元素点选、源码和图片编辑，并保存为独立版本草稿。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import {
   CodeOutlined,
   PlusOutlined,
@@ -531,7 +532,7 @@ export function StaticTemplateEditor({
             );
             setHTMLOpen(false);
           } catch (problem) {
-            message.error(errorMessage(problem));
+            showRequestError(problem);
           }
         }}
       />

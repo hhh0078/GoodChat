@@ -1,10 +1,11 @@
 /** 文件作用说明：维护客户分类、标签、自定义字段与资料，并读取访问轨迹及执行保留历史的封禁。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
 import { channelTags, customerFields, displayValue } from "@/lib/workspace-display";
@@ -87,7 +88,7 @@ export function ContactsPage() {
       setRevision((value) => value + 1);
       message.success(enabled ? tr("客户已封禁，聊天历史保留") : tr("封禁已解除"));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   const panels = [

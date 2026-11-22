@@ -1,11 +1,12 @@
 /** 文件作用说明：让管理员集中处理 AI 知识缺口，发布补充知识后由服务端绑定机器人并完成待办。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { useEffect, useState } from "react";
 import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Tag } from "antd";
 import { useSession } from "@/features/auth/session";
 import { useTranslator } from "@/i18n/use-translator";
 import { useFormats } from "@/i18n/use-formats";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { usePagedResource } from "@/lib/use-paged-resource";
 import { useResource } from "@/lib/use-resource";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
@@ -67,7 +68,7 @@ function AIGapSupplement({
       onSaved();
       onClose();
     } catch (error) {
-      message.error(errorMessage(error));
+      showRequestError(error);
     } finally {
       setBusy(false);
     }
@@ -172,7 +173,7 @@ export function AIInbox() {
       await api(`/tenant/ai/inbox/${item.id}`, { tenantId, method: "POST", bodyJSON: { action } });
       resource.reload();
     } catch (error) {
-      message.error(errorMessage(error));
+      showRequestError(error);
     } finally {
       setBusy("");
     }

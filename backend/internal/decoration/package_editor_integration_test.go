@@ -117,7 +117,7 @@ func TestPostgresEditorPackageSourceAndPreview(t *testing.T) {
 
 // TestPostgresPlatformEditorPreview 验证平台编辑预览同样创建租户内临时快照，不修改平台原始版本。
 func TestPostgresPlatformEditorPreview(t *testing.T) {
-	f := newAssistantFixture(t)
+	f := newIntegrationFixture(t, platform.Config{})
 	id, _ := platformLifecycleTemplate(t, f)
 	t.Cleanup(func() { cleanupPlatformFixture(t, f, []string{id}) })
 	input := map[string]any{"editor_nonce": "10000000-0000-4000-8000-000000000088", "files": []any{map[string]any{"path": "static/editor-note.txt", "content": "平台编辑未保存快照"}}}

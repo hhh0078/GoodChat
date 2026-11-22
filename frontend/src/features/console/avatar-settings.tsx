@@ -1,5 +1,6 @@
 /** 文件作用说明：提供租户访客头像池与当前客服固定头像设置，复用平台库和受控上传资源。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { localizeStatic } from "@/i18n/runtime";
@@ -116,7 +117,7 @@ export function AvatarSettings({ mode }: { mode: "pool" | "agent" }) {
   /** upload 只上传有界图片到头像资源接口，成功后加入选择但仍等待明确保存。 */
   async function upload(file: File) {
     if (!file.size || file.size > 5 * 1024 * 1024) {
-      message.error(tr("请选择不超过5MiB的PNG、JPEG、GIF或WebP图片"));
+      showRequestError(tr("请选择不超过5MiB的PNG、JPEG、GIF或WebP图片"));
       return;
     }
     setUploading(true);

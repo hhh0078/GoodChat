@@ -91,7 +91,7 @@ func aiTools() []*schema.ToolInfo {
 	return []*schema.ToolInfo{
 		{Name: "report_knowledge_gap", Desc: "Record missing business knowledge for administrators. Read relevant knowledge first. Only report factual questions that cannot be answered with authorized facts, never explicit human requests, greetings or unsafe requests. Check the supplied pending catalog for semantic duplicates and pass existing_id when matching. Then continue with a truthful submit_reply or request_handoff; this tool does not send a visitor message.", ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{"reason": {Type: schema.String, Required: true, Desc: "Concise missing business fact, no invented answer"}, "existing_id": {Type: schema.String, Desc: "Exact ID of a similar item in supplied pending catalog, otherwise omit"}})},
 		{Name: "read_knowledge_bases", Desc: "Read published business facts before answering. Pass 1 to 3 exact document IDs (type=document) from the authorized directory tree, never folder IDs, per call; split larger selections across calls.", ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{"ids": {Type: schema.Array, Required: true, Desc: "1 to 3 exact authorized document IDs per call", ElemInfo: &schema.ParameterInfo{Type: schema.String}}})},
-		{Name: "submit_reply", Desc: "Submit the final reply once. Use text items or exact allowed script IDs and versions. Never invent URLs or policy facts.", ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{"items": {Type: schema.Array, Required: true, ElemInfo: &schema.ParameterInfo{Type: schema.Object, SubParams: map[string]*schema.ParameterInfo{"type": {Type: schema.String, Required: true, Enum: []string{"text", "script"}}, "text": {Type: schema.String}, "script_id": {Type: schema.String}, "version": {Type: schema.Integer}}}}})},
+		{Name: "submit_reply", Desc: "Submit the final reply once. Use text items or exact allowed script IDs and versions. Never invent URLs or policy facts.", ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{"items": {Type: schema.Array, Required: true, ElemInfo: &schema.ParameterInfo{Type: schema.Object, SubParams: map[string]*schema.ParameterInfo{"type": {Type: schema.String, Required: true, Enum: []string{"text", "script"}}, "text": {Type: schema.String, Desc: "Required only for text items; omit script_id and version for text"}, "script_id": {Type: schema.String, Desc: "Only for script items; exact authorized ID; omit for text"}, "version": {Type: schema.Integer, Desc: "Only for script items; exact authorized version; omit for text"}}}}})},
 		{Name: "request_handoff", Desc: "Request a human when asked, evidence is missing or the issue cannot be resolved. Do not claim that a human has accepted.", ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{"reason": {Type: schema.String, Required: true}})},
 	}
 }
@@ -231,6 +231,18 @@ func (s *Service) aiRun(ctx context.Context, j *aiJobData) (aiPlan, error) {
 				return aiPlan{}, errors.New("ai_invalid_tool")
 			}
 			if e = validateAIPlan(plan, j.Snapshot.Scripts); e != nil {
+				if traceErr := s.aiTrace(ctx, j, "tool_result", "submit_reply", map[string]any{"validated": false, "error_code": e.Error()}); traceErr != nil {
+					return aiPlan{}, traceErr
+				}
+				// 错误计划从未发送；只允许一次有界修复，仍逐项校验白名单，无效调用费用由平台承担。
+				if repairs == 0 && step < 4 {
+					if err := s.aiWaiveProtocolAttempt(ctx, j, step); err != nil {
+						return aiPlan{}, err
+					}
+					repairs++
+					messages = append(messages, out, schema.ToolMessage("No reply was sent. Submit 1 to 6 valid items. Text items must contain only type=text and nonempty text; omit script_id and version. Script items must contain only type=script, an exact authorized script_id and its version; omit text. Never invent IDs.", call.ID))
+					continue
+				}
 				return aiPlan{}, e
 			}
 			plan.ReadIDs = readIDs

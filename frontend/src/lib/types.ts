@@ -32,6 +32,7 @@ export type AccessLink = Resource & {
   routing_pool_id: string;
   status: string;
   agent_mode: string;
+  ai_agent_id?: string | null;
   reception_mode?: "inherit" | "auto" | "manual";
   channel_code?: string;
   channel_tags?: string[];

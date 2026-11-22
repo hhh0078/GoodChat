@@ -1,11 +1,12 @@
 /** 文件作用说明：提供个人邮件订阅、静默时间、租户通知规则与本人投递历史，权限由服务端再次校验。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { PageTitle, ErrorNotice } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { LeadNotifications } from "@/features/console/lead-notifications";
 import { useTranslator } from "@/i18n/use-translator";
 import { useFormats } from "@/i18n/use-formats";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { Alert, App, Button, Card, Form, InputNumber, Select, Space, Switch, Tabs } from "antd";
 import { useEffect, useState } from "react";
@@ -74,7 +75,7 @@ export function NotificationsPage() {
       message.success(tr("通知设置已保存"));
       history.reload();
     } catch (e) {
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setBusy(false);
     }

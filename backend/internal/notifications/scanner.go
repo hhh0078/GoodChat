@@ -64,6 +64,9 @@ func (s *Service) scanTenant(ctx context.Context, tenant string) error {
 		if e := s.scanService(ctx, tx, tenant, name, installed); e != nil {
 			return e
 		}
+		if e := s.scanKnowledgeGaps(ctx, tx, tenant, name, installed); e != nil {
+			return e
+		}
 		return s.scanDigest(ctx, tx, tenant, name, installed)
 	})
 }
@@ -293,18 +296,19 @@ func (s *Service) scanService(ctx context.Context, tx pgx.Tx, tenant, name strin
 			}
 		}
 	}
-	rows, e := tx.Query(ctx, `SELECT DISTINCT ON(e.conversation_id) e.conversation_id::text,e.created_at FROM conversation_events e JOIN conversations c ON c.id=e.conversation_id WHERE e.event_type='conversation.updated' AND e.payload ? 'ai_reason' AND e.created_at>=$1 AND e.created_at<now()-make_interval(mins=>$2) AND c.ai_paused AND c.status<>'closed' AND NOT EXISTS(SELECT 1 FROM messages m WHERE m.conversation_id=c.id AND m.sender_kind='agent' AND m.ai_job_id IS NULL AND m.created_at>e.created_at) ORDER BY e.conversation_id,e.created_at DESC`, installed, minutes)
+	rows, e := tx.Query(ctx, `SELECT DISTINCT ON(e.conversation_id) e.conversation_id::text,e.created_at,coalesce((SELECT m.content FROM messages m WHERE m.conversation_id=c.id AND m.sender_kind='visitor' AND m.withdrawn_at IS NULL AND m.created_at<=e.created_at ORDER BY m.created_at DESC LIMIT 1),''),coalesce(e.payload->>'ai_reason','') FROM conversation_events e JOIN conversations c ON c.id=e.conversation_id WHERE e.event_type='conversation.updated' AND e.payload ? 'ai_reason' AND e.created_at>=$1 AND e.created_at<now()-make_interval(mins=>$2) AND c.ai_paused AND c.status<>'closed' AND NOT EXISTS(SELECT 1 FROM messages m WHERE m.conversation_id=c.id AND m.sender_kind='agent' AND m.ai_job_id IS NULL AND m.created_at>e.created_at) ORDER BY e.conversation_id,e.created_at DESC`, installed, minutes)
 	if e != nil {
 		return e
 	}
 	type handoff struct {
-		id string
-		at time.Time
+		question, reason string
+		id               string
+		at               time.Time
 	}
 	items := []handoff{}
 	for rows.Next() {
 		var i handoff
-		if e := rows.Scan(&i.id, &i.at); e != nil {
+		if e := rows.Scan(&i.id, &i.at, &i.question, &i.reason); e != nil {
 			rows.Close()
 			return e
 		}
@@ -312,7 +316,7 @@ func (s *Service) scanService(ctx context.Context, tx pgx.Tx, tenant, name strin
 	}
 	rows.Close()
 	for _, i := range items {
-		if e := enqueueAdmins(ctx, tx, tenant, name, "handoff_waiting", "handoff:"+i.id+":"+i.at.UTC().Format(time.RFC3339Nano), map[string]string{"reference": i.id, "_handoff_at": i.at.UTC().Format(time.RFC3339Nano)}); e != nil {
+		if e := enqueueAdmins(ctx, tx, tenant, name, "handoff_waiting", "handoff:"+i.id+":"+i.at.UTC().Format(time.RFC3339Nano), map[string]string{"reference": i.id, "question": i.question, "reason": i.reason, "_handoff_at": i.at.UTC().Format(time.RFC3339Nano)}); e != nil {
 			return e
 		}
 	}

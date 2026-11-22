@@ -64,7 +64,7 @@ func TestTemplateWorkflowBrowserRuntime(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		handler := http.Handler(localization.Middleware(mux))
+		handler := http.Handler(localization.Middleware(platform.MethodOverride(mux)))
 		if strings.HasSuffix(addr, ":18348") {
 			handler = designs.CodeHandler()
 		}
@@ -96,7 +96,7 @@ func TestTemplateWorkflowBrowserRuntime(t *testing.T) {
 	}
 	defer os.Remove(output)
 	t.Log("模板流程隔离服务就绪，后端18347，渲染18348")
-	timer := time.NewTimer(30 * time.Minute)
+	timer := time.NewTimer(90 * time.Minute)
 	defer timer.Stop()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()

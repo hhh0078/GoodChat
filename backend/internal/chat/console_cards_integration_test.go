@@ -117,7 +117,7 @@ func TestRoleDashboard(t *testing.T) {
 	f.visitor("")
 	status, reply = f.request("GET", "/api/v1/tenant/dashboard", f.owner, "", nil)
 	team := mustData(t, status, reply)
-	if team["active"] != float64(1) || team["queued"] != float64(1) || team["today_created"] != float64(2) || team["online_agents"] != float64(1) {
+	if team["active"] != float64(1) || team["queued"] != float64(0) || team["today_created"] != float64(2) || team["online_agents"] != float64(1) {
 		t.Fatalf("团队概览错误: %v", team)
 	}
 	status, reply = f.request("GET", "/api/v1/tenant/dashboard", f.agent, "", nil)

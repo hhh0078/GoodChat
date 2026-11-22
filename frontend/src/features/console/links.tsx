@@ -1,10 +1,12 @@
 /** 文件作用说明：管理接入链接、生成二维码和参数化链接，并调用真实入口接口保存。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { LoadMore } from "@/components/load-more";
+import { useAIEmployee } from "./ai-member";
 import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
 import { localizeStatic } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { linkTemplateBinding } from "@/lib/link-template-binding";
 import { serialPoll } from "@/lib/reporting-state";
 import type { AccessLink, Member, Resource } from "@/lib/types";
@@ -87,6 +89,7 @@ export function LinksPage() {
   }, [links.tenantId, statisticsRevision]);
   const currentStatistics = statistics?.tenantId === links.tenantId ? statistics.data : null;
   const metrics = new Map(currentStatistics?.items.map((item) => [item.id, item]) || []);
+  const { agent: aiEmployee } = useAIEmployee();
   const groups = useResource<Resource>("/tenant/groups");
   const pools = useResource<Resource>("/tenant/routing-pools");
   const skills = useResource<Resource>("/tenant/routing-skills");
@@ -173,7 +176,7 @@ export function LinksPage() {
       message.success(tr("入口已归档"));
       links.reload();
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   return (
@@ -385,6 +388,26 @@ export function LinksPage() {
                   ? [{ label: tr("沿用分配池的接待方式"), value: "inherit" }]
                   : []),
               ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="ai_agent_id"
+            label={tr("AI接待成员")}
+            extra={tr("选择 AI 后自动接待，转人工时遵循下方接待方式与指定客服配置。")}
+          >
+            <Select
+              allowClear
+              options={
+                aiEmployee
+                  ? [
+                      {
+                        label: aiEmployee.name,
+                        value: aiEmployee.id,
+                        disabled: !aiEmployee.enabled || !aiEmployee.configured,
+                      },
+                    ]
+                  : []
+              }
             />
           </Form.Item>
           <Form.Item name="agent_id" label={tr("优先指定客服")}>

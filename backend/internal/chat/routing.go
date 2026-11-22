@@ -85,11 +85,11 @@ func (s *Service) assignLocked(ctx context.Context, tx pgx.Tx, tenant, id, reque
 		return nil
 	}
 	if !manual {
-		var aiFirst bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ai_tenant_settings t JOIN ai_bots b ON b.id=t.default_bot_id JOIN tenant_memberships m ON m.id=b.owner_membership_id JOIN conversations c ON c.id=$1 WHERE t.reception_mode='ai_first' AND b.mode='auto' AND `+aiDefaultBotScopeSQL+` AND NOT c.ai_paused AND NOT m.disabled AND m.removed_at IS NULL AND m.can_serve)`, id).Scan(&aiFirst); err != nil {
+		bot, err := aiReceptionBot(ctx, tx, id, true)
+		if err != nil {
 			return err
 		}
-		if aiFirst {
+		if bot != "" {
 			_, err := tx.Exec(ctx, "UPDATE conversations SET context=context||'{\"ai_receiving\":true}'::jsonb WHERE id=$1", id)
 			return err
 		}

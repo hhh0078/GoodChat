@@ -1,7 +1,7 @@
 /** 文件作用说明：为所有装修页面提供可信父层附件入口，适配浏览器差异并保留原编号重试。 */
 "use client";
+import { ErrorNotice } from "@/components/page-state";
 import { useTranslator } from "@/i18n/use-translator";
-import { errorMessage } from "@/lib/api";
 import { PaperClipOutlined } from "@ant-design/icons";
 import { Alert, App, Button, Space, Tooltip } from "antd";
 import { useEffect, useRef, useState } from "react";
@@ -82,12 +82,12 @@ export function AttachmentSender({
           {tr("系统通用入口 \u00B7 最大20MB ")}
         </span>
       </Space>
+      <ErrorNotice error={error} />
       {!!error && (
         <Alert
           style={{ marginTop: 8 }}
-          type="error"
-          title={errorMessage(error)}
-          description={tr("发送结果未确认，请先查看会话后再重试。")}
+          type="warning"
+          title={tr("发送结果未确认，请先查看会话后再重试。")}
           action={
             <Space>
               <Button

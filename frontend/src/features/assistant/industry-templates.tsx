@@ -8,7 +8,6 @@ import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { Alert, App, Button, Card, Spin } from "antd";
 import { useEffect, useState } from "react";
-import { useAssistantLauncher } from "./launcher";
 import { TemplatePreviewModal } from "./template-preview-modal";
 type Industry = {
   id: string;
@@ -32,13 +31,12 @@ export function IndustryTemplates({
   const [error, setError] = useState<unknown>(null);
   const [previewIndustry, setPreviewIndustry] = useState<Industry | null>(null);
   const { message } = App.useApp();
-  const { openAssistant } = useAssistantLauncher();
   useEffect(() => {
     setPreviewIndustry(null);
   }, [tenantId]);
   /** copy 保存后端提供的完整行业文件包，复制或二创都使用当前租户自己的作品。 */
-  async function copy(industry: Industry, remix: boolean) {
-    setBusy(`${industry.key}:${remix}`);
+  async function copy(industry: Industry) {
+    setBusy(industry.key);
     setError(null);
     try {
       const template = await api<Template>(
@@ -51,13 +49,7 @@ export function IndustryTemplates({
         },
       );
       onChanged();
-      if (remix)
-        openAssistant({
-          templateId: template.id,
-          templateName: industry.name,
-          prompt: tr("请在{p0}的基础上为我的品牌调整设计。", { p0: String(industry.name) }),
-        });
-      else message.success(tr("「{p0}」已添加到我的模板", { p0: String(industry.name) }));
+      message.success(tr("「{p0}」已添加到我的模板", { p0: String(industry.name) }));
     } catch (problem) {
       setError(new Error(errorMessage(problem)));
     } finally {
@@ -69,7 +61,7 @@ export function IndustryTemplates({
       <Alert
         type="info"
         showIcon
-        title={tr("行业模板共用官方聊天核心，可直接使用，也可继续 AI 二创")}
+        title={tr("行业模板共用官方聊天核心，可复制使用，也可下载 ZIP 交给 AI 修改")}
         description={tr("每份模板包含 HTML、CSS、JS 和本地资源，复制后归当前租户。")}
         style={{ marginBottom: 20 }}
       />
@@ -101,19 +93,11 @@ export function IndustryTemplates({
                     </Button>
                     <Button
                       size="small"
-                      disabled={!!busy && busy !== `${industry.key}:false`}
-                      loading={busy === `${industry.key}:false`}
-                      onClick={() => void copy(industry, false)}
+                      disabled={!!busy && busy !== industry.key}
+                      loading={busy === industry.key}
+                      onClick={() => void copy(industry)}
                     >
                       {tr("添加到我的模板 ")}
-                    </Button>
-                    <Button
-                      size="small"
-                      disabled={!!busy && busy !== `${industry.key}:true`}
-                      loading={busy === `${industry.key}:true`}
-                      onClick={() => void copy(industry, true)}
-                    >
-                      {tr("AI 二创 ")}
                     </Button>
                   </div>
                 )}

@@ -1,8 +1,9 @@
 /** 文件作用说明：提供平台文章Markdown编辑、安全预览、保存及明确选择语言后发布。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { App, Button, Checkbox, Drawer, Form, Input, Select, Space, Tabs } from "antd";
 import { useEffect, useState } from "react";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { locales, languageNames } from "@/i18n/preferences";
 import { useTranslator } from "@/i18n/use-translator";
 import type { SiteArticle } from "./types";
@@ -56,7 +57,7 @@ export function ArticleEditor({
         }
       })
       .catch((e) => {
-        if (!cancelled) message.error(errorMessage(e));
+        if (!cancelled) showRequestError(e);
       });
     return () => {
       cancelled = true;
@@ -72,7 +73,7 @@ export function ArticleEditor({
       });
       setHTML(data.body_html);
     } catch (e) {
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setPreviewing(false);
     }
@@ -103,7 +104,7 @@ export function ArticleEditor({
       onSaved();
       onClose();
     } catch (e) {
-      if (e instanceof Error) message.error(errorMessage(e));
+      if (e instanceof Error) showRequestError(e);
     } finally {
       setBusy(false);
     }

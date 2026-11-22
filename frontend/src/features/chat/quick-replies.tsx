@@ -1,7 +1,8 @@
 /** 文件作用说明：用紧凑纯文字标题展示个人和公共富话术，双击成功后按真实使用次数排序。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { groupQuickReplies, type QuickReply } from "@/lib/quick-replies";
 import { PlusOutlined, SettingOutlined } from "@ant-design/icons";
 import { App, Button, Tooltip } from "antd";
@@ -45,7 +46,7 @@ function QuickReplyList({ tenantId, disabled, onSend }: QuickReplyProps) {
         if (!controller.signal.aborted) setItems(data.items || []);
       })
       .catch((problem) => {
-        if (!controller.signal.aborted) message.error(errorMessage(problem));
+        if (!controller.signal.aborted) showRequestError(problem);
       });
     return () => controller.abort();
   }, [tenantId, revision, message]);
@@ -57,7 +58,7 @@ function QuickReplyList({ tenantId, disabled, onSend }: QuickReplyProps) {
     try {
       await onSend(item);
     } catch (problem) {
-      if (mounted.current) message.error(errorMessage(problem));
+      if (mounted.current) showRequestError(problem);
     } finally {
       locked.current = false;
       if (mounted.current) {

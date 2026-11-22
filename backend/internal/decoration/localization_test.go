@@ -42,16 +42,6 @@ func TestVisitorBootUsesSelectedLocale(t *testing.T) {
 	}
 }
 
-// TestOutputLanguageKeepsProtocol 验证九种任务语言均被明确指定，协议和业务原文保留规则仍存在。
-func TestOutputLanguageKeepsProtocol(t *testing.T) {
-	for _, locale := range localization.Locales {
-		instruction := outputLanguageInstruction(locale)
-		if !strings.Contains(instruction, "Default output locale: "+locale) || !strings.Contains(instruction, "JSON structure") || !strings.Contains(instruction, "explicitly requests") {
-			t.Fatal("输出语言约定不完整")
-		}
-	}
-}
-
 // TestVisitorTranslationKeepsExplicitParameters 验证中文同文翻译不会被兼容正则覆盖文件名、客服名等显式参数。
 func TestVisitorTranslationKeepsExplicitParameters(t *testing.T) {
 	node, err := exec.LookPath("node")

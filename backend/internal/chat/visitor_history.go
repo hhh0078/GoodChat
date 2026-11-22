@@ -38,7 +38,7 @@ func (s *Service) visitorConversation(ctx context.Context, tx pgx.Tx, a actor, e
 	if err != nil {
 		return result, err
 	}
-	if err := specifiedAgentOnline(ctx, tx, target.AgentID); err != nil {
+	if err := specifiedAgentOnline(ctx, tx, initialAgentTarget(entry, target.AgentID)); err != nil {
 		return result, err
 	}
 	if in.ResumeConversationID != "" {
@@ -92,8 +92,8 @@ func (s *Service) visitorConversation(ctx context.Context, tx pgx.Tx, a actor, e
 				if !errors.As(e, &api) {
 					return result, e
 				}
-				if target.AgentID != "" {
-					if offline := specifiedAgentOnline(ctx, tx, target.AgentID); offline != nil {
+				if initialAgentTarget(entry, target.AgentID) != "" {
+					if offline := specifiedAgentOnline(ctx, tx, initialAgentTarget(entry, target.AgentID)); offline != nil {
 						return result, offline
 					}
 					return result, e
@@ -117,7 +117,7 @@ func (s *Service) visitorConversation(ctx context.Context, tx pgx.Tx, a actor, e
 				}
 			}
 			// 排队咨询在客服上线后可以重新尝试分配，显式目标仍不能转为普通排队。
-			if target.AgentID != "" {
+			if initialAgentTarget(entry, target.AgentID) != "" {
 				err = s.assignLocked(ctx, tx, a.TenantID, id, target.AgentID, true)
 			} else {
 				err = s.assignLocked(ctx, tx, a.TenantID, id, "", false)
@@ -158,13 +158,13 @@ func (s *Service) visitorConversation(ctx context.Context, tx pgx.Tx, a actor, e
 	if _, err := s.emit(ctx, tx, a.TenantID, result.ID, "conversation.created", "public", map[string]any{"status": "queued"}); err != nil {
 		return result, err
 	}
-	if target.AgentID != "" {
-		if err := specifiedAgentOnline(ctx, tx, target.AgentID); err != nil {
+	if initialAgentTarget(entry, target.AgentID) != "" {
+		if err := specifiedAgentOnline(ctx, tx, initialAgentTarget(entry, target.AgentID)); err != nil {
 			return result, err
 		}
 		err = s.assignLocked(ctx, tx, a.TenantID, result.ID, target.AgentID, true)
 		if err != nil {
-			if offline := specifiedAgentOnline(ctx, tx, target.AgentID); offline != nil {
+			if offline := specifiedAgentOnline(ctx, tx, initialAgentTarget(entry, target.AgentID)); offline != nil {
 				return result, offline
 			}
 			return result, err
@@ -176,4 +176,12 @@ func (s *Service) visitorConversation(ctx context.Context, tx pgx.Tx, a actor, e
 		return result, err
 	}
 	return result, nil
+}
+
+// initialAgentTarget 选中AI的入口先自动AI接待，指定人工保留为转人工后的目标。
+func initialAgentTarget(entry map[string]any, human string) string {
+	if value, ok := entry["ai_agent_id"].(string); ok && value != "" {
+		return ""
+	}
+	return human
 }

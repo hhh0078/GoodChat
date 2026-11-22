@@ -1,5 +1,6 @@
 /** 文件作用说明：使用服务端默认客服后台管理当前账号身份，不在浏览器保存成员登录令牌。 */
 "use client";
+import { ErrorNotice } from "@/components/page-state";
 import { useTranslator } from "@/i18n/use-translator";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import type { CurrentUser } from "@/lib/types";
@@ -48,7 +49,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       <Result
         status="warning"
         title={tr("重新连接")}
-        subTitle={<Alert type="error" title={error} />}
+        subTitle={<ErrorNotice error={error} />}
         extra={<Button onClick={() => void reload()}>{tr("重新连接")}</Button>}
       />
     );

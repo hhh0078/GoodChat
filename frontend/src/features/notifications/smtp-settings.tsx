@@ -1,6 +1,7 @@
 /** 文件作用说明：平台管理员维护真实SMTP配置，密码仅提交不回显，设置与测试发送分开。 */
 "use client";
-import { api, errorMessage } from "@/lib/api";
+import { showRequestError } from "@/lib/request-error";
+import { api } from "@/lib/api";
 import { ErrorNotice } from "@/components/page-state";
 import { useTranslator } from "@/i18n/use-translator";
 import { Alert, App, Button, Form, Input } from "antd";
@@ -41,7 +42,7 @@ export function SMTPSettings() {
       setRevision((n) => n + 1);
     } catch (e) {
       setError(e);
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setBusy(false);
     }

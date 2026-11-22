@@ -150,7 +150,6 @@ func main() {
 	messaging.Start(ctx)
 	messaging.StartLeadNotifications(ctx)
 	hooks.Start(ctx)
-	designs.Start(ctx)
 	codeServer := &http.Server{Addr: ":18081", Handler: designs.CodeHandler(), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
 	go func() {
 		if err := codeServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -199,6 +198,6 @@ func middleware(cfg platform.Config, next http.Handler) http.Handler {
 				log.Printf("request_id=%s 请求处理异常", r.Header.Get("X-Request-ID"))
 			}
 		}()
-		localization.Middleware(next).ServeHTTP(w, r)
+		localization.Middleware(platform.MethodOverride(next)).ServeHTTP(w, r)
 	})
 }

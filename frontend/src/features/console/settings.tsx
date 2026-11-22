@@ -1,10 +1,11 @@
 /** 文件作用说明：维护真实访客进入回调配置、投递日志和当前账号设备退出。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -123,7 +124,7 @@ export function SettingsPage() {
       else message.success(tr("请求已提交，请查看真实投递状态"));
       deliveries.reload();
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   /** logoutOthers 撤销账号的其他设备登录，不伪造本地完成状态。 */
@@ -132,7 +133,7 @@ export function SettingsPage() {
       await api("/auth/logout-others", { method: "POST" });
       message.success(tr("其他设备登录已撤销"));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   return (

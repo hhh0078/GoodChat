@@ -172,13 +172,13 @@ export function Dashboard() {
           title: tr("排队中"),
           key: "queued",
           icon: CustomerServiceOutlined,
-          text: tr("等待分配的咨询"),
+          text: tr("在线等待人工分配的咨询"),
         },
         {
           title: tr("接待中"),
           key: "active",
           icon: CustomerServiceOutlined,
-          text: tr("团队当前接待"),
+          text: tr("人工与 AI 正在接待"),
         },
         {
           title: tr("今日咨询"),

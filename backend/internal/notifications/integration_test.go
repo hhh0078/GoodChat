@@ -30,7 +30,11 @@ func integration(t *testing.T) *fixture {
 	if os.Getenv("SUPPORT_NOTICE_INTEGRATION") != "1" {
 		t.Skip("需显式开启独立数据库集成测试")
 	}
-	raw, e := os.ReadFile(filepath.Join("..", "..", "..", ".local", "dev-database.json"))
+	path := os.Getenv("GOODCHAT_TEST_CONFIG")
+	if path == "" {
+		path = filepath.Join("..", "..", "..", ".local", "dev-database.json")
+	}
+	raw, e := os.ReadFile(path)
 	if e != nil {
 		t.Fatal("独立测试配置不可用")
 	}
@@ -42,7 +46,7 @@ func integration(t *testing.T) *fixture {
 		t.Fatal("配置无效")
 	}
 	parsed, e := pgxpool.ParseConfig(cfg.Database)
-	if e != nil || parsed.ConnConfig.Database != "goodchat_saas" {
+	if e != nil || !(parsed.ConnConfig.Database == "goodchat_saas" || (strings.HasPrefix(parsed.ConnConfig.Database, "goodchat_saas_test_") && (parsed.ConnConfig.Host == "127.0.0.1" || parsed.ConnConfig.Host == "localhost" || parsed.ConnConfig.Host == "::1"))) {
 		t.Fatal("只允许独立测试库")
 	}
 	ctx := context.Background()

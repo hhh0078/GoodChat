@@ -1,12 +1,13 @@
 /** 文件作用说明：编辑结构化或代码装修，处理版本保存、组件排序及真实隔离预览发布回滚。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice, PageTitle } from "@/components/page-state";
 import { TemplatePreviewModal } from "@/features/assistant/template-preview-modal";
 import { useSession } from "@/features/auth/session";
 import { localizeStatic } from "@/i18n/runtime";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { AccessLink, Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -201,7 +202,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
       setReleases(data.items || []);
       setHistoryOpen(true);
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   /** rollback 依据当前发布指针回滚，服务端校验并发冲突。 */
@@ -217,7 +218,7 @@ export function DecorationEditor({ id, kind }: { id: string; kind: "templates" |
       setHistoryOpen(false);
       await load();
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   if (!item)

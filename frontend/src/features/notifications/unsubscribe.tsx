@@ -1,6 +1,7 @@
 /** 文件作用说明：校验限定用途退订链接，用户确认后才提交取消，不暴露账号邮箱。 */
 "use client";
-import { api, errorMessage } from "@/lib/api";
+import { ErrorNotice } from "@/components/page-state";
+import { api } from "@/lib/api";
 import { useTranslator } from "@/i18n/use-translator";
 import { useSearchParams } from "next/navigation";
 import { Alert, Button, Card } from "antd";
@@ -42,7 +43,7 @@ export function UnsubscribeForm() {
     <Card style={{ maxWidth: 600, margin: "48px auto", width: "100%" }}>
       <h1>{tr("邮件订阅管理")}</h1>
       <p>{tr("取消此类邮件订阅后，必要的账号安全通知仍会发送。")}</p>
-      {Boolean(error) && <Alert type="error" title={errorMessage(error)} />}{" "}
+      {Boolean(error) && <ErrorNotice error={error} />}{" "}
       {done ? (
         <Alert type="success" title={tr("已取消此类邮件订阅")} />
       ) : (

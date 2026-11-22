@@ -69,7 +69,7 @@ func (s *Service) statistics(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(r.Context(), `SELECT count(*) FROM contacts WHERE tenant_id=$1 AND created_at>=$2 AND created_at<$3`, tenant, start, end).Scan(&contacts); err != nil {
 			return err
 		}
-		if err := tx.QueryRow(r.Context(), `SELECT count(*),count(*) FILTER(WHERE status='queued'),count(*) FILTER(WHERE status IN('active','assigned')),count(*) FILTER(WHERE status='closed') FROM conversations WHERE tenant_id=$1 AND created_at>=$2 AND created_at<$3`, tenant, start, end).Scan(&conversations, &queued, &active, &closed); err != nil {
+		if err := tx.QueryRow(r.Context(), `SELECT count(*),count(*) FILTER(WHERE status='queued' AND NOT(coalesce(context->>'ai_receiving','false')='true' AND NOT ai_paused) AND EXISTS(SELECT 1 FROM contacts u WHERE u.id=conversations.contact_id AND u.online_until>statement_timestamp())),count(*) FILTER(WHERE status IN('active','assigned') OR (status='queued' AND coalesce(context->>'ai_receiving','false')='true' AND NOT ai_paused AND EXISTS(SELECT 1 FROM contacts u WHERE u.id=conversations.contact_id AND u.online_until>statement_timestamp()))),count(*) FILTER(WHERE status='closed') FROM conversations WHERE tenant_id=$1 AND created_at>=$2 AND created_at<$3`, tenant, start, end).Scan(&conversations, &queued, &active, &closed); err != nil {
 			return err
 		}
 		if err := tx.QueryRow(r.Context(), `SELECT count(*) FROM messages WHERE tenant_id=$1 AND created_at>=$2 AND created_at<$3 AND audience='public'`, tenant, start, end).Scan(&messages); err != nil {

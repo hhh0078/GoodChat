@@ -1,12 +1,13 @@
 /** 文件作用说明：提供平台邮件模板版本、沙箱预览、本人测试发信及脱敏投递监控。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { useTranslator } from "@/i18n/use-translator";
 import { useFormats } from "@/i18n/use-formats";
 import { useLocale } from "next-intl";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "@/features/auth/session";
 import { ErrorNotice } from "@/components/page-state";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import {
   Alert,
   App,
@@ -133,7 +134,7 @@ export function PlatformMail() {
       setRevision((v) => v + 1);
     } catch (e) {
       setError(e);
-      message.error(errorMessage(e));
+      showRequestError(e);
     } finally {
       setBusy(false);
     }

@@ -1,5 +1,6 @@
 /** 文件作用说明：注入用户确认的银白钴蓝 Ant Design 主题、中文语言与交互反馈容器。 */
 "use client";
+import { RequestErrorDialog } from "./request-error-dialog";
 import { antdLocales } from "@/i18n/antd-locales";
 import { usePreferences } from "@/i18n/locale-provider";
 import { stopBrowserSymbolCompatibility } from "@/lib/browser-symbol-compat";
@@ -65,7 +66,10 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }}
     >
-      <App>{children}</App>
+      <App>
+        {children}
+        <RequestErrorDialog />
+      </App>
     </ConfigProvider>
   );
 }

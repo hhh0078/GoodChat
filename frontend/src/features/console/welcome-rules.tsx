@@ -1,9 +1,10 @@
 /** 文件作用说明：配置多层级富欢迎语、内部图片和选项，并查询指定链接实际生效内容。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { localizeStatic } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { AccessLink, Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -151,7 +152,7 @@ export function WelcomeRules() {
       rules.reload();
       message.success(tr("欢迎规则已归档"));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   /** uploadImage 使用现有私有附件上传，经真实媒体检查后才写入欢迎内容。 */

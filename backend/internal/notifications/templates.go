@@ -47,6 +47,7 @@ var Definitions = []Definition{
 	{"subscription_expiring", "GoodChat 套餐到期提醒", "「{tenant}」付费套餐将于 {expires_at} 到期。续费后将停止本次到期提醒。", "查看套餐", "/console/billing", false},
 	{"subscription_expired", "GoodChat 套餐已到期", "「{tenant}」付费套餐已于 {expires_at} 到期。请查看当前有效权益；历史资料不会因此删除。", "查看套餐", "/console/billing", false},
 	{"handoff_waiting", "GoodChat 有待处理的转人工咨询", "「{tenant}」有转人工咨询尚未收到人工回复。咨询编号：{reference}。请及时安排接待。", "打开工作台", "/workspace", false},
+	{"knowledge_gap", "GoodChat 有待补充的 AI 知识", "「{tenant}」的 AI 暂时无法回答以下问题。待办编号：{reference}。", "补充知识", "/console/ai", false},
 	{"ai_errors", "GoodChat AI服务异常提醒", "「{tenant}」近期AI任务持续异常。请检查机器人和模型服务，并安排人工接待。邮件不包含客户聊天内容。", "检查AI服务", "/console/ai", true},
 	{"digest", "GoodChat 每周服务提醒", "「{tenant}」最近7天服务摘要：咨询 {sessions} 次，AI 用量 {tokens} Token。统计范围与您的权限一致。", "查看工作空间", "/console", false},
 	{"onboarding", "GoodChat 接入配置提醒", "「{tenant}」尚未完成网站接入。可以创建客服链接，准备知识库并测试第一条咨询。", "继续配置", "/console/links", false},
@@ -54,7 +55,7 @@ var Definitions = []Definition{
 	{"test", "GoodChat 邮件发送测试", "这是一封由平台管理员主动发送的测试邮件。语言：{name}；时区：{reference}。", "打开GoodChat", "/console", true},
 }
 var variable = regexp.MustCompile(`\{([a-z_]+)\}`)
-var allowed = map[string]bool{"tenant": true, "name": true, "code": true, "expires_at": true, "amount": true, "balance": true, "reference": true, "sessions": true, "tokens": true, "occurred_at": true}
+var allowed = map[string]bool{"tenant": true, "name": true, "code": true, "expires_at": true, "amount": true, "balance": true, "reference": true, "sessions": true, "tokens": true, "occurred_at": true, "question": true, "reason": true}
 
 // Find 仅返回已注册场景，拒绝任意发信模板代码。
 func Find(kind string) (Definition, bool) {
@@ -89,6 +90,15 @@ func Render(origin, locale, zone string, d Definition, params map[string]string,
 	if err := ValidateFor(d, subject, body, button); err != nil {
 		return Mail{}, err
 	}
+	// 兼容已保存的旧模板，问题详情仍需显示；变量替换前追加，HTML由模板引擎转义。
+	if d.Kind == "knowledge_gap" || d.Kind == "handoff_waiting" {
+		if !strings.Contains(body, "{question}") && params["question"] != "" {
+			body += "\n\n" + localization.Format(locale, "客户问题：{question}")
+		}
+		if !strings.Contains(body, "{reason}") && params["reason"] != "" {
+			body += "\n" + localization.Format(locale, "待处理原因：{reason}")
+		}
+	}
 	if params["occurred_at"] != "" {
 		body += "\n\n" + localization.Format(locale, "操作时间：{occurred_at}")
 	}
@@ -116,6 +126,9 @@ func Render(origin, locale, zone string, d Definition, params map[string]string,
 	q := u.Query()
 	q.Set("lang", locale)
 	q.Set("timezone", zone)
+	if d.Kind == "knowledge_gap" {
+		q.Set("tab", "pending")
+	}
 	if d.Path == "/platform" {
 		q.Set("tab", "customer-ai")
 	}
@@ -177,7 +190,7 @@ func ValidateFor(d Definition, subject, body, button string) error {
 	if e := Validate(subject, body, button); e != nil {
 		return e
 	}
-	permitted := map[string]bool{"name": true, "occurred_at": true}
+	permitted := map[string]bool{"name": true, "occurred_at": true, "question": true, "reason": true}
 	for _, m := range variable.FindAllStringSubmatch(d.Subject+d.Body+d.Button, -1) {
 		permitted[m[1]] = true
 	}

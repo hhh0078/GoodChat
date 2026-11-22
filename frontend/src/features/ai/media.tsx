@@ -1,10 +1,11 @@
 /** 文件作用说明：在租户素材库上传、预览、筛选及选择媒体，复用授权附件读取组件。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { AttachmentView } from "@/features/chat/attachment";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { DeleteOutlined, EditOutlined, UploadOutlined } from "@ant-design/icons";
 import { App, Button, Card, Empty, Input, Modal, Popconfirm, Select, Space, Spin, Tag } from "antd";
@@ -67,7 +68,7 @@ export function AIMediaLibrary({
         });
       }
     } catch (error) {
-      if (!controller.signal.aborted) message.error(errorMessage(error));
+      if (!controller.signal.aborted) showRequestError(error);
     } finally {
       if (!controller.signal.aborted) setBusy(false);
       if (input.current) input.current.value = "";
@@ -79,7 +80,7 @@ export function AIMediaLibrary({
       await api(`/tenant/ai/media/${id}`, { method: "DELETE", tenantId });
       data.reload();
     } catch (error) {
-      message.error(errorMessage(error));
+      showRequestError(error);
     }
   }
   /** rename 只允许上传者修改素材名称，失败保留输入。 */
@@ -95,7 +96,7 @@ export function AIMediaLibrary({
       setEditing(null);
       data.reload();
     } catch (error) {
-      message.error(errorMessage(error));
+      showRequestError(error);
     } finally {
       setBusy(false);
     }

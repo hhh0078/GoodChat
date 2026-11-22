@@ -133,6 +133,10 @@ func TestQueuedRoutingReleasesCapacityBeforeNextPool(t *testing.T) {
 	if _, err := f.admin.Exec(ctx, "UPDATE tenant_memberships SET capacity=2 WHERE id=$1", f.agent); err != nil {
 		t.Fatal(err)
 	}
+	// 与实时连接同等的有效访客租约，离线历史不再进入自动分配候选。
+	if _, err := f.admin.Exec(ctx, "UPDATE contacts SET online_until=now()+interval '5 minutes' WHERE tenant_id=$1", f.tenant); err != nil {
+		t.Fatal(err)
+	}
 	f.online(f.agent)
 	hold, err := f.admin.Begin(ctx)
 	if err != nil {

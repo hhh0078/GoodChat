@@ -1,10 +1,11 @@
 /** 文件作用说明：展示租户真实订阅、坐席占用与升级套餐申请，不伪造支付或开通状态。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice, PageTitle } from "@/components/page-state";
 import { useSession } from "@/features/auth/session";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Resource } from "@/lib/types";
 import { Alert, App, Button, Card, Popconfirm, Spin, Table, Tag } from "antd";
 import { useEffect, useState } from "react";
@@ -62,7 +63,7 @@ export function BillingPage() {
       message.success(tr("升级申请已提交，等待平台确认付款与开通"));
       setRevision((value) => value + 1);
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     } finally {
       setBusy("");
     }

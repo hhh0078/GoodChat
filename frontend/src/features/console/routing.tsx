@@ -1,9 +1,10 @@
 /** 文件作用说明：分别维护业务组、真实分配池、权重与技能，展示技能和历史优先组合的实际配置。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import { ErrorNotice, PageTitle } from "@/components/page-state";
 import { localizeStatic } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Member, Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -206,7 +207,7 @@ function Pools({
       pools.reload();
       message.success(tr("分配池已归档"));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   return (
@@ -416,7 +417,7 @@ function MemberSkills({ skills }: { skills: Resource[] }) {
       setEditing(null);
       message.success(tr("客服技能已保存"));
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     } finally {
       setSaving(false);
     }

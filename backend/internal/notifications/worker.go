@@ -118,7 +118,7 @@ func (s *Service) tick(ctx context.Context) error {
 				}
 				cancel = cancel || !member
 			}
-			if kind == "balance_low" || kind == "balance_critical" || kind == "ai_blocked" || kind == "topup" || kind == "subscription_active" || kind == "subscription_expiring" || kind == "subscription_expired" || kind == "handoff_waiting" || kind == "ai_errors" {
+			if kind == "balance_low" || kind == "balance_critical" || kind == "ai_blocked" || kind == "topup" || kind == "subscription_active" || kind == "subscription_expiring" || kind == "subscription_expired" || kind == "handoff_waiting" || kind == "knowledge_gap" || kind == "ai_errors" {
 				var permitted bool
 				if e := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM tenant_memberships m JOIN notification_settings n ON n.tenant_id=m.tenant_id WHERE m.tenant_id=$1 AND m.user_id=$2 AND NOT m.disabled AND m.removed_at IS NULL AND (m.role='owner' OR m.role='admin' AND n.recipient_ids ? m.user_id::text))", tenant, user).Scan(&permitted); e != nil {
 					return e
@@ -238,6 +238,9 @@ func (s *Service) stillRelevant(ctx context.Context, tx pgx.Tx, tenant, kind str
 		return valid, e
 	case "ai_blocked":
 		e := tx.QueryRow(ctx, blockedSQL, tenant, time.Time{}).Scan(&valid)
+		return valid, e
+	case "knowledge_gap":
+		e := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM ai_pending_items p JOIN notification_settings n ON n.tenant_id=p.tenant_id WHERE p.id::text=$1 AND p.tenant_id=$2 AND p.status IN('pending','supplementing') AND n.service_enabled)", p["reference"], tenant).Scan(&valid)
 		return valid, e
 	case "handoff_waiting":
 		e := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM conversations c JOIN notification_settings n ON n.tenant_id=c.tenant_id WHERE c.id::text=$1 AND c.status<>'closed' AND c.ai_paused AND n.service_enabled AND NOT EXISTS(SELECT 1 FROM messages WHERE conversation_id=c.id AND sender_kind='agent' AND ai_job_id IS NULL AND created_at>$2::timestamptz))", p["reference"], p["_handoff_at"]).Scan(&valid)

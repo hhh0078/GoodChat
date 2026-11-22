@@ -57,3 +57,15 @@ func TestInvalidTemplates(t *testing.T) {
 		t.Fatal("危险站点未拒绝")
 	}
 }
+
+// TestKnowledgeGapEmailDetails 验证旧自定义模板仍展示真实问题与原因，客户HTML不能执行，链接直达待补充页。
+func TestKnowledgeGapEmailDetails(t *testing.T) {
+	d, _ := Find("knowledge_gap")
+	mail, err := Render("https://goodchat.example", "zh-CN", "Asia/Shanghai", d, map[string]string{"tenant": "测试团队", "reference": "task-1", "question": "作者的微信号？<script>alert(1)</script>", "reason": "没有授权资料"}, "有问题待补充", "旧模板正文", "查看", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(mail.Body, "作者的微信号？") || !strings.Contains(mail.Body, "没有授权资料") || !strings.Contains(mail.Body, "tab=pending") || strings.Contains(mail.HTML, "<script>") {
+		t.Fatal("问题详情、转义或站内入口不正确")
+	}
+}

@@ -1,5 +1,6 @@
 /** 文件作用说明：实现真实邮箱注册、验证码与密码登录、密码重置和受邀激活流程。 */
 "use client";
+import { ErrorNotice } from "@/components/page-state";
 import { AIReplyPreview } from "@/components/ai-reply-preview";
 import { LocaleSettingsButton } from "@/i18n/locale-provider";
 import { Brand } from "@/components/brand";
@@ -233,7 +234,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             orientation="vertical"
             style={{ width: "100%", marginBottom: error || delivery ? 20 : 0 }}
           >
-            {error && <Alert type="error" title={error} showIcon />}
+            {error && <ErrorNotice error={error} />}
             {delivery && <Alert type="info" title={delivery} showIcon />}
             {mode === "invitation" && !invitationToken && (
               <Alert type="warning" title={tr("邀请链接不完整，请从邀请邮件重新打开。")} showIcon />

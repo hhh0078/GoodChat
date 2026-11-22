@@ -1,9 +1,10 @@
 /** 文件作用说明：提供真实接口驱动的通用资源列表、表单编辑与归档交互。 */
 "use client";
+import { showRequestError } from "@/lib/request-error";
 import filterStyles from "@/components/filter-toolbar.module.css";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { useTranslator } from "@/i18n/use-translator";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
 import { PlusOutlined } from "@ant-design/icons";
@@ -146,7 +147,7 @@ export function ResourcePanel({
       resource.reload();
       onChanged?.();
     } catch (problem) {
-      message.error(errorMessage(problem));
+      showRequestError(problem);
     }
   }
   const tableColumns: ColumnsType<Resource> = [
