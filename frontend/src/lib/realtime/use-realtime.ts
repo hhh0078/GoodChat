@@ -1,5 +1,6 @@
 /** 文件作用说明：为客服列表、单会话和访客复用同一身份连接，统一Worker降级、页面生命周期和实时状态。 */
 "use client";
+import { realtimeSocketURL } from "./url";
 import { api } from "@/lib/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { translate as tr } from "../../i18n/runtime.ts";
@@ -34,6 +35,7 @@ function acquire(identity: RealtimeIdentity) {
     ticket: async (signal) => {
       const result = await api<{
         url: string;
+        websocket_url?: string;
       }>("/realtime/ticket", {
         method: "POST",
         tenantId: identity.tenantId,
@@ -41,10 +43,9 @@ function acquire(identity: RealtimeIdentity) {
         signal,
         bodyJSON: {},
       });
-      const url = new URL(result.url, location.origin);
-      if (url.origin !== location.origin) throw new Error(tr("实时连接来源无效"));
-      url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
-      return url.href;
+      const url = realtimeSocketURL(result.websocket_url || result.url, location.origin);
+      if (!url) throw new Error(tr("实时连接来源无效"));
+      return url;
     },
     socket: (url) => new WebSocket(url),
   });

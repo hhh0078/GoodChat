@@ -7,7 +7,6 @@ import (
 	"errors"
 	"math/rand/v2"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/coder/websocket"
@@ -63,24 +62,23 @@ func (c *Client) connect(ctx context.Context, s *session, tenant, scope string) 
 	}
 	var ticket struct {
 		Data struct {
-			URL string `json:"url"`
+			URL          string `json:"url"`
+			WebsocketURL string `json:"websocket_url"`
 		} `json:"data"`
 	}
 	if json.Unmarshal(result.Body, &ticket) != nil {
 		return errors.New("消息票据无效")
 	}
-	path, err := url.Parse(ticket.Data.URL)
-	if err != nil || path.IsAbs() || path.Host != "" || path.Path != "/ws/v1" || path.Query().Get("ticket") == "" {
-		return errors.New("服务器返回的消息连接地址无效")
+	value := ticket.Data.WebsocketURL
+	if value == "" {
+		value = ticket.Data.URL
 	}
-	u, _ := url.Parse(s.server + ticket.Data.URL)
-	if u.Scheme == "https" {
-		u.Scheme = "wss"
-	} else {
-		u.Scheme = "ws"
+	u, err := realtimeURL(s.server, value)
+	if err != nil {
+		return err
 	}
 	dialCtx, stop := context.WithTimeout(ctx, 15*time.Second)
-	conn, _, err := websocket.Dial(dialCtx, u.String(), &websocket.DialOptions{HTTPClient: s.http})
+	conn, _, err := websocket.Dial(dialCtx, u.String(), &websocket.DialOptions{HTTPClient: &http.Client{Transport: s.http.Transport, CheckRedirect: s.http.CheckRedirect}})
 	stop()
 	if err != nil {
 		return errors.New("消息连接建立失败")

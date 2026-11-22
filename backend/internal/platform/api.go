@@ -21,6 +21,8 @@ type Config struct {
 	Address            string
 	DatabaseURL        string
 	MigrationURL       string
+	RealtimeURL        string   // 专用WebSocket来源，留空沿用当前网页来源。
+	PublicOrigins      []string // 允许发起跨域WebSocket握手的网页来源。
 	PublicURL          string
 	DataDir            string
 	Production         bool

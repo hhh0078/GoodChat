@@ -20,6 +20,10 @@ func LoadConfig() (Config, error) {
 		defaultCodeOrigin = "http://localhost:18081"
 	}
 	config.CodeOrigin = env("SUPPORT_CODE_ORIGIN", defaultCodeOrigin)
+	config.RealtimeURL, config.PublicOrigins, err = realtimeConfig(os.Getenv("SUPPORT_REALTIME_URL"), config.PublicURL, os.Getenv("SUPPORT_PUBLIC_ORIGINS"), config.Production)
+	if err != nil {
+		return config, err
+	}
 	config.AIDailyLimit, err = aiDailyLimit(env("SUPPORT_AI_DAILY_LIMIT", "20"))
 	if err != nil {
 		return config, err

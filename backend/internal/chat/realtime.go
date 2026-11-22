@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/coder/websocket"
@@ -64,7 +65,12 @@ func (s *Service) realtimeTicket(w http.ResponseWriter, r *http.Request) {
 		replyError(w, r, err)
 		return
 	}
-	platform.JSON(w, 200, map[string]any{"ticket": ticket, "url": "/ws/v1?ticket=" + url.QueryEscape(ticket), "expires_in": 30})
+	path := "/ws/v1?ticket=" + url.QueryEscape(ticket)
+	response := map[string]any{"ticket": ticket, "url": path, "expires_in": 30}
+	if s.cfg.RealtimeURL != "" {
+		response["websocket_url"] = strings.TrimRight(s.cfg.RealtimeURL, "/") + path
+	}
+	platform.JSON(w, 200, response)
 }
 
 // consumeTicket 原子消费实时票据并重新检查成员或访客的当前授权。
@@ -99,19 +105,23 @@ func (s *Service) consumeTicket(ctx context.Context, ticket string) (actor, erro
 
 // websocket 接受已经消费的票据，并把慢连接断开交由持久游标恢复。
 func (s *Service) websocket(w http.ResponseWriter, r *http.Request) {
+	origins := s.websocketOrigins(r)
+	if !allowedWebsocketOrigin(r.Header.Get("Origin"), origins) {
+		replyError(w, r, platform.Fail(403, "origin_denied", "实时连接来源无效"))
+		return
+	}
 	a, err := s.consumeTicket(r.Context(), r.URL.Query().Get("ticket"))
 	if err != nil {
 		replyError(w, r, err)
 		return
 	}
-	origins := []string{}
-	if u, e := url.Parse(platform.PublicURL(r.Context(), s.cfg.PublicURL)); e == nil && u.Host != "" {
-		origins = append(origins, u.Host)
+	patterns := []string{}
+	for _, origin := range origins {
+		if u, e := url.Parse(origin); e == nil && u.Host != "" {
+			patterns = append(patterns, u.Host)
+		}
 	}
-	if !s.cfg.Production {
-		origins = append(origins, "localhost:3000", "127.0.0.1:3000", "localhost:13000", "127.0.0.1:13000")
-	}
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: origins})
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: patterns})
 	if err != nil {
 		return
 	}
