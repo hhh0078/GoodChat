@@ -148,7 +148,13 @@ export function LinksPage() {
       await api(`/tenant/access-links${editing ? `/${editing.id}` : ""}`, {
         method: editing ? "PATCH" : "POST",
         tenantId: links.tenantId,
-        bodyJSON: { ...values, ...linkTemplateBinding(values), agent_mode: "strict" },
+        bodyJSON: {
+          ...values,
+          ai_agent_id: values.ai_agent_id || null,
+          agent_id: values.agent_id || null,
+          ...linkTemplateBinding(values),
+          agent_mode: "strict",
+        },
         idempotent: true,
       });
       message.success(tr("接入链接已保存"));
