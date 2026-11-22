@@ -106,7 +106,7 @@ func (s *Service) consumeTicket(ctx context.Context, ticket string) (actor, erro
 // websocket 接受已经消费的票据，并把慢连接断开交由持久游标恢复。
 func (s *Service) websocket(w http.ResponseWriter, r *http.Request) {
 	origins := s.websocketOrigins(r)
-	if !allowedWebsocketOrigin(r.Header.Get("Origin"), origins) {
+	if s.cfg.RealtimeURL != "" && !allowedWebsocketOrigin(r.Header.Get("Origin"), origins) {
 		replyError(w, r, platform.Fail(403, "origin_denied", "实时连接来源无效"))
 		return
 	}

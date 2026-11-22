@@ -73,4 +73,20 @@ func TestDedicatedWebsocketEndpoint(t *testing.T) {
 			t.Fatal("票据可被重复使用")
 		}
 	}
+	// 未配置专用端点时保留旧版同源校验，不能影响已有本机代理和服务端。
+	f.s.cfg.RealtimeURL = ""
+	f.s.cfg.Production = false
+	status, body := f.request("POST", "/api/v1/realtime/ticket", f.agent, "", map[string]any{})
+	legacy := mustData(t, status, body)
+	if legacy["websocket_url"] != nil {
+		t.Fatal("旧部署出现跨域端点")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	conn, _, e := websocket.Dial(ctx, "ws"+strings.TrimPrefix(f.server.URL, "http")+legacy["url"].(string), &websocket.DialOptions{HTTPHeader: http.Header{"Origin": []string{f.server.URL}}})
+	cancel()
+	if e != nil {
+		t.Fatal("旧版同源连接回归失败")
+	}
+	conn.CloseNow()
+
 }
