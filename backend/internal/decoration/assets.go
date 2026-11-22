@@ -95,18 +95,18 @@ func (s *Service) importDecorationAsset(w http.ResponseWriter, r *http.Request) 
 
 // examplePackage 下载与新模板相同的固定SDK静态包，示例可直接通过严格导入接口验证。
 func (s *Service) examplePackage(w http.ResponseWriter, r *http.Request) {
-	pkg, err := industryTemplatePackage("business", defaultTemplateScripts())
+	pkg, err := starterPackage()
 	if err != nil {
 		respond(w, r, nil, err)
 		return
 	}
-	archive, err := encodeTemplateArchive("GoodChat 多文件静态模板示例", pkg)
+	archive, err := encodeTemplateArchive("GoodChat 基础聊天模板", pkg)
 	if err != nil {
 		respond(w, r, nil, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", `attachment; filename="goodchat-static-example.zip"`)
+	w.Header().Set("Content-Disposition", `attachment; filename="goodchat-template-`+starterVersion+`.zip"`)
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_, _ = w.Write(archive)

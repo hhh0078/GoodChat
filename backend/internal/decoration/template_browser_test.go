@@ -61,6 +61,7 @@ func TestBrowserIndustryTemplates(t *testing.T) {
 		if strings.HasPrefix(file.ContentType, "text/html") {
 			var err error
 			raw, err = packageHTML(raw, file.Path, "/"+parts[0]+"/", "browser-template-test", templateBootScript(origin, parts[0], true), files)
+			raw = compactWidgetDocument(r, raw)
 			if err != nil {
 				http.Error(w, err.Error(), 500)
 				return

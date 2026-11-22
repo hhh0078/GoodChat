@@ -16,7 +16,7 @@
     for (const byte of new TextEncoder().encode(source)) hash = Math.imul(hash ^ byte, 16777619) >>> 0;
     const key = "m" + hash.toString(16).padStart(8, "0");
     let text = Object.hasOwn(messages, key) ? messages[key] : source;
-    if (text === source && source.length < 2000) {
+    if (!Object.hasOwn(messages, key) && Object.keys(params).length === 0 && source.length < 2000) {
       for (const pattern of patterns) {
         const matched = source.match(pattern.matcher);
         if (!matched) continue;

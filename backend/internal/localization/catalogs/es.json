@@ -4124,5 +4124,17 @@
   "m56f5e729": "Guía en vídeo",
   "mb64fb2a9": "Datos de posventa",
   "m1f55e385": "Número de pedido",
-  "mf58b4ab5": "Descripción del problema"
+  "mf58b4ab5": "Descripción del problema",
+  "mcf6ad421": "Instrucciones",
+  "mc3d48a30": "Crea tu página de chat con IA",
+  "m5ac4dcf3": "Copia el prompt y descarga el ZIP inicial.",
+  "m7889e143": "Abre una herramienta de IA, adjunta el ZIP, pega el prompt y describe el diseño.",
+  "mb17ca270": "Espera el ZIP completo con una versión nueva y súbelo aquí.",
+  "m83eb65c4": "Importa, revisa y prueba. Pide cambios a la IA y sube la versión siguiente.",
+  "mb57f864e": "Copiar prompt de IA",
+  "mfa1f6b14": "Descargar ZIP inicial",
+  "m175e6901": "Ver prompt y reglas de versión",
+  "m62f54b83": "Prompt de edición con IA",
+  "m8497d43a": "Incrementa la versión y entrega un ZIP en cada ronda. Cada importación crea una plantilla independiente. Revísala antes de publicar y vincular un enlace de acceso.",
+  "m12f3ccd5": "La versión debe tener tres números, por ejemplo 1.0.1"
 }

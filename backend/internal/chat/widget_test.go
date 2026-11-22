@@ -106,3 +106,27 @@ func TestWidgetTenantIsolationAndScript(t *testing.T) {
 		t.Fatal("停用后仍加载悬浮窗")
 	}
 }
+
+// TestWidgetStateBoundary 拒绝其他窗口、来源及入口伪造标题或留言入口，真实公开状态不携带聊天凭证。
+func TestWidgetStateBoundary(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("需要Node验证悬浮窗消息边界")
+	}
+	start := strings.Index(widgetScript, "function onWidgetState(event)")
+	end := strings.Index(widgetScript, "\nwindow.addEventListener(\"message\", onWidgetState)")
+	if start < 0 || end <= start {
+		t.Fatal("缺少公开状态边界")
+	}
+	source := `const assert=require('node:assert/strict');const config={origin:'https://chat.example',entry_key:'own'};const frame={contentWindow:{}};const title={textContent:'original'},panel={setAttribute(){}},connection={classList:{toggle(){}},setAttribute(){}},brandLogo={},leaveMessage={hidden:true,dataset:{}};const labels=['','','','','','留言','已连接','连接中'];` + widgetScript[start:end] + `
+const valid={source:frame.contentWindow,origin:config.origin,data:{type:'goodchat:widget-state',entry_key:'own',title:'企业客服',connected:true,can_leave_message:true,logo_url:'javascript:alert(1)'}};
+for(const event of [{...valid,source:{}},{...valid,origin:'https://evil.example'},{...valid,data:{...valid.data,entry_key:'foreign'}}])onWidgetState(event);
+assert.equal(title.textContent,'original');assert.equal(leaveMessage.hidden,true);
+onWidgetState(valid);assert.equal(title.textContent,'企业客服');assert.equal(leaveMessage.hidden,false);assert.equal(brandLogo.src,undefined);
+onWidgetState({...valid,data:{...valid.data,title:'x'.repeat(201),can_leave_message:false}});assert.equal(title.textContent,'企业客服');assert.equal(leaveMessage.hidden,true);
+onWidgetState({...valid,data:{...valid.data,can_leave_message:false,can_evaluate:true}});assert.equal(leaveMessage.hidden,false);assert.equal(leaveMessage.dataset.action,'evaluation');
+`
+	if output, err := exec.Command(node, "-e", source).CombinedOutput(); err != nil {
+		t.Fatalf("公开状态边界失败：%v %s", err, output)
+	}
+}

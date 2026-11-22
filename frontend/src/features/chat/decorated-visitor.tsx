@@ -34,6 +34,8 @@ export function DecoratedVisitor({
   identity,
   decoration,
   onStatus,
+  onConnectionChange,
+  embedded = false,
   notificationSound,
   onOpenAction,
 }: {
@@ -41,12 +43,17 @@ export function DecoratedVisitor({
   identity: ChatIdentity;
   decoration: Decoration;
   onStatus: (value: string) => void;
+  onConnectionChange?: (connected: boolean) => void;
+  embedded?: boolean;
   notificationSound?: string;
   onOpenAction: (action: "openLeaveMessage" | "openEvaluation") => void;
 }) {
   const tr = useTranslator();
   const preferences = usePreferences();
   const chat = useChat(id, identity);
+  useEffect(() => {
+    onConnectionChange?.(chat.connected);
+  }, [chat.connected, onConnectionChange]);
   useVisitorReminders(chat.messages, {
     enabled: true,
     loading: chat.loading || !chat.conversation,
@@ -77,6 +84,7 @@ export function DecoratedVisitor({
     typeof location === "undefined" ? null : safeRenderURL(decoration.render_url, location.origin);
   if (renderURL) {
     renderURL.searchParams.set("lang", preferences.locale);
+    if (embedded) renderURL.searchParams.set("embed", "1");
     renderURL.searchParams.set("timezone", preferences.timezone);
   }
   const source = renderURL?.toString() || "";

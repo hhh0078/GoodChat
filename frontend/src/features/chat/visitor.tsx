@@ -2,7 +2,6 @@
 "use client";
 import { LocaleSettingsButton } from "@/i18n/locale-provider";
 import { ErrorNotice } from "@/components/page-state";
-import { localizeStatic } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
 import { api, ApiError } from "@/lib/api";
 import type { Conversation, Resource } from "@/lib/types";
@@ -19,7 +18,7 @@ import {
 import { Alert, Avatar, Button, Form, Input, Result, Spin } from "antd";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ChatPanel, conversationStatus } from "./chat-panel";
+import { ChatPanel } from "./chat-panel";
 import { DecoratedVisitor } from "./decorated-visitor";
 import { VisitorActions, type VisitorActionsHandle } from "./visitor-actions";
 type Entry = Resource & {
@@ -52,9 +51,49 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [status, setStatus] = useState("");
+  const [connected, setConnected] = useState(false);
+  const embedded = search.get("embed") === "1";
   const [storageWarning, setStorageWarning] = useState("");
   const shell = useRef<HTMLDivElement | null>(null);
   const visitorActions = useRef<VisitorActionsHandle>(null);
+  useEffect(() => {
+    if (!embedded || window.parent === window) return;
+    // 仅发送公开品牌和连接状态，不向承载官网传递访客凭证或聊天内容。
+    window.parent.postMessage(
+      {
+        type: "goodchat:widget-state",
+        entry_key: entryKey,
+        title: entry?.tenant_name || entry?.name || "",
+        logo_url: entry?.logo_url || "",
+        connected,
+        can_leave_message: !!session && status !== "closed",
+        can_evaluate: !!session && status === "closed",
+      },
+      "*",
+    );
+    /** openWidgetAction 只接受直接父窗口为本入口请求打开表单，不能提交或指定身份。 */
+    function openWidgetAction(event: MessageEvent) {
+      const data = event.data;
+      if (
+        event.source !== window.parent ||
+        !data ||
+        data.type !== "goodchat:widget-action" ||
+        data.entry_key !== entryKey ||
+        !session
+      )
+        return;
+      try {
+        if (data.action === "leave-message" && status !== "closed")
+          visitorActions.current?.openLeaveMessage();
+        if (data.action === "evaluation" && status === "closed")
+          visitorActions.current?.openEvaluation();
+      } catch (problem) {
+        setError(problem);
+      }
+    }
+    window.addEventListener("message", openWidgetAction);
+    return () => window.removeEventListener("message", openWidgetAction);
+  }, [embedded, entryKey, entry, session, status, connected]);
   useEffect(() => {
     const viewport = window.visualViewport;
     /** syncViewport 以顶层可视视口定位装修宿主，聚焦平移只移动顶部，不重复扣除可见高度。 */
@@ -344,13 +383,13 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
   const specifiedOffline = error instanceof ApiError && error.code === "specified_agent_offline";
   return (
     <div
-      className={`visitor-shell${entry.render_url && entry.release_id ? " visitor-shell-decorated" : ""}`}
+      className={`visitor-shell${embedded ? " visitor-shell-embedded" : ""}${entry.render_url && entry.release_id ? " visitor-shell-decorated" : ""}`}
       ref={shell}
     >
       <div
         className={`visitor-card ${entry.render_url && entry.release_id ? "visitor-decorated" : "visitor-default"}`}
       >
-        {!(session && entry.render_url && entry.release_id) && (
+        {!embedded && !(session && entry.render_url && entry.release_id) && (
           <header className="visitor-header">
             <div className="visitor-brand">
               <Avatar size={42} src={entry.logo_url || "/logo/goodchat-mark.svg"}>
@@ -359,23 +398,25 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
               <div>
                 <h1>{entry.tenant_name || entry.name || tr("在线客服")}</h1>
                 <p>
-                  {session
-                    ? search.get("embed") === "1"
-                      ? tr("在线咨询")
-                      : tr("在线咨询 \u00B7 {p0}", {
-                          p0: String(
-                            localizeStatic(conversationStatus, tr)[status] || tr("正在连接"),
-                          ),
-                        })
-                    : specifiedOffline
-                      ? tr("无客服在线，暂时无法访问")
-                      : tr("欢迎咨询，请留下称呼后开始沟通")}
+                  {session ? (
+                    <span
+                      className={`visitor-connection ${connected ? "is-connected" : ""}`}
+                      title={connected ? tr("实时连接已建立") : tr("正在连接")}
+                    >
+                      {connected ? tr("在线咨询") : tr("正在连接")}
+                    </span>
+                  ) : specifiedOffline ? (
+                    tr("无客服在线，暂时无法访问")
+                  ) : (
+                    tr("欢迎咨询，请留下称呼后开始沟通")
+                  )}
                 </p>
               </div>
             </div>
             <LocaleSettingsButton />
             {session && (
               <VisitorActions
+                ref={visitorActions}
                 entryKey={entryKey}
                 conversationId={session.conversation.id}
                 token={session.token}
@@ -415,6 +456,8 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                 identity={{ token: session.token, actorId: session.contact.id, kind: "visitor" }}
                 decoration={{ render_url: entry.render_url, release_id: entry.release_id }}
                 onStatus={setStatus}
+                onConnectionChange={setConnected}
+                embedded={embedded}
                 notificationSound={entry.notification_sound_id}
                 onOpenAction={(action) => {
                   const actions = visitorActions.current;
@@ -429,9 +472,10 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
                 key={session.conversation.id}
                 identity={{ token: session.token, actorId: session.contact.id, kind: "visitor" }}
                 onStatus={setStatus}
+                onConnectionChange={setConnected}
               />
             )}
-            {entry.render_url && entry.release_id && (
+            {(embedded || (entry.render_url && entry.release_id)) && (
               <VisitorActions
                 key={session.conversation.id}
                 ref={visitorActions}

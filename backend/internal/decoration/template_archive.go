@@ -11,18 +11,23 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"supportdesk/backend/internal/platform"
 )
 
-// templateArchiveMetadata 描述可移植模板，不携带租户、身份凭证或模型配置。
+// templateContentVersionPattern 限制作品版本为有界的三段数字，不影响兼容无版本的历史包。
+var templateContentVersionPattern = regexp.MustCompile(`^[0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6}$`)
+
+// templateArchiveMetadata 保存模板作品与核心各自独立的版本。
 type templateArchiveMetadata struct {
 	SchemaVersion int    `json:"schema_version"`
 	Name          string `json:"name"`
 	Entrypoint    string `json:"entrypoint"`
 	SDKVersion    string `json:"sdk_version,omitempty"`
+	Version       string `json:"version,omitempty"`
 }
 
 // storedPackageID 从现有资源包保存结果中读取新包编号，避免依赖具体JSON表现类型。
@@ -155,6 +160,13 @@ func loadArchivePackage(ctx context.Context, tx pgx.Tx, code CodeDesign) (*stati
 
 // encodeTemplateArchive 将完整包与可移植清单写入ZIP，不导出服务端的资源编号或访问令牌。
 func encodeTemplateArchive(name string, pkg *staticPackage) ([]byte, error) {
+	meta := templateArchiveMetadata{SchemaVersion: 1, Name: name, Entrypoint: pkg.Entrypoint}
+	for _, file := range pkg.Files {
+		if file.Path == "template.json" {
+			_ = json.Unmarshal(file.Content, &meta)
+		}
+	}
+	meta.SchemaVersion, meta.Name, meta.Entrypoint = 1, name, pkg.Entrypoint
 	var output bytes.Buffer
 	writer := zip.NewWriter(&output)
 	for _, file := range pkg.Files {
@@ -169,7 +181,7 @@ func encodeTemplateArchive(name string, pkg *staticPackage) ([]byte, error) {
 			return nil, err
 		}
 	}
-	metadata, _ := json.MarshalIndent(templateArchiveMetadata{SchemaVersion: 1, Name: name, Entrypoint: pkg.Entrypoint}, "", "  ")
+	metadata, _ := json.MarshalIndent(meta, "", "  ")
 	stream, err := writer.Create("template.json")
 	if err != nil {
 		return nil, err
@@ -220,6 +232,9 @@ func templateZIPMetadata(raw []byte) (templateArchiveMetadata, error) {
 		_ = stream.Close()
 		if readErr != nil || len(body) > 16384 || json.Unmarshal(body, &metadata) != nil || metadata.SchemaVersion != 1 {
 			return metadata, invalidDesign("模板清单格式或版本不支持")
+		}
+		if metadata.Version != "" && !templateContentVersionPattern.MatchString(metadata.Version) {
+			return metadata, invalidDesign("作品版本必须使用三段数字，例如1.0.1")
 		}
 		if err := packagePath(metadata.Entrypoint); err != nil {
 			return metadata, err

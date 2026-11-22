@@ -85,7 +85,8 @@ func (s *Service) render(w http.ResponseWriter, r *http.Request) {
 	}
 	code.HTML = string(localizeChatControls([]byte(code.HTML), localization.RequestLocale(r)))
 	sdk := visitorLocaleBoot(r) + sdkScript(parentOrigin, id, token != "")
-	_, _ = fmt.Fprintf(w, "<!doctype html><html lang=\"%s\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\"><title>GoodChat 在线咨询</title><style>%s</style></head><body>%s<script nonce=\"%s\">%s</script><script nonce=\"%s\">%s</script></body></html>", localization.RequestLocale(r), code.CSS, code.HTML, nonce, sdk, nonce, code.Javascript)
+	document := fmt.Sprintf("<!doctype html><html lang=\"%s\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\"><title>GoodChat 在线咨询</title><style>%s</style></head><body>%s<script nonce=\"%s\">%s</script><script nonce=\"%s\">%s</script></body></html>", localization.RequestLocale(r), code.CSS, code.HTML, nonce, sdk, nonce, code.Javascript)
+	_, _ = w.Write(compactWidgetDocument(r, []byte(document)))
 }
 
 // setRenderPolicy 叠加两条CSP，使脚本同时满足随机nonce与仅内联要求，阻止脚本复用nonce加载外链。

@@ -62,6 +62,7 @@ export function ChatPanel({
   id,
   identity,
   onStatus,
+  onConnectionChange,
   onRead,
   readOnly = false,
   canManageReplies = false,
@@ -70,6 +71,7 @@ export function ChatPanel({
   id: string;
   identity: ChatIdentity;
   onStatus?: (status: string) => void;
+  onConnectionChange?: (connected: boolean) => void;
   onRead?: () => void;
   readOnly?: boolean;
   canManageReplies?: boolean;
@@ -77,6 +79,9 @@ export function ChatPanel({
 }) {
   const tr = useTranslator();
   const chat = useChat(id, identity);
+  useEffect(() => {
+    onConnectionChange?.(chat.connected);
+  }, [chat.connected, onConnectionChange]);
   useVisitorReminders(chat.messages, {
     enabled: identity.kind === "visitor",
     loading: chat.loading || !chat.conversation,
@@ -488,28 +493,30 @@ export function ChatPanel({
   }
   return (
     <div className={`chat-main chat-thread ${identity.kind === "agent" ? "agent-thread" : ""}`}>
-      <div
-        className={`chat-connection ${chat.connected ? "connected" : "reconnecting"}`}
-        style={{
-          padding: "8px 20px",
-          fontSize: 12,
-          display: "flex",
-          justifyContent: "space-between",
-        }}
-      >
-        <span>
-          {chat.connected
-            ? tr("实时连接已建立")
-            : tr("正在恢复实时连接 \u00B7 消息仍可通过安全请求发送")}
-        </span>
-        <span>
-          {current
-            ? current.context?.ai_receiving
-              ? tr("AI正在接待")
-              : localizeStatic(conversationStatus, tr)[current.status] || current.status
-            : tr("读取会话中")}
-        </span>
-      </div>
+      {identity.kind === "agent" && (
+        <div
+          className={`chat-connection ${chat.connected ? "connected" : "reconnecting"}`}
+          style={{
+            padding: "8px 20px",
+            fontSize: 12,
+            display: "flex",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>
+            {chat.connected
+              ? tr("实时连接已建立")
+              : tr("正在恢复实时连接 \u00B7 消息仍可通过安全请求发送")}
+          </span>
+          <span>
+            {current
+              ? current.context?.ai_receiving
+                ? tr("AI正在接待")
+                : localizeStatic(conversationStatus, tr)[current.status] || current.status
+              : tr("读取会话中")}
+          </span>
+        </div>
+      )}
       {identity.kind === "agent" && (
         <AIConversationPanel
           key={id}

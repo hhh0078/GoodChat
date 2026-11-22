@@ -191,12 +191,12 @@ func checkStaticFile(name string, content []byte) (packageFile, error) {
 	ext := strings.ToLower(path.Ext(name))
 	mime := ""
 	switch ext {
-	case ".html", ".htm", ".css", ".js", ".mjs", ".json", ".map", ".txt":
+	case ".html", ".htm", ".css", ".js", ".mjs", ".json", ".map", ".txt", ".md":
 		content = bytes.TrimPrefix(content, []byte{0xef, 0xbb, 0xbf})
 		if !utf8.Valid(content) || bytes.ContainsRune(content, 0) {
 			return packageFile{}, invalidDesign("源码只支持UTF-8编码，不能包含NUL或UTF-16")
 		}
-		mime = map[string]string{".html": "text/html; charset=utf-8", ".htm": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json", ".map": "application/json", ".txt": "text/plain; charset=utf-8"}[ext]
+		mime = map[string]string{".html": "text/html; charset=utf-8", ".htm": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json", ".map": "application/json", ".txt": "text/plain; charset=utf-8", ".md": "text/plain; charset=utf-8"}[ext]
 		if (ext == ".json" || ext == ".map") && !json.Valid(content) {
 			return packageFile{}, invalidDesign("JSON资源内容无效")
 		}

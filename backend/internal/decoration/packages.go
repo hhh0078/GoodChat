@@ -25,6 +25,7 @@ func (s *Service) registerPackages(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/tenant/code-packages", s.auth.RequireAdmin(s.importPackage))
 	mux.HandleFunc("GET /api/v1/tenant/code-packages", s.auth.RequireTenant(s.listPackages))
 	mux.HandleFunc("GET /api/v1/tenant/code-packages/example", s.auth.RequireTenant(s.examplePackage))
+	mux.HandleFunc("GET /api/v1/tenant/code-packages/example/prompt", s.auth.RequireTenant(s.starterPrompt))
 	mux.HandleFunc("GET /api/v1/tenant/code-packages/{id}", s.auth.RequireTenant(s.getPackage))
 	mux.HandleFunc("GET /api/v1/tenant/code-packages/{id}/files", s.auth.RequireTenant(s.getPackageFile))
 	mux.HandleFunc("GET /api/v1/tenant/code-packages/{id}/source", s.auth.RequireAdmin(s.getPackageSource))

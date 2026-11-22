@@ -3165,3 +3165,99 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* 嵌入时标题、连接点与留言由可信外层蓝栏统一展示，聊天区保留全部可用高度。 */
+.visitor-shell.visitor-shell-embedded {
+  padding: 0;
+  background: #fff;
+  height: var(--visitor-viewport-height, 100dvh);
+}
+.visitor-shell-embedded .visitor-card.visitor-default {
+  height: 100%;
+  width: 100%;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.visitor-shell-embedded .visitor-default .chat-messages {
+  padding: 18px 14px;
+}
+.visitor-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.visitor-connection::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a1aaba;
+}
+.visitor-connection.is-connected::before {
+  background: #36a76b;
+}
+.visitor-default .visitor-header {
+  padding: 12px 18px;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.visitor-default .visitor-brand {
+  flex: 1;
+  gap: 10px;
+}
+.visitor-default .visitor-brand > div {
+  min-width: 0;
+}
+.visitor-default .visitor-brand h1 {
+  font-size: 16px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.visitor-default .visitor-header p {
+  margin: 3px 0 0;
+  font-size: 11px;
+}
+.visitor-default .visitor-brand .ant-avatar {
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+}
+.template-import-guide {
+  padding: 16px 18px;
+  margin: 16px 0 22px;
+  background: #f7f9fc;
+  border: 1px solid #e3e9f1;
+  border-radius: 10px;
+}
+.template-import-guide h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+.template-import-guide ol {
+  padding-left: 20px;
+  margin: 0 0 16px;
+  color: #56657a;
+  line-height: 1.8;
+}
+.template-import-guide .form-hint {
+  margin-bottom: 0;
+  font-size: 12px;
+}
+@media (max-width: 480px) {
+  .visitor-default .visitor-header {
+    padding: 10px 12px;
+  }
+  .visitor-default .visitor-header > .locale-settings {
+    display: none;
+  }
+  .template-import-guide {
+    padding: 12px;
+  }
+  .template-import-guide ol {
+    font-size: 13px;
+  }
+}

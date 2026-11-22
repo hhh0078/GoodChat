@@ -4124,5 +4124,17 @@
   "m56f5e729": "Video guide",
   "mb64fb2a9": "After-sales details",
   "m1f55e385": "Order number",
-  "mf58b4ab5": "Issue description"
+  "mf58b4ab5": "Issue description",
+  "mcf6ad421": "How to use",
+  "mc3d48a30": "Create your chat page with AI",
+  "m5ac4dcf3": "Copy the prompt and download the starter ZIP.",
+  "m7889e143": "Open an AI tool, attach the ZIP, paste the prompt and describe your design.",
+  "mb17ca270": "Wait for a complete ZIP with a new version number, then upload it here.",
+  "m83eb65c4": "Import, preview and test. Ask AI for further changes and upload the next version.",
+  "mb57f864e": "Copy AI prompt",
+  "mfa1f6b14": "Download starter ZIP",
+  "m175e6901": "View prompt and version rules",
+  "m62f54b83": "AI editing prompt",
+  "m8497d43a": "Increment the version and deliver a ZIP each round. Each import creates a separate template. Preview it before publishing and binding an access link.",
+  "m12f3ccd5": "Template versions must use three numbers, for example 1.0.1"
 }

@@ -4,6 +4,7 @@ package decoration
 import (
 	"encoding/json"
 	"net/http/httptest"
+	"os/exec"
 	"strings"
 	"supportdesk/backend/internal/localization"
 	"testing"
@@ -48,5 +49,26 @@ func TestOutputLanguageKeepsProtocol(t *testing.T) {
 		if !strings.Contains(instruction, "Default output locale: "+locale) || !strings.Contains(instruction, "JSON structure") || !strings.Contains(instruction, "explicitly requests") {
 			t.Fatal("输出语言约定不完整")
 		}
+	}
+}
+
+// TestVisitorTranslationKeepsExplicitParameters 验证中文同文翻译不会被兼容正则覆盖文件名、客服名等显式参数。
+func TestVisitorTranslationKeepsExplicitParameters(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("需要Node运行真实翻译函数")
+	}
+	start := strings.Index(visitorLocalizationScript, "function translate(source")
+	end := strings.Index(visitorLocalizationScript, "\n  window.gcTranslate")
+	if start < 0 || end <= start {
+		t.Fatal("找不到真实翻译函数")
+	}
+	source := `const assert=require('node:assert/strict');const messages={};const patterns=[{source:'下载 {p0}',text:'下载 {p0}',matcher:/^下载 (.+?)$/,names:['p0']}];` + visitorLocalizationScript[start:end] + `
+assert.equal(translate('下载 {p0}',{p0:'合同.txt'}),'下载 合同.txt');
+assert.equal(translate('客服 {p0}',{p0:'张三'}),'客服 张三');
+assert.equal(translate('下载 历史.txt'),'下载 历史.txt');
+`
+	if output, err := exec.Command(node, "-e", source).CombinedOutput(); err != nil {
+		t.Fatalf("翻译参数回归失败：%v %s", err, output)
 	}
 }

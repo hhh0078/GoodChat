@@ -30,6 +30,9 @@ func validRenderPreferences(r *http.Request) bool {
 		if key == "lang" && localization.Normalize(values[0]) != "" {
 			continue
 		}
+		if key == "embed" && values[0] == "1" {
+			continue
+		}
 		if key == "timezone" && localization.ValidTimezone(values[0]) {
 			continue
 		}
@@ -48,6 +51,9 @@ func localizedRenderTarget(r *http.Request, target string) string {
 	query.Set("lang", localization.RequestLocale(r))
 	if zone := r.URL.Query().Get("timezone"); localization.ValidTimezone(zone) {
 		query.Set("timezone", zone)
+	}
+	if r.URL.Query().Get("embed") == "1" {
+		query.Set("embed", "1")
 	}
 	parsed.RawQuery = query.Encode()
 	return parsed.String()

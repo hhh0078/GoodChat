@@ -137,6 +137,9 @@ func (s *Service) renderPackageAsset(w http.ResponseWriter, r *http.Request) {
 		sdk = visitorLocaleBoot(r) + sdk
 		raw = localizeChatControls(raw, localization.RequestLocale(r))
 		raw, err = packageHTML(raw, name, prefix, nonce, sdk, files, code)
+		if err == nil {
+			raw = compactWidgetDocument(r, raw)
+		}
 	} else if strings.HasPrefix(mime, "text/css") {
 		var css string
 		css, err = packageCSS(string(raw), name, prefix, files)

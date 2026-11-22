@@ -5,15 +5,15 @@ const registry = window.GoodChatWidgets || (window.GoodChatWidgets = Object.crea
 if (registry[config.entry_key]) return;
 const language = new URL(script.src).searchParams.get("lang") || document.documentElement.lang || navigator.language;
 const texts = {
-  "zh-CN": ["放大窗口", "还原窗口", "收起窗口", "新窗口打开", "在线客服"],
-  "zh-TW": ["放大視窗", "還原視窗", "收起視窗", "在新視窗開啟", "線上客服"],
-  en: ["Expand", "Restore", "Minimize", "Open in new window", "Customer support"],
-  ja: ["拡大", "元に戻す", "最小化", "新しいウィンドウで開く", "カスタマーサポート"],
-  ko: ["확대", "복원", "최소화", "새 창에서 열기", "고객 지원"],
-  es: ["Ampliar", "Restaurar", "Minimizar", "Abrir en otra ventana", "Atención al cliente"],
-  "pt-BR": ["Ampliar", "Restaurar", "Minimizar", "Abrir em outra janela", "Atendimento"],
-  fr: ["Agrandir", "Restaurer", "Réduire", "Ouvrir une autre fenêtre", "Service client"],
-  de: ["Vergrößern", "Wiederherstellen", "Minimieren", "In neuem Fenster öffnen", "Kundenservice"],
+  "zh-CN": ["放大窗口", "还原窗口", "收起窗口", "新窗口打开", "在线客服", "留言", "实时连接已建立", "正在连接", "评价"],
+  "zh-TW": ["放大視窗", "還原視窗", "收起視窗", "在新視窗開啟", "線上客服", "留言", "即時連線已建立", "正在連線", "評價"],
+  en: ["Expand", "Restore", "Minimize", "Open in new window", "Customer support", "Message", "Connected", "Connecting", "Rate"],
+  ja: ["拡大", "元に戻す", "最小化", "新しいウィンドウで開く", "カスタマーサポート", "メッセージ", "接続済み", "接続中", "評価"],
+  ko: ["확대", "복원", "최소화", "새 창에서 열기", "고객 지원", "메시지", "연결됨", "연결 중", "평가"],
+  es: ["Ampliar", "Restaurar", "Minimizar", "Abrir en otra ventana", "Atención al cliente", "Mensaje", "Conectado", "Conectando", "Valorar"],
+  "pt-BR": ["Ampliar", "Restaurar", "Minimizar", "Abrir em outra janela", "Atendimento", "Mensagem", "Conectado", "Conectando", "Avaliar"],
+  fr: ["Agrandir", "Restaurer", "Réduire", "Ouvrir une autre fenêtre", "Service client", "Message", "Connecté", "Connexion", "Évaluer"],
+  de: ["Vergrößern", "Wiederherstellen", "Minimieren", "In neuem Fenster öffnen", "Kundenservice", "Nachricht", "Verbunden", "Verbindung wird hergestellt", "Bewerten"],
 };
 const locale = Object.keys(texts).find((key) => key.toLowerCase() === language.toLowerCase()) || (language.startsWith("zh") ? "zh-CN" : language.split("-")[0]);
 const labels = texts[locale] || texts.en;
@@ -35,7 +35,7 @@ style.textContent = `
   .panel{position:absolute;${config.side}:0;bottom:0;width:min(${config.width}px,calc(100vw - ${config.horizontal_offset + 8}px));height:min(${config.height}px,calc(100dvh - ${config.bottom_offset + 8}px));display:flex;flex-direction:column;background:#fff;box-shadow:0 8px 40px #17243b30;border:1px solid #e2e7ef;border-radius:16px;overflow:hidden}
   .panel.maximized{position:fixed;inset:16px;width:auto;height:auto}
   .bar{display:flex;align-items:center;gap:4px;padding:6px 8px 6px 16px;background:${config.color};color:#fff;min-height:56px}
-  .title{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand-logo{width:28px;height:28px;object-fit:contain;border-radius:50%;background:#fff;margin-right:6px;flex:none}.connection{width:6px;height:6px;border-radius:50%;background:#fff;opacity:.5;flex:none;margin-right:4px}.connection.connected{background:#baf7d0;opacity:1}.bar svg{width:18px;height:18px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.bar .leave-message{min-width:40px;font-size:12px;padding:0 6px}.title{flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bar button,.bar a{display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:inherit;text-decoration:none;min-width:44px;min-height:44px;font-size:20px}
   .bar button:hover,.bar a:hover{background:#ffffff25}.bar button:focus-visible,.bar a:focus-visible{outline-color:#fff;outline-offset:-3px}
   iframe{display:block;border:0;flex:1;width:100%;min-height:0;background:#fff}
@@ -82,7 +82,19 @@ bar.className = "bar";
 const title = document.createElement("span");
 title.className = "title";
 title.textContent = config.label;
-bar.append(title);
+const brandLogo = document.createElement("img");
+brandLogo.className = "brand-logo"; brandLogo.alt = ""; brandLogo.hidden = true;
+brandLogo.referrerPolicy = "no-referrer";
+brandLogo.addEventListener("error", () => {brandLogo.hidden = true;});
+const connection = document.createElement("span");
+connection.className = "connection"; connection.title = labels[7];
+connection.setAttribute("role", "img"); connection.setAttribute("aria-label", labels[7]);
+bar.append(brandLogo, title, connection);
+const leaveMessage = document.createElement("button");
+leaveMessage.type = "button"; leaveMessage.className = "leave-message";
+leaveMessage.textContent = labels[5]; leaveMessage.hidden = true;
+leaveMessage.addEventListener("click", () => frame?.contentWindow?.postMessage({type:"goodchat:widget-action",entry_key:config.entry_key,action:leaveMessage.dataset.action || "leave-message"},new URL(config.origin).origin));
+bar.append(leaveMessage);
 const chatURL = new URL("/c/" + encodeURIComponent(config.entry_key), config.origin);
 chatURL.searchParams.set("lang", texts[locale] ? locale : "en");
 // 将设备时区作为公开偏好传入，服务时段始终由企业时区计算。
@@ -93,15 +105,22 @@ newWindow.target = "_blank";
 newWindow.rel = "noopener noreferrer";
 newWindow.title = labels[3];
 newWindow.setAttribute("aria-label", labels[3]);
-newWindow.textContent = "↗";
+newWindow.append(toolIcon("M14 4h6v6M20 4 10 14M10 4H4v16h16v-6"));
 bar.append(newWindow);
+/** toolIcon 使用同一画布、线宽和尺寸绘制窗口控件。 */
+function toolIcon(shape) {
+ const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+ svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("aria-hidden", "true");
+ const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+ path.setAttribute("d", shape); svg.append(path); return svg;
+}
 /** control 创建带可访问名称的原生工具栏按钮。 */
 function control(label, symbol, action) {
   const button = document.createElement("button");
   button.type = "button";
   button.title = label;
   button.setAttribute("aria-label", label);
-  button.textContent = symbol;
+  button.append(toolIcon(symbol));
   button.addEventListener("click", action);
   bar.append(button);
   return button;
@@ -161,11 +180,26 @@ function setExpanded(value) {
   maximize.title = labels[expanded ? 1 : 0];
   maximize.setAttribute("aria-label", maximize.title);
   maximize.setAttribute("aria-pressed", String(expanded));
-  maximize.textContent = expanded ? "⊡" : "□";
+  maximize.replaceChildren(toolIcon(expanded ? "M8 4h12v12M4 8h12v12H4Z" : "M5 5h14v14H5Z"));
 }
-const maximize = control(labels[0], "□", () => setExpanded(!expanded));
+const maximize = control(labels[0], "M5 5h14v14H5Z", () => setExpanded(!expanded));
 maximize.setAttribute("aria-pressed", "false");
-const minimize = control(labels[2], "−", closeChat);
+const minimize = control(labels[2], "M5 12h14", closeChat);
+/** onWidgetState 仅信任当前聊天子窗口的同源公开状态。 */
+function onWidgetState(event) {
+ const data = event.data;
+ if (!frame || event.source !== frame.contentWindow || event.origin !== new URL(config.origin).origin || !data || data.type !== "goodchat:widget-state" || data.entry_key !== config.entry_key) return;
+ if (typeof data.title === "string" && data.title.trim() && data.title.length <= 200) {title.textContent = data.title; panel.setAttribute("aria-label", data.title);}
+ connection.classList.toggle("connected", data.connected === true);
+ connection.title = labels[data.connected === true ? 6 : 7]; connection.setAttribute("aria-label", connection.title);
+ leaveMessage.hidden = data.can_leave_message !== true && data.can_evaluate !== true;
+ leaveMessage.dataset.action = data.can_leave_message === true ? "leave-message" : "evaluation";
+ leaveMessage.textContent = labels[data.can_leave_message === true ? 5 : 8];
+ if (typeof data.logo_url === "string" && data.logo_url.length <= 2048) {
+  try {const url = new URL(data.logo_url || "/logo/goodchat-mark.svg", config.origin); if (url.protocol === "https:" || url.origin === new URL(config.origin).origin) {brandLogo.src = url.href; brandLogo.hidden = false;}} catch { /* 无效品牌地址不影响聊天。 */ }
+ }
+}
+window.addEventListener("message", onWidgetState);
 panel.append(bar);
 shadow.append(launcher, panel);
 launcher.addEventListener("click", openChat);
@@ -189,6 +223,7 @@ const api = {
   destroy() {
     destroyed = true;
     clearTimeout(showTimer); clearTimeout(autoTimer); clearInterval(hoursTimer);
+    window.removeEventListener("message", onWidgetState);
     host.remove(); delete registry[config.entry_key];
     if (window.GoodChatWidget === api) delete window.GoodChatWidget;
   },

@@ -5,7 +5,7 @@ import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
 import { api } from "@/lib/api";
 import { assertVisitorActionAvailable } from "@/lib/visitor-action-guard";
-import { MessageOutlined, PaperClipOutlined, StarOutlined } from "@ant-design/icons";
+import { PaperClipOutlined, StarOutlined } from "@ant-design/icons";
 import {
   Alert,
   App,
@@ -223,8 +223,8 @@ export function VisitorActions({
       {!hideButtons && (
         <Space className="visitor-actions-bar">
           {status !== "closed" && (
-            <Button icon={<MessageOutlined />} onClick={openLeaveMessage}>
-              {tr("留下留言 ")}
+            <Button type="text" onClick={openLeaveMessage}>
+              {tr("留言")}
             </Button>
           )}
           {status === "closed" && (
