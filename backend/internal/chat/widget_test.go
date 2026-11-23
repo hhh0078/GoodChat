@@ -10,6 +10,33 @@ import (
 	"testing"
 )
 
+// TestWidgetLauncherDrag 执行实际拖拽处理函数，覆盖移动阈值、边界、取消和键盘激活。
+func TestWidgetLauncherDrag(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("需要Node验证悬浮按钮拖动")
+	}
+	start := strings.Index(widgetScript, "let launcherPosition =")
+	end := strings.Index(widgetScript, "\nwindow.addEventListener(\"resize\", keepLauncherInView)")
+	if start < 0 || end <= start {
+		t.Fatal("缺少悬浮按钮实际拖动实现")
+	}
+	source := `const assert=require('node:assert/strict');let opened=false,destroyed=false,opens=0;const host={hidden:false},window={innerWidth:800,innerHeight:600},events={},styles={};
+const launcher={style:{setProperty(k,v){styles[k]=v}},setPointerCapture(){},hasPointerCapture(){return true},releasePointerCapture(){},addEventListener(k,v){events[k]=v},getBoundingClientRect(){return {left:650+launcherPosition.x,right:790+launcherPosition.x,top:530+launcherPosition.y,bottom:586+launcherPosition.y}}};function openChat(){opens++}
+` + widgetScript[start:end] + `
+const down={button:0,isPrimary:true,pointerId:1,clientX:700,clientY:550};
+startLauncherDrag(down);dragLauncher({...down,clientX:702,clientY:552});assert.equal(launcherPosition.x,0);finishLauncherDrag(down);events.click({detail:1});assert.equal(opens,1);
+startLauncherDrag(down);dragLauncher({...down,clientX:-2000,clientY:-2000});assert.equal(launcher.getBoundingClientRect().left,8);assert.equal(launcher.getBoundingClientRect().top,8);finishLauncherDrag(down);let prevented=false;events.click({detail:1,preventDefault(){prevented=true}});assert.equal(prevented,true);assert.equal(opens,1);
+startLauncherDrag(down);dragLauncher({...down,clientX:5000,clientY:5000});finishLauncherDrag(down);assert.equal(launcher.getBoundingClientRect().right,792);assert.equal(launcher.getBoundingClientRect().bottom,592);
+window.innerWidth=390;window.innerHeight=844;keepLauncherInView();assert.ok(launcher.getBoundingClientRect().right<=382);events.click({detail:0});assert.equal(opens,2);
+startLauncherDrag({...down,isPrimary:false});assert.equal(launcherDrag,null);
+startLauncherDrag(down);dragLauncher({...down,clientY:450});finishLauncherDrag({...down,type:'pointercancel'});assert.equal(launcherDrag,null);assert.equal(suppressLauncherClick,true);
+`
+	if out, err := exec.Command(node, "-e", source).CombinedOutput(); err != nil {
+		t.Fatalf("悬浮按钮拖动回归失败: %v %s", err, out)
+	}
+}
+
 // TestWidgetHours 使用实际嵌入脚本的时段计算，覆盖企业时区、跨午夜、星期和全时段。
 func TestWidgetHours(t *testing.T) {
 	node, err := exec.LookPath("node")

@@ -5,7 +5,7 @@ import { useSession } from "@/features/auth/session";
 import { useFormats } from "@/i18n/use-formats";
 import { useTranslator } from "@/i18n/use-translator";
 import { api } from "@/lib/api";
-import { canTransferTo, isTransferRecipient } from "@/lib/assignment-state";
+import { canTransferTo, isTransferRecipient, replyGate } from "@/lib/assignment-state";
 import { useRealtime } from "@/lib/realtime/use-realtime";
 import type { Resource } from "@/lib/types";
 import { useResource } from "@/lib/use-resource";
@@ -413,17 +413,15 @@ export function AgentWorkspace() {
                   {transfer && active.current_agent_id === membership.id && (
                     <Tag color="gold">{tr("等待目标客服确认")}</Tag>
                   )}
-                  {active.status === "queued" &&
-                    !active.context?.ai_receiving &&
-                    active.reception_mode === "manual" && (
-                      <Button
-                        type="primary"
-                        loading={busy}
-                        onClick={() => void assignmentAction("claim")}
-                      >
-                        {tr("领取咨询 ")}
-                      </Button>
-                    )}
+                  {replyGate(active, membership.id) === "claim" && (
+                    <Button
+                      type="primary"
+                      loading={busy}
+                      onClick={() => void assignmentAction("claim")}
+                    >
+                      {tr("领取咨询 ")}
+                    </Button>
+                  )}
                   {["assigned", "pending"].includes(active.status) &&
                     active.current_agent_id === membership.id && (
                       <>
@@ -465,6 +463,8 @@ export function AgentWorkspace() {
                 id={active.id}
                 identity={{ tenantId, actorId: membership.id, kind: "agent" }}
                 canManageReplies={["owner", "admin"].includes(membership.role)}
+                onAssignmentAction={assignmentAction}
+                assignmentBusy={busy}
                 onRead={conversations.reload}
               />
             </>

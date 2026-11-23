@@ -4171,5 +4171,16 @@
   "m52aeee9a": "AI employee does not exist or belongs to another tenant",
   "maf6d0eab": "No access links are bound to this template",
   "m2cdf3eeb": "Please reopen the template preview.",
-  "maaea176c": "The template still has link bindings or concurrent changes. Check its usage and unlink it before retrying."
+  "maaea176c": "The template still has link bindings or concurrent changes. Check its usage and unlink it before retrying.",
+  "m051ced60": "This conversation is view-only. You cannot send messages.",
+  "m9aacf395": "Claim this conversation to reply.",
+  "m7f795983": "Accept the assignment to reply.",
+  "m47b88626": "AI is assisting this visitor. No manual claim is needed.",
+  "m9e8c2b50": "This conversation is waiting for the designated agent.",
+  "m80de9f63": "This conversation belongs to another agent and is view-only for you.",
+  "m5e6d598b": "This conversation is awaiting automatic assignment. No claim is needed. Keep your status available.",
+  "m6466946b": "The visitor is offline",
+  "md17c4bee": "Awaiting automatic assignment",
+  "mb0268d23": "The visitor is offline. You can still take this conversation and send messages for them to read when they return.",
+  "m6bb0265c": "Take and reply"
 }

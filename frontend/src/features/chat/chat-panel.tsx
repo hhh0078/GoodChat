@@ -5,6 +5,7 @@ import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { localizeStatic } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
 import { errorMessage } from "@/lib/api";
+import { replyGate } from "@/lib/assignment-state";
 import { animateMessageFlight } from "@/lib/message-flight";
 import { acknowledgePending, readPending, stagePending } from "@/lib/pending-messages";
 import type { QuickReply } from "@/lib/quick-replies";
@@ -68,6 +69,8 @@ export function ChatPanel({
   readOnly = false,
   canManageReplies = false,
   notificationSound,
+  onAssignmentAction,
+  assignmentBusy = false,
 }: {
   id: string;
   identity: ChatIdentity;
@@ -77,6 +80,8 @@ export function ChatPanel({
   readOnly?: boolean;
   canManageReplies?: boolean;
   notificationSound?: string;
+  onAssignmentAction?: (action: "claim" | "accept") => Promise<void>;
+  assignmentBusy?: boolean;
 }) {
   const tr = useTranslator();
   const chat = useChat(id, identity);
@@ -138,6 +143,22 @@ export function ChatPanel({
   const scope = useRef(draftKey);
   scope.current = draftKey;
   const current = chat.conversation;
+  const gate = current ? replyGate(current, identity.actorId) : "auto";
+  const blockedMessage = readOnly
+    ? tr("当前咨询仅供查看，不能发送消息。")
+    : gate === "claim"
+      ? tr("领取此咨询后即可回复。")
+      : gate === "accept"
+        ? tr("确认接单后即可回复。")
+        : gate === "ai"
+          ? tr("AI正在接待，暂不需要人工领取。")
+          : gate === "specified"
+            ? tr("此咨询正在等待指定客服接待。")
+            : gate === "other"
+              ? tr("此咨询已分配给其他客服，当前仅可查看。")
+              : gate === "offline"
+                ? tr("访客已离线，仍可接待并发送消息；访客上线后即可查看。")
+                : tr("此咨询正在等待自动分配，无需领取。请保持正常接待状态。");
   const readContext = `${current?.current_assignment_id || ""}:${current?.current_agent_id || ""}`;
   const visibleMessages = chat.messages.filter((item) => item.audience !== "internal");
   const confirmedIds = new Set(
@@ -511,9 +532,13 @@ export function ChatPanel({
           </span>
           <span>
             {current
-              ? current.context?.ai_receiving
+              ? gate === "ai"
                 ? tr("AI正在接待")
-                : localizeStatic(conversationStatus, tr)[current.status] || current.status
+                : current.status === "queued" && gate !== "claim"
+                  ? gate === "offline"
+                    ? tr("访客已离线")
+                    : tr("等待自动分配")
+                  : localizeStatic(conversationStatus, tr)[current.status] || current.status
               : tr("读取会话中")}
           </span>
         </div>
@@ -689,7 +714,26 @@ export function ChatPanel({
           {current?.status === "closed" ? (
             <Alert type="info" showIcon title={tr("本次咨询已结束，历史记录会保留。")} />
           ) : !canSend ? (
-            <Alert type="info" showIcon title={tr("领取并正式接待此咨询后可以回复。")} />
+            <Alert
+              type="info"
+              showIcon
+              title={blockedMessage}
+              action={
+                !readOnly && onAssignmentAction && ["claim", "accept", "offline"].includes(gate) ? (
+                  <Button
+                    type="primary"
+                    loading={assignmentBusy}
+                    onClick={() => void onAssignmentAction(gate === "accept" ? "accept" : "claim")}
+                  >
+                    {gate === "offline"
+                      ? tr("接待并回复")
+                      : gate === "claim"
+                        ? tr("领取咨询 ")
+                        : tr("确认接单 ")}
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <>
               {reply && (

@@ -29,7 +29,8 @@ style.textContent = `
   button,a{-webkit-tap-highlight-color:transparent} button{cursor:pointer;font:inherit}
   button:focus-visible,a:focus-visible{outline:3px solid #17243b;outline-offset:3px}
   .launcher{display:flex;align-items:center;gap:10px;border:0;border-radius:999px;padding:10px 18px;min-height:56px;background:${config.color};color:#fff;box-shadow:0 4px 20px #17243b26;max-width:min(280px,calc(100vw - 32px));font-size:14px;font-weight:600}
-  .launcher:hover{filter:brightness(.94)} .launcher:active{transform:scale(.98)}
+  .launcher{touch-action:none;user-select:none;-webkit-user-select:none;transform:translate(var(--gc-drag-x,0px),var(--gc-drag-y,0px))}
+  .launcher:hover{filter:brightness(.94)} .launcher:active{cursor:grabbing}
   .launcher img{width:36px;height:36px;object-fit:contain;border-radius:50%;background:white}
   .launcher svg{width:26px;height:26px;flex-shrink:0} .launcher span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .panel{position:absolute;${config.side}:0;bottom:0;width:min(${config.width}px,calc(100vw - ${config.horizontal_offset + 8}px));height:min(${config.height}px,calc(100dvh - ${config.bottom_offset + 8}px));display:flex;flex-direction:column;background:#fff;box-shadow:0 8px 40px #17243b30;border:1px solid #e2e7ef;border-radius:16px;overflow:hidden}
@@ -62,6 +63,7 @@ launcher.append(icon);
 {
   const logo = document.createElement("img");
   logo.alt = "";
+  logo.draggable = false;
   logo.src = config.logo_url || new URL("/logo/goodchat-mark.svg", config.origin).href;
   logo.referrerPolicy = "no-referrer";
   logo.addEventListener("error", () => { if (logo.dataset.fallback) { logo.remove(); icon.removeAttribute("hidden"); } else { logo.dataset.fallback = "1"; logo.src = new URL("/logo/goodchat-mark.svg", config.origin).href; } });
@@ -171,6 +173,7 @@ function closeChat() {
   launcher.hidden = false;
   launcher.setAttribute("aria-expanded", "false");
   host.hidden = !withinHours();
+  keepLauncherInView();
   if (!host.hidden) launcher.focus({ preventScroll: true });
 }
 /** setExpanded 切换全屏附近的放大视图，不重载正在接待的会话。 */
@@ -202,7 +205,63 @@ function onWidgetState(event) {
 window.addEventListener("message", onWidgetState);
 panel.append(bar);
 shadow.append(launcher, panel);
-launcher.addEventListener("click", openChat);
+let launcherPosition = { x: 0, y: 0 }, launcherDrag = null, suppressLauncherClick = false;
+/** moveLauncher 将拖动后的按钮限制在可视区域，保留八像素边距。 */
+function moveLauncher(x, y, origin) {
+  const edge = 8, width = window.innerWidth, height = window.innerHeight;
+  launcherPosition = {
+    x: Math.max(edge - origin.left, Math.min(x, width - edge - origin.right)),
+    y: Math.max(edge - origin.top, Math.min(y, height - edge - origin.bottom)),
+  };
+  launcher.style.setProperty("--gc-drag-x", launcherPosition.x + "px");
+  launcher.style.setProperty("--gc-drag-y", launcherPosition.y + "px");
+}
+/** keepLauncherInView 在窗口缩放或横竖屏变化后收回超出屏幕的按钮。 */
+function keepLauncherInView() {
+  if (opened || host.hidden || destroyed) return;
+  const rect = launcher.getBoundingClientRect();
+  moveLauncher(launcherPosition.x, launcherPosition.y, {
+    left: rect.left - launcherPosition.x, right: rect.right - launcherPosition.x,
+    top: rect.top - launcherPosition.y, bottom: rect.bottom - launcherPosition.y,
+  });
+}
+/** startLauncherDrag 仅处理主指针，拖动整个图文按钮而不影响页面其他手势。 */
+function startLauncherDrag(event) {
+  if (event.button !== 0 || event.isPrimary === false || launcherDrag) return;
+  const rect = launcher.getBoundingClientRect();
+  suppressLauncherClick = false;
+  launcherDrag = { id: event.pointerId, x: event.clientX, y: event.clientY,
+    position: { ...launcherPosition }, origin: {
+      left: rect.left - launcherPosition.x, right: rect.right - launcherPosition.x,
+      top: rect.top - launcherPosition.y, bottom: rect.bottom - launcherPosition.y,
+    }, moved: false };
+  launcher.setPointerCapture(event.pointerId);
+}
+/** dragLauncher 设定移动阈值，短按仍正常打开聊天，拖拽不误触发打开。 */
+function dragLauncher(event) {
+  if (!launcherDrag || event.pointerId !== launcherDrag.id) return;
+  const dx = event.clientX - launcherDrag.x, dy = event.clientY - launcherDrag.y;
+  if (!launcherDrag.moved && Math.hypot(dx, dy) < 6) return;
+  launcherDrag.moved = true;
+  moveLauncher(launcherDrag.position.x + dx, launcherDrag.position.y + dy, launcherDrag.origin);
+}
+/** finishLauncherDrag 结束或取消手势后吞掉其合成点击，键盘激活保持可用。 */
+function finishLauncherDrag(event) {
+  if (!launcherDrag || event.pointerId !== launcherDrag.id) return;
+  suppressLauncherClick = launcherDrag.moved;
+  launcherDrag = null;
+  if (launcher.hasPointerCapture(event.pointerId)) launcher.releasePointerCapture(event.pointerId);
+}
+launcher.addEventListener("pointerdown", startLauncherDrag);
+launcher.addEventListener("pointermove", dragLauncher);
+launcher.addEventListener("pointerup", finishLauncherDrag);
+launcher.addEventListener("pointercancel", finishLauncherDrag);
+launcher.addEventListener("lostpointercapture", finishLauncherDrag);
+launcher.addEventListener("click", (event) => {
+  if (suppressLauncherClick && event.detail !== 0) { suppressLauncherClick = false; event.preventDefault(); return; }
+  openChat();
+});
+window.addEventListener("resize", keepLauncherInView);
 /** onEscape 允许从悬浮窗工具栏按Esc收起，避免劫持官网其他区域的键盘事件。 */
 function onEscape(event) { if (event.key === "Escape" && opened) closeChat(); }
 host.addEventListener("keydown", onEscape);
@@ -224,6 +283,7 @@ const api = {
     destroyed = true;
     clearTimeout(showTimer); clearTimeout(autoTimer); clearInterval(hoursTimer);
     window.removeEventListener("message", onWidgetState);
+    window.removeEventListener("resize", keepLauncherInView);
     host.remove(); delete registry[config.entry_key];
     if (window.GoodChatWidget === api) delete window.GoodChatWidget;
   },

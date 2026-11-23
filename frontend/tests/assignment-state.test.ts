@@ -1,7 +1,46 @@
 /** 文件作用说明：验证目标成员与过期转接边界，避免向错误身份或不可接待同事显示确认操作。 */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canTransferTo, isTransferRecipient } from "../src/lib/assignment-state.ts";
+import { canTransferTo, isTransferRecipient, replyGate } from "../src/lib/assignment-state.ts";
+test("回复前置动作与自动分配、手动领取和指定客服保持一致", () => {
+  const conversation = { status: "queued", reception_mode: "auto", contact_online: false };
+  assert.equal(replyGate(conversation, "me"), "offline");
+  assert.equal(replyGate({ ...conversation, contact_online: true }, "me"), "auto");
+  assert.equal(replyGate({ ...conversation, reception_mode: "manual" }, "me"), "claim");
+  assert.equal(
+    replyGate({ ...conversation, reception_mode: "manual", context: { ai_receiving: true } }, "me"),
+    "ai",
+  );
+  assert.equal(
+    replyGate(
+      {
+        ...conversation,
+        reception_mode: "manual",
+        context: { ai_receiving: true },
+        ai_paused: true,
+      },
+      "me",
+    ),
+    "claim",
+  );
+  assert.equal(
+    replyGate({ ...conversation, reception_mode: "manual", desired_agent_id: "other" }, "me"),
+    "specified",
+  );
+  assert.equal(
+    replyGate({ ...conversation, current_agent_id: "other", status: "active" }, "me"),
+    "other",
+  );
+  assert.equal(
+    replyGate({ ...conversation, current_agent_id: "me", status: "assigned" }, "me"),
+    "accept",
+  );
+  assert.equal(
+    replyGate({ ...conversation, current_agent_id: "me", status: "active" }, "me"),
+    "ready",
+  );
+  assert.equal(replyGate({ ...conversation, status: "closed" }, "me"), "closed");
+});
 test("转接确认只对正确目标与有效预留显示", () => {
   const transfer = {
     status: "pending",

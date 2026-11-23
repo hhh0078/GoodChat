@@ -4171,5 +4171,16 @@
   "m52aeee9a": "O membro IA não existe ou pertence a outro espaço",
   "maf6d0eab": "Este modelo não tem links vinculados",
   "m2cdf3eeb": "Abra a prévia do modelo novamente.",
-  "maaea176c": "O modelo tem links ou alterações simultâneas. Verifique o uso e desvincule antes de tentar"
+  "maaea176c": "O modelo tem links ou alterações simultâneas. Verifique o uso e desvincule antes de tentar",
+  "m051ced60": "Esta conversa é somente leitura. Não é possível enviar mensagens.",
+  "m9aacf395": "Assuma esta conversa para responder.",
+  "m7f795983": "Aceite a atribuição para responder.",
+  "m47b88626": "A IA está atendendo este visitante. Não é necessário assumir manualmente.",
+  "m9e8c2b50": "Esta conversa está aguardando o atendente designado.",
+  "m80de9f63": "Esta conversa foi atribuída a outro atendente e você só pode visualizá-la.",
+  "m5e6d598b": "Esta conversa aguarda atribuição automática. Não é necessário assumir. Mantenha seu status disponível.",
+  "m6466946b": "O visitante está offline",
+  "md17c4bee": "Aguardando atribuição automática",
+  "mb0268d23": "O visitante está offline. Você pode atender e enviar mensagens que ele verá ao retornar.",
+  "m6bb0265c": "Atender e responder"
 }

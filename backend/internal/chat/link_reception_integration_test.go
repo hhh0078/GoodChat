@@ -3,9 +3,39 @@ package chat
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 )
+
+// TestOfflineVisitorReply 在隔离数据库验证离线咨询可主动接待发送，访客复访仍能读取持久消息。
+func TestOfflineVisitorReply(t *testing.T) {
+	f := newFixture(t)
+	link := f.createRoutingResource("access-links", map[string]any{"name": "离线回复入口", "reception_mode": "auto"})
+	status, reply := f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": link["entry_key"], "visit_id": newID()})
+	session := mustData(t, status, reply)
+	conversation := session["conversation"].(map[string]any)["id"].(string)
+	if _, err := f.admin.Exec(context.Background(), "UPDATE contacts SET online_until=now()-interval '1 minute' WHERE id=(SELECT contact_id FROM conversations WHERE id=$1)", conversation); err != nil {
+		t.Fatal(err)
+	}
+	f.online(f.agent)
+	status, reply = f.request("POST", "/api/v1/conversations/"+conversation+"/assignments/claim", f.agent, "", map[string]any{})
+	if mustData(t, status, reply)["status"] != "active" {
+		t.Fatal("离线访客未能主动接待")
+	}
+	status, reply = f.request("POST", "/api/v1/conversations/"+conversation+"/messages", f.agent, "", map[string]any{"client_message_id": newID(), "message_type": "text", "content": "离线回复持久消息"})
+	mustData(t, status, reply)
+	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": link["entry_key"], "visitor_token": session["token"], "visit_id": newID()})
+	if mustData(t, status, reply)["conversation"].(map[string]any)["id"] != conversation {
+		t.Fatal("访客复访未恢复原咨询")
+	}
+	status, reply = f.request("GET", "/api/v1/conversations/"+conversation+"/messages", "", session["token"].(string), nil)
+	data := mustData(t, status, reply)
+	raw, _ := json.Marshal(data)
+	if !strings.Contains(string(raw), "离线回复持久消息") {
+		t.Fatal("访客复访未读取离线回复")
+	}
+}
 
 // TestLinkReceptionMixedQueue 验证同池手领队头不阻塞自动入口、容量限制保留以及多标签主渠道兼容。
 func TestLinkReceptionMixedQueue(t *testing.T) {

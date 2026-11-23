@@ -4171,5 +4171,16 @@
   "m52aeee9a": "El empleado IA no existe o pertenece a otro espacio",
   "maf6d0eab": "Esta plantilla no tiene enlaces vinculados",
   "m2cdf3eeb": "Vuelve a abrir la vista previa.",
-  "maaea176c": "La plantilla tiene enlaces o cambios simultáneos. Revisa su uso y desvincúlala antes de reintentar"
+  "maaea176c": "La plantilla tiene enlaces o cambios simultáneos. Revisa su uso y desvincúlala antes de reintentar",
+  "m051ced60": "Esta conversación es de solo lectura. No puedes enviar mensajes.",
+  "m9aacf395": "Reclama esta conversación para responder.",
+  "m7f795983": "Acepta la asignación para responder.",
+  "m47b88626": "La IA está atendiendo al visitante. No es necesario reclamar la conversación.",
+  "m9e8c2b50": "Esta conversación está esperando al agente designado.",
+  "m80de9f63": "Esta conversación está asignada a otro agente y solo puedes consultarla.",
+  "m5e6d598b": "Esta conversación espera asignación automática. No es necesario reclamar. Mantén tu estado disponible.",
+  "m6466946b": "El visitante está desconectado",
+  "md17c4bee": "Esperando asignación automática",
+  "mb0268d23": "El visitante está desconectado. Puedes atender y enviar mensajes que verá cuando vuelva.",
+  "m6bb0265c": "Atender y responder"
 }
