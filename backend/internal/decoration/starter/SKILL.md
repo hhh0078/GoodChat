@@ -16,6 +16,8 @@ description: 修改 GoodChat 静态聊天模板并交付带版本号的可导入
 
 保留唯一的官方节点：gc-status、gc-messages、gc-text（textarea）、gc-send（button）、gc-file（input type=file）、gc-add（button）、gc-attachment-menu、gc-typing、gc-error、gc-reply-bar、gc-reply-text、gc-reply-cancel（button）。保留全部 ID、无障碍标签、输入长度和脚本顺序。gc-file、附件菜单、引用栏初始 hidden。所有 button 必须 type="button" 并有且仅有一种声明动作，官方 ID 的按钮不要额外添加动作。不要隐藏聊天消息、输入框、发送或附件入口。
 
+脚本必须放在聊天控件之后，依次加载 `static/goodchat/sdk.js` → `static/goodchat/chat-ui.js` → 可选的 `static/custom.js`。即使制作首屏加载蒙版，也不能把扩展脚本提前到 SDK 前、插入内联脚本或更改核心脚本。蒙版可直接写在 HTML 并由 CSS 显示，在最后加载的 custom.js 中用 `performance.now()` 计算距文档初始化的剩余时间，到期移除节点并解除 inert/交互遮挡；不要把脚本执行时刻当成页面初始化，也不要等待业务请求来结束固定时长动画。
+
 官方 chat-ui.js 自动处理普通文字、图片、文件、音视频、选项、表单（含必填验证和提交结果）、历史、已读、输入状态、引用和撤回。修改布局与样式即可。不能伪造消息、连接成功、提交成功或 AI 回复。
 
 业务动作只允许官方 SDK；优先保持现有绑定，不能对同一按钮重复绑定：
