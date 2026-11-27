@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"supportdesk/backend/internal/localization"
@@ -328,6 +329,10 @@ func (s *Service) aiHandoff(ctx context.Context, tx pgx.Tx, j *aiJobData, reason
 	if e := s.aiReplyValid(ctx, tx, j, true); e != nil {
 		return nil
 	}
+	var alreadyActive bool
+	if e := tx.QueryRow(ctx, `SELECT status='active' AND current_agent_id IS NOT NULL FROM conversations WHERE id=$1`, j.Conversation).Scan(&alreadyActive); e != nil {
+		return e
+	}
 	if _, e := tx.Exec(ctx, `UPDATE conversations SET ai_paused=true,ai_epoch=ai_epoch+1,context=context-'ai_receiving'-'ai_thinking' WHERE id=$1`, j.Conversation); e != nil {
 		return e
 	}
@@ -335,6 +340,9 @@ func (s *Service) aiHandoff(ctx context.Context, tx pgx.Tx, j *aiJobData, reason
 		return e
 	}
 	text := localization.Text(j.Snapshot.Locale, "请稍等，正在为您转接人工客服。您可以继续补充问题，客服接入后会为您处理。")
+	if alreadyActive && strings.HasPrefix(reason, "ai_") {
+		text = localization.Text(j.Snapshot.Locale, "AI自动接待已暂停，请稍候或继续留言，等待人工客服处理。")
+	}
 	if reason == "ai_unsupported_input" {
 		text = localization.Text(j.Snapshot.Locale, "当前AI无法识别此类附件，请用文字或图片描述，或等待人工客服处理。")
 	}

@@ -115,7 +115,8 @@ func (s *Service) aiConversation(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		var e error
-		result, e = txJSON(ctx, tx, "SELECT jsonb_build_object('ai_paused',ai_paused,'ai_epoch',ai_epoch) FROM conversations WHERE id=$1", id)
+		// 仅投影本次自动暂停的安全分类；恢复或手动暂停增加版本后，不再显示历史故障。
+		result, e = txJSON(ctx, tx, `SELECT jsonb_build_object('ai_paused',c.ai_paused,'ai_epoch',c.ai_epoch,'error_code',coalesce((SELECT j.error_code FROM ai_jobs j WHERE j.conversation_id=c.id AND j.kind='reply' AND j.snapshot#>>'{bot,mode}'='auto' AND (j.snapshot->>'epoch')::bigint=c.ai_epoch-1 AND j.status IN('failed','uncertain') AND j.error_code IN('ai_provider_unavailable','ai_provider_rejected','ai_provider_uncertain') AND c.ai_paused ORDER BY j.created_at DESC,j.id DESC LIMIT 1),'')) FROM conversations c WHERE c.id=$1`, id)
 		if e != nil {
 			return e
 		}

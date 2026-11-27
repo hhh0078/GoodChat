@@ -399,6 +399,13 @@ func (s *Service) aiCall(ctx context.Context, j *aiJobData, index int, messages 
 	if e != nil {
 		return nil, e
 	}
+	if aiProviderUnavailableReply(out) {
+		// 原始响应与真实用量已落库；供应商错误由平台承担，不进入回复或摘要的协议修复。
+		if err := s.aiWaiveProtocolAttempt(ctx, j, index); err != nil {
+			return nil, err
+		}
+		return nil, errors.New("ai_provider_unavailable")
+	}
 	if input > int64(j.Snapshot.Model.MaxInput) || output > int64(j.Snapshot.Model.MaxOutput) {
 		return nil, errors.New("ai_usage_limit_exceeded")
 	}

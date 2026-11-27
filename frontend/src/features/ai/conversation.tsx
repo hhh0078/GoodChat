@@ -7,6 +7,7 @@ import { App, Button, Collapse, Space, Tag } from "antd";
 import { useEffect, useState } from "react";
 import type { ChatIdentity } from "@/features/chat/use-chat";
 import { AIPlanPreview } from "./preview";
+import { aiErrorMessage } from "./errors";
 import type { AIJob } from "./types";
 import "./customer-ai.css";
 /** AIConversationPanel 定期读取服务端控制状态，任何按钮都需后端重新授权。 */
@@ -23,12 +24,14 @@ export function AIConversationPanel({
 }) {
   const tr = useTranslator();
   const { message } = App.useApp();
-  const [data, setData] = useState<{ control: { ai_paused: boolean }; drafts: AIJob[] } | null>(
-    null,
-  );
+  const [data, setData] = useState<{
+    control: { ai_paused: boolean; error_code?: string };
+    drafts: AIJob[];
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
+    setData(null);
     const controller = new AbortController();
     /** load 轮询草稿和人工控制状态，离开当前会话立即取消。 */
     async function load() {
@@ -70,6 +73,9 @@ export function AIConversationPanel({
     <div className="ai-chat-controls">
       <Space wrap>
         <Tag>{data?.control.ai_paused ? tr("AI已暂停") : tr("AI按机器人设置运行")}</Tag>
+        {data?.control.ai_paused && data.control.error_code && (
+          <Tag color="warning">{aiErrorMessage(data.control.error_code, tr)}</Tag>
+        )}
         <Button
           size="small"
           disabled={busy || !data}

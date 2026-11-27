@@ -7,6 +7,7 @@ export function aiErrorMessage(code: string, tr: Translator): string {
     ai_daily_limit: "AI每日额度已用完",
     ai_model_unavailable: "AI模型暂不可用",
     ai_provider_rejected: "AI模型暂不可用",
+    ai_provider_unavailable: "AI模型暂不可用",
     ai_provider_uncertain: "AI用量需要核对",
     ai_stale: "内容已更新，请刷新后重试",
     ai_context_limit: "已选目录过长，请减少勾选数量",
