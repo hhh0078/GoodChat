@@ -1,17 +1,17 @@
-/* 文件作用说明：限定机器人卡片标题栏的名称切换、数量与新增操作布局，适配窄屏换行。 */
+/* 文件作用说明：让机器人标题栏始终单行，超长名称省略，窄屏保留可点击的切换与新增入口。 */
 .ai-console .ai-bot-settings-card > .ant-card-head {
-  padding-top: 14px;
-  padding-bottom: 14px;
+  min-height: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 .ai-bot-settings-card > .ant-card-head .ant-card-head-title {
   min-width: 0;
   overflow: visible;
-  white-space: normal;
+  white-space: nowrap;
 }
 .ai-bot-picker,
 .ai-bot-picker-main,
-.ai-bot-picker-options,
-.ai-bot-picker-heading {
+.ai-bot-picker-options {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -19,7 +19,7 @@
 .ai-bot-picker,
 .ai-bot-picker-main,
 .ai-bot-picker-options {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-width: 0;
 }
 .ai-bot-picker {
@@ -27,33 +27,37 @@
   gap: 12px;
 }
 .ai-bot-picker-main {
-  flex: 1 1 220px;
+  flex: 1 1 0;
   gap: 12px;
 }
-.ai-bot-picker-heading {
+.ai-bot-picker .ai-bot-picker-create {
   flex: 0 0 auto;
-}
-.ai-bot-picker-count {
-  display: inline-flex;
-  justify-content: center;
-  min-width: 22px;
-  padding: 1px 6px;
-  color: var(--ant-color-text-secondary, #526176);
-  background: var(--ant-color-fill-tertiary, #edf1f6);
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 500;
+  height: 32px;
 }
 .ai-bot-picker-options {
-  flex: 1 1 160px;
+  flex: 1 1 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.ai-bot-picker-option {
+  flex: 1 1 0;
+  min-width: 44px;
+  max-width: 220px;
 }
 .ai-bot-picker-options .ant-btn {
+  width: 100%;
   max-width: 100%;
-  height: auto;
-  min-height: 32px;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  min-width: 0;
+  height: 32px;
+  white-space: nowrap;
   text-align: start;
+}
+.ai-bot-picker-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ai-knowledge-picker {
   width: 100%;
@@ -66,10 +70,22 @@
   overflow-wrap: anywhere;
 }
 @media (max-width: 480px) {
+  .ai-console .ai-bot-settings-card > .ant-card-head {
+    padding-inline: 16px;
+  }
+  .ai-bot-picker,
   .ai-bot-picker-main {
-    flex-basis: 100%;
+    gap: 8px;
+  }
+  .ai-bot-picker-create-label {
+    display: none;
   }
   .ai-bot-picker .ant-btn {
     min-height: 44px;
+    padding-inline: 8px;
+  }
+  .ai-bot-picker-create {
+    width: 44px;
+    padding: 0;
   }
 }

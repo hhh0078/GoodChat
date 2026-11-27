@@ -5,7 +5,7 @@ import { useSession } from "@/features/auth/session";
 import { useTranslator } from "@/i18n/use-translator";
 import { api } from "@/lib/api";
 import { PlusOutlined } from "@ant-design/icons";
-import { App, Button, Form, Input, Modal } from "antd";
+import { App, Button, Form, Input, Modal, Tooltip } from "antd";
 import { useEffect, useRef, useState } from "react";
 import type { AIBot } from "./types";
 
@@ -44,37 +44,36 @@ export function AIBotPicker({
   return (
     <div className="ai-bot-picker">
       <div className="ai-bot-picker-main">
-        <span className="ai-bot-picker-heading">
-          {tr("我的机器人")}
-          <span
-            className="ai-bot-picker-count"
-            aria-label={tr("共 {p0} 个机器人", { p0: bots.length })}
-          >
-            {bots.length}
-          </span>
-        </span>
         <div className="ai-bot-picker-options" role="group" aria-label={tr("选择机器人")}>
           {bots.map((bot) => (
-            <Button
-              key={bot.id}
-              type={bot.id === selectedId ? "primary" : "default"}
-              aria-pressed={bot.id === selectedId}
-              disabled={disabled}
-              onClick={() => {
-                if (bot.id && bot.id !== selectedId) void continueEditing(() => onSelect(bot.id!));
-              }}
-            >
-              {bot.name}
-            </Button>
+            <Tooltip key={bot.id} title={bot.name} trigger={["hover", "focus"]}>
+              <span className="ai-bot-picker-option">
+                <Button
+                  type={bot.id === selectedId ? "primary" : "default"}
+                  aria-label={bot.name}
+                  aria-pressed={bot.id === selectedId}
+                  disabled={disabled}
+                  onClick={() => {
+                    if (bot.id && bot.id !== selectedId)
+                      void continueEditing(() => onSelect(bot.id!));
+                  }}
+                >
+                  <span className="ai-bot-picker-name">{bot.name}</span>
+                </Button>
+              </span>
+            </Tooltip>
           ))}
         </div>
       </div>
       <Button
+        className="ai-bot-picker-create"
         icon={<PlusOutlined />}
+        aria-label={tr("新增机器人")}
+        title={tr("新增机器人")}
         disabled={disabled}
         onClick={() => void continueEditing(onCreate)}
       >
-        {tr("新增机器人")}
+        <span className="ai-bot-picker-create-label">{tr("新增机器人")}</span>
       </Button>
     </div>
   );
