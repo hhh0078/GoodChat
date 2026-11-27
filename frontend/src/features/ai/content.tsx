@@ -20,11 +20,12 @@ import {
   Switch,
   Table,
   Tag,
+  TreeSelect,
 } from "antd";
 import { useEffect, useRef, useState } from "react";
 import type { AIContent } from "./types";
 import { AIKnowledgeHistory } from "./revisions";
-import { knowledgeFolderPath, type AIFolder } from "./knowledge-tree-data";
+import { knowledgeFolderSelectTree, type AIFolder } from "./knowledge-tree-data";
 import { AIScriptEditor } from "./script-editor";
 
 /** AIContentList 为知识和话术显示真实状态及成员维护权限。 */
@@ -252,16 +253,17 @@ export function AIKnowledgeEditor({
       >
         <ErrorNotice error={folders.error} retry={folders.reload} />
         <Form.Item name="folder_id" label={tr("所属目录")}>
-          <Select
+          <TreeSelect
             showSearch
-            optionFilterProp="label"
+            treeNodeFilterProp="title"
+            treeDefaultExpandedKeys={[""]}
             loading={folders.loading}
-            options={[
-              { value: "", label: tr("根目录") },
-              ...folders.items.map((f) => ({
-                value: f.id,
-                label: knowledgeFolderPath(f.id, folders.items),
-              })),
+            treeData={[
+              {
+                value: "",
+                title: tr("根目录"),
+                children: knowledgeFolderSelectTree(folders.items),
+              },
             ]}
           />
         </Form.Item>

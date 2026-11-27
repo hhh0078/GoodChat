@@ -4189,5 +4189,20 @@
   "mc3736d1a": "Configuration du bot IA",
   "m02aaecd0": "Ce point d’entrée utilise indépendamment le rôle, les connaissances et le budget du bot sélectionné ; laissez ce champ vide pour utiliser la configuration par défaut.",
   "m7c9e83f3": "Ce compte dispose déjà d’un espace de travail. Utilisez l’espace existant et différenciez les activités à l’aide de liens d’accès.",
-  "m81efc756": "Les liens d’accès peuvent uniquement utiliser l’espace de service par défaut"
+  "m81efc756": "Les liens d’accès peuvent uniquement utiliser l’espace de service par défaut",
+  "m056d0c3e": "{p0} robots au total",
+  "m25213653": "Aucun dossier ou document correspondant",
+  "m51404962": "Nouveau sous-dossier",
+  "m7559fca4": "Abandonner les modifications non enregistrées ?",
+  "ma2bee8c5": "Abandonner et continuer",
+  "ma4906d02": "Remonter d’un niveau",
+  "ma98451ca": "Rechercher par chemin de dossier, titre ou description",
+  "mb424aebe": "Ce dossier ne contient pas encore de sous-dossiers ni de documents",
+  "md55d4b50": "{p0} sous-dossiers · {p1} documents",
+  "md5ff9b54": "Ajouter un robot",
+  "md9b593d4": "Robot ajouté",
+  "me20faeec": "Les modifications du robot actuel n’ont pas été enregistrées. Si vous continuez, elles seront abandonnées.",
+  "me5cfcb43": "Sélectionner un robot",
+  "mee5e183d": "Sélectionner des dossiers ou documents de connaissances",
+  "mef59ff41": "Résultats de recherche"
 }

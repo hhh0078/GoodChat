@@ -4189,5 +4189,20 @@
   "mc3736d1a": "AI bot configuration",
   "m02aaecd0": "This entry uses the selected bot’s role, knowledge and budget independently; leave blank to use the default configuration.",
   "m7c9e83f3": "This account already has a workspace. Use the existing workspace and distinguish services with access links.",
-  "m81efc756": "Access links can only use the default service space"
+  "m81efc756": "Access links can only use the default service space",
+  "m056d0c3e": "{p0} bots in total",
+  "m25213653": "No matching folders or documents",
+  "m51404962": "New subfolder",
+  "m7559fca4": "Discard unsaved changes?",
+  "ma2bee8c5": "Discard and continue",
+  "ma4906d02": "Up one level",
+  "ma98451ca": "Search by folder path, title, or description",
+  "mb424aebe": "This folder has no subfolders or documents yet",
+  "md55d4b50": "{p0} subfolders · {p1} documents",
+  "md5ff9b54": "Add bot",
+  "md9b593d4": "Bot added",
+  "me20faeec": "Changes to the current bot have not been saved. Continuing will discard them.",
+  "me5cfcb43": "Select a bot",
+  "mee5e183d": "Select knowledge folders or documents",
+  "mef59ff41": "Search results"
 }

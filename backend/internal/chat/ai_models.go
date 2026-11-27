@@ -63,6 +63,7 @@ func (s *Service) registerAI(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/tenant/ai/knowledge/{id}/restore", s.auth.RequireTenant(s.aiKnowledgeRestore))
 	mux.HandleFunc("GET /api/v1/tenant/ai/models", s.auth.RequireTenant(s.aiAvailableModels))
 	mux.HandleFunc("GET /api/v1/tenant/ai/bots", s.auth.RequireTenant(s.aiBots))
+	mux.HandleFunc("POST /api/v1/me/ai/bots", s.auth.RequireTenant(s.aiCreateBot))
 	mux.HandleFunc("GET /api/v1/me/ai/bot", s.auth.RequireTenant(s.aiBot))
 	mux.HandleFunc("PUT /api/v1/me/ai/bot", s.auth.RequireTenant(s.aiBot))
 	mux.HandleFunc("POST /api/v1/me/ai/test", s.auth.RequireTenant(s.aiTest))

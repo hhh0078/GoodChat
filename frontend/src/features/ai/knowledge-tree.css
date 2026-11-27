@@ -43,6 +43,64 @@
   margin: 0 0 8px;
   overflow-wrap: anywhere;
 }
+.ai-knowledge-heading .ant-btn {
+  margin-bottom: 6px;
+}
+.ai-knowledge-folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ai-knowledge-folder-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 88px;
+  padding: 18px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ai-knowledge-folder-link:hover {
+  border-color: var(--brand, #1e55ff);
+  background: #f8faff;
+}
+.ai-knowledge-folder-link:focus-visible,
+.ai-knowledge-document-link:focus-visible {
+  outline: 2px solid var(--brand, #1e55ff);
+  outline-offset: 3px;
+}
+.ai-knowledge-folder-link > .anticon:first-child {
+  font-size: 24px;
+  color: var(--brand, #1e55ff);
+}
+.ai-knowledge-folder-link > .anticon:last-child {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+.ai-knowledge-folder-link > span:not(.anticon) {
+  flex: 1;
+  min-width: 0;
+}
+.ai-knowledge-folder-link strong,
+.ai-knowledge-folder-link small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.ai-knowledge-folder-link small {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+.ai-knowledge-result-path {
+  color: var(--brand, #1e55ff) !important;
+}
 .ai-knowledge-heading p {
   font-size: 12px;
   color: #64748b;

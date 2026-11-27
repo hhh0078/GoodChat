@@ -2,15 +2,27 @@
 "use client";
 import { showRequestError } from "@/lib/request-error";
 import { useEffect, useState } from "react";
-import { App, Button, Form, Input, Modal, Popconfirm, Select, Tag, Tree } from "antd";
-import { FolderOutlined, FileTextOutlined, PlusOutlined } from "@ant-design/icons";
+import { Button, Form, Input, Modal, Popconfirm, Tag, Tree, TreeSelect } from "antd";
+import {
+  ArrowLeftOutlined,
+  FolderOutlined,
+  FileTextOutlined,
+  PlusOutlined,
+  RightOutlined,
+} from "@ant-design/icons";
 import { useSession } from "@/features/auth/session";
 import { useTranslator } from "@/i18n/use-translator";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { AIKnowledgeEditor } from "./content";
-import { buildKnowledgeTree, knowledgeFolderPath, type AIFolder } from "./knowledge-tree-data";
+import {
+  buildKnowledgeTree,
+  knowledgeFolderSelectTree,
+  knowledgeDirectoryContents,
+  knowledgeFolderPath,
+  type AIFolder,
+} from "./knowledge-tree-data";
 import type { AIContent } from "./types";
 import "./knowledge-tree.css";
 
@@ -30,7 +42,6 @@ function AIFolderEditor({
 }) {
   const tr = useTranslator();
   const { tenantId } = useSession();
-  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [busy, setBusy] = useState(false);
   /** save 保存目录组织信息，不调用模型或修改任何知识正文。 */
@@ -62,7 +73,7 @@ function AIFolderEditor({
       <Form
         form={form}
         layout="vertical"
-        initialValues={{ name: item?.name || "", parent_id: item?.parent_id || parent }}
+        initialValues={{ name: item?.name || "", parent_id: item ? item.parent_id || "" : parent }}
       >
         <Form.Item
           name="name"
@@ -72,14 +83,16 @@ function AIFolderEditor({
           <Input maxLength={100} />
         </Form.Item>
         <Form.Item name="parent_id" label={tr("上级目录")}>
-          <Select
+          <TreeSelect
             showSearch
-            optionFilterProp="label"
-            options={[
-              { value: "", label: tr("根目录") },
-              ...folders
-                .filter((f) => f.id !== item?.id)
-                .map((f) => ({ value: f.id, label: knowledgeFolderPath(f.id, folders) })),
+            treeNodeFilterProp="title"
+            treeDefaultExpandedKeys={[""]}
+            treeData={[
+              {
+                value: "",
+                title: tr("根目录"),
+                children: knowledgeFolderSelectTree(folders, item?.id),
+              },
             ]}
           />
         </Form.Item>
@@ -92,20 +105,21 @@ function AIFolderEditor({
 export function AIKnowledgeTree() {
   const tr = useTranslator();
   const { current, tenantId } = useSession();
-  const { message } = App.useApp();
   const docs = useResource<AIContent>("/tenant/ai/knowledge");
   const folders = useResource<AIFolder>("/tenant/ai/knowledge-folders");
   const manages = ["owner", "admin"].includes(
     current.memberships.find((m) => m.tenant_id === tenantId)?.role || "",
   );
   const [selected, setSelected] = useState("root");
+  const [expanded, setExpanded] = useState<string[]>(["root"]);
   const [search, setSearch] = useState("");
   const [editor, setEditor] = useState<{ item: AIContent | null } | null>(null);
   const [folderEditor, setFolderEditor] = useState<{ item: AIFolder | null } | null>(null);
   const document = docs.items.find((d) => `k:${d.id}` === selected);
   const folder = folders.items.find((f) => `f:${f.id}` === selected);
   const folderID = folder?.id || document?.folder_id || "";
-  const tree = buildKnowledgeTree(folders.items, docs.items, search);
+  const tree = buildKnowledgeTree(folders.items, docs.items, search, selected);
+  const contents = knowledgeDirectoryContents(folders.items, docs.items, folderID, search);
   useEffect(() => {
     if (!docs.items.some((d) => d.status === "pending")) return;
     const timer = setInterval(docs.reload, 2500);
@@ -115,6 +129,23 @@ export function AIKnowledgeTree() {
   function refresh() {
     docs.reload();
     folders.reload();
+  }
+  /** navigate 进入目录或文档并展开其祖先，清除搜索后仍能在目录树定位当前选择。 */
+  function navigate(key: string) {
+    setSelected(key);
+    setSearch("");
+    let parent = key.startsWith("f:")
+      ? key.slice(2)
+      : docs.items.find((item) => `k:${item.id}` === key)?.folder_id || "";
+    const next = new Set(expanded);
+    next.add("root");
+    const seen = new Set<string>();
+    while (parent && !seen.has(parent)) {
+      seen.add(parent);
+      next.add(`f:${parent}`);
+      parent = folders.items.find((item) => item.id === parent)?.parent_id || "";
+    }
+    setExpanded([...next]);
   }
   /** remove 文档沿用历史保留规则，目录只允许删除空节点。 */
   async function remove(kind: "knowledge" | "knowledge-folders", id: string) {
@@ -126,11 +157,6 @@ export function AIKnowledgeTree() {
       showRequestError(error);
     }
   }
-  const visible = docs.items.filter(
-    (d) =>
-      (selected === "root" || d.folder_id === folderID) &&
-      `${d.title} ${d.description}`.toLowerCase().includes(search.toLowerCase()),
-  );
   return (
     <div className="ai-resource">
       <div className="ai-toolbar">
@@ -145,7 +171,7 @@ export function AIKnowledgeTree() {
           <Button onClick={refresh}>{tr("刷新")}</Button>
           {manages && (
             <Button icon={<FolderOutlined />} onClick={() => setFolderEditor({ item: null })}>
-              {tr("新建目录")}
+              {folderID ? tr("新建子目录") : tr("新建目录")}
             </Button>
           )}
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditor({ item: null })}>
@@ -162,7 +188,10 @@ export function AIKnowledgeTree() {
           <Tree
             blockNode
             showIcon
-            defaultExpandAll
+            expandedKeys={
+              search.trim() ? ["root", ...folders.items.map((item) => `f:${item.id}`)] : expanded
+            }
+            onExpand={(keys) => setExpanded(keys.map(String))}
             selectedKeys={[selected]}
             key={
               search +
@@ -173,7 +202,7 @@ export function AIKnowledgeTree() {
               { key: "root", title: tr("全部知识"), icon: <FolderOutlined />, children: tree },
             ]}
             onSelect={(keys) => {
-              if (keys[0]) setSelected(String(keys[0]));
+              if (keys[0]) navigate(String(keys[0]));
             }}
             icon={(node) => (node.isLeaf ? <FileTextOutlined /> : <FolderOutlined />)}
           />
@@ -181,10 +210,36 @@ export function AIKnowledgeTree() {
         <section className="ai-knowledge-main">
           <header className="ai-knowledge-heading">
             <div>
-              <h3>{document?.title || folder?.name || tr("全部知识")}</h3>
-              <p>{knowledgeFolderPath(folderID, folders.items) || tr("根目录")}</p>
+              {selected !== "root" && (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<ArrowLeftOutlined />}
+                  onClick={() =>
+                    navigate(
+                      folder
+                        ? folder.parent_id
+                          ? `f:${folder.parent_id}`
+                          : "root"
+                        : folderID
+                          ? `f:${folderID}`
+                          : "root",
+                    )
+                  }
+                >
+                  {tr("返回上级")}
+                </Button>
+              )}
+              <h3>
+                {search.trim() ? tr("搜索结果") : document?.title || folder?.name || tr("全部知识")}
+              </h3>
+              <p>
+                {search.trim()
+                  ? tr("按目录路径、标题与描述搜索")
+                  : knowledgeFolderPath(folderID, folders.items) || tr("根目录")}
+              </p>
             </div>
-            {folder && manages && !document && (
+            {folder && manages && !document && !search.trim() && (
               <div className="ai-knowledge-toolbar-actions">
                 <Button size="small" onClick={() => setFolderEditor({ item: folder })}>
                   {tr("编辑目录")}
@@ -199,13 +254,13 @@ export function AIKnowledgeTree() {
                 </Popconfirm>
               </div>
             )}
-            {document?.editable && (
+            {document?.editable && !search.trim() && (
               <Button size="small" onClick={() => setEditor({ item: document })}>
                 {tr("编辑")}
               </Button>
             )}
           </header>
-          {document ? (
+          {document && !search.trim() ? (
             <>
               <div className="ai-knowledge-document-meta">
                 <Tag>
@@ -230,38 +285,77 @@ export function AIKnowledgeTree() {
                 </Popconfirm>
               )}
             </>
-          ) : visible.length ? (
-            <div className="ai-knowledge-documents">
-              {visible.map((d) => (
-                <article key={d.id}>
-                  <button
-                    type="button"
-                    className="ai-knowledge-document-link"
-                    onClick={() => setSelected(`k:${d.id}`)}
-                  >
-                    <FileTextOutlined />
-                    <span>
-                      <strong>{d.title}</strong>
-                      <small>{d.description || tr("等待AI生成描述")}</small>
-                    </span>
-                  </button>
-                  <Tag>
-                    {d.status === "ready"
-                      ? tr("已发布")
-                      : d.status === "failed"
-                        ? tr("生成失败")
-                        : tr("生成中")}
-                  </Tag>
-                  {d.editable && (
-                    <Button size="small" onClick={() => setEditor({ item: d })}>
-                      {tr("编辑")}
-                    </Button>
-                  )}
-                </article>
-              ))}
-            </div>
+          ) : contents.folders.length || contents.documents.length ? (
+            <>
+              {!!contents.folders.length && (
+                <div className="ai-knowledge-folders">
+                  {contents.folders.map((child) => (
+                    <button
+                      type="button"
+                      key={child.id}
+                      className="ai-knowledge-folder-link"
+                      onClick={() => navigate(`f:${child.id}`)}
+                    >
+                      <FolderOutlined aria-hidden />
+                      <span>
+                        <strong>{child.name}</strong>
+                        <small>
+                          {search.trim()
+                            ? knowledgeFolderPath(child.id, folders.items)
+                            : tr("{p0} 个子目录 · {p1} 篇文档", {
+                                p0: folders.items.filter((item) => item.parent_id === child.id)
+                                  .length,
+                                p1: docs.items.filter((item) => item.folder_id === child.id).length,
+                              })}
+                        </small>
+                      </span>
+                      <RightOutlined aria-hidden />
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="ai-knowledge-documents">
+                {contents.documents.map((d) => (
+                  <article key={d.id}>
+                    <button
+                      type="button"
+                      className="ai-knowledge-document-link"
+                      onClick={() => navigate(`k:${d.id}`)}
+                    >
+                      <FileTextOutlined />
+                      <span>
+                        <strong>{d.title}</strong>
+                        {search.trim() && (
+                          <small className="ai-knowledge-result-path">
+                            {knowledgeFolderPath(d.folder_id || "", folders.items) || tr("根目录")}
+                          </small>
+                        )}
+                        <small>{d.description || tr("等待AI生成描述")}</small>
+                      </span>
+                    </button>
+                    <Tag>
+                      {d.status === "ready"
+                        ? tr("已发布")
+                        : d.status === "failed"
+                          ? tr("生成失败")
+                          : tr("生成中")}
+                    </Tag>
+                    {d.editable && (
+                      <Button size="small" onClick={() => setEditor({ item: d })}>
+                        {tr("编辑")}
+                      </Button>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </>
           ) : (
-            !docs.loading && !folders.loading && <EmptyData />
+            !docs.loading &&
+            !folders.loading && (
+              <EmptyData
+                text={search.trim() ? tr("没有匹配的目录或文档") : tr("此目录暂无子目录或文档")}
+              />
+            )
           )}
         </section>
       </div>

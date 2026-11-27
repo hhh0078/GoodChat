@@ -23,10 +23,14 @@ import {
   Switch,
 } from "antd";
 import { useLocale } from "next-intl";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { AIBotCreateModal, AIBotPicker } from "./bot-picker";
 import { aiErrorMessage } from "./errors";
+import { AIKnowledgePicker } from "./knowledge-picker";
+import type { AIFolder } from "./knowledge-tree-data";
 import { AIPlanPreview } from "./preview";
 import { aiLanguages, type AIBot, type AIContent, type AIJob, type AIModel } from "./types";
+import "./bot-settings.css";
 
 /** AIBotSettingsPage 加载本成员设置并在语言切换后重新读取资源目录。 */
 export function AIBotSettingsPage() {
@@ -36,6 +40,7 @@ export function AIBotSettingsPage() {
   const locale = useLocale();
   const [form] = Form.useForm();
   const knowledge = useResource<AIContent>("/tenant/ai/knowledge");
+  const folders = useResource<AIFolder>("/tenant/ai/knowledge-folders");
   const scripts = useResource<AIContent>("/tenant/ai/scripts");
   const models = useResource<AIModel>("/tenant/ai/models");
   const bots = useResource<AIBot>("/tenant/ai/bots");
@@ -44,12 +49,36 @@ export function AIBotSettingsPage() {
   const [bot, setBot] = useState<AIBot | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [revision, setRevision] = useState(0);
   const [question, setQuestion] = useState("");
   const [jobID, setJobID] = useState("");
   const [job, setJob] = useState<AIJob | null>(null);
   const member = current.memberships.find((m) => m.tenant_id === tenantId);
   const manages = member?.role === "owner" || member?.role === "admin";
+  const ownBots = bots.items
+    .filter((item) => item.owner_membership_id === member?.id)
+    .map((item) => (bot && item.id === bot.id ? bot : item));
+  if (bot?.id && !ownBots.some((item) => item.id === bot.id)) ownBots.push(bot);
+  /** applyBot 用服务端完整配置替换表单，并清除上一个机器人的未保存标记和调试结果。 */
+  const applyBot = useCallback(
+    (value: AIBot) => {
+      setBot(value);
+      setDirty(false);
+      setJobID("");
+      setJob(null);
+      form.setFieldsValue({
+        ...value,
+        model_id: value.model_id || "",
+        settings: {
+          ...value.settings,
+          daily_budget_micro: value.settings.daily_budget_micro / 1000000,
+        },
+      });
+    },
+    [form],
+  );
   useEffect(() => {
     const controller = new AbortController();
     setError(null);
@@ -60,22 +89,14 @@ export function AIBotSettingsPage() {
     })
       .then((value) => {
         if (!controller.signal.aborted) {
-          setBot(value);
-          form.setFieldsValue({
-            ...value,
-            model_id: value.model_id || "",
-            settings: {
-              ...value.settings,
-              daily_budget_micro: value.settings.daily_budget_micro / 1000000,
-            },
-          });
+          applyBot(value);
         }
       })
       .catch((e) => {
         if (!controller.signal.aborted) setError(e);
       });
     return () => controller.abort();
-  }, [tenantId, locale, revision, form, selectedBot]);
+  }, [tenantId, locale, revision, applyBot, selectedBot]);
   useEffect(() => {
     if (!jobID) return;
     const controller = new AbortController();
@@ -119,6 +140,7 @@ export function AIBotSettingsPage() {
         },
       });
       setBot(next);
+      setDirty(false);
       bots.reload();
       message.success(tr("已保存"));
     } catch (e) {
@@ -163,37 +185,35 @@ export function AIBotSettingsPage() {
   ];
   return (
     <div className="ai-bot-grid">
-      <Card title={tr("我的机器人")}>
-        {bots.items.filter((item) => item.owner_membership_id === member?.id).length > 1 && (
-          <Form layout="vertical">
-            <Form.Item label={tr("机器人配置")}>
-              <Select
-                aria-label={tr("机器人配置")}
-                value={bot.id}
-                disabled={busy}
-                options={bots.items
-                  .filter((item) => item.owner_membership_id === member?.id)
-                  .map((item) => ({ value: item.id, label: item.name }))}
-                onChange={(id) => {
-                  setJobID("");
-                  setJob(null);
-                  setSelection({ tenantId, id });
-                }}
-              />
-            </Form.Item>
-          </Form>
-        )}
+      <Card
+        className="ai-bot-settings-card"
+        title={
+          <AIBotPicker
+            bots={ownBots}
+            selectedId={bot.id}
+            disabled={busy}
+            dirty={dirty}
+            onSelect={(id) => {
+              setJobID("");
+              setJob(null);
+              setSelection({ tenantId, id });
+            }}
+            onCreate={() => setCreateOpen(true)}
+          />
+        }
+      >
         <ErrorNotice error={error} retry={() => setRevision((v) => v + 1)} />
         <ErrorNotice
-          error={knowledge.error || scripts.error || models.error || bots.error}
+          error={knowledge.error || folders.error || scripts.error || models.error || bots.error}
           retry={() => {
             knowledge.reload();
+            folders.reload();
             scripts.reload();
             models.reload();
             bots.reload();
           }}
         />
-        <Form form={form} layout="vertical" disabled={busy}>
+        <Form form={form} layout="vertical" disabled={busy} onValuesChange={() => setDirty(true)}>
           <div className="ai-form-grid">
             <Form.Item
               name="name"
@@ -266,11 +286,11 @@ export function AIBotSettingsPage() {
             label={tr("可用知识库")}
             extra={tr("AI先查看描述，再按需读取正文。未勾选的知识库不可读取。")}
           >
-            <Select
-              mode="multiple"
-              options={knowledge.items
-                .filter((k) => k.enabled)
-                .map((k) => ({ value: k.id, label: k.title }))}
+            <AIKnowledgePicker
+              folders={folders.items}
+              documents={knowledge.items}
+              loading={knowledge.loading || folders.loading}
+              disabled={busy || !!knowledge.error || !!folders.error}
             />
           </Form.Item>
           <Form.Item
@@ -350,7 +370,14 @@ export function AIBotSettingsPage() {
         </Form>
       </Card>
       <div>
-        <Card title={tr("调试机器人")}>
+        <Card
+          title={
+            <>
+              {tr("调试机器人")}
+              <span className="ai-bot-test-name">{bot.name}</span>
+            </>
+          }
+        >
           <Alert
             type="info"
             showIcon
@@ -398,6 +425,16 @@ export function AIBotSettingsPage() {
         </Card>
         {manages && <AIDefaultReception key={bot.version} />}
       </div>
+      <AIBotCreateModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(value) => {
+          applyBot(value);
+          if (value.id) setSelection({ tenantId, id: value.id });
+          bots.reload();
+          message.success(tr("已新增机器人"));
+        }}
+      />
     </div>
   );
 }

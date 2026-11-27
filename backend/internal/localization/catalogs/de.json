@@ -4189,5 +4189,20 @@
   "mc3736d1a": "KI-Bot-Konfiguration",
   "m02aaecd0": "Dieser Zugang verwendet die Rolle, das Wissen und das Budget des ausgewählten Bots unabhängig; lassen Sie das Feld leer, um die Standardkonfiguration zu verwenden.",
   "m7c9e83f3": "Dieses Konto hat bereits einen Arbeitsbereich. Verwenden Sie den vorhandenen Arbeitsbereich und unterscheiden Sie die Dienste über Zugangslinks.",
-  "m81efc756": "Zugangslinks können nur den Standard-Servicebereich verwenden"
+  "m81efc756": "Zugangslinks können nur den Standard-Servicebereich verwenden",
+  "m056d0c3e": "Insgesamt {p0} Bots",
+  "m25213653": "Keine passenden Ordner oder Dokumente",
+  "m51404962": "Neuer Unterordner",
+  "m7559fca4": "Nicht gespeicherte Änderungen verwerfen?",
+  "ma2bee8c5": "Verwerfen und fortfahren",
+  "ma4906d02": "Eine Ebene nach oben",
+  "ma98451ca": "Nach Ordnerpfad, Titel oder Beschreibung suchen",
+  "mb424aebe": "Dieser Ordner enthält noch keine Unterordner oder Dokumente",
+  "md55d4b50": "{p0} Unterordner · {p1} Dokumente",
+  "md5ff9b54": "Bot hinzufügen",
+  "md9b593d4": "Bot hinzugefügt",
+  "me20faeec": "Die Änderungen am aktuellen Bot wurden noch nicht gespeichert. Wenn Sie fortfahren, werden sie verworfen.",
+  "me5cfcb43": "Bot auswählen",
+  "mee5e183d": "Wissensordner oder Dokumente auswählen",
+  "mef59ff41": "Suchergebnisse"
 }

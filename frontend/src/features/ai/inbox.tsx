@@ -2,7 +2,7 @@
 "use client";
 import { showRequestError } from "@/lib/request-error";
 import { useEffect, useState } from "react";
-import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Tag } from "antd";
+import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Tag, TreeSelect } from "antd";
 import { useSession } from "@/features/auth/session";
 import { useTranslator } from "@/i18n/use-translator";
 import { useFormats } from "@/i18n/use-formats";
@@ -12,7 +12,11 @@ import { useResource } from "@/lib/use-resource";
 import { EmptyData, ErrorNotice } from "@/components/page-state";
 import { LoadMore } from "@/components/load-more";
 import { AITraceDetail } from "./traces";
-import { knowledgeFolderPath, type AIFolder } from "./knowledge-tree-data";
+import {
+  knowledgeDocumentSelectTree,
+  knowledgeFolderSelectTree,
+  type AIFolder,
+} from "./knowledge-tree-data";
 import type { AIContent } from "./types";
 import "./operations.css";
 
@@ -87,38 +91,43 @@ function AIGapSupplement({
         <strong>{item.question}</strong>
       </p>
       <p className="muted">{item.reason}</p>
-      <ErrorNotice error={knowledge.error} retry={knowledge.reload} />
+      <ErrorNotice
+        error={knowledge.error || folders.error}
+        retry={() => {
+          knowledge.reload();
+          folders.reload();
+        }}
+      />
       <Form
         form={form}
         layout="vertical"
         initialValues={{ knowledge_id: "", folder_id: "", title: item.question.slice(0, 80) }}
       >
         <Form.Item name="knowledge_id" label={tr("补充到知识库")}>
-          <Select
-            loading={knowledge.loading}
-            options={[
-              { value: "", label: tr("新建知识库") },
-              ...knowledge.items
-                .filter((k) => k.editable && k.enabled)
-                .map((k) => ({
-                  value: k.id,
-                  label: `${knowledgeFolderPath(k.folder_id || "", folders.items)} / ${k.title}`,
-                })),
+          <TreeSelect
+            showSearch
+            treeLine
+            treeNodeFilterProp="title"
+            loading={knowledge.loading || folders.loading}
+            treeData={[
+              { value: "", title: tr("新建知识库") },
+              ...knowledgeDocumentSelectTree(
+                folders.items,
+                knowledge.items.filter((k) => k.editable && k.enabled),
+              ),
             ]}
           />
         </Form.Item>
         {!selected && (
           <Form.Item name="folder_id" label={tr("所属目录")}>
-            <Select
+            <TreeSelect
               showSearch
-              optionFilterProp="label"
+              treeLine
+              treeNodeFilterProp="title"
               loading={folders.loading}
-              options={[
-                { value: "", label: tr("根目录") },
-                ...folders.items.map((f) => ({
-                  value: f.id,
-                  label: knowledgeFolderPath(f.id, folders.items),
-                })),
+              treeData={[
+                { value: "", title: tr("根目录") },
+                ...knowledgeFolderSelectTree(folders.items),
               ]}
             />
           </Form.Item>

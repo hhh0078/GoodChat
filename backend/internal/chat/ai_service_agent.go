@@ -75,7 +75,7 @@ func (s *Service) aiServiceAgent(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		var err error
-		result, err = txJSON(ctx, tx, `SELECT to_jsonb(a)||jsonb_build_object('kind','ai','can_delete',false,'avatar_url',`+platform.AvatarURLSQL("a")+`,'configured',EXISTS(SELECT 1 FROM ai_bots b JOIN tenant_memberships m ON m.id=b.owner_membership_id AND NOT m.disabled AND m.removed_at IS NULL WHERE b.id=coalesce((SELECT default_bot_id FROM ai_tenant_settings), (SELECT b2.id FROM ai_bots b2 JOIN tenant_memberships m ON m.id=b2.owner_membership_id WHERE NOT m.disabled AND m.removed_at IS NULL ORDER BY CASE m.role WHEN 'owner' THEN 0 ELSE 1 END,b2.id LIMIT 1)) AND b.mode='auto' AND b.model_id IS NOT NULL)) FROM ai_service_agents a`)
+		result, err = txJSON(ctx, tx, `SELECT to_jsonb(a)||jsonb_build_object('kind','ai','can_delete',false,'avatar_url',`+platform.AvatarURLSQL("a")+`,'configured',EXISTS(SELECT 1 FROM ai_bots b JOIN tenant_memberships m ON m.id=b.owner_membership_id AND NOT m.disabled AND m.removed_at IS NULL WHERE b.id=coalesce((SELECT default_bot_id FROM ai_tenant_settings), (SELECT b2.id FROM ai_bots b2 JOIN tenant_memberships m ON m.id=b2.owner_membership_id WHERE NOT m.disabled AND m.removed_at IS NULL ORDER BY CASE m.role WHEN 'owner' THEN 0 ELSE 1 END,b2.created_at,b2.id LIMIT 1)) AND b.mode='auto' AND b.model_id IS NOT NULL)) FROM ai_service_agents a`)
 		return err
 	})
 	if err != nil {
@@ -90,7 +90,7 @@ func aiReceptionBot(ctx context.Context, tx pgx.Tx, conversation string, first b
 	var id string
 	query := `SELECT b.id::text FROM conversations c JOIN access_links l ON l.id=c.created_entry_id AND l.tenant_id=c.tenant_id
  LEFT JOIN ai_tenant_settings t ON t.tenant_id=c.tenant_id JOIN ai_service_agents a ON a.tenant_id=c.tenant_id
- JOIN ai_bots b ON b.id=coalesce(l.ai_bot_id,CASE WHEN l.ai_agent_id IS NOT NULL THEN coalesce(t.default_bot_id,(SELECT b2.id FROM ai_bots b2 JOIN tenant_memberships m2 ON m2.id=b2.owner_membership_id WHERE b2.tenant_id=c.tenant_id AND NOT m2.disabled AND m2.removed_at IS NULL ORDER BY CASE m2.role WHEN 'owner' THEN 0 ELSE 1 END,b2.id LIMIT 1)) ELSE t.default_bot_id END)
+ JOIN ai_bots b ON b.id=coalesce(l.ai_bot_id,CASE WHEN l.ai_agent_id IS NOT NULL THEN coalesce(t.default_bot_id,(SELECT b2.id FROM ai_bots b2 JOIN tenant_memberships m2 ON m2.id=b2.owner_membership_id WHERE b2.tenant_id=c.tenant_id AND NOT m2.disabled AND m2.removed_at IS NULL ORDER BY CASE m2.role WHEN 'owner' THEN 0 ELSE 1 END,b2.created_at,b2.id LIMIT 1)) ELSE t.default_bot_id END)
  JOIN tenant_memberships m ON m.id=b.owner_membership_id AND m.tenant_id=c.tenant_id
  WHERE c.id=$1 AND NOT c.ai_paused AND c.status='queued' AND a.enabled AND (l.ai_agent_id IS NULL OR l.ai_agent_id=a.id)
  AND (NOT $2 OR l.ai_agent_id IS NOT NULL OR l.ai_bot_id IS NOT NULL OR t.reception_mode='ai_first') AND b.mode='auto' AND NOT m.disabled AND m.removed_at IS NULL AND (l.ai_agent_id IS NOT NULL OR l.ai_bot_id IS NOT NULL OR m.can_serve)

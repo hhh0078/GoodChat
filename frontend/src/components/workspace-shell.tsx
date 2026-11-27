@@ -23,7 +23,18 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { App, Avatar, Button, Drawer, Dropdown, Menu, Space, Tag, Tooltip } from "antd";
+import {
+  App,
+  Avatar,
+  Button,
+  Drawer,
+  Dropdown,
+  Menu,
+  Space,
+  Tag,
+  Tooltip,
+  type MenuProps,
+} from "antd";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { LocaleSettingsButton } from "@/i18n/locale-provider";
@@ -131,7 +142,6 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
   const sections = [
     {
       key: "daily",
-      label: tr("日常工作"),
       paths: ["/console", "/workspace", "/console/ai", "/console/contacts", "/console/records"],
       daily: true,
     },
@@ -172,19 +182,22 @@ function WorkspaceChrome({ children }: { children: React.ReactNode }) {
       children: section.paths.flatMap((path) => entries.filter((entry) => entry.key === path)),
     }))
     .filter((section) => section.children.length > 0);
+  const navigationItems = sections.flatMap<NonNullable<MenuProps["items"]>[number]>((section) =>
+    section.type === "group" ? section.children : [section],
+  );
   const nav = (
     <>
       <div className="sidebar-brand">
         <Brand />
       </div>
-      <div className="sidebar-workspace">
-        <span className="shell-tenant-name">{member?.tenant_name || "GoodChat"}</span>
-      </div>
       <Menu
         mode="inline"
-        items={sections}
+        items={navigationItems}
         defaultOpenKeys={sections
-          .filter((section) => section.children.some((entry) => entry.key === selected))
+          .filter(
+            (section) =>
+              section.type !== "group" && section.children.some((entry) => entry.key === selected),
+          )
           .map((section) => section.key)}
         selectedKeys={[selected]}
         onClick={({ key }) => navigate(key)}

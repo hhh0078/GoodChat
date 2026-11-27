@@ -4189,5 +4189,20 @@
   "mc3736d1a": "Configuração do bot de IA",
   "m02aaecd0": "Esta entrada usa de forma independente a função, o conhecimento e o orçamento do bot selecionado; deixe em branco para usar a configuração padrão.",
   "m7c9e83f3": "Esta conta já tem um espaço de trabalho. Use o espaço existente e diferencie os serviços com links de acesso.",
-  "m81efc756": "Os links de acesso só podem usar o espaço de serviço padrão"
+  "m81efc756": "Os links de acesso só podem usar o espaço de serviço padrão",
+  "m056d0c3e": "Total de {p0} bots",
+  "m25213653": "Nenhuma pasta ou documento correspondente",
+  "m51404962": "Nova subpasta",
+  "m7559fca4": "Descartar alterações não salvas?",
+  "ma2bee8c5": "Descartar e continuar",
+  "ma4906d02": "Subir um nível",
+  "ma98451ca": "Buscar por caminho da pasta, título ou descrição",
+  "mb424aebe": "Esta pasta ainda não tem subpastas ou documentos",
+  "md55d4b50": "{p0} subpastas · {p1} documentos",
+  "md5ff9b54": "Adicionar bot",
+  "md9b593d4": "Bot adicionado",
+  "me20faeec": "As alterações do bot atual não foram salvas. Se você continuar, elas serão descartadas.",
+  "me5cfcb43": "Selecionar um bot",
+  "mee5e183d": "Selecionar pastas ou documentos de conhecimento",
+  "mef59ff41": "Resultados da busca"
 }

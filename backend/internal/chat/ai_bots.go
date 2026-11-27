@@ -44,17 +44,68 @@ func defaultAIBot() aiBot {
 	return aiBot{Name: "AI", AvatarRef: "goodchat", Mode: "off", Language: "auto", KnowledgeIDs: []string{}, ScriptIDs: []string{}, Settings: aiBotSettings{Offline: true, Start: "00:00", End: "23:59", Weekdays: []int{0, 1, 2, 3, 4, 5, 6}, DailyBudget: 0, MaxOutput: 1024, MaxTurns: 8}}
 }
 
-// memberAIBotID 校验明确选择的本人机器人；旧调用优先租户默认配置，再按稳定编号选择。
+// memberAIBotID 校验明确选择的本人机器人；旧调用优先租户默认配置，再按创建时间与编号稳定选择原配置。
 func memberAIBotID(ctx context.Context, tx pgx.Tx, member, selected string) (string, error) {
 	if selected != "" && !uuidPattern.MatchString(selected) {
 		return "", platform.Fail(400, "ai_bot_invalid", "机器人编号不正确")
 	}
 	var id string
-	err := tx.QueryRow(ctx, `SELECT b.id::text FROM ai_bots b WHERE b.owner_membership_id=$1 AND ($2='' OR b.id=NULLIF($2,'')::uuid) ORDER BY CASE WHEN b.id=(SELECT default_bot_id FROM ai_tenant_settings) THEN 0 ELSE 1 END,b.id LIMIT 1`, member, selected).Scan(&id)
+	err := tx.QueryRow(ctx, `SELECT b.id::text FROM ai_bots b WHERE b.owner_membership_id=$1 AND ($2='' OR b.id=NULLIF($2,'')::uuid) ORDER BY CASE WHEN b.id=(SELECT default_bot_id FROM ai_tenant_settings) THEN 0 ELSE 1 END,b.created_at,b.id LIMIT 1`, member, selected).Scan(&id)
 	if err == pgx.ErrNoRows && selected != "" {
 		return "", platform.Fail(404, "ai_bot_not_found", "机器人不存在或不属于当前成员")
 	}
 	return id, err
+}
+
+// insertMemberAIBot 只按认证成员创建独立配置，编号由服务端生成，不修改租户默认接待或入口绑定。
+func insertMemberAIBot(ctx context.Context, tx pgx.Tx, a actor, b aiBot) (string, error) {
+	id := newID()
+	_, err := tx.Exec(ctx, `INSERT INTO ai_bots(id,tenant_id,owner_membership_id,model_id,name,mode,prompt,language,knowledge_ids,script_ids,settings,avatar_ref) VALUES($1,$2,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11,$12)`, id, a.TenantID, a.MemberID, b.ModelID, b.Name, b.Mode, b.Prompt, b.Language, b.KnowledgeIDs, b.ScriptIDs, jsonValue(b.Settings), b.AvatarRef)
+	return id, err
+}
+
+// aiCreateBot 为当前有效成员新增关闭状态的机器人，所有授权、模型与接待设置均从安全默认值开始。
+func (s *Service) aiCreateBot(w http.ResponseWriter, r *http.Request) {
+	a := memberActor(r)
+	var in struct {
+		Name string `json:"name"`
+	}
+	if err := platform.Decode(w, r, &in); err != nil {
+		replyError(w, r, err)
+		return
+	}
+	b := defaultAIBot()
+	b.Name = strings.TrimSpace(in.Name)
+	if err := validateAIBot(b); err != nil {
+		replyError(w, r, err)
+		return
+	}
+	if strings.ContainsAny(b.Name, "\x00\r\n") {
+		returnError(w, r, "ai_bot_invalid", "请检查机器人设置")
+		return
+	}
+	var result any
+	err := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
+		ctx := r.Context()
+		// 与首次保存共享成员锁，锁后重查权限，停用成员不能在等待期间继续创建。
+		if _, err := tx.Exec(ctx, "SELECT id FROM tenant_memberships WHERE id=$1 AND tenant_id=$2 FOR UPDATE", a.MemberID, a.TenantID); err != nil {
+			return err
+		}
+		if err := liveMember(ctx, tx, a); err != nil {
+			return err
+		}
+		id, err := insertMemberAIBot(ctx, tx, a, b)
+		if err != nil {
+			return err
+		}
+		result, err = txJSON(ctx, tx, "SELECT to_jsonb(b) FROM ai_bots b WHERE id=$1", id)
+		return err
+	})
+	if err != nil {
+		replyError(w, r, err)
+		return
+	}
+	platform.JSON(w, 201, result)
 }
 
 // aiBot 仅从认证上下文推导机器人归属，不允许管理员借此修改别人的个人设置。
@@ -119,8 +170,7 @@ func (s *Service) aiBot(w http.ResponseWriter, r *http.Request) {
 		if exists {
 			_, e = tx.Exec(ctx, `UPDATE ai_bots SET model_id=NULLIF($3,'')::uuid,name=$4,mode=$5,prompt=$6,language=$7,knowledge_ids=$8,script_ids=$9,settings=$10,avatar_ref=$11,version=version+1,updated_at=now() WHERE id=$1 AND owner_membership_id=$2`, id, a.MemberID, in.ModelID, in.Name, in.Mode, in.Prompt, in.Language, in.KnowledgeIDs, in.ScriptIDs, jsonValue(in.Settings), in.AvatarRef)
 		} else {
-			id = newID()
-			_, e = tx.Exec(ctx, `INSERT INTO ai_bots(id,tenant_id,owner_membership_id,model_id,name,mode,prompt,language,knowledge_ids,script_ids,settings,avatar_ref) VALUES($1,$2,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11,$12)`, id, a.TenantID, a.MemberID, in.ModelID, in.Name, in.Mode, in.Prompt, in.Language, in.KnowledgeIDs, in.ScriptIDs, jsonValue(in.Settings), in.AvatarRef)
+			id, e = insertMemberAIBot(ctx, tx, a, in)
 		}
 		if e != nil {
 			return e
