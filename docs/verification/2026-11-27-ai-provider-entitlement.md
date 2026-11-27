@@ -19,4 +19,8 @@
 - `go test ./...` 通过。
 - 真实独立PostgreSQL + 模拟HTTP供应商：reply/summary各仅1次调用，usage/cost保留，sale=0、无扣费、预占释放；不会创建知识缺口或发上游正文。原人工归属不变；客服故障分类与恢复清空通过。
 - 前端159项测试、typecheck、九语4206条目录检查、变更文件格式检查通过。
-- 生产部署与真实独立访客完整问答结果在完成后补充。既有客户会话不重放、不恢复、不发送、不关闭。
+- `SUPPORT_CHAT_INTEGRATION=1 go test ./internal/chat -run '^TestAI' -count=1` 全部通过（13.550s）；模拟供应商不算真实模型验收。
+- 16:54:44 正式发布 `goodchat:b5a81265e610`，commit `b5a81265e61074a75dec777a78622753b92598ae`；正式容器 healthy，内网及公网 `/healthz` 均HTTP200。旧镜像 `9b61bd06aafd` 停机保留作回退。
+- 独立访客 `AI-Entitlement-QA-20261127`、会话 `9c19a366-a14a-4c87-b73d-919bcc62eeb1`：切换前“会封号吗”及上线后“能保证不封号吗”两次真实模型问答均成功，实际read新知识 `063ea680-8116-4bde-8d1e-00b09cc8f8f6` 后submit_reply；未request_handoff，`ai_paused=false`、`ai_receiving=true`。上线后job `8a21f3d3-6980-4634-abbf-530ff27764cf`，sale_micro2185，预占0。浏览器刷新后历史可见、追问可见；仅验收文字问答，未把未发送的表单算作成功。
+- 已用该测试访客本人的正式API关闭独立测试会话，保留历史。原客户会话仅只读诊断，不重放、不恢复、不发送、不关闭。
+- 新客服提示的权限、版本清理及人工归属经过真实PG/HTTP回归；本次未操作生产管理员登录态来人为制造故障。外部供应商的长期稳定性不由单次探针保证。
