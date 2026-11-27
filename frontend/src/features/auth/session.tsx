@@ -4,6 +4,7 @@ import { ErrorNotice } from "@/components/page-state";
 import { useTranslator } from "@/i18n/use-translator";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import type { CurrentUser } from "@/lib/types";
+import { loginReturnURL } from "@/lib/urls";
 import { Alert, Button, Result, Spin } from "antd";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
@@ -37,7 +38,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     } catch (problem) {
       setCurrent(null);
       if (problem instanceof ApiError && problem.status === 401)
-        router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+        router.replace(loginReturnURL(pathname, window.location.search));
       else setError(errorMessage(problem));
     }
   }, [pathname, router]);

@@ -1,4 +1,4 @@
-// 文件作用说明：保存每成员唯一机器人、授权目录、业务时段与租户默认接待策略。
+// 文件作用说明：保存成员的独立机器人、授权目录、业务时段与租户默认接待策略。
 package chat
 
 import (
@@ -44,6 +44,19 @@ func defaultAIBot() aiBot {
 	return aiBot{Name: "AI", AvatarRef: "goodchat", Mode: "off", Language: "auto", KnowledgeIDs: []string{}, ScriptIDs: []string{}, Settings: aiBotSettings{Offline: true, Start: "00:00", End: "23:59", Weekdays: []int{0, 1, 2, 3, 4, 5, 6}, DailyBudget: 0, MaxOutput: 1024, MaxTurns: 8}}
 }
 
+// memberAIBotID 校验明确选择的本人机器人；旧调用优先租户默认配置，再按稳定编号选择。
+func memberAIBotID(ctx context.Context, tx pgx.Tx, member, selected string) (string, error) {
+	if selected != "" && !uuidPattern.MatchString(selected) {
+		return "", platform.Fail(400, "ai_bot_invalid", "机器人编号不正确")
+	}
+	var id string
+	err := tx.QueryRow(ctx, `SELECT b.id::text FROM ai_bots b WHERE b.owner_membership_id=$1 AND ($2='' OR b.id=NULLIF($2,'')::uuid) ORDER BY CASE WHEN b.id=(SELECT default_bot_id FROM ai_tenant_settings) THEN 0 ELSE 1 END,b.id LIMIT 1`, member, selected).Scan(&id)
+	if err == pgx.ErrNoRows && selected != "" {
+		return "", platform.Fail(404, "ai_bot_not_found", "机器人不存在或不属于当前成员")
+	}
+	return id, err
+}
+
 // aiBot 仅从认证上下文推导机器人归属，不允许管理员借此修改别人的个人设置。
 func (s *Service) aiBot(w http.ResponseWriter, r *http.Request) {
 	a := memberActor(r)
@@ -68,22 +81,31 @@ func (s *Service) aiBot(w http.ResponseWriter, r *http.Request) {
 			return e
 		}
 		if r.Method == "GET" {
-			raw, e := txJSON(ctx, tx, "SELECT to_jsonb(b) FROM ai_bots b WHERE owner_membership_id=$1", a.MemberID)
+			id, e := memberAIBotID(ctx, tx, a.MemberID, r.URL.Query().Get("bot_id"))
 			if e == pgx.ErrNoRows {
 				result = in
 				return nil
 			}
-			result = raw
+			if e != nil {
+				return e
+			}
+			result, e = txJSON(ctx, tx, "SELECT to_jsonb(b) FROM ai_bots b WHERE id=$1", id)
 			return e
 		}
 		// 成员行锁统一首次创建和后续保存，防止并发首次创建绕过版本检查。
 		if _, e := tx.Exec(ctx, "SELECT id FROM tenant_memberships WHERE id=$1 FOR UPDATE", a.MemberID); e != nil {
 			return e
 		}
-		var old int64
-		e := tx.QueryRow(ctx, "SELECT version FROM ai_bots WHERE owner_membership_id=$1", a.MemberID).Scan(&old)
+		id, e := memberAIBotID(ctx, tx, a.MemberID, in.ID)
 		if e != nil && e != pgx.ErrNoRows {
 			return e
+		}
+		exists := e == nil
+		var old int64
+		if exists {
+			if e = tx.QueryRow(ctx, "SELECT version FROM ai_bots WHERE id=$1", id).Scan(&old); e != nil {
+				return e
+			}
 		}
 		if old != in.Version {
 			return platform.Fail(409, "ai_version_conflict", "内容已更新，请刷新后重试")
@@ -94,11 +116,16 @@ func (s *Service) aiBot(w http.ResponseWriter, r *http.Request) {
 		if e := validateAIBindings(ctx, tx, in); e != nil {
 			return e
 		}
-		_, e = tx.Exec(ctx, `INSERT INTO ai_bots(tenant_id,owner_membership_id,model_id,name,mode,prompt,language,knowledge_ids,script_ids,settings,avatar_ref) VALUES($1,$2,NULLIF($3,'')::uuid,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(tenant_id,owner_membership_id) DO UPDATE SET model_id=excluded.model_id,name=excluded.name,mode=excluded.mode,prompt=excluded.prompt,language=excluded.language,knowledge_ids=excluded.knowledge_ids,script_ids=excluded.script_ids,settings=excluded.settings,avatar_ref=excluded.avatar_ref,version=ai_bots.version+1,updated_at=now()`, a.TenantID, a.MemberID, in.ModelID, in.Name, in.Mode, in.Prompt, in.Language, in.KnowledgeIDs, in.ScriptIDs, jsonValue(in.Settings), in.AvatarRef)
+		if exists {
+			_, e = tx.Exec(ctx, `UPDATE ai_bots SET model_id=NULLIF($3,'')::uuid,name=$4,mode=$5,prompt=$6,language=$7,knowledge_ids=$8,script_ids=$9,settings=$10,avatar_ref=$11,version=version+1,updated_at=now() WHERE id=$1 AND owner_membership_id=$2`, id, a.MemberID, in.ModelID, in.Name, in.Mode, in.Prompt, in.Language, in.KnowledgeIDs, in.ScriptIDs, jsonValue(in.Settings), in.AvatarRef)
+		} else {
+			id = newID()
+			_, e = tx.Exec(ctx, `INSERT INTO ai_bots(id,tenant_id,owner_membership_id,model_id,name,mode,prompt,language,knowledge_ids,script_ids,settings,avatar_ref) VALUES($1,$2,$3,NULLIF($4,'')::uuid,$5,$6,$7,$8,$9,$10,$11,$12)`, id, a.TenantID, a.MemberID, in.ModelID, in.Name, in.Mode, in.Prompt, in.Language, in.KnowledgeIDs, in.ScriptIDs, jsonValue(in.Settings), in.AvatarRef)
+		}
 		if e != nil {
 			return e
 		}
-		result, e = txJSON(ctx, tx, "SELECT to_jsonb(b) FROM ai_bots b WHERE owner_membership_id=$1", a.MemberID)
+		result, e = txJSON(ctx, tx, "SELECT to_jsonb(b) FROM ai_bots b WHERE id=$1", id)
 		return e
 	})
 	if e != nil {

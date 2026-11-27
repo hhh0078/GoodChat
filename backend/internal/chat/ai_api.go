@@ -16,7 +16,8 @@ import (
 func (s *Service) aiTest(w http.ResponseWriter, r *http.Request) {
 	a := memberActor(r)
 	var in struct {
-		Text string `json:"text"`
+		Text  string `json:"text"`
+		BotID string `json:"bot_id"`
 	}
 	if e := platform.Decode(w, r, &in); e != nil {
 		replyError(w, r, e)
@@ -28,8 +29,8 @@ func (s *Service) aiTest(w http.ResponseWriter, r *http.Request) {
 	}
 	id := newID()
 	e := platform.TenantTx(r.Context(), s.pool, a.TenantID, func(tx pgx.Tx) error {
-		var botID string
-		if e := tx.QueryRow(r.Context(), "SELECT id::text FROM ai_bots WHERE owner_membership_id=$1", a.MemberID).Scan(&botID); e != nil {
+		botID, e := memberAIBotID(r.Context(), tx, a.MemberID, in.BotID)
+		if e != nil {
 			return e
 		}
 		b, e := loadAIBot(r.Context(), tx, botID)

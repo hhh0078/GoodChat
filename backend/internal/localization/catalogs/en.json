@@ -4182,5 +4182,12 @@
   "m6466946b": "The visitor is offline",
   "md17c4bee": "Awaiting automatic assignment",
   "mb0268d23": "The visitor is offline. You can still take this conversation and send messages for them to read when they return.",
-  "m6bb0265c": "Take and reply"
+  "m6bb0265c": "Take and reply",
+  "mf7f59e1c": "Invalid bot ID",
+  "m4e859d56": "The bot does not exist or does not belong to the current member",
+  "m7dd7b78c": "Bot configuration",
+  "mc3736d1a": "AI bot configuration",
+  "m02aaecd0": "This entry uses the selected bot’s role, knowledge and budget independently; leave blank to use the default configuration.",
+  "m7c9e83f3": "This account already has a workspace. Use the existing workspace and distinguish services with access links.",
+  "m81efc756": "Access links can only use the default service space"
 }

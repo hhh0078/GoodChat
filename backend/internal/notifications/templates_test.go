@@ -2,6 +2,7 @@
 package notifications
 
 import (
+	"net/url"
 	"strings"
 	"supportdesk/backend/internal/localization"
 	"testing"
@@ -67,5 +68,36 @@ func TestKnowledgeGapEmailDetails(t *testing.T) {
 	}
 	if !strings.Contains(mail.Body, "作者的微信号？") || !strings.Contains(mail.Body, "没有授权资料") || !strings.Contains(mail.Body, "tab=pending") || strings.Contains(mail.HTML, "<script>") {
 		t.Fatal("问题详情、转义或站内入口不正确")
+	}
+}
+
+// TestHandoffConversationLink 验证真实会话深链、旧模板兼容和不可信编号降级，不允许邮件指定租户或外部地址。
+func TestHandoffConversationLink(t *testing.T) {
+	d, _ := Find("handoff_waiting")
+	const conversation = "11a1e08d-91f6-40ac-b173-4feddfdd39b9"
+	for _, reference := range []string{conversation, strings.ToUpper(conversation), "", "task-1", conversation + "&tenant=other", "//evil.example"} {
+		mail, err := Render("https://goodchat.example", "zh-CN", "Asia/Shanghai", d, map[string]string{"tenant": "GoodHR", "reference": reference, "question": "会封号吗", "reason": "需要人工处理"}, "人工接待提醒", "旧模板正文", "打开工作台", 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		start := strings.Index(mail.Body, "https://goodchat.example/workspace?")
+		if start < 0 {
+			t.Fatal("缺少固定站内入口")
+		}
+		link, err := url.Parse(strings.Split(mail.Body[start:], "\n")[0])
+		if err != nil || link.Host != "goodchat.example" || link.Path != "/workspace" {
+			t.Fatal("邮件目标异常", err)
+		}
+		q := link.Query()
+		want := ""
+		if reference == conversation || reference == strings.ToUpper(conversation) {
+			want = conversation
+		}
+		if q.Get("conversation") != want || q.Get("tenant") != "" || q.Get("tenant_id") != "" || q.Get("lang") != "zh-CN" || q.Get("timezone") != "Asia/Shanghai" {
+			t.Fatal("会话定位或偏好参数错误", link)
+		}
+		if !strings.Contains(mail.Body, "会封号吗") || !strings.Contains(mail.Body, "需要人工处理") {
+			t.Fatal("旧模板的问题详情丢失")
+		}
 	}
 }

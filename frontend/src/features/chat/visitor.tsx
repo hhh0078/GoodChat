@@ -10,6 +10,7 @@ import {
   forgetVisitorSessionCache,
   mergeVisitorParameters,
   readVisitorSessionCache,
+  recoverVisitorSessionCache,
   safeVisitorParameters,
   withVisitorIdentityLock,
   writeVisitorSessionCache,
@@ -151,7 +152,7 @@ export function VisitorChat({ entryKey }: { entryKey: string }) {
         let token: string | null = null;
         try {
           const legacy = localStorage.getItem(`goodchat.visitor.${data.service_space_id}`);
-          const cached = readVisitorSessionCache(localStorage, data.service_space_id, entryKey);
+          const cached = recoverVisitorSessionCache(localStorage, data.service_space_id, entryKey);
           remembered.current = cached;
           token = cached?.visitor_token || legacy || null;
           const profile = remembered.current?.contact;

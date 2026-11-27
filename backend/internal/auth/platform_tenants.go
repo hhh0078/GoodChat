@@ -85,6 +85,10 @@ func (s *Service) platformCreateTenant(w http.ResponseWriter, r *http.Request) e
 	var tenantID, invitationID, deliveryID, token string
 	replayed := false
 	err := pgx.BeginTxFunc(r.Context(), s.pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		// 先锁目标邮箱，避免自用开通与邀请接受时反向等待账号锁。
+		if err := lockIdentity(r.Context(), tx, input.AdminEmail); err != nil {
+			return err
+		}
 		if err := lockPlatformActor(r.Context(), tx, p.UserID); err != nil {
 			return err
 		}
@@ -104,6 +108,9 @@ func (s *Service) platformCreateTenant(w http.ResponseWriter, r *http.Request) e
 			return nil
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if err := ensureSingleWorkspace(r.Context(), tx, input.AdminEmail, ""); err != nil {
 			return err
 		}
 		if !selfOwned {
@@ -187,6 +194,13 @@ func (s *Service) joinOwnPlatformTenant(ctx context.Context, tx pgx.Tx, userID, 
 	}
 	if hasOwner {
 		return platform.Fail(409, "already_member", "已经加入租户，请直接登录")
+	}
+	var email string
+	if err := tx.QueryRow(ctx, "SELECT email FROM users WHERE id=$1", userID).Scan(&email); err != nil {
+		return err
+	}
+	if err := ensureSingleWorkspace(ctx, tx, email, tenantID); err != nil {
+		return err
 	}
 	if err := s.seats(ctx, tx, tenantID, "", invitationID, 1); err != nil {
 		return err

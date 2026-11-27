@@ -17,6 +17,15 @@ const aiBotGroupScopeSQL = `EXISTS(SELECT 1 FROM routing_pools p JOIN agent_grou
  AND NOT p.archived AND NOT g.archived AND gm.membership_id=b.owner_membership_id
  AND (p.members_mode='group' OR EXISTS(SELECT 1 FROM routing_pool_members pm WHERE pm.routing_pool_id=p.id AND pm.tenant_id=p.tenant_id AND pm.membership_id=b.owner_membership_id)))`
 
+// memberEntryAIBotID 为人工接待选择本人入口配置或稳定默认助手，创建和提交任务使用同一规则。
+func memberEntryAIBotID(ctx context.Context, tx pgx.Tx, member, entry string) (string, error) {
+	var selected string
+	if err := tx.QueryRow(ctx, `SELECT coalesce((SELECT l.ai_bot_id::text FROM access_links l JOIN ai_bots b ON b.id=l.ai_bot_id WHERE l.id=$1 AND b.owner_membership_id=$2),'')`, entry, member).Scan(&selected); err != nil {
+		return "", err
+	}
+	return memberAIBotID(ctx, tx, member, selected)
+}
+
 // enqueueAIReply 仅在没有命中关键词规则时为真实访客新消息创建一次可靠任务。
 func (s *Service) enqueueAIReply(ctx context.Context, tx pgx.Tx, tenant, conversation, message, locale string) error {
 	var agent, assignment, entry string
@@ -31,7 +40,8 @@ func (s *Service) enqueueAIReply(ctx context.Context, tx pgx.Tx, tenant, convers
 	}
 	var id string
 	if agent != "" && status == "active" {
-		e := tx.QueryRow(ctx, "SELECT id::text FROM ai_bots WHERE owner_membership_id=$1 AND mode IN('assistant','auto')", agent).Scan(&id)
+		var e error
+		id, e = memberEntryAIBotID(ctx, tx, agent, entry)
 		if e == pgx.ErrNoRows {
 			return nil
 		}
@@ -54,8 +64,11 @@ func (s *Service) enqueueAIReply(ctx context.Context, tx pgx.Tx, tenant, convers
 	if e != nil {
 		return e
 	}
+	if b.Mode != "assistant" && b.Mode != "auto" {
+		return nil
+	}
 	if agent == "" {
-		if e := tx.QueryRow(ctx, "SELECT name,avatar_ref FROM ai_service_agents WHERE enabled").Scan(&b.Name, &b.AvatarRef); e != nil && e != pgx.ErrNoRows {
+		if e := tx.QueryRow(ctx, `SELECT name,avatar_ref FROM ai_service_agents WHERE enabled AND NOT EXISTS(SELECT 1 FROM access_links WHERE id=$1 AND ai_bot_id IS NOT NULL)`, entry).Scan(&b.Name, &b.AvatarRef); e != nil && e != pgx.ErrNoRows {
 			return e
 		}
 	}
@@ -70,14 +83,14 @@ func (s *Service) enqueueAIReply(ctx context.Context, tx pgx.Tx, tenant, convers
 
 // aiReplyValid 重新检查控制权、最新访客消息和机器人版本，最终提交时锁定会话行。
 func (s *Service) aiReplyValid(ctx context.Context, tx pgx.Tx, j *aiJobData, lock bool) error {
-	query := "SELECT status,coalesce(current_agent_id::text,''),coalesce(current_assignment_id::text,''),ai_epoch,ai_paused,contact_id::text FROM conversations WHERE id=$1"
+	query := "SELECT status,coalesce(current_agent_id::text,''),coalesce(current_assignment_id::text,''),ai_epoch,ai_paused,contact_id::text,created_entry_id::text FROM conversations WHERE id=$1"
 	if lock {
 		query += " FOR UPDATE"
 	}
-	var status, agent, assignment, contact string
+	var status, agent, assignment, contact, entry string
 	var epoch int64
 	var paused bool
-	if e := tx.QueryRow(ctx, query, j.Conversation).Scan(&status, &agent, &assignment, &epoch, &paused, &contact); e != nil {
+	if e := tx.QueryRow(ctx, query, j.Conversation).Scan(&status, &agent, &assignment, &epoch, &paused, &contact, &entry); e != nil {
 		return e
 	}
 	if status == "closed" || paused || epoch != j.Snapshot.Epoch || agent != j.Snapshot.Agent || assignment != j.Snapshot.Assignment {
@@ -104,14 +117,17 @@ func (s *Service) aiReplyValid(ctx context.Context, tx pgx.Tx, j *aiJobData, loc
 	if !valid {
 		return errors.New("ai_stale")
 	}
+	var current string
 	if agent == "" {
-		current, e := aiReceptionBot(ctx, tx, j.Conversation, false)
-		if e != nil {
-			return e
-		}
-		if current != j.BotID {
-			return errors.New("ai_stale")
-		}
+		current, e = aiReceptionBot(ctx, tx, j.Conversation, false)
+	} else {
+		current, e = memberEntryAIBotID(ctx, tx, agent, entry)
+	}
+	if e == pgx.ErrNoRows || e == nil && current != j.BotID {
+		return errors.New("ai_stale")
+	}
+	if e != nil {
+		return e
 	}
 
 	return nil

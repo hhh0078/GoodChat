@@ -4182,5 +4182,12 @@
   "m6466946b": "Der Besucher ist offline",
   "md17c4bee": "Wartet auf automatische Zuweisung",
   "mb0268d23": "Der Besucher ist offline. Sie können die Unterhaltung übernehmen und Nachrichten senden, die er bei seiner Rückkehr sieht.",
-  "m6bb0265c": "Übernehmen und antworten"
+  "m6bb0265c": "Übernehmen und antworten",
+  "mf7f59e1c": "Ungültige Bot-ID",
+  "m4e859d56": "Der Bot existiert nicht oder gehört nicht zum aktuellen Mitglied",
+  "m7dd7b78c": "Bot-Konfiguration",
+  "mc3736d1a": "KI-Bot-Konfiguration",
+  "m02aaecd0": "Dieser Zugang verwendet die Rolle, das Wissen und das Budget des ausgewählten Bots unabhängig; lassen Sie das Feld leer, um die Standardkonfiguration zu verwenden.",
+  "m7c9e83f3": "Dieses Konto hat bereits einen Arbeitsbereich. Verwenden Sie den vorhandenen Arbeitsbereich und unterscheiden Sie die Dienste über Zugangslinks.",
+  "m81efc756": "Zugangslinks können nur den Standard-Servicebereich verwenden"
 }

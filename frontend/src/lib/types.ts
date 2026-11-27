@@ -33,6 +33,7 @@ export type AccessLink = Resource & {
   status: string;
   agent_mode: string;
   ai_agent_id?: string | null;
+  ai_bot_id?: string | null;
   reception_mode?: "inherit" | "auto" | "manual";
   channel_code?: string;
   channel_tags?: string[];

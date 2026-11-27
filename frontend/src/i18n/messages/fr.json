@@ -4182,5 +4182,12 @@
   "m6466946b": "Le visiteur est hors ligne",
   "md17c4bee": "En attente d’attribution automatique",
   "mb0268d23": "Le visiteur est hors ligne. Vous pouvez prendre la conversation et envoyer des messages qu’il verra à son retour.",
-  "m6bb0265c": "Prendre en charge et répondre"
+  "m6bb0265c": "Prendre en charge et répondre",
+  "mf7f59e1c": "L’identifiant du bot est incorrect",
+  "m4e859d56": "Le bot n’existe pas ou n’appartient pas au membre actuel",
+  "m7dd7b78c": "Configuration du bot",
+  "mc3736d1a": "Configuration du bot IA",
+  "m02aaecd0": "Ce point d’entrée utilise indépendamment le rôle, les connaissances et le budget du bot sélectionné ; laissez ce champ vide pour utiliser la configuration par défaut.",
+  "m7c9e83f3": "Ce compte dispose déjà d’un espace de travail. Utilisez l’espace existant et différenciez les activités à l’aide de liens d’accès.",
+  "m81efc756": "Les liens d’accès peuvent uniquement utiliser l’espace de service par défaut"
 }

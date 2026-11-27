@@ -43,7 +43,7 @@ func platformData(t *testing.T, response *httptest.ResponseRecorder) platformTen
 	return envelope.Data
 }
 
-// TestPlatformSelfOwnedTenant 无须发送自我邀请邮件，开通者立即成为所有者且拥有接待权限，重试不重复创建成员。
+// TestPlatformSelfOwnedTenant 已有工作台不能再次代开自用租户；停用旧身份后可首次开通且幂等重放不重复创建。
 func TestPlatformSelfOwnedTenant(t *testing.T) {
 	f := identityIntegration(t)
 	user, session := f.register(t, "platform-self@example.com")
@@ -51,6 +51,18 @@ func TestPlatformSelfOwnedTenant(t *testing.T) {
 		t.Fatal(err)
 	}
 	input := map[string]any{"name": "官方客服", "admin_email": "platform-self@example.com", "can_serve": true}
+	blocked := f.platformCall("/api/v1/platform/tenants", "own-team", input, session)
+	requireStatus(t, blocked, 409)
+	if !strings.Contains(blocked.Body.String(), "workspace_exists") {
+		t.Fatal("已有工作台需要明确阻止再次开通")
+	}
+	var tenants int
+	if err := f.pool.QueryRow(context.Background(), "SELECT count(*) FROM tenants").Scan(&tenants); err != nil || tenants != 1 {
+		t.Fatal("被拒绝的自用开通不能遗留额外租户")
+	}
+	if _, err := f.pool.Exec(context.Background(), "UPDATE tenant_memberships SET disabled=true WHERE user_id=$1", user.User.ID); err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < 2; i++ {
 		response := f.platformCall("/api/v1/platform/tenants", "own-team", input, session)
 		if i == 0 {

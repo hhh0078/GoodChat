@@ -105,9 +105,9 @@ func (s *Service) updateMember(w http.ResponseWriter, r *http.Request) error {
 		if _, err := lockTenantAdmin(r.Context(), tx, principal); err != nil {
 			return err
 		}
-		var userID, role string
+		var userID, role, email string
 		var disabled, canServe bool
-		err := tx.QueryRow(r.Context(), "SELECT user_id::text,role,disabled,can_serve FROM tenant_memberships WHERE id=$1 AND tenant_id=$2 AND removed_at IS NULL FOR UPDATE", r.PathValue("id"), principal.TenantID).Scan(&userID, &role, &disabled, &canServe)
+		err := tx.QueryRow(r.Context(), "SELECT user_id::text,role,disabled,can_serve,(SELECT email FROM users WHERE id=tenant_memberships.user_id) FROM tenant_memberships WHERE id=$1 AND tenant_id=$2 AND removed_at IS NULL FOR UPDATE", r.PathValue("id"), principal.TenantID).Scan(&userID, &role, &disabled, &canServe, &email)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return platform.Fail(404, "member_not_found", "成员不存在")
 		}
@@ -129,6 +129,11 @@ func (s *Service) updateMember(w http.ResponseWriter, r *http.Request) error {
 		}
 		if input.CanServe != nil {
 			newCanServe = *input.CanServe
+		}
+		if disabled && !newDisabled {
+			if err := ensureSingleWorkspace(r.Context(), tx, email, principal.TenantID); err != nil {
+				return err
+			}
 		}
 		if newCanServe && !newDisabled && (!canServe || disabled) {
 			if err := s.seats(r.Context(), tx, principal.TenantID, r.PathValue("id"), "", 1); err != nil {

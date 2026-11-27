@@ -11,10 +11,12 @@ export function useConversationInbox({
   tenantId,
   actorId,
   enabled,
+  linkedConversationId = "",
 }: {
   tenantId: string;
   actorId: string;
   enabled: boolean;
+  linkedConversationId?: string;
 }) {
   const [selected, setSelected] = useState("");
   const [status, setStatus] = useState("");
@@ -59,11 +61,11 @@ export function useConversationInbox({
   useEffect(() => {
     setCustomPeriod(false);
     setSelection(null);
-    setSelected("");
+    setSelected(enabled ? linkedConversationId : "");
     setSelectionError(null);
-  }, [selectionScope]);
+  }, [selectionScope, linkedConversationId, enabled]);
   useEffect(() => {
-    if (!selected || conversations.loading) return;
+    if (!selected || !enabled || conversations.loading) return;
     if (
       conversations.error instanceof ApiError &&
       [401, 403, 404].includes(conversations.error.status)
@@ -104,6 +106,7 @@ export function useConversationInbox({
     conversations.items,
     conversations.loading,
     conversations.error,
+    enabled,
   ]);
   useEffect(() => {
     const end = listEnd.current,

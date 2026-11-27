@@ -38,6 +38,9 @@ export function AIBotSettingsPage() {
   const knowledge = useResource<AIContent>("/tenant/ai/knowledge");
   const scripts = useResource<AIContent>("/tenant/ai/scripts");
   const models = useResource<AIModel>("/tenant/ai/models");
+  const bots = useResource<AIBot>("/tenant/ai/bots");
+  const [selection, setSelection] = useState<{ tenantId: string; id: string } | null>(null);
+  const selectedBot = selection?.tenantId === tenantId ? selection.id : "";
   const [bot, setBot] = useState<AIBot | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
@@ -50,7 +53,11 @@ export function AIBotSettingsPage() {
   useEffect(() => {
     const controller = new AbortController();
     setError(null);
-    api<AIBot>("/me/ai/bot", { tenantId, signal: controller.signal })
+    setBot(null);
+    api<AIBot>(`/me/ai/bot${selectedBot ? `?bot_id=${encodeURIComponent(selectedBot)}` : ""}`, {
+      tenantId,
+      signal: controller.signal,
+    })
       .then((value) => {
         if (!controller.signal.aborted) {
           setBot(value);
@@ -68,7 +75,7 @@ export function AIBotSettingsPage() {
         if (!controller.signal.aborted) setError(e);
       });
     return () => controller.abort();
-  }, [tenantId, locale, revision, form]);
+  }, [tenantId, locale, revision, form, selectedBot]);
   useEffect(() => {
     if (!jobID) return;
     const controller = new AbortController();
@@ -103,6 +110,7 @@ export function AIBotSettingsPage() {
         tenantId,
         bodyJSON: {
           ...values,
+          id: bot?.id,
           version: bot?.version || 0,
           settings: {
             ...values.settings,
@@ -111,6 +119,7 @@ export function AIBotSettingsPage() {
         },
       });
       setBot(next);
+      bots.reload();
       message.success(tr("已保存"));
     } catch (e) {
       if (!(e && typeof e === "object" && "errorFields" in e)) showRequestError(e);
@@ -127,7 +136,7 @@ export function AIBotSettingsPage() {
       const result = await api<{ id: string }>("/me/ai/test", {
         method: "POST",
         tenantId,
-        bodyJSON: { text: question },
+        bodyJSON: { text: question, bot_id: bot?.id },
       });
       setJobID(result.id);
     } catch (e) {
@@ -155,13 +164,33 @@ export function AIBotSettingsPage() {
   return (
     <div className="ai-bot-grid">
       <Card title={tr("我的机器人")}>
+        {bots.items.filter((item) => item.owner_membership_id === member?.id).length > 1 && (
+          <Form layout="vertical">
+            <Form.Item label={tr("机器人配置")}>
+              <Select
+                aria-label={tr("机器人配置")}
+                value={bot.id}
+                disabled={busy}
+                options={bots.items
+                  .filter((item) => item.owner_membership_id === member?.id)
+                  .map((item) => ({ value: item.id, label: item.name }))}
+                onChange={(id) => {
+                  setJobID("");
+                  setJob(null);
+                  setSelection({ tenantId, id });
+                }}
+              />
+            </Form.Item>
+          </Form>
+        )}
         <ErrorNotice error={error} retry={() => setRevision((v) => v + 1)} />
         <ErrorNotice
-          error={knowledge.error || scripts.error || models.error}
+          error={knowledge.error || scripts.error || models.error || bots.error}
           retry={() => {
             knowledge.reload();
             scripts.reload();
             models.reload();
+            bots.reload();
           }}
         />
         <Form form={form} layout="vertical" disabled={busy}>

@@ -49,7 +49,7 @@ type AgentStatus = {
   capacity: number;
 };
 /** AgentWorkspace 以真实身份接待访客，当前分配权限始终交由后端核验。 */
-export function AgentWorkspace() {
+export function AgentWorkspace({ linkedConversationId = "" }: { linkedConversationId?: string }) {
   const { currentPreferences, numberFormatter } = useFormats();
 
   const tr = useTranslator();
@@ -72,6 +72,7 @@ export function AgentWorkspace() {
     tenantId,
     actorId: membership?.id || "",
     enabled: !!membership?.can_serve,
+    linkedConversationId,
   });
   const { active, selected, status, period, select: setSelected } = conversations;
   const colleagues = useResource<Resource>(
@@ -80,7 +81,6 @@ export function AgentWorkspace() {
   const transfer = active?.pending_transfer;
   const receiving = isTransferRecipient(transfer, membership?.id || "");
   useEffect(() => {
-    setSelected("");
     if (!membership?.can_serve) return;
     api<AgentStatus>("/agent/status", { tenantId }).then(setRuntime).catch(setError);
   }, [tenantId, membership?.can_serve]);

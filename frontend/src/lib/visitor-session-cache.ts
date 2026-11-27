@@ -1,7 +1,8 @@
 /** 文件作用说明：按服务空间与入口持久缓存访客恢复资料，缓存编号只作提示，访问权限仍由服务端凭证验证。 */
 import { translate as tr } from "../i18n/runtime.ts";
 import type { VisitorParameters } from "./visitor-params";
-type CacheStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+type CacheStorage = Pick<Storage, "getItem" | "setItem" | "removeItem"> &
+  Partial<Pick<Storage, "key" | "length">>;
 export type VisitorSessionCache = {
   version: 1;
   service_space_id: string;
@@ -23,6 +24,24 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** visitorCacheKey 让不同入口与服务空间各自保存参数，不把一个入口的指定客服带到其他入口。 */
 export function visitorCacheKey(space: string, entry: string) {
   return `goodchat.visitor-session.v1.${encodeURIComponent(space)}.${encodeURIComponent(entry)}`;
+}
+/** entryCacheSpaces 仅枚举当前同源存储中相同入口的空间候选，最终仍需校验缓存正文的入口与空间。 */
+function entryCacheSpaces(storage: CacheStorage, entry: string): string[] {
+  if (typeof storage.key !== "function" || !Number.isSafeInteger(storage.length)) return [];
+  const prefix = "goodchat.visitor-session.v1.",
+    suffix = `.${encodeURIComponent(entry)}`;
+  const spaces: string[] = [];
+  for (let index = 0; index < (storage.length || 0); index++) {
+    const key = storage.key(index);
+    if (!key?.startsWith(prefix) || !key.endsWith(suffix)) continue;
+    try {
+      const space = decodeURIComponent(key.slice(prefix.length, -suffix.length));
+      if (space && visitorCacheKey(space, entry) === key) spaces.push(space);
+    } catch {
+      /* 损坏的键不提供身份恢复资料。 */
+    }
+  }
+  return spaces;
 }
 /** objectValue 拒绝损坏缓存中的数组和非对象，返回可安全展开的键值数据。 */
 function objectValue(value: unknown): Record<string, unknown> {
@@ -118,11 +137,38 @@ export function readVisitorSessionCache(
     return null;
   }
 }
+/** recoverVisitorSessionCache 在同入口换默认空间后恢复旧凭证提示，服务端必须再次验证凭证及原会话权限。 */
+export function recoverVisitorSessionCache(
+  storage: CacheStorage,
+  space: string,
+  entry: string,
+): VisitorSessionCache | null {
+  const current = readVisitorSessionCache(storage, space, entry);
+  if (current?.visitor_token) return current;
+  let newest: VisitorSessionCache | null = null;
+  for (const previousSpace of entryCacheSpaces(storage, entry)) {
+    if (previousSpace === space) continue;
+    const previous = readVisitorSessionCache(storage, previousSpace, entry);
+    if (
+      previous?.visitor_token &&
+      (!newest || (Date.parse(previous.updated_at) || 0) > (Date.parse(newest.updated_at) || 0))
+    )
+      newest = previous;
+  }
+  return newest ? { ...newest, service_space_id: space } : current;
+}
+/** removeOtherEntryCaches 在当前键已保存或凭证失效后清理同入口旧键，绝不删除其他入口的凭证。 */
+function removeOtherEntryCaches(storage: CacheStorage, space: string, entry: string) {
+  for (const previousSpace of entryCacheSpaces(storage, entry))
+    if (previousSpace !== space && readVisitorSessionCache(storage, previousSpace, entry))
+      storage.removeItem(visitorCacheKey(previousSpace, entry));
+}
 /** writeVisitorSessionCache 有界保存资料与待确认访问编号，不因缓存失败丢弃已成功建立的页面会话。 */
 export function writeVisitorSessionCache(storage: CacheStorage, value: VisitorSessionCache) {
   const raw = JSON.stringify({ ...value, parameters: safeVisitorParameters(value.parameters) });
   if (raw.length > 262144) throw new Error(tr("访客资料超过本地缓存限制"));
   storage.setItem(visitorCacheKey(value.service_space_id, value.entry_key), raw);
+  removeOtherEntryCaches(storage, value.service_space_id, value.entry_key);
 }
 /** mergeVisitorParameters 当前链接显式参数覆盖同入口缓存，保留未重新提供的业务值与零和false。 */
 export function mergeVisitorParameters(
@@ -142,6 +188,7 @@ export function mergeVisitorParameters(
 /** forgetVisitorSessionCache 只删除本入口的恢复资料，不能拿过期身份继续打开旧会话。 */
 export function forgetVisitorSessionCache(storage: CacheStorage, space: string, entry: string) {
   storage.removeItem(visitorCacheKey(space, entry));
+  removeOtherEntryCaches(storage, space, entry);
 }
 /** withVisitorIdentityLock 在浏览器支持时串行首次身份初始化，跨标签共享空间凭证，异常会自动释放锁。 */
 export async function withVisitorIdentityLock<T>(

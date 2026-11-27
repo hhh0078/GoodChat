@@ -4182,5 +4182,12 @@
   "m6466946b": "El visitante está desconectado",
   "md17c4bee": "Esperando asignación automática",
   "mb0268d23": "El visitante está desconectado. Puedes atender y enviar mensajes que verá cuando vuelva.",
-  "m6bb0265c": "Atender y responder"
+  "m6bb0265c": "Atender y responder",
+  "mf7f59e1c": "El ID del bot no es válido",
+  "m4e859d56": "El bot no existe o no pertenece al miembro actual",
+  "m7dd7b78c": "Configuración del bot",
+  "mc3736d1a": "Configuración del bot de IA",
+  "m02aaecd0": "Esta entrada utiliza de forma independiente el rol, los conocimientos y el presupuesto del bot seleccionado; déjala en blanco para usar la configuración predeterminada.",
+  "m7c9e83f3": "Esta cuenta ya tiene un espacio de trabajo. Utiliza el espacio existente y distingue los servicios mediante enlaces de acceso.",
+  "m81efc756": "Los enlaces de acceso solo pueden usar el espacio de servicio predeterminado"
 }

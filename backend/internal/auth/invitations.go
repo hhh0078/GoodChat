@@ -121,6 +121,9 @@ func (s *Service) issueInvitation(w http.ResponseWriter, r *http.Request, input 
 		if exists {
 			return platform.Fail(409, "already_member", "此邮箱已是租户成员，请直接管理现有成员")
 		}
+		if err := ensureSingleWorkspace(r.Context(), tx, email, principal.TenantID); err != nil {
+			return err
+		}
 		var previous time.Time
 		err := tx.QueryRow(r.Context(), "SELECT created_at FROM member_invitations WHERE tenant_id=$1 AND email=$2 ORDER BY created_at DESC LIMIT 1", principal.TenantID, email).Scan(&previous)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -354,6 +357,9 @@ func (s *Service) acceptInvitation(w http.ResponseWriter, r *http.Request) error
 				return err
 			}
 		} else if err != nil {
+			return err
+		}
+		if err := ensureSingleWorkspace(r.Context(), tx, email, tenantID); err != nil {
 			return err
 		}
 		var memberID string

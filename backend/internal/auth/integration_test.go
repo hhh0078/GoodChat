@@ -465,13 +465,21 @@ func TestInvitationsAndTenantPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 	created = f.call("POST", "/api/v1/tenant/invitations", map[string]any{"email": "existing@example.com", "role": "admin", "can_serve": false}, ownerCookie, tenantID)
+	requireStatus(t, created, 409)
+	if !strings.Contains(created.Body.String(), "workspace_exists") {
+		t.Fatal("已有其他工作台的账号不应收到跨租户邀请")
+	}
+	if _, err := f.pool.Exec(ctx, "UPDATE tenant_memberships SET disabled=true WHERE user_id=$1", existing.User.ID); err != nil {
+		t.Fatal(err)
+	}
+	created = f.call("POST", "/api/v1/tenant/invitations", map[string]any{"email": "existing@example.com", "role": "admin", "can_serve": false}, ownerCookie, tenantID)
 	requireStatus(t, created, 201)
 	existingToken := f.invitationToken(t)
 	response := f.call("POST", "/api/v1/auth/accept-invitation", map[string]string{"token": existingToken, "password": "not-to-overwrite"}, existingCookie, "")
 	requireStatus(t, response, 200)
 	joined := accountData(t, response)
-	if len(joined.Memberships) != 2 || joined.ActiveTenantID != tenantID {
-		t.Fatal("已有账号多租户关系丢失")
+	if len(joined.Memberships) != 1 || joined.ActiveTenantID != tenantID {
+		t.Fatal("已有账号只能有一个有效工作台，停用身份仍保留历史")
 	}
 	var newHash string
 	if err := f.pool.QueryRow(ctx, "SELECT password_hash FROM users WHERE id=$1", existing.User.ID).Scan(&newHash); err != nil || newHash != oldHash {

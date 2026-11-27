@@ -4182,5 +4182,12 @@
   "m6466946b": "O visitante está offline",
   "md17c4bee": "Aguardando atribuição automática",
   "mb0268d23": "O visitante está offline. Você pode atender e enviar mensagens que ele verá ao retornar.",
-  "m6bb0265c": "Atender e responder"
+  "m6bb0265c": "Atender e responder",
+  "mf7f59e1c": "O ID do bot é inválido",
+  "m4e859d56": "O bot não existe ou não pertence ao membro atual",
+  "m7dd7b78c": "Configuração do bot",
+  "mc3736d1a": "Configuração do bot de IA",
+  "m02aaecd0": "Esta entrada usa de forma independente a função, o conhecimento e o orçamento do bot selecionado; deixe em branco para usar a configuração padrão.",
+  "m7c9e83f3": "Esta conta já tem um espaço de trabalho. Use o espaço existente e diferencie os serviços com links de acesso.",
+  "m81efc756": "Os links de acesso só podem usar o espaço de serviço padrão"
 }

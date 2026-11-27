@@ -55,6 +55,7 @@ var Definitions = []Definition{
 	{"test", "GoodChat 邮件发送测试", "这是一封由平台管理员主动发送的测试邮件。语言：{name}；时区：{reference}。", "打开GoodChat", "/console", true},
 }
 var variable = regexp.MustCompile(`\{([a-z_]+)\}`)
+var conversationReference = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 var allowed = map[string]bool{"tenant": true, "name": true, "code": true, "expires_at": true, "amount": true, "balance": true, "reference": true, "sessions": true, "tokens": true, "occurred_at": true, "question": true, "reason": true}
 
 // Find 仅返回已注册场景，拒绝任意发信模板代码。
@@ -128,6 +129,10 @@ func Render(origin, locale, zone string, d Definition, params map[string]string,
 	q.Set("timezone", zone)
 	if d.Kind == "knowledge_gap" {
 		q.Set("tab", "pending")
+	}
+	// 会话编号只负责定位，读取仍由登录账号的唯一租户及会话权限校验。
+	if d.Kind == "handoff_waiting" && conversationReference.MatchString(params["reference"]) {
+		q.Set("conversation", strings.ToLower(params["reference"]))
 	}
 	if d.Path == "/platform" {
 		q.Set("tab", "customer-ai")

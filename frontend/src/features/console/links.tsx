@@ -3,6 +3,7 @@
 import { showRequestError } from "@/lib/request-error";
 import { LoadMore } from "@/components/load-more";
 import { useAIEmployee } from "./ai-member";
+import type { AIBot } from "@/features/ai/types";
 import { EmptyData, ErrorNotice, PageTitle } from "@/components/page-state";
 import { localizeStatic } from "@/i18n/runtime";
 import { useTranslator } from "@/i18n/use-translator";
@@ -90,6 +91,7 @@ export function LinksPage() {
   const currentStatistics = statistics?.tenantId === links.tenantId ? statistics.data : null;
   const metrics = new Map(currentStatistics?.items.map((item) => [item.id, item]) || []);
   const { agent: aiEmployee } = useAIEmployee();
+  const aiBots = useResource<AIBot>("/tenant/ai/bots");
   const groups = useResource<Resource>("/tenant/groups");
   const pools = useResource<Resource>("/tenant/routing-pools");
   const skills = useResource<Resource>("/tenant/routing-skills");
@@ -151,6 +153,7 @@ export function LinksPage() {
         bodyJSON: {
           ...values,
           ai_agent_id: values.ai_agent_id || null,
+          ai_bot_id: values.ai_bot_id || null,
           agent_id: values.agent_id || null,
           ...linkTemplateBinding(values),
           agent_mode: "strict",
@@ -414,6 +417,21 @@ export function LinksPage() {
                     ]
                   : []
               }
+            />
+          </Form.Item>
+          <ErrorNotice error={aiBots.error} retry={aiBots.reload} />
+          <Form.Item
+            name="ai_bot_id"
+            label={tr("AI机器人配置")}
+            extra={tr("此入口独立使用所选机器人的角色、知识与预算；留空沿用默认配置。")}
+          >
+            <Select
+              allowClear
+              options={aiBots.items.map((item) => ({
+                label: item.name,
+                value: item.id,
+                disabled: item.mode !== "auto" || !aiEmployee?.enabled,
+              }))}
             />
           </Form.Item>
           <Form.Item name="agent_id" label={tr("优先指定客服")}>

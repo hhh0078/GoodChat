@@ -118,11 +118,15 @@ func TestContactFieldSearchAndScopedContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	status, reply = f.request("POST", "/api/v1/tenant/access-links", f.owner, "", map[string]any{"name": "其他范围入口", "service_space_id": space, "service_group_id": group, "routing_pool_id": f.poolID, "reception_mode": "manual"})
-	if status != 201 {
-		t.Fatalf("测试入口创建失败：%d", status)
+	if status != 400 || reply["code"] != "single_service_space" {
+		t.Fatalf("新入口不应再接受额外服务空间：%d", status)
 	}
-	link := reply["data"].(map[string]any)
-	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": link["entry_key"], "visitor_token": token, "visit_id": newID(), "context": map[string]any{"秘密": "其他范围不可见业务"}})
+	// 仅在未升级的隔离结构中构造历史入口，继续覆盖旧数据的授权边界；现行API和051迁移均禁止创建该结构。
+	legacyEntry := strings.ReplaceAll(newID(), "-", "")
+	if _, err := f.admin.Exec(t.Context(), `INSERT INTO access_links(tenant_id,service_space_id,service_group_id,routing_pool_id,entry_key,name,page_id,pinned_release_id,binding_mode,reception_mode) SELECT tenant_id,$1,service_group_id,routing_pool_id,$2,'旧版其他范围入口',page_id,pinned_release_id,binding_mode,'manual' FROM access_links WHERE entry_key=$3`, space, legacyEntry, f.entry); err != nil {
+		t.Fatal(err)
+	}
+	status, reply = f.request("POST", "/api/v1/visitor/session", "", "", map[string]any{"entry_key": legacyEntry, "visitor_token": token, "visit_id": newID(), "context": map[string]any{"秘密": "其他范围不可见业务"}})
 	mustData(t, status, reply)
 	// 同客户还有当前合法接待，列表仍可展示客户，但不得取其他范围最新会话内容。
 	status, reply = f.request("GET", "/api/v1/tenant/contacts?search_field=phone&query=13876543210", f.agent, "", nil)
