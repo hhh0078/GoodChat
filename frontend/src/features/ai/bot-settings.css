@@ -1,5 +1,5 @@
 /* 文件作用说明：限定机器人卡片标题栏的名称切换、数量与新增操作布局，适配窄屏换行。 */
-.ai-bot-settings-card > .ant-card-head {
+.ai-console .ai-bot-settings-card > .ant-card-head {
   padding-top: 14px;
   padding-bottom: 14px;
 }
